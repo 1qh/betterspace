@@ -1,1 +1,3 @@
-export { expect, test } from '@playwright/test'
+import { expect, test } from '@playwright/test'
+
+export { expect, test }

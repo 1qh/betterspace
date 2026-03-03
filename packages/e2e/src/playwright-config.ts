@@ -7,7 +7,6 @@ interface PlaywrightOptions {
 
 const createPlaywrightConfig = ({ port, webServerUrl }: PlaywrightOptions) => {
   const baseURL = `http://localhost:${port}`,
-    // eslint-disable-next-line no-restricted-properties
     isCI = Boolean(process.env.CI)
 
   return defineConfig({
@@ -34,8 +33,8 @@ const createPlaywrightConfig = ({ port, webServerUrl }: PlaywrightOptions) => {
     timeout: 30_000,
     use: { baseURL },
     webServer: {
-      command: `dotenv -e ../../.env -- env PLAYWRIGHT=1 CONVEX_TEST_MODE=true next dev --turbo --port ${port}`,
-      env: { CONVEX_TEST_MODE: 'true', NEXT_PUBLIC_PLAYWRIGHT: '1', PLAYWRIGHT: '1' },
+      command: `dotenv -e ../../.env -- bun --cwd ../../ spacetime:health && dotenv -e ../../.env -- bun --cwd ../../ spacetime:publish && dotenv -e ../../.env -- env PLAYWRIGHT=1 SPACETIMEDB_TEST_MODE=true NEXT_PUBLIC_PLAYWRIGHT=1 next dev --turbo --port ${port}`,
+      env: { NEXT_PUBLIC_PLAYWRIGHT: '1', PLAYWRIGHT: '1', SPACETIMEDB_TEST_MODE: 'true' },
       reuseExistingServer: !isCI,
       stdout: 'pipe',
       timeout: 120_000,
