@@ -1,35 +1,124 @@
-import type { ZodObject, ZodRawShape, z as _ } from 'zod/v4'
+import type { Identity, Timestamp } from 'spacetimedb'
+import type { ColumnBuilder, ReducerExport, TypeBuilder } from 'spacetimedb/server'
 
-import type { DocBase, OrgEnrichedDoc, OrgRole, Rec, RegisteredMutation, RegisteredQuery } from './common'
-
-type OrgCascadeTableConfig<DM = Record<string, unknown>> =
-  | (keyof DM & string)
-  | { fileFields?: string[]; table: keyof DM & string }
+import type { CrudHooks, HookCtx } from './crud'
 
 interface CanEditOpts {
-  acl: boolean
-  doc: {
-    editors?: string[]
-    userId: string
-  }
-  role: OrgRole
-  userId: string
+  isAdmin: boolean
+  ownerId: Identity
+  userId: Identity
 }
 
-interface OrgCrudResult<S extends ZodRawShape> {
-  addEditor: RegisteredMutation<'public', Rec, DocBase<S> | null>
-  bulkCreate: RegisteredMutation<'public', Rec, (number | string)[]>
-  bulkRm: RegisteredMutation<'public', Rec, number>
-  bulkUpdate: RegisteredMutation<'public', Rec, DocBase<S>[]>
-  create: RegisteredMutation<'public', _.output<ZodObject<S>>, number | string>
-  editors: RegisteredQuery<'public', Rec, { email: string; name: string; userId: string }[]>
-  list: RegisteredQuery<'public', Rec, { continueCursor: string; isDone: boolean; page: OrgEnrichedDoc<S>[] }>
-  read: RegisteredQuery<'public', Rec, OrgEnrichedDoc<S>>
-  removeEditor: RegisteredMutation<'public', Rec, DocBase<S> | null>
-  restore?: RegisteredMutation<'public', Rec, DocBase<S>>
-  rm: RegisteredMutation<'public', Rec, DocBase<S>>
-  setEditors: RegisteredMutation<'public', Rec, DocBase<S> | null>
-  update: RegisteredMutation<'public', Rec, DocBase<S> | null>
+type OrgCascadeTableConfig = string | { fileFields?: string[]; table: string }
+
+type OrgCrudBuilder = ColumnBuilder<unknown, unknown, unknown> | TypeBuilder<unknown, unknown>
+
+interface OrgCrudConfig<
+  DB,
+  F extends OrgCrudFieldBuilders,
+  OrgId,
+  Row extends OrgCrudOwnedRow<OrgId>,
+  Id,
+  Tbl extends OrgCrudTableLike<Row>,
+  Pk extends OrgCrudPkLike<Row, Id>,
+  Member extends OrgCrudMemberLike<OrgId>,
+  OrgMemberTbl extends Iterable<Member>
+> {
+  expectedUpdatedAtField?: TypeBuilder<Timestamp, unknown>
+  fields: F
+  idField: TypeBuilder<Id, unknown>
+  options?: OrgCrudOptions<DB, Row, OrgCrudFieldValues<F> & { orgId: OrgId }, Partial<OrgCrudFieldValues<F>>>
+  orgIdField: TypeBuilder<OrgId, unknown>
+  orgMemberTable: (db: DB) => OrgMemberTbl
+  pk: (table: Tbl) => Pk
+  table: (db: DB) => Tbl
+  tableName: string
 }
 
-export type { CanEditOpts, OrgCascadeTableConfig, OrgCrudResult }
+interface OrgCrudExports {
+  exports: Record<string, ReducerExportLike>
+}
+
+type OrgCrudFieldBuilders = Record<string, OrgCrudBuilder>
+
+type OrgCrudFieldValues<F extends OrgCrudFieldBuilders> = {
+  [K in keyof F]: F[K] extends ColumnBuilder<infer T, unknown, unknown>
+    ? T
+    : F[K] extends TypeBuilder<infer T, unknown>
+      ? T
+      : never
+}
+
+type OrgCrudMakeFn = <
+  DB,
+  F extends OrgCrudFieldBuilders,
+  OrgId,
+  Row extends OrgCrudOwnedRow<OrgId>,
+  Id,
+  Tbl extends OrgCrudTableLike<Row>,
+  Pk extends OrgCrudPkLike<Row, Id>,
+  Member extends OrgCrudMemberLike<OrgId>,
+  OrgMemberTbl extends Iterable<Member>
+>(
+  spacetimedb: {
+    reducer: (
+      opts: { name: string },
+      params: OrgCrudFieldBuilders,
+      fn: (ctx: HookCtx<DB>, args: Record<string, unknown>) => void
+    ) => ReducerExportLike
+  },
+  config: OrgCrudConfig<DB, F, OrgId, Row, Id, Tbl, Pk, Member, OrgMemberTbl>
+) => OrgCrudExports
+
+interface OrgCrudMemberLike<OrgId> {
+  isAdmin: boolean
+  orgId: OrgId
+  userId: Identity
+}
+
+interface OrgCrudOptions<
+  DB = unknown,
+  Row = Record<string, unknown>,
+  CreateArgs = Record<string, unknown>,
+  UpdatePatch = Record<string, unknown>
+> {
+  acl?: boolean
+  hooks?: CrudHooks<DB, Row, CreateArgs, UpdatePatch>
+  softDelete?: boolean
+}
+
+interface OrgCrudOwnedRow<OrgId> {
+  orgId: OrgId
+  updatedAt: Timestamp
+  userId: Identity
+}
+
+interface OrgCrudPkLike<Row, Id> {
+  delete: (id: Id) => boolean
+  find: (id: Id) => null | Row
+  update: (row: Row) => Row
+}
+
+type OrgCrudResult = OrgCrudExports
+
+interface OrgCrudTableLike<Row> {
+  insert: (row: Row) => Row
+}
+
+type ReducerExportLike = ReducerExport<never, never>
+
+export type {
+  CanEditOpts,
+  OrgCascadeTableConfig,
+  OrgCrudConfig,
+  OrgCrudExports,
+  OrgCrudFieldBuilders,
+  OrgCrudFieldValues,
+  OrgCrudMakeFn,
+  OrgCrudMemberLike,
+  OrgCrudOptions,
+  OrgCrudOwnedRow,
+  OrgCrudPkLike,
+  OrgCrudResult,
+  OrgCrudTableLike
+}
