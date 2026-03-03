@@ -12,7 +12,6 @@ import { useEffect, useState } from 'react'
 import { useSpacetimeDB, useTable } from 'spacetimedb/react'
 
 import OrgLayoutClient from './layout-client'
-import OrgRedirect from './org-redirect'
 
 const ORG_PATHS = ['/dashboard', '/members', '/projects', '/wiki', '/settings'],
   needsOrgLayout = (pathname: string) => {
@@ -21,6 +20,13 @@ const ORG_PATHS = ['/dashboard', '/members', '/projects', '/wiki', '/settings'],
   },
   toOrgId = (id: number) => `${id}`,
   sameIdentity = (a: Org['userId'], b: Org['userId']) => a.toHexString() === b.toHexString(),
+  OrgRedirect = ({ orgId, slug, to }: { orgId: string; slug: string; to: string }) => (
+    <script
+      dangerouslySetInnerHTML={{
+        __html: `window.location.href="/api/set-org?orgId=${encodeURIComponent(orgId)}&slug=${encodeURIComponent(slug)}&to=${encodeURIComponent(to)}"`
+      }}
+    />
+  ),
   readActiveOrgId = () => {
     if (typeof document === 'undefined') return null
     const cookies = document.cookie.split('; ')
@@ -97,4 +103,5 @@ const ORG_PATHS = ['/dashboard', '/members', '/projects', '/wiki', '/settings'],
     </AuthLayout>
   )
 
+export { OrgRedirect }
 export default Layout

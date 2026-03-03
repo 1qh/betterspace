@@ -1,7 +1,5 @@
 import { DbConnectionBuilder, DbConnectionImpl } from 'spacetimedb/sdk'
 
-import { isTestMode } from './env'
-
 interface CreateTestContextOptions {
   httpUrl?: string
   moduleName?: string
@@ -49,6 +47,7 @@ const DEFAULT_HTTP_URL = 'http://localhost:3000',
   DEFAULT_WS_URL = 'ws://localhost:3000',
   CONNECT_TIMEOUT_MS = 10_000,
   IDENTIFIER_RE = /^[A-Za-z_][A-Za-z0-9_]*$/u,
+  isTestMode = () => process.env.SPACETIMEDB_TEST_MODE === 'true',
   REMOTE_MODULE = {
     procedures: [],
     reducers: [],

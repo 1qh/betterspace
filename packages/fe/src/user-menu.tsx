@@ -13,13 +13,15 @@ import {
 } from '@a/ui/alert-dialog'
 import { Button } from '@a/ui/button'
 import { Popover, PopoverContent, PopoverTrigger } from '@a/ui/popover'
+import { ToggleGroup, ToggleGroupItem } from '@a/ui/toggle-group'
+import { Monitor, Moon, Sun } from 'lucide-react'
+import { useTheme } from 'next-themes'
 import { cookies } from 'next/headers'
 import Image from 'next/image'
 import Link from 'next/link'
 import { redirect } from 'next/navigation'
 
 import env from './env'
-import ThemeToggle from './theme-toggle'
 
 interface UserInfo {
   email?: string
@@ -27,7 +29,23 @@ interface UserInfo {
   name?: string
 }
 
-const toHttpUri = (uri: string) => {
+const ThemeToggle = () => {
+    const { setTheme, theme } = useTheme()
+    return (
+      <ToggleGroup className='*:p-2' onValueChange={setTheme} type='single' value={theme}>
+        <ToggleGroupItem asChild value='light'>
+          <Sun />
+        </ToggleGroupItem>
+        <ToggleGroupItem asChild value='dark'>
+          <Moon />
+        </ToggleGroupItem>
+        <ToggleGroupItem asChild value='system'>
+          <Monitor />
+        </ToggleGroupItem>
+      </ToggleGroup>
+    )
+  },
+  toHttpUri = (uri: string) => {
     if (uri.startsWith('wss://')) return uri.replace('wss://', 'https://')
     if (uri.startsWith('ws://')) return uri.replace('ws://', 'http://')
     return uri

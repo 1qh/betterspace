@@ -8,8 +8,8 @@ import { useRouter } from 'next/navigation'
 import { useEffect } from 'react'
 import { useSpacetimeDB, useTable } from 'spacetimedb/react'
 
+import { OrgRedirect } from './layout'
 import OrgList from './org-list'
-import OrgRedirect from './org-redirect'
 
 interface MyOrgsItem {
   org: { _id: string; avatarId?: string; name: string; slug: string }

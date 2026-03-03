@@ -1,3 +1,3 @@
-import LoginLayout from '@a/fe/login-layout'
+import { LoginLayout } from '@a/fe/auth-layout'
 
 export default LoginLayout

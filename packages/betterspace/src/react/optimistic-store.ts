@@ -1,7 +1,7 @@
 /* eslint-disable max-statements */
 'use client'
 
-import { createContext, use, useRef, useSyncExternalStore } from 'react'
+import { createContext, createElement, use, useMemo, useRef, useSyncExternalStore } from 'react'
 
 type MutationType = 'create' | 'delete' | 'update'
 
@@ -161,7 +161,18 @@ const makeTempId = () => {
       store ? store.getSnapshot : () => emptyRef.current,
       store ? store.getSnapshot : () => emptyRef.current
     )
+  },
+  OptimisticProvider = ({ children }: { children: React.ReactNode }) => {
+    const store = useMemo(() => createOptimisticStore(), [])
+    return createElement(OptimisticContext, { value: store }, children)
   }
 
 export type { MutationType, OptimisticStore, PendingMutation }
-export { createOptimisticStore, makeTempId, OptimisticContext, useOptimisticStore, usePendingMutations }
+export {
+  createOptimisticStore,
+  makeTempId,
+  OptimisticContext,
+  OptimisticProvider,
+  useOptimisticStore,
+  usePendingMutations
+}

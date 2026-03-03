@@ -21,9 +21,8 @@ export type { DevtoolsProps } from './devtools-panel'
 export type { ErrorToastOptions, ToastFn } from './error-toast'
 export { makeErrorHandler, useErrorToast } from './error-toast'
 export { buildMeta, getMeta, useForm, useFormMutation } from './form'
-export { default as OptimisticProvider } from './optimistic-provider'
 export type { MutationType, PendingMutation } from './optimistic-store'
-export { usePendingMutations } from './optimistic-store'
+export { OptimisticProvider, usePendingMutations } from './optimistic-store'
 export {
   canEditResource,
   createOrgHooks,

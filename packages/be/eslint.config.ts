@@ -7,14 +7,7 @@ import { defineConfig } from 'eslint/config'
 
 export default defineConfig(
   {
-    ignores: [
-      'dist/**',
-      'spacetimedb/src/**',
-      'spacetimedb/__tests__/**',
-      'spacetimedb/test-skeleton.ts',
-      'check-schema.ts',
-      'lazy.ts'
-    ]
+    ignores: ['dist/**', 'spacetimedb/src/**', 'spacetimedb/__tests__/**', 'spacetimedb/test-skeleton.ts', 'lazy.ts']
   },
   baseConfig,
   reactConfig,
