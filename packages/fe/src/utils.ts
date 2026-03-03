@@ -1,5 +1,3 @@
-import type { Id, TableNames } from '@a/be/model'
-
 import { toast } from 'sonner'
 
 const getCode = (error: unknown) => {
@@ -24,7 +22,14 @@ const getCode = (error: unknown) => {
     }
     toast.error(getMessage(error) ?? 'Unknown error')
   },
-  isId = <T extends TableNames>(val: unknown): val is Id<T> => typeof val === 'string' && val.length > 0,
+  parseId = (val: unknown): number | null => {
+    if (typeof val === 'number' && val > 0) return val
+    if (typeof val === 'string') {
+      const n = Number(val)
+      if (Number.isFinite(n) && n > 0) return n
+    }
+    return null
+  },
   formatDate = (ts: number) => new Date(ts).toLocaleDateString(),
   formatExpiry = (expiresAt: number) => {
     const days = Math.ceil((expiresAt - Date.now()) / (1000 * 60 * 60 * 24))
@@ -33,4 +38,4 @@ const getCode = (error: unknown) => {
     return `${days} days left`
   }
 
-export { fail, formatDate, formatExpiry, isId }
+export { fail, formatDate, formatExpiry, parseId }

@@ -1,13 +1,11 @@
 'use client'
 
 import type { ReactNode } from 'react'
-import type { DbConnectionConfig } from 'spacetimedb'
 
-import { api } from '@a/be'
+import { DbConnection } from '@a/be/spacetimedb'
 import { FileApiProvider } from 'betterspace/components'
 import { NavigationGuardProvider } from 'next-navigation-guard'
 import { AuthProvider as OidcProvider } from 'react-oidc-context'
-import { DbConnectionBuilder, DbConnectionImpl } from 'spacetimedb'
 import { SpacetimeDBProvider as BaseProvider } from 'spacetimedb/react'
 
 import env from './env'
@@ -20,15 +18,9 @@ interface SpacetimeDBProviderProps {
   spacetimeUri?: string
 }
 
-const REMOTE_MODULE = {
-    procedures: [],
-    reducers: [],
-    tables: {},
-    versionInfo: { cliVersion: '2.0.0' }
-  } as const,
-  TOKEN_KEY = 'spacetimedb.token',
-  FILE_API = { info: api.file.info, upload: api.file.upload },
-  clients = new Map<string, DbConnectionBuilder<DbConnectionImpl<typeof REMOTE_MODULE>>>(),
+const TOKEN_KEY = 'spacetimedb.token',
+  FILE_API = { info: '/api/file/info', upload: '/api/file/upload' },
+  clients = new Map<string, ReturnType<typeof DbConnection.builder>>(),
   getToken = () => {
     if (typeof window === 'undefined') return
     const token = window.localStorage.getItem(TOKEN_KEY)
@@ -48,13 +40,9 @@ const REMOTE_MODULE = {
     const key = `${uri}::${moduleName}`,
       existing = clients.get(key)
     if (existing) return existing
-    const builder = new DbConnectionBuilder(
-      REMOTE_MODULE,
-      (config: DbConnectionConfig<typeof REMOTE_MODULE>) => new DbConnectionImpl(config)
-    )
+    const builder = DbConnection.builder()
       .withUri(toWsUri(uri))
       .withDatabaseName(moduleName)
-      .withLightMode(true)
       .withToken(getToken())
       .onConnect((_conn, _identity, token) => {
         storeToken(token)
