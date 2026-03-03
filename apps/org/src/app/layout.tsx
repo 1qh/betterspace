@@ -28,18 +28,16 @@ const ORG_PATHS = ['/dashboard', '/members', '/projects', '/wiki', '/settings'],
     return null
   },
   toLegacyOrg = (org: Org) => ({ ...org, _id: toOrgId(org.id) }),
-  Layout = ({ children }: { children: ReactNode }) => {
+  OrgLayoutInner = ({ children }: { children: ReactNode }) => {
     const pathname = usePathname(),
       router = useRouter(),
       { identity } = useSpacetimeDB(),
       [orgs] = useTable(tables.org),
       [members] = useTable(tables.orgMember)
 
-    if (!(identity && pathname))
-      return <AuthLayout provider={inner => <SpacetimeProvider fileApi>{inner}</SpacetimeProvider>}>{children}</AuthLayout>
+    if (!(identity && pathname)) return <>{children}</>
 
-    if (!needsOrgLayout(pathname))
-      return <AuthLayout provider={inner => <SpacetimeProvider fileApi>{inner}</SpacetimeProvider>}>{children}</AuthLayout>
+    if (!needsOrgLayout(pathname)) return <>{children}</>
 
     const myMemberships = members.filter((m: OrgMember) => m.userId.toHexString() === identity.toHexString()),
       myOrgItems = myMemberships
@@ -64,21 +62,18 @@ const ORG_PATHS = ['/dashboard', '/members', '/projects', '/wiki', '/settings'],
       return null
     }
 
-    if (activeOrgId !== active.org._id) {
-      return (
-        <AuthLayout provider={inner => <SpacetimeProvider fileApi>{inner}</SpacetimeProvider>}>
-          <OrgRedirect orgId={active.org._id} slug={active.org.slug} to={pathname} />
-        </AuthLayout>
-      )
-    }
+    if (activeOrgId !== active.org._id) return <OrgRedirect orgId={active.org._id} slug={active.org.slug} to={pathname} />
 
     return (
-      <AuthLayout provider={inner => <SpacetimeProvider fileApi>{inner}</SpacetimeProvider>}>
-        <OrgLayoutClient membership={null} org={active.org} orgs={myOrgItems} role={active.role}>
-          {children}
-        </OrgLayoutClient>
-      </AuthLayout>
+      <OrgLayoutClient membership={null} org={active.org} orgs={myOrgItems} role={active.role}>
+        {children}
+      </OrgLayoutClient>
     )
-  }
+  },
+  Layout = ({ children }: { children: ReactNode }) => (
+    <AuthLayout provider={inner => <SpacetimeProvider fileApi>{inner}</SpacetimeProvider>}>
+      <OrgLayoutInner>{children}</OrgLayoutInner>
+    </AuthLayout>
+  )
 
 export default Layout
