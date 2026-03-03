@@ -7,14 +7,15 @@ interface CreateNextConfigOptions {
 }
 
 const isDev = process.env.NODE_ENV === 'development',
-  BASE_IMG_SRC = "'self' data: blob:",
+  DEV_IMG_SRC = ' http://localhost:* http://127.0.0.1:*',
+  BASE_IMG_SRC = `'self' data: blob:${isDev ? DEV_IMG_SRC : ''}`,
   isPlaywright = process.env.PLAYWRIGHT === '1',
   SPACETIMEDB_CONNECT_SRC = process.env.NEXT_PUBLIC_SPACETIMEDB_URI,
   DEV_CONNECT_SRC = [
     "'self'",
     'https://auth.spacetimedb.com',
-    'http://localhost:3000',
-    'ws://localhost:3000',
+    'http://localhost:*',
+    'ws://localhost:*',
     'http://127.0.0.1:*',
     'ws://127.0.0.1:*'
   ],

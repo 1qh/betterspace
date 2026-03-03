@@ -1,5 +1,6 @@
 'use client'
 
+import type { UploadOptions, UploadResponse } from 'betterspace/components'
 import type { ReactNode } from 'react'
 
 import { DbConnection } from '@a/be/spacetimedb'
@@ -18,7 +19,59 @@ interface SpacetimeDBProviderProps {
 }
 
 const TOKEN_KEY = 'spacetimedb.token',
-  FILE_API = { info: '/api/file/info', upload: '/api/file/upload' },
+  PRESIGN_ENDPOINT = '/api/upload/presign',
+  HTTP_OK = 200,
+  HTTP_REDIRECT = 300,
+  OCTET_STREAM = 'application/octet-stream',
+  uploadFile = async (file: File, options?: UploadOptions): Promise<UploadResponse> => {
+    const contentType = file.type || OCTET_STREAM,
+      presignRes = await fetch(PRESIGN_ENDPOINT, {
+        body: JSON.stringify({ contentType, filename: file.name, size: file.size }),
+        headers: { 'content-type': 'application/json' },
+        method: 'POST',
+        signal: options?.signal
+      })
+    if (!presignRes.ok) throw new Error('Failed to get presigned URL')
+    const presigned = (await presignRes.json()) as {
+      headers?: Record<string, string>
+      method?: string
+      storageKey: string
+      uploadUrl: string
+    }
+    return new Promise((resolve, reject) => {
+      const xhr = new XMLHttpRequest()
+      xhr.open(presigned.method ?? 'PUT', presigned.uploadUrl)
+      const headers = presigned.headers ?? {}
+      let hasContentType = false
+      for (const key of Object.keys(headers)) {
+        if (key.toLowerCase() === 'content-type') hasContentType = true
+        const val = headers[key]
+        if (val) xhr.setRequestHeader(key, val)
+      }
+      if (!hasContentType) xhr.setRequestHeader('Content-Type', contentType)
+      if (options?.onProgress)
+        xhr.upload.addEventListener('progress', e => {
+          if (e.lengthComputable && options.onProgress) options.onProgress(Math.round((e.loaded / e.total) * 100))
+        })
+      xhr.addEventListener('load', () => {
+        if (xhr.status >= HTTP_OK && xhr.status < HTTP_REDIRECT)
+          resolve({ storageId: presigned.storageKey, url: `${presigned.uploadUrl.split('?')[0]}` })
+        else reject(new Error(`Upload failed: ${xhr.status}`))
+      })
+      xhr.addEventListener('error', () => reject(new Error('Upload network error')))
+      xhr.addEventListener('abort', () => reject(new Error('Upload aborted')))
+      if (options?.signal) {
+        if (options.signal.aborted) {
+          xhr.abort()
+          reject(new Error('Upload aborted'))
+          return
+        }
+        options.signal.addEventListener('abort', () => xhr.abort(), { once: true })
+      }
+      xhr.send(file)
+    })
+  },
+  FILE_API = { upload: uploadFile },
   clients = new Map<string, ReturnType<typeof DbConnection.builder>>(),
   getToken = () => {
     if (typeof window === 'undefined') return

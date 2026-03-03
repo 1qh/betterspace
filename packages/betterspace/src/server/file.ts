@@ -73,7 +73,6 @@ const DEFAULT_ALLOWED_TYPES = new Set([
     const segments = value.split('/'),
       out: string[] = []
     for (const segment of segments) out.push(encodeUriSegment(segment))
-    if (value.startsWith('/')) return `/${out.join('/')}`
     return out.join('/')
   },
   toHex = (buffer: ArrayBuffer): string => {
@@ -160,6 +159,8 @@ const DEFAULT_ALLOWED_TYPES = new Set([
       headers['content-type'] = contentType
       signedHeaderNames.push('content-type')
     }
+
+    signedHeaderNames.sort((a, b) => a.localeCompare(b))
 
     const canonicalHeaders = `${signedHeaderNames.map(name => `${name}:${headers[name]}`).join('\n')}\n`,
       signedHeaders = signedHeaderNames.join(';'),
