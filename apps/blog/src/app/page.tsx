@@ -14,7 +14,9 @@ const Page = () => {
     { identity } = useSpacetimeDB(),
     blogs = useMemo(
       () =>
-        [...allBlogs].sort((a, b) => b.id - a.id).map(b => ({ ...b, own: identity ? b.userId.isEqual(identity) : false })),
+        [...allBlogs]
+          .toSorted((a, b) => b.id - a.id)
+          .map(b => ({ ...b, own: identity ? b.userId.isEqual(identity) : false })),
       [allBlogs, identity]
     ),
     { data, hasMore, isLoading, loadMore } = useList(blogs, isReady, {

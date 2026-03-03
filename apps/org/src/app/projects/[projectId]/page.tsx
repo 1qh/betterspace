@@ -32,7 +32,7 @@ type Priority = NonNullable<output<typeof orgScoped.task>['priority']>
 const priorityOptions = enumToOptions(orgScoped.task.shape.priority.unwrap()),
   sameIdentity = (a: { toHexString: () => string }, b: { toHexString: () => string }) =>
     a.toHexString() === b.toHexString(),
-  noop = () => undefined,
+  noop: () => void = () => undefined,
   PrioritySelect = ({ onValueChange, value }: { onValueChange: (v: Priority) => void; value: Priority }) => (
     <Select onValueChange={v => onValueChange(v as Priority)} value={value}>
       <SelectTrigger className='w-28'>

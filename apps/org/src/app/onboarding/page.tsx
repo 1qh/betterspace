@@ -3,7 +3,6 @@
 import { reducers, tables } from '@a/be/spacetimedb'
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@a/ui/card'
 import { FieldGroup } from '@a/ui/field'
-import { Spinner } from '@a/ui/spinner'
 import { defineSteps } from 'betterspace/components'
 import { useReducer, useSpacetimeDB, useTable } from 'spacetimedb/react'
 import { toast } from 'sonner'
@@ -16,10 +15,26 @@ const { StepForm, useStepper } = defineSteps(
     { id: 'appearance', label: 'Appearance', schema: appearanceStep },
     { id: 'preferences', label: 'Preferences', schema: preferencesStep }
   ),
+  themeOptions = [
+    { label: 'Light', value: 'light' },
+    { label: 'Dark', value: 'dark' },
+    { label: 'System', value: 'system' }
+  ],
   OnboardingPage = () => {
     const { identity } = useSpacetimeDB(),
-      [profiles, profileReady] = useTable(tables.orgProfile),
+      [profiles] = useTable(tables.orgProfile),
       profile = identity ? profiles.find(p => p.userId.toHexString() === identity.toHexString()) : null,
+      initialValues = {
+        preferences: {
+          notifications: profile?.notifications ?? false,
+          theme: profile?.theme ?? 'system'
+        },
+        profile: {
+          avatar: profile?.avatar ?? null,
+          bio: profile?.bio,
+          displayName: profile?.displayName
+        }
+      },
       upsert = useReducer(reducers.upsertOrgProfile),
       create = useReducer(reducers.orgCreate),
       stepper = useStepper({
@@ -33,29 +48,10 @@ const { StepForm, useStepper } = defineSteps(
         },
         onSuccess: () => {
           toast.success('Welcome aboard!')
-          window.location.href = '/'
+          window.location.href = '/dashboard'
         },
-        values: profile
-          ? {
-              preferences: {
-                notifications: profile.notifications,
-                theme: profile.theme
-              },
-              profile: {
-                avatar: profile.avatar ?? null,
-                bio: profile.bio,
-                displayName: profile.displayName
-              }
-            }
-          : undefined
+        values: initialValues
       })
-
-    if (!profileReady)
-      return (
-        <div className='flex min-h-[60vh] items-center justify-center'>
-          <Spinner />
-        </div>
-      )
 
     return (
       <div className='container flex justify-center py-8'>
@@ -65,7 +61,10 @@ const { StepForm, useStepper } = defineSteps(
             <CardDescription>Set up your account in a few steps</CardDescription>
           </CardHeader>
           <CardContent>
-            <StepForm stepper={stepper} submitLabel='Complete'>
+            <StepForm
+              key={`${initialValues.profile.displayName ?? ''}:${initialValues.preferences.theme}:${initialValues.preferences.notifications}`}
+              stepper={stepper}
+              submitLabel='Complete'>
               <StepForm.Step
                 id='profile'
                 render={({ File, Text }) => (
@@ -97,7 +96,7 @@ const { StepForm, useStepper } = defineSteps(
                 id='preferences'
                 render={({ Choose, Toggle }) => (
                   <FieldGroup>
-                    <Choose name='theme' />
+                    <Choose name='theme' options={themeOptions} />
                     <Toggle falseLabel='Off' name='notifications' trueLabel='On' />
                   </FieldGroup>
                 )}

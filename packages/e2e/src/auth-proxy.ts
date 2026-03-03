@@ -27,8 +27,8 @@ const getToken = async (): Promise<string> => {
   return cachedToken
 }
 
-process.on('uncaughtException', () => undefined)
-process.on('unhandledRejection', () => undefined)
+process.on('uncaughtException', () => {})
+process.on('unhandledRejection', () => {})
 
 serve({
   port: 3210,

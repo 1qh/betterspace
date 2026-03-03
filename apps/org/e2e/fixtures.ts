@@ -1,4 +1,5 @@
 import { expect, test as baseTest } from '@a/e2e/base-test'
+import { login } from '@a/e2e/helpers'
 
 import OnboardingPage from './pages/onboarding'
 
@@ -8,6 +9,7 @@ interface Fixtures {
 
 const test = baseTest.extend<Fixtures>({
   onboardingPage: async ({ page }, run) => {
+    await login(page)
     const onboardingPage = new OnboardingPage(page)
     await run(onboardingPage)
   }

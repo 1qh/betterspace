@@ -183,7 +183,7 @@ const schemaMarkers = ['schema(', 'table(', 't.'],
       calls.push({
         factory: entry.factory,
         file: entry.file,
-        options: `endpoints=${[...entry.endpoints].sort().join(',')}`,
+        options: `endpoints=${[...entry.endpoints].toSorted().join(',')}`,
         table
       })
     return { calls, files: files.map(f => basename(f)) }

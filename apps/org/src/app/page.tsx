@@ -6,6 +6,7 @@ import type { Org, OrgMember } from '@a/be/spacetimedb/types'
 import { tables } from '@a/be/spacetimedb'
 import { useSpacetimeDB, useTable } from 'spacetimedb/react'
 import { useRouter } from 'next/navigation'
+import { useEffect } from 'react'
 
 import OrgList from './org-list'
 import OrgRedirect from './org-redirect'
@@ -22,14 +23,18 @@ const sameIdentity = (a: Org['userId'], b: Org['userId']) => a.toHexString() ===
       [orgs] = useTable(tables.org),
       [members] = useTable(tables.orgMember)
 
-    if (!identity) {
-      router.replace('/login')
-      return null
-    }
+    useEffect(() => {
+      if (!identity) {
+        router.replace('/login')
+      }
+    }, [identity, router])
 
-    const myMemberships = members.filter((m: OrgMember) => m.userId.toHexString() === identity.toHexString()),
+    const myMemberships = identity
+        ? members.filter((m: OrgMember) => m.userId.toHexString() === identity.toHexString())
+        : [],
       myOrgs = myMemberships
         .map((m: OrgMember) => {
+          if (!identity) return null
           const org = orgs.find((o: Org) => o.id === m.orgId)
           if (!org) return null
           const role: OrgRole = sameIdentity(org.userId, identity) ? 'owner' : m.isAdmin ? 'admin' : 'member'
@@ -37,8 +42,17 @@ const sameIdentity = (a: Org['userId'], b: Org['userId']) => a.toHexString() ===
         })
         .filter(item => item !== null)
 
+    useEffect(() => {
+      if (myOrgs.length === 0) {
+        router.replace('/onboarding')
+      }
+    }, [myOrgs.length, router])
+
+    if (!identity) {
+      return null
+    }
+
     if (myOrgs.length === 0) {
-      router.replace('/onboarding')
       return null
     }
 

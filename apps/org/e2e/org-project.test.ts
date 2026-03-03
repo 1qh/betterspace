@@ -12,6 +12,7 @@ import {
   makeOrgTestUtils,
   tc
 } from '@a/e2e/org-helpers'
+import { login } from '@a/e2e/helpers'
 
 const testPrefix = `e2e-org-proj-${Date.now()}`
 const { cleanupOrgTestData, cleanupTestUsers, generateSlug } = makeOrgTestUtils(testPrefix)
@@ -34,6 +35,10 @@ test.describe
 
     test.afterAll(async () => {
       await cleanupOrgTestData()
+    })
+
+    test.beforeEach(async ({ page }) => {
+      await login(page)
     })
 
     test('projects page loads', async ({ page }) => {

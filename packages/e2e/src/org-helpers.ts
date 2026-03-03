@@ -1,10 +1,6 @@
 import type { api as BeApi } from '@a/be'
 import type { Id } from '@a/be/model'
 
-interface ErrorCode {
-  code: string
-}
-
 interface FunctionLikeReference {
   [key: string]: unknown
   [key: symbol]: unknown
@@ -19,9 +15,7 @@ interface SchemaName {
   some?: string
 }
 
-interface AlgebraicType {
-  [key: string]: unknown
-}
+type AlgebraicType = Record<string, unknown>
 
 interface SchemaElement {
   algebraic_type?: AlgebraicType
@@ -44,6 +38,7 @@ interface SqlResultSet {
 
 const FUNCTION_NAME = Symbol.for('functionName')
 const ERROR_CODE_RE = /\{"code":"([^"]+)"[^}]*\}/u
+const HEX_PREFIX_RE = /^0x/iu
 
 const makeApiProxy = (parts: string[] = []): unknown =>
   new Proxy(
@@ -133,8 +128,7 @@ const getReducerParams = async (): Promise<Map<string, SchemaElement[]>> => {
     const reducers = schema.reducers ?? []
     for (const reducer of reducers) {
       const reducerName = reducer.name
-      if (!reducerName) continue
-      map.set(reducerName, reducer.params?.elements ?? [])
+      if (reducerName) map.set(reducerName, reducer.params?.elements ?? [])
     }
     return map
   })()
@@ -148,41 +142,62 @@ const getFunctionName = (f: unknown): string => {
   return raw
 }
 
-const resolveReducer = (f: unknown): string => toReducerName(getFunctionName(f))
-
 const extractSumType = (type: unknown): null | { variants: unknown[] } => {
   if (!isRecord(type)) return null
   const sum = type.Sum
   if (!isRecord(sum)) return null
-  const variants = sum.variants
+  const { variants } = sum
   if (!Array.isArray(variants)) return null
   return { variants }
 }
 
-const optionVariantNames = (type: unknown): null | { noneIndex: number; someIndex: number } => {
+const optionVariantNames = (type: unknown): null | { noneIndex: number; someIndex: number; someType: unknown } => {
   const sum = extractSumType(type)
   if (!sum) return null
   let noneIndex = -1
   let someIndex = -1
+  let someType: unknown
   for (let i = 0; i < sum.variants.length; i += 1) {
     const variant = sum.variants[i]
-    if (!isRecord(variant)) continue
-    const rawName = variant.name
-    if (!isRecord(rawName)) continue
-    const name = rawName.some
-    if (name === 'none') noneIndex = i
-    if (name === 'some') someIndex = i
+    if (isRecord(variant)) {
+      const rawName = variant.name
+      if (isRecord(rawName)) {
+        const name = rawName.some
+        if (name === 'none') noneIndex = i
+        if (name === 'some') {
+          someIndex = i
+          someType = variant.algebraic_type
+        }
+      }
+    }
   }
   if (noneIndex === -1 || someIndex === -1) return null
-  return { noneIndex, someIndex }
+  return { noneIndex, someIndex, someType }
 }
 
 const encodeArg = (type: unknown, value: unknown): unknown => {
   const optionInfo = optionVariantNames(type)
   if (optionInfo) {
-    if (isRecord(value) && ('some' in value || 'none' in value)) return value
-    if (value === null || value === undefined) return { none: [] }
-    return { some: value }
+    if (Array.isArray(value) && value.length === 2 && typeof value[0] === 'number') return value
+    if (value === null || value === undefined) return [optionInfo.noneIndex, []]
+    return [optionInfo.someIndex, encodeArg(optionInfo.someType, value)]
+  }
+  if (isRecord(type) && 'Product' in type) {
+    const product = type.Product
+    if (!isRecord(product)) return value
+    const { elements } = product
+    if (!Array.isArray(elements)) return value
+    if (Array.isArray(value)) return value
+    if (elements.length !== 1) return value
+    const [first] = elements
+    if (!isRecord(first)) return [value]
+    return [encodeArg(first.algebraic_type, value)]
+  }
+  if (isRecord(type)) {
+    const numericKeys = ['I8', 'I16', 'I32', 'I64', 'U8', 'U16', 'U32', 'U64']
+    for (const key of numericKeys) {
+      if (key in type && typeof value === 'string') return Number.parseInt(value, 10)
+    }
   }
   return value
 }
@@ -194,11 +209,8 @@ const normalizeArgs = async (reducer: string, args: Record<string, unknown>): Pr
   const out: unknown[] = []
   for (const param of params) {
     const rawName = param.name?.some
-    if (!rawName) {
-      out.push(undefined)
-      continue
-    }
-    out.push(encodeArg(param.algebraic_type, args[rawName]))
+    if (rawName) out.push(encodeArg(param.algebraic_type, args[rawName]))
+    else out.push(null)
   }
   return out
 }
@@ -234,7 +246,7 @@ const decodeValue = (type: unknown, value: unknown): unknown => {
     if (!Array.isArray(variantsRaw)) return value
     if (Array.isArray(value) && value.length === 2 && typeof value[0] === 'number') {
       const variant = variantsRaw[value[0]]
-      const payload = value[1]
+      const [, payload] = value
       if (!isRecord(variant)) return payload
       const rawName = variant.name
       const variantType = variant.algebraic_type
@@ -262,11 +274,11 @@ const decodeValue = (type: unknown, value: unknown): unknown => {
     if (!Array.isArray(elementsRaw)) return value
     if (!Array.isArray(value)) return value
     if (elementsRaw.length === 1) {
-      const first = elementsRaw[0]
+      const [first] = elementsRaw
       if (!isRecord(first)) return value[0]
       const rawName = first.name
       const innerType = first.algebraic_type
-      const firstValue = value[0]
+      const [firstValue] = value
       if (isRecord(rawName)) {
         const name = rawName.some
         if (name === '__identity__' || name === '__timestamp_micros_since_unix_epoch__')
@@ -277,12 +289,15 @@ const decodeValue = (type: unknown, value: unknown): unknown => {
     const obj: Record<string, unknown> = {}
     for (let i = 0; i < elementsRaw.length; i += 1) {
       const element = elementsRaw[i]
-      if (!isRecord(element)) continue
-      const rawName = element.name
-      if (!isRecord(rawName)) continue
-      const name = rawName.some
-      if (!name) continue
-      obj[toCamel(name)] = decodeValue(element.algebraic_type, value[i])
+      if (isRecord(element)) {
+        const rawName = element.name
+        if (isRecord(rawName)) {
+          const name = rawName.some
+          if (name) {
+            obj[toCamel(name)] = decodeValue(element.algebraic_type, value[i])
+          }
+        }
+      }
     }
     return obj
   }
@@ -310,7 +325,7 @@ const querySQL = async <T>(sql: string): Promise<T[]> => {
     method: 'POST'
   })
   const result = await parseJson<SqlResultSet[]>(response)
-  const first = result[0]
+  const [first] = result
   if (!first) return []
   const elements = first.schema?.elements ?? []
   const rows = first.rows ?? []
@@ -319,8 +334,9 @@ const querySQL = async <T>(sql: string): Promise<T[]> => {
     const entry: Record<string, unknown> = {}
     for (let i = 0; i < elements.length; i += 1) {
       const name = elements[i]?.name?.some
-      if (!name) continue
-      entry[toCamel(name)] = decodeValue(elements[i]?.algebraic_type, row[i])
+      if (name) {
+        entry[toCamel(name)] = decodeValue(elements[i]?.algebraic_type, row[i])
+      }
     }
     mapped.push(entry as T)
   }
@@ -328,6 +344,8 @@ const querySQL = async <T>(sql: string): Promise<T[]> => {
 }
 
 const toId = (value: unknown): string => String(value ?? '')
+const normalizeIdentity = (value: string): string => value.replace(HEX_PREFIX_RE, '').toLowerCase()
+const sameIdentity = (a: string, b: string): boolean => normalizeIdentity(a) === normalizeIdentity(b)
 const toInt = (value: unknown): number => {
   if (typeof value === 'number') return value
   if (typeof value === 'string') return Number.parseInt(value, 10)
@@ -362,7 +380,7 @@ const getCurrentIdentity = async (identityKey = 'default'): Promise<string> => (
 
 const querySingle = async <T>(sql: string): Promise<null | T> => {
   const rows = await querySQL<T>(sql)
-  const first = rows[0]
+  const [first] = rows
   if (!first) return null
   return first
 }
@@ -395,16 +413,27 @@ const getOrgMembers = async (orgId: string) => {
   if (!Number.isFinite(id)) return []
   const rows = await querySQL<Record<string, unknown>>(`SELECT * FROM org_member WHERE org_id = ${id}`)
   const org = await getOrgById(orgId)
-  const members: Array<Record<string, unknown>> = []
+  const members: Record<string, unknown>[] = []
+  let ownerFound = false
   for (const row of rows) {
     const userId = toId(row.userId)
-    const role = org && org.userId === userId ? 'owner' : row.isAdmin ? 'admin' : 'member'
+    if (org && sameIdentity(org.userId, userId)) ownerFound = true
+    const role = org && sameIdentity(org.userId, userId) ? 'owner' : row.isAdmin ? 'admin' : 'member'
     members.push({
       _id: toId(row.id),
       isAdmin: Boolean(row.isAdmin),
       orgId: toId(row.orgId),
       role,
       userId
+    })
+  }
+  if (org && !ownerFound) {
+    members.push({
+      _id: `owner:${org._id}`,
+      isAdmin: true,
+      orgId: org._id,
+      role: 'owner',
+      userId: org.userId
     })
   }
   return members
@@ -417,32 +446,52 @@ const getMembership = async (orgId: string, identityKey = 'default') => {
   const row = await querySingle<Record<string, unknown>>(
     `SELECT * FROM org_member WHERE org_id = ${id} AND user_id = '${escapeSqlString(userId)}'`
   )
-  if (!row) return null
   const org = await getOrgById(orgId)
+  if (!row) {
+    if (org && sameIdentity(org.userId, userId)) {
+      return {
+        _id: `owner:${org._id}`,
+        isAdmin: true,
+        orgId: org._id,
+        role: 'owner',
+        userId
+      }
+    }
+    return null
+  }
   return {
     _id: toId(row.id),
     isAdmin: Boolean(row.isAdmin),
     orgId: toId(row.orgId),
-    role: org && org.userId === userId ? 'owner' : row.isAdmin ? 'admin' : 'member',
+    role: org && sameIdentity(org.userId, userId) ? 'owner' : row.isAdmin ? 'admin' : 'member',
     userId
   }
 }
 
 const getMyOrgs = async (identityKey = 'default') => {
   const userId = await getCurrentIdentity(identityKey)
+  const owned = await querySQL<Record<string, unknown>>(`SELECT * FROM org WHERE user_id = '${escapeSqlString(userId)}'`)
   const rows = await querySQL<Record<string, unknown>>(
     `SELECT * FROM org_member WHERE user_id = '${escapeSqlString(userId)}'`
   )
-  const out: Array<Record<string, unknown>> = []
+  const out: Record<string, unknown>[] = []
+  for (const row of owned) {
+    out.push({
+      memberId: `owner:${toId(row.id)}`,
+      org: mapOrg(row),
+      role: 'owner'
+    })
+  }
   for (const row of rows) {
     const org = await getOrgById(toId(row.orgId))
-    if (!org) continue
-    const role = org.userId === userId ? 'owner' : row.isAdmin ? 'admin' : 'member'
-    out.push({
-      memberId: toId(row.id),
-      org,
-      role
-    })
+    if (org && !sameIdentity(org.userId, userId)) {
+      const role = row.isAdmin ? 'admin' : 'member'
+      out.push({
+        memberId: toId(row.id),
+        org,
+        role
+      })
+    }
   }
   return out
 }
@@ -451,7 +500,7 @@ const getPendingInvites = async (orgId: string) => {
   const id = toInt(orgId)
   if (!Number.isFinite(id)) return []
   const rows = await querySQL<Record<string, unknown>>(`SELECT * FROM org_invite WHERE org_id = ${id}`)
-  const invites: Array<Record<string, unknown>> = []
+  const invites: Record<string, unknown>[] = []
   for (const row of rows) {
     invites.push({
       _id: toId(row.id),
@@ -494,7 +543,7 @@ const listProjects = async (orgId: string, numItems: number) => {
   const rows = await querySQL<Record<string, unknown>>(
     `SELECT * FROM project WHERE org_id = ${parsedOrgId} LIMIT ${numItems}`
   )
-  const page: Array<Record<string, unknown>> = []
+  const page: Record<string, unknown>[] = []
   for (const row of rows) page.push(mapProject(row))
   return { continueCursor: null, isDone: true, page }
 }
@@ -550,14 +599,19 @@ const listWikis = async (orgId: string, numItems: number) => {
   const parsedOrgId = toInt(orgId)
   if (!Number.isFinite(parsedOrgId)) return { continueCursor: null, isDone: true, page: [] }
   const rows = await querySQL<Record<string, unknown>>(
-    `SELECT * FROM wiki WHERE org_id = ${parsedOrgId} AND deleted_at = [1,[]] LIMIT ${numItems}`
+    `SELECT * FROM wiki WHERE org_id = ${parsedOrgId} LIMIT ${numItems}`
   )
-  const page: Array<Record<string, unknown>> = []
-  for (const row of rows) page.push(mapWiki(row))
+  const page: Record<string, unknown>[] = []
+  for (const row of rows) {
+    const mapped = mapWiki(row)
+    if (mapped.deletedAt === undefined) page.push(mapped)
+  }
   return { continueCursor: null, isDone: true, page }
 }
 
 const createTestOrg = async (slug: string, name: string) => {
+  const existing = await getOrgBySlug(slug)
+  if (existing) throw makeCodeError('ORG_SLUG_TAKEN')
   await callReducer('org_create', { avatarId: null, name, slug })
   const created = await getOrgBySlug(slug)
   if (!created) throw makeCodeError('NOT_FOUND')
@@ -567,10 +621,13 @@ const createTestOrg = async (slug: string, name: string) => {
 const createTestUser = async (email: string, name: string) => {
   const key = `user:${email}`
   const created = await getTokenFor(key)
+  const identity = created.identity.startsWith('0x') ? created.identity : `0x${created.identity}`
   identityKeyByUserId.set(created.identity, key)
+  identityKeyByUserId.set(identity, key)
   emailByUserId.set(created.identity, email)
+  emailByUserId.set(identity, email)
   await callReducer('upsert_orgProfile', { displayName: name }, key)
-  return created.identity as unknown as Id<'users'>
+  return identity as unknown as Id<'users'>
 }
 
 const pickLatestInvite = (invites: Record<string, unknown>[]) => {
@@ -578,10 +635,22 @@ const pickLatestInvite = (invites: Record<string, unknown>[]) => {
   let latestId = -1
   for (const invite of invites) {
     const id = toInt(invite.id)
-    if (!Number.isFinite(id)) continue
-    if (id > latestId) {
+    if (Number.isFinite(id) && id > latestId) {
       latestId = id
       latest = invite
+    }
+  }
+  return latest
+}
+
+const pickLatestById = (rows: Record<string, unknown>[]) => {
+  let latest: null | Record<string, unknown> = null
+  let latestId = -1
+  for (const row of rows) {
+    const id = toInt(row.id)
+    if (Number.isFinite(id) && id > latestId) {
+      latestId = id
+      latest = row
     }
   }
   return latest
@@ -636,9 +705,12 @@ const runQuery = async <T>(name: string, args: Record<string, unknown>): Promise
     return project as T
   }
   if (name === 'project:list') {
-    const paginationOpts = args.paginationOpts
+    const { paginationOpts } = args
     let numItems = 50
-    if (isRecord(paginationOpts) && typeof paginationOpts.numItems === 'number') numItems = paginationOpts.numItems
+    if (isRecord(paginationOpts) && typeof paginationOpts.numItems === 'number') {
+      const { numItems: n } = paginationOpts
+      numItems = n as number
+    }
     return (await listProjects(String(args.orgId ?? ''), numItems)) as T
   }
   if (name === 'task:read') {
@@ -652,9 +724,12 @@ const runQuery = async <T>(name: string, args: Record<string, unknown>): Promise
     return wiki as T
   }
   if (name === 'wiki:list') {
-    const paginationOpts = args.paginationOpts
+    const { paginationOpts } = args
     let numItems = 50
-    if (isRecord(paginationOpts) && typeof paginationOpts.numItems === 'number') numItems = paginationOpts.numItems
+    if (isRecord(paginationOpts) && typeof paginationOpts.numItems === 'number') {
+      const { numItems: n } = paginationOpts
+      numItems = n as number
+    }
     return (await listWikis(String(args.orgId ?? ''), numItems)) as T
   }
   if (name === 'orgProfile:get') {
@@ -687,6 +762,16 @@ const runMutation = async <T>(name: string, args: Record<string, unknown>): Prom
     return deleted as T
   }
 
+  if (name === 'project:rm') {
+    const projectId = toInt(args.id)
+    const orgId = toInt(args.orgId)
+    const tasks = await querySQL<Record<string, unknown>>(
+      `SELECT * FROM task WHERE org_id = ${orgId} AND project_id = ${projectId}`
+    )
+    for (const task of tasks) await callReducer('rm_task', { id: toInt(task.id) })
+    return callReducer<T>('rm_project', { id: projectId })
+  }
+
   if (name === 'wiki:bulkRm') {
     const ids = Array.isArray(args.ids) ? args.ids : []
     let deleted = 0
@@ -701,13 +786,8 @@ const runMutation = async <T>(name: string, args: Record<string, unknown>): Prom
     const task = await getTaskById(String(args.id ?? ''), String(args.orgId ?? ''))
     if (!task) throw makeCodeError('NOT_FOUND')
     await callReducer('update_task', {
-      assigneeId: task.assigneeId,
       completed: !task.completed,
-      expectedUpdatedAt: task.updatedAt,
-      id: toInt(task._id),
-      priority: task.priority,
-      projectId: toInt(task.projectId),
-      title: task.title
+      id: toInt(task._id)
     })
     const updated = await getTaskById(task._id, task.orgId)
     if (!updated) throw makeCodeError('NOT_FOUND')
@@ -730,6 +810,14 @@ const runMutation = async <T>(name: string, args: Record<string, unknown>): Prom
     return null as T
   }
 
+  if (name === 'org:acceptInvite') {
+    const token = String(args.token ?? '')
+    const invite = await querySingle<Record<string, unknown>>(
+      `SELECT * FROM org_invite WHERE token = '${escapeSqlString(token)}'`
+    )
+    if (!invite) throw makeCodeError('INVALID_INVITE')
+  }
+
   if (name === 'testauth:requestJoinAsUser') {
     const userId = String(args.userId ?? '')
     const orgId = toInt(args.orgId)
@@ -741,6 +829,8 @@ const runMutation = async <T>(name: string, args: Record<string, unknown>): Prom
   }
 
   if (name === 'org:create' && isRecord(args.data)) {
+    const existing = await getOrgBySlug(String(args.data.slug ?? ''))
+    if (existing) throw makeCodeError('ORG_SLUG_TAKEN')
     const payload: Record<string, unknown> = {
       avatarId: args.data.avatarId,
       name: args.data.name,
@@ -767,7 +857,30 @@ const runMutation = async <T>(name: string, args: Record<string, unknown>): Prom
 
   const reducerName = toReducerName(name)
   const result = await callReducer<T>(reducerName, args)
-  if (name === 'project:create' || name === 'task:create' || name === 'wiki:create') return toId(result) as T
+  if (name === 'project:create') {
+    const rows = await querySQL<Record<string, unknown>>(
+      `SELECT * FROM project WHERE org_id = ${toInt(args.orgId)} AND name = '${escapeSqlString(String(args.name ?? ''))}'`
+    )
+    const created = pickLatestById(rows)
+    if (!created) throw makeCodeError('NOT_FOUND')
+    return toId(created.id) as T
+  }
+  if (name === 'task:create') {
+    const rows = await querySQL<Record<string, unknown>>(
+      `SELECT * FROM task WHERE org_id = ${toInt(args.orgId)} AND project_id = ${toInt(args.projectId)} AND title = '${escapeSqlString(String(args.title ?? ''))}'`
+    )
+    const created = pickLatestById(rows)
+    if (!created) throw makeCodeError('NOT_FOUND')
+    return toId(created.id) as T
+  }
+  if (name === 'wiki:create') {
+    const rows = await querySQL<Record<string, unknown>>(
+      `SELECT * FROM wiki WHERE org_id = ${toInt(args.orgId)} AND slug = '${escapeSqlString(String(args.slug ?? ''))}'`
+    )
+    const created = pickLatestById(rows)
+    if (!created) throw makeCodeError('NOT_FOUND')
+    return toId(created.id) as T
+  }
   if (name === 'org:invite') {
     const invites = await getPendingInvites(String(args.orgId ?? ''))
     let found: null | Record<string, unknown> = null
@@ -798,7 +911,6 @@ const tc = {
 
 const ensureTestUser = async () => {
   await getTokenFor('default')
-  await callReducer('upsert_orgProfile', { displayName: 'E2E User' })
 }
 
 const getTestToken = async () => (await getTokenFor('default')).token
@@ -814,11 +926,10 @@ const tryCleanup = async (name: string, args: Record<string, unknown>) => {
 
 const makeOrgTestUtils = (prefix: string) => ({
   cleanupOrgTestData: async () => {
-    const orgs = await querySQL<Record<string, unknown>>(
-      `SELECT * FROM org WHERE slug LIKE '${escapeSqlString(prefix)}-%'`
-    )
+    const orgs = await querySQL<Record<string, unknown>>('SELECT * FROM org')
     for (const org of orgs) {
-      await expectError(async () => callReducer('org_remove', { orgId: toInt(org.id) }))
+      const slug = String(org.slug ?? '')
+      if (slug.startsWith(`${prefix}-`)) await expectError(async () => callReducer('org_remove', { orgId: toInt(org.id) }))
     }
     await tryCleanup('testauth:cleanupOrgTestData', { slugPrefix: prefix })
   },
@@ -842,8 +953,8 @@ const setupOrg = (testPrefix: string, orgName: string, orgSlugSuffix: string) =>
     beforeAll: async () => {
       await ensureTestUser()
       orgSlug = utils.generateSlug(orgSlugSuffix)
-      const created = await createTestOrg(orgSlug, orgName)
-      orgId = created.orgId
+      const { orgId: newOrgId } = await createTestOrg(orgSlug, orgName)
+      orgId = newOrgId
       return { orgId, orgSlug }
     },
     get orgId() {

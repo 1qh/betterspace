@@ -19,7 +19,7 @@ import { useOrg } from '~/hook/use-org'
 
 const sameIdentity = (a: { toHexString: () => string }, b: { toHexString: () => string }) =>
     a.toHexString() === b.toHexString(),
-  noop = () => undefined,
+  noop: () => void = () => undefined,
   WikiDetailPage = ({ params }: { params: Promise<{ wikiId: string }> }) => {
     const { wikiId } = use(params),
       id = Number(wikiId),

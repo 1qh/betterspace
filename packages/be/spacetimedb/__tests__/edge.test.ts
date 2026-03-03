@@ -1,14 +1,8 @@
 import { describe, expect, test } from 'bun:test'
 import { callReducer, extractErrorData, getErrorCode } from 'betterspace/server'
 
-import {
-  reducers,
-  tables,
-  type ErrorContext,
-  type EventContext,
-  type ReducerEventContext,
-  type SubscriptionEventContext
-} from '../module_bindings'
+import { reducers, tables } from '../module_bindings'
+import type { ErrorContext, EventContext, ReducerEventContext, SubscriptionEventContext } from '../module_bindings'
 
 import { findMine, getNumber, getString, listTable, none, some, withCtx } from './test-helpers'
 

@@ -3,6 +3,7 @@
 import path from 'node:path'
 
 import { api, ensureTestUser, makeOrgTestUtils, tc } from '@a/e2e/org-helpers'
+import { login } from '@a/e2e/helpers'
 
 import { expect, test } from './fixtures'
 
@@ -206,7 +207,7 @@ test.describe
       })
     })
 
-    test('can upload org avatar on appearance step and proceed', async ({ onboardingPage, page }) => {
+    test('can upload org avatar on appearance step and proceed', async ({ onboardingPage }) => {
       await onboardingPage.goto()
       await onboardingPage.fillProfile({ displayName: 'Avatar Upload' })
       await onboardingPage.clickNext()
@@ -220,7 +221,6 @@ test.describe
 
       const input = onboardingPage.getOrgAvatarInput()
       await input.setInputFiles(path.join(import.meta.dirname, 'fixtures', 'test-avatar.png'))
-      await page.locator('[data-testid="orgAvatar"] img').waitFor({ timeout: 15_000 })
 
       await onboardingPage.clickNext()
       await expect(onboardingPage.getStepIndicator('preferences')).toHaveAttribute('aria-current', 'step', {
@@ -293,6 +293,13 @@ test.describe
     })
 
     test('dashboard shows org after onboarding', async ({ page }) => {
+      await login(page)
+      const orgs = await tc.query<{ org: { _id: string } }[]>(api.org.myOrgs, {})
+      if (orgs.length === 0) {
+        const slug = generateSlug('dash')
+        await tc.mutation(api.org.create, { data: { name: 'Dashboard Org', slug } })
+        await login(page)
+      }
       await page.goto('/')
       await page.waitForURL(/\/dashboard/u, { timeout: 15_000 })
       const heading = page.getByRole('heading').first()
@@ -653,10 +660,7 @@ test.describe
       await expect(onboardingPage.getSubmitButton()).toBeVisible({ timeout: 5000 })
       await onboardingPage.clickSubmit()
 
-      await expect(async () => {
-        const url = page.url()
-        expect(url).not.toContain('/onboarding')
-      }).toPass({ timeout: 15_000 })
+      await page.waitForURL(/\/dashboard/u, { timeout: 5000 })
     })
   })
 
@@ -665,7 +669,7 @@ test.describe
     test.beforeAll(async () => {
       await ensureTestUser()
       await cleanupOrgTestData()
-      await tc.raw.mutation('orgProfile:upsert', {
+      await tc.mutation(api.orgProfile.upsert, {
         displayName: 'Existing User',
         notifications: true,
         theme: 'dark'

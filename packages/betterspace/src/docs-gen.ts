@@ -90,7 +90,7 @@ const dim = (s: string) => `\u001B[2m${s}\u001B[0m`,
       calls.push({
         factory: 'reducer',
         file: entry.file,
-        options: `endpoints=${[...entry.endpoints].sort().join(',')}`,
+        options: `endpoints=${[...entry.endpoints].toSorted().join(',')}`,
         table
       })
     return calls

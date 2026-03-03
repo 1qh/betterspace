@@ -22,9 +22,11 @@ const ORG_PATHS = ['/dashboard', '/members', '/projects', '/wiki', '/settings'],
   sameIdentity = (a: Org['userId'], b: Org['userId']) => a.toHexString() === b.toHexString(),
   readActiveOrgId = () => {
     if (typeof document === 'undefined') return null
-    const prefix = 'active_org=',
-      cookies = document.cookie.split('; ')
-    for (const c of cookies) if (c.startsWith(prefix)) return c.slice(prefix.length)
+    const cookies = document.cookie.split('; ')
+    for (const c of cookies) {
+      if (c.startsWith('activeOrgId=')) return c.slice('activeOrgId='.length)
+      if (c.startsWith('active_org=')) return c.slice('active_org='.length)
+    }
     return null
   },
   toLegacyOrg = (org: Org) => ({ ...org, _id: toOrgId(org.id) }),

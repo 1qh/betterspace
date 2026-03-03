@@ -1,6 +1,7 @@
 export const maxDuration = 60
 
-import { createUIMessageStream, createUIMessageStreamResponse, type UIMessage } from 'ai'
+import { createUIMessageStream, createUIMessageStreamResponse } from 'ai'
+import type { UIMessage } from 'ai'
 
 interface ApprovalResponse {
   approved: boolean

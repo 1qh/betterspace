@@ -9,8 +9,8 @@ const orgTeam = object({
   joinRequest = object({ message: string().optional() }),
   profileStep = object({
     avatar: cvFile().nullable().optional(),
-    bio: string().optional(),
-    displayName: string().min(1)
+    bio: string().max(500).optional(),
+    displayName: string().trim().min(1)
   }),
   orgStep = object({
     name: string().min(1),
