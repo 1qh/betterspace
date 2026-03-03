@@ -1,11 +1,11 @@
 'use client'
 
-import { api } from '@a/be'
+import { reducers, tables } from '@a/be/spacetimedb'
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@a/ui/card'
 import { FieldGroup } from '@a/ui/field'
 import { Spinner } from '@a/ui/spinner'
 import { defineSteps } from 'betterspace/components'
-import { useMutation, useQuery } from 'convex/react'
+import { useReducer, useSpacetimeDB, useTable } from 'spacetimedb/react'
 import { toast } from 'sonner'
 
 import { appearanceStep, orgStep, preferencesStep, profileStep } from '~/schema'
@@ -17,18 +17,18 @@ const { StepForm, useStepper } = defineSteps(
     { id: 'preferences', label: 'Preferences', schema: preferencesStep }
   ),
   OnboardingPage = () => {
-    const profile = useQuery(api.orgProfile.get, {}),
-      upsert = useMutation(api.orgProfile.upsert),
-      create = useMutation(api.org.create),
+    const { identity } = useSpacetimeDB(),
+      [profiles, profileReady] = useTable(tables.orgProfile),
+      profile = identity ? profiles.find(p => p.userId.toHexString() === identity.toHexString()) : null,
+      upsert = useReducer(reducers.upsertOrgProfile),
+      create = async (_args: Record<string, unknown>) => undefined,
       stepper = useStepper({
         onSubmit: async d => {
           await upsert({ ...d.profile, ...d.preferences })
           await create({
-            data: {
-              avatarId: d.appearance.orgAvatar,
-              name: d.org.name,
-              slug: d.org.slug
-            }
+            avatarId: d.appearance.orgAvatar,
+            name: d.org.name,
+            slug: d.org.slug
           })
         },
         onSuccess: () => {
@@ -50,7 +50,7 @@ const { StepForm, useStepper } = defineSteps(
           : undefined
       })
 
-    if (profile === undefined)
+    if (!profileReady)
       return (
         <div className='flex min-h-[60vh] items-center justify-center'>
           <Spinner />

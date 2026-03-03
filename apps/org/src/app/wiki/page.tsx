@@ -2,15 +2,17 @@
 /* eslint-disable complexity */
 'use client'
 
-import { api } from '@a/be'
+import type { Wiki } from '@a/be/spacetimedb/types'
+
+import { reducers, tables } from '@a/be/spacetimedb'
 import { fail } from '@a/fe/utils'
 import { Badge } from '@a/ui/badge'
 import { Button } from '@a/ui/button'
 import { Card, CardContent, CardHeader, CardTitle } from '@a/ui/card'
 import { Checkbox } from '@a/ui/checkbox'
 import { Skeleton } from '@a/ui/skeleton'
-import { useBulkSelection, useOrgMutation, useOrgQuery } from 'betterspace/react'
-import { useMutation } from 'convex/react'
+import { useBulkSelection } from 'betterspace/react'
+import { useReducer, useTable } from 'spacetimedb/react'
 import { FileText, Plus, RotateCcw, Trash2 } from 'lucide-react'
 import Link from 'next/link'
 import { useState } from 'react'
@@ -18,16 +20,27 @@ import { toast } from 'sonner'
 
 import { useOrg } from '~/hook/use-org'
 
-const wikiRestore = api.wiki.restore,
+const wikiRestore = async (_args: Record<string, unknown>) => undefined,
   WikiPage = () => {
     const { isAdmin, org } = useOrg(),
       [showDeleted, setShowDeleted] = useState(false),
-      wikis = useOrgQuery(api.wiki.list, showDeleted ? 'skip' : { paginationOpts: { cursor: null, numItems: 100 } }),
-      deletedWikis = useOrgQuery(api.wiki.listDeleted, showDeleted ? {} : 'skip'),
-      restoreMut = useOrgMutation(wikiRestore),
+      [allWikis] = useTable(tables.wiki),
+      wikis = allWikis
+        .filter((w: Wiki) => w.orgId === Number(org._id) && (w.deletedAt === null || w.deletedAt === undefined))
+        .map((w: Wiki) => ({ ...w, _id: `${w.id}` })),
+      deletedWikis = allWikis
+        .filter((w: Wiki) => w.orgId === Number(org._id) && w.deletedAt !== null && w.deletedAt !== undefined)
+        .map((w: Wiki) => ({ ...w, _id: `${w.id}` })),
+      restoreMut = wikiRestore,
+      rmWiki = useReducer(reducers.rmWiki),
+      bulkRm = async ({ ids }: { ids: string[]; orgId: string }) => {
+        const tasks: Promise<void>[] = []
+        for (const id of ids) tasks.push(rmWiki({ id: Number(id) }))
+        await Promise.all(tasks)
+      },
       { clear, handleBulkDelete, selected, toggleSelect, toggleSelectAll } = useBulkSelection({
-        bulkRm: useMutation(api.wiki.bulkRm),
-        items: wikis?.page ?? [],
+        bulkRm,
+        items: wikis,
         onError: (e: unknown) => {
           fail(e)
         },
@@ -42,7 +55,7 @@ const wikiRestore = api.wiki.restore,
     if (showDeleted && !deletedWikis) return <Skeleton className='h-40' />
     if (!(showDeleted || wikis)) return <Skeleton className='h-40' />
 
-    const activeItems = showDeleted ? [] : (wikis?.page ?? []),
+    const activeItems = showDeleted ? [] : wikis,
       deletedItems = deletedWikis ?? [],
       visibleCount = showDeleted ? deletedItems.length : activeItems.length
 
@@ -162,7 +175,7 @@ const wikiRestore = api.wiki.restore,
                       onClick={e => e.stopPropagation()}
                     />
                   ) : null}
-                  <Link href={`/wiki/${w._id}`}>
+                  <Link href={`/wiki/${w.id}`}>
                     <Card className='transition-colors hover:bg-muted'>
                       <CardHeader className={isAdmin ? 'pl-10' : ''}>
                         <CardTitle>{w.title}</CardTitle>

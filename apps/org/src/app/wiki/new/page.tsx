@@ -1,11 +1,12 @@
 'use client'
 
-import { api } from '@a/be'
+import { reducers } from '@a/be/spacetimedb'
 import { orgScoped } from '@a/be/t'
 import { Card, CardContent, CardHeader, CardTitle } from '@a/ui/card'
 import { FieldGroup } from '@a/ui/field'
-import { Form, useFormMutation } from 'betterspace/components'
+import { Form, useForm } from 'betterspace/components'
 import { useRouter } from 'next/navigation'
+import { useReducer } from 'spacetimedb/react'
 import { toast } from 'sonner'
 
 import { useOrg } from '~/hook/use-org'
@@ -13,15 +14,16 @@ import { useOrg } from '~/hook/use-org'
 const NewWikiPage = () => {
   const router = useRouter(),
     { org } = useOrg(),
-    form = useFormMutation({
-      mutation: api.wiki.create,
-      onSuccess: () => {
+    createWiki = useReducer(reducers.createWiki),
+    form = useForm({
+      onSubmit: async d => {
+        await createWiki({ ...d, orgId: Number(org._id) })
         toast.success('Wiki page created')
         router.push('/wiki')
+        return d
       },
       resetOnSuccess: true,
-      schema: orgScoped.wiki,
-      transform: d => ({ ...d, orgId: org._id })
+      schema: orgScoped.wiki
     })
 
   return (

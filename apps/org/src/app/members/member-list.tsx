@@ -1,7 +1,9 @@
 /* oxlint-disable promise/prefer-await-to-then */
 'use client'
 
-import { api } from '@a/be'
+import type { OrgMember } from '@a/be/spacetimedb/types'
+
+import { tables } from '@a/be/spacetimedb'
 import { fail } from '@a/fe/utils'
 import { Avatar, AvatarFallback, AvatarImage } from '@a/ui/avatar'
 import { Button } from '@a/ui/button'
@@ -9,20 +11,26 @@ import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuTrigge
 import { Skeleton } from '@a/ui/skeleton'
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@a/ui/table'
 import { RoleBadge } from 'betterspace/components'
-import { useOrgQuery } from 'betterspace/react'
-import { useMutation } from 'convex/react'
+import { useSpacetimeDB, useTable } from 'spacetimedb/react'
 import { MoreHorizontal, UserMinus } from 'lucide-react'
 import { toast } from 'sonner'
 
 import { useOrg } from '~/hook/use-org'
 
 const MemberList = () => {
-  const { canManageAdmins, canManageMembers, role: myRole } = useOrg(),
-    members = useOrgQuery(api.org.members),
-    removeMember = useMutation(api.org.removeMember),
-    setAdmin = useMutation(api.org.setAdmin)
+  const { canManageAdmins, canManageMembers, org, role: myRole } = useOrg(),
+    { identity } = useSpacetimeDB(),
+    [allMembers] = useTable(tables.orgMember),
+    members = allMembers
+      .filter((m: OrgMember) => m.orgId === Number(org._id))
+      .map((m: OrgMember) => {
+        const role = m.userId.toHexString() === org.userId.toHexString() ? 'owner' : m.isAdmin ? 'admin' : 'member'
+        return { memberId: `${m.id}`, role, user: null, userId: m.userId.toHexString() }
+      }),
+    removeMember = async (_args: Record<string, unknown>) => undefined,
+    setAdmin = async (_args: Record<string, unknown>) => undefined
 
-  if (!members) return <Skeleton className='h-40 w-full' />
+  if (!identity) return <Skeleton className='h-40 w-full' />
 
   type MemberId = NonNullable<(typeof members)[number]['memberId']>
 

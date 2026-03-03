@@ -1,11 +1,12 @@
 import { org, singleton } from '@a/be/t'
+import { zodFromTable } from 'betterspace'
 import { cvFile } from 'betterspace/schema'
 import { boolean, email, object, string } from 'zod/v4'
 
-const orgTeam = org.team.omit({ avatarId: true }),
+const orgTeam = zodFromTable(org.team).omit({ avatarId: true }),
   invite = object({ email: email(), isAdmin: boolean() }),
   joinRequest = object({ message: string().optional() }),
-  profileStep = singleton.orgProfile.pick({ avatar: true, bio: true, displayName: true }),
+  profileStep = zodFromTable(singleton.orgProfile).pick({ avatar: true, bio: true, displayName: true }),
   orgStep = object({
     name: string().min(1),
     slug: string()
@@ -15,6 +16,6 @@ const orgTeam = org.team.omit({ avatarId: true }),
   appearanceStep = object({
     orgAvatar: cvFile().nullable().optional()
   }),
-  preferencesStep = singleton.orgProfile.pick({ notifications: true, theme: true })
+  preferencesStep = zodFromTable(singleton.orgProfile).pick({ notifications: true, theme: true })
 
 export { appearanceStep, invite, joinRequest, orgStep, orgTeam, preferencesStep, profileStep }

@@ -1,14 +1,16 @@
 /* oxlint-disable promise/prefer-await-to-then */
 'use client'
 
-import { api } from '@a/be'
+import type { Project } from '@a/be/spacetimedb/types'
+
+import { reducers, tables } from '@a/be/spacetimedb'
 import { fail } from '@a/fe/utils'
 import { Button } from '@a/ui/button'
 import { Card, CardContent, CardHeader, CardTitle } from '@a/ui/card'
 import { Checkbox } from '@a/ui/checkbox'
 import { Skeleton } from '@a/ui/skeleton'
-import { useBulkSelection, useOrgQuery } from 'betterspace/react'
-import { useMutation } from 'convex/react'
+import { useBulkSelection } from 'betterspace/react'
+import { useReducer, useTable } from 'spacetimedb/react'
 import { FolderOpen, Plus } from 'lucide-react'
 import Link from 'next/link'
 import { toast } from 'sonner'
@@ -17,11 +19,19 @@ import { useOrg } from '~/hook/use-org'
 
 const ProjectsPage = () => {
   const { isAdmin, org } = useOrg(),
-    projects = useOrgQuery(api.project.list, { paginationOpts: { cursor: null, numItems: 100 } }),
-    bulkRm = useMutation(api.project.bulkRm),
+    [allProjects] = useTable(tables.project),
+    projects = allProjects
+      .filter((p: Project) => p.orgId === Number(org._id))
+      .map((p: Project) => ({ ...p, _id: `${p.id}` })),
+    rmProject = useReducer(reducers.rmProject),
+    bulkRm = async ({ ids }: { ids: string[]; orgId: string }) => {
+      const tasks: Promise<void>[] = []
+      for (const id of ids) tasks.push(rmProject({ id: Number(id) }))
+      await Promise.all(tasks)
+    },
     { clear, handleBulkDelete, selected, toggleSelect, toggleSelectAll } = useBulkSelection({
       bulkRm,
-      items: projects?.page ?? [],
+      items: projects,
       onError: (e: unknown) => {
         fail(e)
       },
@@ -58,7 +68,7 @@ const ProjectsPage = () => {
         </Button>
       </div>
 
-      {projects.page.length === 0 ? (
+      {projects.length === 0 ? (
         <Card>
           <CardContent className='flex flex-col items-center py-8 text-center'>
             <FolderOpen className='mb-2 size-12 text-muted-foreground' />
@@ -67,18 +77,18 @@ const ProjectsPage = () => {
         </Card>
       ) : (
         <>
-          {isAdmin && projects.page.length > 0 ? (
+          {isAdmin && projects.length > 0 ? (
             <div className='flex items-center gap-2'>
               <Checkbox
                 aria-label='Select all projects'
-                checked={selected.size === projects.page.length}
+                checked={selected.size === projects.length}
                 onCheckedChange={toggleSelectAll}
               />
               <span className='text-sm text-muted-foreground'>Select all</span>
             </div>
           ) : null}
           <div className='grid gap-4 md:grid-cols-2 lg:grid-cols-3'>
-            {projects.page.map(p => (
+            {projects.map(p => (
               <div className='relative' key={p._id}>
                 {isAdmin ? (
                   <Checkbox
@@ -89,7 +99,7 @@ const ProjectsPage = () => {
                     onClick={e => e.stopPropagation()}
                   />
                 ) : null}
-                <Link href={`/projects/${p._id}`}>
+                <Link href={`/projects/${p.id}`}>
                   <Card className='transition-colors hover:bg-muted'>
                     <CardHeader className={isAdmin ? 'pl-10' : ''}>
                       <CardTitle>{p.name}</CardTitle>

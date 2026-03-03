@@ -1,41 +1,37 @@
 /* oxlint-disable promise/prefer-await-to-then, promise/always-return, promise/catch-or-return */
 'use client'
 
-import type { Id } from '@a/be/model'
+import type { Wiki } from '@a/be/spacetimedb/types'
 
-import { api } from '@a/be'
+import { reducers, tables } from '@a/be/spacetimedb'
 import { orgScoped } from '@a/be/t'
 import { Button } from '@a/ui/button'
 import { Card, CardContent, CardHeader, CardTitle } from '@a/ui/card'
 import { FieldGroup } from '@a/ui/field'
 import { Skeleton } from '@a/ui/skeleton'
-import { AutoSaveIndicator, Form, PermissionGuard, useFormMutation } from 'betterspace/components'
-import { canEditResource, useOrgMutation, useOrgQuery, useSoftDelete } from 'betterspace/react'
+import { AutoSaveIndicator, Form, PermissionGuard, useForm } from 'betterspace/components'
 import { pickValues } from 'betterspace/zod'
-import { useQuery } from 'convex/react'
 import { useRouter } from 'next/navigation'
 import { use } from 'react'
-import { toast } from 'sonner'
+import { useReducer, useSpacetimeDB, useTable } from 'spacetimedb/react'
 
 import { useOrg } from '~/hook/use-org'
 
-const wikiRestore = api.wiki.restore,
-  EditWikiForm = ({ wikiId }: { wikiId: Id<'wiki'> }) => {
+const sameIdentity = (a: { toHexString: () => string }, b: { toHexString: () => string }) =>
+    a.toHexString() === b.toHexString(),
+  EditWikiForm = ({ wikiId }: { wikiId: number }) => {
     const router = useRouter(),
       { org } = useOrg(),
-      wiki = useOrgQuery(api.wiki.read, { id: wikiId }),
-      { remove } = useSoftDelete({
-        label: 'wiki page',
-        restore: useOrgMutation(wikiRestore),
-        rm: useOrgMutation(api.wiki.rm),
-        // eslint-disable-next-line @typescript-eslint/strict-void-return
-        toast
-      }),
-      form = useFormMutation({
-        autoSave: { debounceMs: 2000, enabled: true },
-        mutation: api.wiki.update,
+      [wikis] = useTable(tables.wiki),
+      wiki = wikis.find((w: Wiki) => w.id === wikiId && w.orgId === Number(org._id)),
+      remove = useReducer(reducers.rmWiki),
+      update = useReducer(reducers.updateWiki),
+      form = useForm({
+        onSubmit: async d => {
+          await update({ ...d, id: wikiId, orgId: Number(org._id) })
+          return d
+        },
         schema: orgScoped.wiki,
-        transform: d => ({ ...d, expectedUpdatedAt: wiki?.updatedAt, id: wikiId, orgId: org._id }),
         values: wiki ? pickValues(orgScoped.wiki, wiki) : undefined
       }),
       handleDelete = () => {
@@ -68,16 +64,19 @@ const wikiRestore = api.wiki.restore,
       />
     )
   },
-  EditWikiPage = ({ params }: { params: Promise<{ wikiId: Id<'wiki'> }> }) => {
+  EditWikiPage = ({ params }: { params: Promise<{ wikiId: string }> }) => {
     const { wikiId } = use(params),
-      { isAdmin } = useOrg(),
-      me = useQuery(api.user.me, {}),
-      wiki = useOrgQuery(api.wiki.read, { id: wikiId }),
-      editorsList = useOrgQuery(api.wiki.editors, { wikiId })
+      id = Number(wikiId),
+      { isAdmin, org } = useOrg(),
+      { identity } = useSpacetimeDB(),
+      [wikis] = useTable(tables.wiki),
+      wiki = wikis.find((w: Wiki) => w.id === id && w.orgId === Number(org._id))
 
-    if (!(wiki && me && editorsList)) return <Skeleton className='h-40' />
+    if (!(wiki && identity)) return <Skeleton className='h-40' />
 
-    const canEditWiki = canEditResource({ editorsList, isAdmin, resource: wiki, userId: me._id })
+    const editorsList = (wiki.editors ?? []).map(e => ({ userId: e.toHexString() })),
+      canEditWiki =
+        isAdmin || sameIdentity(wiki.userId, identity) || editorsList.some(e => e.userId === identity.toHexString())
 
     return (
       <PermissionGuard backHref={`/wiki/${wikiId}`} backLabel='wiki page' canAccess={canEditWiki} resource='wiki page'>
@@ -87,7 +86,7 @@ const wikiRestore = api.wiki.restore,
               <CardTitle>Edit wiki page</CardTitle>
             </CardHeader>
             <CardContent>
-              <EditWikiForm wikiId={wikiId} />
+              <EditWikiForm wikiId={id} />
             </CardContent>
           </Card>
         </div>

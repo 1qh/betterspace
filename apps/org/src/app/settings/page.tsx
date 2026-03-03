@@ -2,15 +2,17 @@
 /* eslint-disable no-alert */
 'use client'
 
-import { api } from '@a/be'
+import type { OrgMember } from '@a/be/spacetimedb/types'
+
+import { tables } from '@a/be/spacetimedb'
 import { fail } from '@a/fe/utils'
 import { Button } from '@a/ui/button'
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@a/ui/card'
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@a/ui/select'
 import { clearActiveOrgCookie } from 'betterspace/next'
-import { useOrgMutation, useOrgQuery } from 'betterspace/react'
 import { useRouter } from 'next/navigation'
 import { useState } from 'react'
+import { useTable } from 'spacetimedb/react'
 import { toast } from 'sonner'
 
 import { useOrg } from '~/hook/use-org'
@@ -20,20 +22,21 @@ import OrgSettingsForm from './org-settings-form'
 const OrgSettingsPage = () => {
   const router = useRouter(),
     { canDeleteOrg, isAdmin, isOwner, org } = useOrg(),
-    removeOrg = useOrgMutation(api.org.remove),
-    leaveOrg = useOrgMutation(api.org.leave),
-    transferOwnership = useOrgMutation(api.org.transferOwnership),
-    members = useOrgQuery(api.org.members),
+    removeOrg = async (_args: Record<string, unknown>) => undefined,
+    leaveOrg = async (_args: Record<string, unknown>) => undefined,
+    transferOwnership = async (_args: Record<string, unknown>) => undefined,
+    [allMembers] = useTable(tables.orgMember),
+    members = allMembers.filter((m: OrgMember) => m.orgId === Number(org._id)),
     [transferTarget, setTransferTarget] = useState<string>('')
 
   if (!isAdmin)
     return <div className='text-center text-muted-foreground'>You do not have permission to access settings.</div>
 
-  const adminMembers = members?.filter(m => m.role === 'admin') ?? [],
+  const adminMembers = members.filter(m => m.isAdmin).map(m => ({ user: null, userId: m.userId.toHexString() })),
     handleLeave = () => {
       /** biome-ignore lint/suspicious/noAlert: demo page uses native confirm */
       if (!confirm('Are you sure you want to leave this organization?')) return
-      leaveOrg()
+      leaveOrg({ orgId: Number(org._id) })
         .then(async () => {
           await clearActiveOrgCookie()
           toast.success('You have left the organization')
@@ -46,7 +49,7 @@ const OrgSettingsPage = () => {
       if (!target) return
       /** biome-ignore lint/suspicious/noAlert: demo page uses native confirm */
       if (!confirm('Are you sure? You will become an admin and lose owner privileges.')) return
-      transferOwnership({ newOwnerId: target.userId })
+      transferOwnership({ newOwnerId: target.userId, orgId: Number(org._id) })
         .then(() => {
           toast.success('Ownership transferred')
           router.refresh()
@@ -56,7 +59,7 @@ const OrgSettingsPage = () => {
     handleDelete = () => {
       /** biome-ignore lint/suspicious/noAlert: demo page uses native confirm */
       if (!confirm('Are you sure? This will delete all data.')) return
-      removeOrg()
+      removeOrg({ id: Number(org._id) })
         .then(async () => {
           await clearActiveOrgCookie()
           toast.success('Organization deleted')

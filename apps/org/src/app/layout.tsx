@@ -1,18 +1,14 @@
-import type { Doc } from '@a/be/model'
+'use client'
+
+import type { Org, OrgMember } from '@a/be/spacetimedb/types'
 import type { OrgRole } from 'betterspace'
-import type { FunctionReference } from 'convex/server'
 import type { ReactNode } from 'react'
 
-import { api } from '@a/be'
+import { tables } from '@a/be/spacetimedb'
 import AuthLayout from '@a/fe/auth-layout'
 import ConvexProvider from '@a/fe/convex-provider'
-import { getActiveOrg, getToken, isAuthenticated } from 'betterspace/next'
-import { fetchQuery } from 'convex/nextjs'
-import { headers } from 'next/headers'
-import { redirect } from 'next/navigation'
-import { connection } from 'next/server'
-
-import { getTestClient } from '~/utils'
+import { useSpacetimeDB, useTable } from 'spacetimedb/react'
+import { usePathname, useRouter } from 'next/navigation'
 
 import OrgLayoutClient from './layout-client'
 import OrgRedirect from './org-redirect'
@@ -21,78 +17,68 @@ const ORG_PATHS = ['/dashboard', '/members', '/projects', '/wiki', '/settings'],
   needsOrgLayout = (pathname: string) => {
     for (const p of ORG_PATHS) if (pathname === p || pathname.startsWith(`${p}/`)) return true
     return false
-  }
+  },
+  toOrgId = (id: number) => `${id}`,
+  sameIdentity = (a: Org['userId'], b: Org['userId']) => a.toHexString() === b.toHexString(),
+  readActiveOrgId = () => {
+    if (typeof document === 'undefined') return null
+    const prefix = 'active_org=',
+      cookies = document.cookie.split('; ')
+    for (const c of cookies) if (c.startsWith(prefix)) return c.slice(prefix.length)
+    return null
+  },
+  toLegacyOrg = (org: Org) => ({ ...org, _id: toOrgId(org.id) }),
+  Layout = ({ children }: { children: ReactNode }) => {
+    const pathname = usePathname(),
+      router = useRouter(),
+      { identity } = useSpacetimeDB(),
+      [orgs] = useTable(tables.org),
+      [members] = useTable(tables.orgMember)
 
-interface MembershipResult {
-  memberId: null | string
-  role: OrgRole
-}
+    if (!(identity && pathname))
+      return <AuthLayout convexProvider={inner => <ConvexProvider fileApi>{inner}</ConvexProvider>}>{children}</AuthLayout>
 
-interface MyOrgsResult {
-  org: { _id: string; avatarId?: string; name: string; slug: string }
-  role: OrgRole
-}
+    if (!needsOrgLayout(pathname))
+      return <AuthLayout convexProvider={inner => <ConvexProvider fileApi>{inner}</ConvexProvider>}>{children}</AuthLayout>
 
-const queryOrDirect = async <T,>(
-  token: null | string | undefined,
-  query: FunctionReference<'query'>,
-  args: Record<string, unknown>
-): Promise<null | T> => {
-  // eslint-disable-next-line betterspace/require-connection
-  if (token) return fetchQuery(query, args, { token }) as Promise<T>
-  return getTestClient().query(query, args) as Promise<T>
-}
+    const myMemberships = members.filter((m: OrgMember) => m.userId.toHexString() === identity.toHexString()),
+      myOrgItems = myMemberships
+        .map((m: OrgMember) => {
+          const org = orgs.find((o: Org) => o.id === m.orgId)
+          if (!org) return null
+          const role: OrgRole = sameIdentity(org.userId, identity) ? 'owner' : m.isAdmin ? 'admin' : 'member'
+          return { org: toLegacyOrg(org), role }
+        })
+        .filter(item => item !== null)
 
-type OrgContext =
-  | { kind: 'ok'; membership: MembershipResult; org: Doc<'org'> }
-  | { kind: 'redirect'; orgId: string; slug: string; to: string }
-
-/* eslint-disable max-statements */
-const resolveOrgContext = async (pathname: string): Promise<OrgContext> => {
-    await connection()
-    if (!(await isAuthenticated())) redirect('/login')
-
-    const token = await getToken(),
-      org = (await getActiveOrg({ query: api.org.get, token: token ?? null })) as Doc<'org'> | null
-
-    if (!org) {
-      const orgs = (await queryOrDirect<MyOrgsResult[]>(token, api.org.myOrgs as FunctionReference<'query'>, {})) ?? []
-
-      if (orgs.length === 0) redirect('/')
-      const [first] = orgs
-      if (first) return { kind: 'redirect', orgId: first.org._id, slug: first.org.slug, to: pathname }
-      redirect('/')
+    if (myOrgItems.length === 0) {
+      router.replace('/')
+      return null
     }
 
-    const membership = await queryOrDirect<MembershipResult>(token, api.org.membership as FunctionReference<'query'>, {
-      orgId: org._id
-    })
+    const activeOrgId = readActiveOrgId(),
+      active = (activeOrgId ? myOrgItems.find(item => item.org._id === activeOrgId) : null) ?? myOrgItems[0]
 
-    if (!membership) redirect('/')
+    if (!active) {
+      router.replace('/')
+      return null
+    }
 
-    return { kind: 'ok', membership, org }
-  },
-  Layout = async ({ children }: { children: ReactNode }) => {
-    const pathname = (await headers()).get('x-pathname') ?? '/'
-
-    let content: ReactNode = children
-
-    if (needsOrgLayout(pathname)) {
-      const ctx = await resolveOrgContext(pathname)
-      if (ctx.kind === 'redirect')
-        return (
-          <AuthLayout convexProvider={inner => <ConvexProvider fileApi>{inner}</ConvexProvider>}>
-            <OrgRedirect orgId={ctx.orgId} slug={ctx.slug} to={ctx.to} />
-          </AuthLayout>
-        )
-      content = (
-        <OrgLayoutClient membership={null} org={ctx.org} role={ctx.membership.role}>
-          {children}
-        </OrgLayoutClient>
+    if (activeOrgId !== active.org._id) {
+      return (
+        <AuthLayout convexProvider={inner => <ConvexProvider fileApi>{inner}</ConvexProvider>}>
+          <OrgRedirect orgId={active.org._id} slug={active.org.slug} to={pathname} />
+        </AuthLayout>
       )
     }
 
-    return <AuthLayout convexProvider={inner => <ConvexProvider fileApi>{inner}</ConvexProvider>}>{content}</AuthLayout>
+    return (
+      <AuthLayout convexProvider={inner => <ConvexProvider fileApi>{inner}</ConvexProvider>}>
+        <OrgLayoutClient membership={null} org={active.org} orgs={myOrgItems} role={active.role}>
+          {children}
+        </OrgLayoutClient>
+      </AuthLayout>
+    )
   }
 
 export default Layout

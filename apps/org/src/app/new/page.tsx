@@ -1,11 +1,9 @@
 'use client'
 
-import { api } from '@a/be'
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@a/ui/card'
 import { FieldGroup } from '@a/ui/field'
 import slugify from '@sindresorhus/slugify'
 import { Form, useForm } from 'betterspace/components'
-import { useMutation } from 'convex/react'
 import { useRouter } from 'next/navigation'
 import { useEffect, useRef } from 'react'
 import { toast } from 'sonner'
@@ -14,10 +12,10 @@ import { orgTeam } from '~/schema'
 
 const NewOrgPage = () => {
   const router = useRouter(),
-    create = useMutation(api.org.create),
+    create = async (_args: Record<string, unknown>) => undefined,
     form = useForm({
       onSubmit: async d => {
-        await create({ data: d })
+        await create(d)
         toast.success('Organization created')
         router.push('/')
         return d

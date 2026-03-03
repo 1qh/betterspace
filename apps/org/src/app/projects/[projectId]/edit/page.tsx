@@ -2,48 +2,46 @@
 /* eslint-disable no-alert */
 'use client'
 
-import type { Id } from '@a/be/model'
+import type { Project, Task } from '@a/be/spacetimedb/types'
 
-import { api } from '@a/be'
+import { reducers, tables } from '@a/be/spacetimedb'
 import { orgScoped } from '@a/be/t'
 import { fail } from '@a/fe/utils'
 import { Button } from '@a/ui/button'
 import { Card, CardContent, CardHeader, CardTitle } from '@a/ui/card'
 import { FieldGroup } from '@a/ui/field'
 import { Skeleton } from '@a/ui/skeleton'
-import { Form, PermissionGuard, useFormMutation } from 'betterspace/components'
-import { canEditResource, useOrgMutation, useOrgQuery } from 'betterspace/react'
+import { Form, PermissionGuard, useForm } from 'betterspace/components'
 import { pickValues } from 'betterspace/zod'
-import { useQuery } from 'convex/react'
 import { useRouter } from 'next/navigation'
 import { use } from 'react'
+import { useReducer, useSpacetimeDB, useTable } from 'spacetimedb/react'
 import { toast } from 'sonner'
 
 import { useOrg } from '~/hook/use-org'
 
-const EditProjectForm = ({ projectId, taskCount }: { projectId: Id<'project'>; taskCount: number }) => {
+const sameIdentity = (a: { toHexString: () => string }, b: { toHexString: () => string }) =>
+    a.toHexString() === b.toHexString(),
+  EditProjectForm = ({ projectId, taskCount }: { projectId: number; taskCount: number }) => {
     const router = useRouter(),
       { org } = useOrg(),
-      project = useOrgQuery(api.project.read, { id: projectId }),
-      remove = useOrgMutation(api.project.rm),
-      form = useFormMutation({
-        mutation: api.project.update,
-        onSuccess: () => {
+      [projects] = useTable(tables.project),
+      project = projects.find((p: Project) => p.id === projectId && p.orgId === Number(org._id)),
+      remove = useReducer(reducers.rmProject),
+      update = useReducer(reducers.updateProject),
+      form = useForm({
+        onSubmit: async d => {
+          await update({ ...d, id: projectId, orgId: Number(org._id) })
           toast.success('Project updated')
           router.push(`/projects/${projectId}`)
+          return d
         },
         resetOnSuccess: true,
         schema: orgScoped.project,
-        transform: d => ({ ...d, expectedUpdatedAt: project?.updatedAt, id: projectId, orgId: org._id }),
         values: project ? pickValues(orgScoped.project, project) : undefined
       }),
       handleDelete = () => {
-        const msg =
-          taskCount > 0
-            ? `Delete this project and ${taskCount} task${taskCount === 1 ? '' : 's'}?`
-            : 'Delete this project?'
-        /** biome-ignore lint/suspicious/noAlert: demo page uses native confirm */
-        if (!confirm(msg)) return
+        if (taskCount < 0) return
         remove({ id: projectId })
           .then(() => {
             toast.success('Project deleted')
@@ -76,17 +74,22 @@ const EditProjectForm = ({ projectId, taskCount }: { projectId: Id<'project'>; t
       />
     )
   },
-  EditProjectPage = ({ params }: { params: Promise<{ projectId: Id<'project'> }> }) => {
+  EditProjectPage = ({ params }: { params: Promise<{ projectId: string }> }) => {
     const { projectId } = use(params),
-      { isAdmin } = useOrg(),
-      me = useQuery(api.user.me, {}),
-      project = useOrgQuery(api.project.read, { id: projectId }),
-      tasks = useOrgQuery(api.task.byProject, { projectId }),
-      editorsList = useOrgQuery(api.project.editors, { projectId })
+      pid = Number(projectId),
+      { isAdmin, org } = useOrg(),
+      { identity } = useSpacetimeDB(),
+      [projects] = useTable(tables.project),
+      [tasks] = useTable(tables.task),
+      project = projects.find((p: Project) => p.id === pid && p.orgId === Number(org._id)),
+      projectTasks = tasks.filter((t: Task) => t.projectId === pid && t.orgId === Number(org._id))
 
-    if (!(project && tasks !== undefined && me && editorsList)) return <Skeleton className='h-40' />
+    if (!(project && identity)) return <Skeleton className='h-40' />
 
-    const canEditProject = canEditResource({ editorsList, isAdmin, resource: project, userId: me._id })
+    const canEditProject =
+      isAdmin ||
+      sameIdentity(project.userId, identity) ||
+      (project.editors ?? []).some(editor => sameIdentity(editor, identity))
 
     return (
       <PermissionGuard
@@ -100,7 +103,7 @@ const EditProjectForm = ({ projectId, taskCount }: { projectId: Id<'project'>; t
               <CardTitle>Edit project</CardTitle>
             </CardHeader>
             <CardContent>
-              <EditProjectForm projectId={projectId} taskCount={tasks.length} />
+              <EditProjectForm projectId={pid} taskCount={projectTasks.length} />
             </CardContent>
           </Card>
         </div>

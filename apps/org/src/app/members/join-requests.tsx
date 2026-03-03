@@ -1,29 +1,34 @@
 /* oxlint-disable promise/prefer-await-to-then */
 'use client'
 
-import { api } from '@a/be'
-import { fail, formatDate } from '@a/fe/utils'
+import type { OrgJoinRequest } from '@a/be/spacetimedb/types'
+
+import { tables } from '@a/be/spacetimedb'
+import { fail } from '@a/fe/utils'
 import { Avatar, AvatarFallback, AvatarImage } from '@a/ui/avatar'
 import { Button } from '@a/ui/button'
-import { Skeleton } from '@a/ui/skeleton'
 import { Switch } from '@a/ui/switch'
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@a/ui/table'
-import { useOrgQuery } from 'betterspace/react'
-import { useMutation } from 'convex/react'
+import { useTable } from 'spacetimedb/react'
 import { Check, X } from 'lucide-react'
 import { useState } from 'react'
 import { toast } from 'sonner'
 
+import { useOrg } from '~/hook/use-org'
+
 const JoinRequests = () => {
-  const requests = useOrgQuery(api.org.pendingJoinRequests),
-    approveRequest = useMutation(api.org.approveJoinRequest),
-    rejectRequest = useMutation(api.org.rejectJoinRequest),
+  const { org } = useOrg(),
+    [allRequests] = useTable(tables.orgJoinRequest),
+    requests = allRequests
+      .filter((r: OrgJoinRequest) => r.orgId === Number(org._id) && r.status === 'pending')
+      .map((r: OrgJoinRequest) => ({ request: r, user: null })),
+    approveRequest = async (_args: Record<string, unknown>) => undefined,
+    rejectRequest = async (_args: Record<string, unknown>) => undefined,
     [asAdmin, setAsAdmin] = useState<Record<string, boolean>>({})
 
-  if (requests === undefined) return <Skeleton className='h-20 w-full' />
   if (requests.length === 0) return null
 
-  type ReqId = NonNullable<typeof requests>[number]['request']['_id']
+  type ReqId = NonNullable<typeof requests>[number]['request']['id']
 
   const handleApprove = (requestId: ReqId, isAdmin: boolean) => {
       approveRequest({ isAdmin, requestId })
@@ -51,7 +56,7 @@ const JoinRequests = () => {
         </TableHeader>
         <TableBody>
           {requests.map(({ request: r, user: u }) => (
-            <TableRow key={r._id}>
+            <TableRow key={r.id}>
               <TableCell className='flex items-center gap-2'>
                 <Avatar className='size-6'>
                   {u?.image ? <AvatarImage src={u.image} /> : null}
@@ -60,18 +65,18 @@ const JoinRequests = () => {
                 <span>{u?.name ?? 'Unknown'}</span>
               </TableCell>
               <TableCell className='max-w-48 truncate text-sm text-muted-foreground'>{r.message ?? '-'}</TableCell>
-              <TableCell className='text-sm text-muted-foreground'>{formatDate(r._creationTime)}</TableCell>
+              <TableCell className='text-sm text-muted-foreground'>-</TableCell>
               <TableCell>
                 <Switch
-                  checked={asAdmin[r._id] ?? false}
-                  onCheckedChange={v => setAsAdmin(prev => ({ ...prev, [r._id]: v }))}
+                  checked={asAdmin[`${r.id}`] ?? false}
+                  onCheckedChange={v => setAsAdmin(prev => ({ ...prev, [`${r.id}`]: v }))}
                 />
               </TableCell>
               <TableCell className='flex gap-1'>
-                <Button onClick={() => handleApprove(r._id, asAdmin[r._id] ?? false)} size='icon' variant='ghost'>
+                <Button onClick={() => handleApprove(r.id, asAdmin[`${r.id}`] ?? false)} size='icon' variant='ghost'>
                   <Check className='size-4 text-green-600' />
                 </Button>
-                <Button onClick={() => handleReject(r._id)} size='icon' variant='ghost'>
+                <Button onClick={() => handleReject(r.id)} size='icon' variant='ghost'>
                   <X className='size-4 text-red-600' />
                 </Button>
               </TableCell>

@@ -1,11 +1,12 @@
 'use client'
 
-import { api } from '@a/be'
+import { reducers } from '@a/be/spacetimedb'
 import { orgScoped } from '@a/be/t'
 import { Card, CardContent, CardHeader, CardTitle } from '@a/ui/card'
 import { FieldGroup } from '@a/ui/field'
-import { Form, useFormMutation } from 'betterspace/components'
+import { Form, useForm } from 'betterspace/components'
 import { useRouter } from 'next/navigation'
+import { useReducer } from 'spacetimedb/react'
 import { toast } from 'sonner'
 
 import { useOrg } from '~/hook/use-org'
@@ -13,15 +14,16 @@ import { useOrg } from '~/hook/use-org'
 const NewProjectPage = () => {
   const router = useRouter(),
     { org } = useOrg(),
-    form = useFormMutation({
-      mutation: api.project.create,
-      onSuccess: () => {
+    createProject = useReducer(reducers.createProject),
+    form = useForm({
+      onSubmit: async d => {
+        await createProject({ ...d, orgId: Number(org._id) })
         toast.success('Project created')
         router.push('/projects')
+        return d
       },
       resetOnSuccess: true,
-      schema: orgScoped.project,
-      transform: d => ({ ...d, orgId: org._id })
+      schema: orgScoped.project
     })
 
   return (

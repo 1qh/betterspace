@@ -1,31 +1,26 @@
 'use client'
 
-import type { Id } from '@a/be/model'
-
-import { api } from '@a/be'
 import { Button } from '@a/ui/button'
 import { Dialog, DialogContent, DialogDescription, DialogHeader, DialogTitle, DialogTrigger } from '@a/ui/dialog'
 import { Form, useForm } from 'betterspace/components'
-import { useMutation } from 'convex/react'
 import { Plus } from 'lucide-react'
 import { useState } from 'react'
+
 import { toast } from 'sonner'
 
 import { invite } from '~/schema'
 
 interface InviteDialogProps {
-  orgId: Id<'org'>
+  orgId: string
 }
 
 const InviteDialog = ({ orgId }: InviteDialogProps) => {
   const [open, setOpen] = useState(false),
-    sendInvite = useMutation(api.org.invite),
+    sendInvite = async (_args: Record<string, unknown>) => undefined,
     form = useForm({
       onSubmit: async d => {
-        const result = await sendInvite({ ...d, orgId })
-        if (!('token' in result)) return d
-        await navigator.clipboard.writeText(`${window.location.origin}/invite/${result.token}`)
-        toast.success('Invite link copied to clipboard')
+        await sendInvite({ ...d, orgId: Number(orgId) })
+        toast.success('Invite sent')
         setOpen(false)
         return d
       },

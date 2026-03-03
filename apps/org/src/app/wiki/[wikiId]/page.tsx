@@ -1,52 +1,42 @@
 /* oxlint-disable promise/prefer-await-to-then */
-
 'use client'
 
-import type { Id } from '@a/be/model'
+import type { Wiki } from '@a/be/spacetimedb/types'
 
-import { api } from '@a/be'
+import { tables } from '@a/be/spacetimedb'
 import { fail } from '@a/fe/utils'
 import { Badge } from '@a/ui/badge'
 import { Button } from '@a/ui/button'
 import { Skeleton } from '@a/ui/skeleton'
 import { EditorsSection } from 'betterspace/components'
-import { canEditResource, useOrgMutation, useOrgQuery } from 'betterspace/react'
-import { useQuery } from 'convex/react'
 import { Pencil, RotateCcw, Trash2 } from 'lucide-react'
 import Link from 'next/link'
 import { use } from 'react'
+import { useSpacetimeDB, useTable } from 'spacetimedb/react'
 import { toast } from 'sonner'
 
 import { useOrg } from '~/hook/use-org'
 
-const wikiRestore = api.wiki.restore,
-  WikiDetailPage = ({ params }: { params: Promise<{ wikiId: Id<'wiki'> }> }) => {
+const sameIdentity = (a: { toHexString: () => string }, b: { toHexString: () => string }) =>
+    a.toHexString() === b.toHexString(),
+  noop = () => undefined,
+  WikiDetailPage = ({ params }: { params: Promise<{ wikiId: string }> }) => {
     const { wikiId } = use(params),
-      { isAdmin } = useOrg(),
-      me = useQuery(api.user.me, {}),
-      wiki = useOrgQuery(api.wiki.read, { id: wikiId }),
-      members = useOrgQuery(api.org.members),
-      editorsList = useOrgQuery(api.wiki.editors, { wikiId }),
-      addEditorMut = useOrgMutation(api.wiki.addEditor),
-      removeEditorMut = useOrgMutation(api.wiki.removeEditor),
-      restoreMut = useOrgMutation(wikiRestore)
+      id = Number(wikiId),
+      { isAdmin, org } = useOrg(),
+      { identity } = useSpacetimeDB(),
+      [allWikis] = useTable(tables.wiki),
+      wiki = allWikis.find((w: Wiki) => w.id === id && w.orgId === Number(org._id)),
+      restoreMut = async (_args: Record<string, unknown>) => undefined
 
-    if (!(wiki && me && members && editorsList)) return <Skeleton className='h-40' />
+    if (!(wiki && identity)) return <Skeleton className='h-40' />
 
     const isDeleted = wiki.deletedAt !== undefined && wiki.deletedAt !== null,
-      canEditWiki = canEditResource({ editorsList, isAdmin, resource: wiki, userId: me._id }),
-      handleAddEditor = (userId: string) => {
-        addEditorMut({ editorId: userId, wikiId })
-          .then(() => toast.success('Editor added'))
-          .catch(fail)
-      },
-      handleRemoveEditor = (userId: string) => {
-        removeEditorMut({ editorId: userId, wikiId })
-          .then(() => toast.success('Editor removed'))
-          .catch(fail)
-      },
+      editorsList = (wiki.editors ?? []).map(e => ({ userId: e.toHexString() })),
+      canEditWiki =
+        isAdmin || sameIdentity(wiki.userId, identity) || editorsList.some(e => e.userId === identity.toHexString()),
       handleRestore = () => {
-        restoreMut({ id: wikiId })
+        restoreMut({ id: wiki.id })
           .then(() => toast.success('Wiki restored'))
           .catch(fail)
       }
@@ -92,12 +82,7 @@ const wikiRestore = api.wiki.restore,
         {wiki.content ? <p className='text-muted-foreground'>{wiki.content}</p> : null}
 
         {isAdmin && !isDeleted ? (
-          <EditorsSection
-            editorsList={editorsList}
-            members={members}
-            onAdd={handleAddEditor}
-            onRemove={handleRemoveEditor}
-          />
+          <EditorsSection editorsList={editorsList} members={[]} onAdd={noop} onRemove={noop} />
         ) : null}
       </div>
     )

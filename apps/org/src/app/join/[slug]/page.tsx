@@ -1,15 +1,15 @@
 'use client'
 
-import { api } from '@a/be'
+import { tables } from '@a/be/spacetimedb'
 import { fail } from '@a/fe/utils'
 import { Button } from '@a/ui/button'
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@a/ui/card'
 import { Skeleton } from '@a/ui/skeleton'
 import { Form, OrgAvatar, useForm } from 'betterspace/components'
 import { setActiveOrgCookieClient } from 'betterspace/react'
-import { useMutation, useQuery } from 'convex/react'
 import { useRouter } from 'next/navigation'
 import { use } from 'react'
+import { useSpacetimeDB, useTable } from 'spacetimedb/react'
 import { toast } from 'sonner'
 
 import { joinRequest } from '~/schema'
@@ -17,15 +17,25 @@ import { joinRequest } from '~/schema'
 const JoinPage = ({ params }: { params: Promise<{ slug: string }> }) => {
   const { slug } = use(params),
     router = useRouter(),
-    org = useQuery(api.org.getPublic, { slug }),
-    myRequest = useQuery(api.org.myJoinRequest, org ? { orgId: org._id } : 'skip'),
-    membership = useQuery(api.org.membership, org ? { orgId: org._id } : 'skip'),
-    cancelRequest = useMutation(api.org.cancelJoinRequest),
-    requestJoin = useMutation(api.org.requestJoin),
+    { identity } = useSpacetimeDB(),
+    [orgs] = useTable(tables.org),
+    [requests] = useTable(tables.orgJoinRequest),
+    [members] = useTable(tables.orgMember),
+    org = orgs.find(o => o.slug === slug),
+    myRequest =
+      identity && org
+        ? requests.find(
+            r => r.orgId === org.id && r.userId.toHexString() === identity.toHexString() && r.status === 'pending'
+          )
+        : null,
+    membership =
+      identity && org ? members.find(m => m.orgId === org.id && m.userId.toHexString() === identity.toHexString()) : null,
+    cancelRequest = async (_args: Record<string, unknown>) => undefined,
+    requestJoin = async (_args: Record<string, unknown>) => undefined,
     form = useForm({
       onSubmit: async d => {
         if (!org) return d
-        await requestJoin({ message: d.message ?? undefined, orgId: org._id })
+        await requestJoin({ message: d.message ?? undefined, orgId: org.id })
         toast.success('Join request sent')
         return d
       },
@@ -35,18 +45,18 @@ const JoinPage = ({ params }: { params: Promise<{ slug: string }> }) => {
     handleCancel = async () => {
       if (!myRequest) return
       try {
-        await cancelRequest({ requestId: myRequest._id })
+        await cancelRequest({ requestId: myRequest.id })
         toast.success('Request cancelled')
       } catch (error) {
         fail(error)
       }
     }
 
-  if (org === undefined) return <Skeleton className='mx-auto h-64 max-w-md' />
-  if (org === null) return <div className='text-center text-muted-foreground'>Organization not found</div>
+  if (!orgs) return <Skeleton className='mx-auto h-64 max-w-md' />
+  if (!org) return <div className='text-center text-muted-foreground'>Organization not found</div>
 
-  if (membership && !('code' in membership)) {
-    setActiveOrgCookieClient({ orgId: org._id, slug })
+  if (membership) {
+    setActiveOrgCookieClient({ orgId: `${org.id}`, slug })
     router.push('/dashboard')
     return null
   }

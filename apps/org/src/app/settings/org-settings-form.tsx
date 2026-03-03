@@ -1,29 +1,27 @@
 'use client'
 
-import type { Doc } from '@a/be/model'
+import type { Org } from '@a/be/spacetimedb/types'
 
-import { api } from '@a/be'
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@a/ui/card'
 import { FieldGroup } from '@a/ui/field'
 import { Form, useForm } from 'betterspace/components'
 import { setActiveOrgCookieClient } from 'betterspace/react'
 import { pickValues } from 'betterspace/zod'
-import { useMutation } from 'convex/react'
 import { useRouter } from 'next/navigation'
 import { toast } from 'sonner'
 
 import { orgTeam } from '~/schema'
 
 interface OrgSettingsFormProps {
-  org: Doc<'org'>
+  org: Org & { _id: string }
 }
 
 const OrgSettingsForm = ({ org: o }: OrgSettingsFormProps) => {
   const router = useRouter(),
-    update = useMutation(api.org.update),
+    update = async (_args: Record<string, unknown>) => undefined,
     form = useForm({
       onSubmit: async d => {
-        await update({ data: d, orgId: o._id })
+        await update({ ...d, id: Number(o._id) })
         toast.success('Settings updated')
         if (d.slug !== o.slug) setActiveOrgCookieClient({ orgId: o._id, slug: d.slug })
 

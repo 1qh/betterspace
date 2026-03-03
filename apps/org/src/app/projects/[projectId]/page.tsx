@@ -1,12 +1,11 @@
 /* oxlint-disable promise/prefer-await-to-then */
-
 'use client'
 
-import type { Doc, Id } from '@a/be/model'
-import type { FunctionReturnType } from 'convex/server'
+import type { OrgMember, Project, Task } from '@a/be/spacetimedb/types'
 import type { output } from 'zod/v4'
+import type { SyntheticEvent } from 'react'
 
-import { api } from '@a/be'
+import { reducers, tables } from '@a/be/spacetimedb'
 import { orgScoped } from '@a/be/t'
 import { fail } from '@a/fe/utils'
 import { Avatar, AvatarFallback, AvatarImage } from '@a/ui/avatar'
@@ -18,20 +17,22 @@ import { Input } from '@a/ui/input'
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@a/ui/select'
 import { Skeleton } from '@a/ui/skeleton'
 import { EditorsSection } from 'betterspace/components'
-import { canEditResource, useOrgMutation, useOrgQuery } from 'betterspace/react'
 import { enumToOptions } from 'betterspace/zod'
-import { useQuery } from 'convex/react'
 import { Check, Pencil, Plus, Trash, X } from 'lucide-react'
 import Link from 'next/link'
-import { use, useState } from 'react'
+import { use } from 'react'
+import { useReducer, useSpacetimeDB, useTable } from 'spacetimedb/react'
+import { useState } from 'react'
 import { toast } from 'sonner'
 
 import { useOrg } from '~/hook/use-org'
 
-type Member = FunctionReturnType<typeof api.org.members>[number]
 type Priority = NonNullable<output<typeof orgScoped.task>['priority']>
 
 const priorityOptions = enumToOptions(orgScoped.task.shape.priority.unwrap()),
+  sameIdentity = (a: { toHexString: () => string }, b: { toHexString: () => string }) =>
+    a.toHexString() === b.toHexString(),
+  noop = () => undefined,
   PrioritySelect = ({ onValueChange, value }: { onValueChange: (v: Priority) => void; value: Priority }) => (
     <Select onValueChange={v => onValueChange(v as Priority)} value={value}>
       <SelectTrigger className='w-28'>
@@ -50,12 +51,12 @@ const priorityOptions = enumToOptions(orgScoped.task.shape.priority.unwrap()),
 interface TaskRowProps {
   canAssign: boolean
   canEdit: boolean
-  members: Member[]
-  onAssign: (userId: Id<'users'> | null) => void
+  members: OrgMember[]
+  onAssign: (userId: null | string) => void
   onDelete: () => void
   onToggle: () => void
   onUpdate: (title: string, priority: Priority) => Promise<void>
-  task: Doc<'task'>
+  task: Task
 }
 
 const TaskRow = ({ canAssign, canEdit, members, onAssign, onDelete, onToggle, onUpdate, task: t }: TaskRowProps) => {
@@ -79,7 +80,7 @@ const TaskRow = ({ canAssign, canEdit, members, onAssign, onDelete, onToggle, on
         setEditing(false)
       },
       { assigneeId } = t,
-      assignee = assigneeId ? members.find(m => m.userId === assigneeId) : null
+      assignee = assigneeId ? members.find(m => sameIdentity(m.userId, assigneeId)) : null
 
     if (editing)
       return (
@@ -102,16 +103,16 @@ const TaskRow = ({ canAssign, canEdit, members, onAssign, onDelete, onToggle, on
         <span className='text-xs text-muted-foreground'>{t.priority}</span>
         {canAssign ? (
           <Select
-            onValueChange={v => onAssign(members.find(m => m.userId === v)?.userId ?? null)}
-            value={assigneeId ?? 'none'}>
+            onValueChange={v => onAssign(v === 'none' ? null : v)}
+            value={assigneeId ? assigneeId.toHexString() : 'none'}>
             <SelectTrigger className='w-32'>
               <SelectValue placeholder='Unassigned' />
             </SelectTrigger>
             <SelectContent>
               <SelectItem value='none'>Unassigned</SelectItem>
               {members.map(m => (
-                <SelectItem key={m.userId} value={m.userId}>
-                  {m.user?.name ?? 'Unknown'}
+                <SelectItem key={m.id} value={m.userId.toHexString()}>
+                  {m.userId.toHexString()}
                 </SelectItem>
               ))}
             </SelectContent>
@@ -119,10 +120,10 @@ const TaskRow = ({ canAssign, canEdit, members, onAssign, onDelete, onToggle, on
         ) : assignee ? (
           <div className='flex items-center gap-1'>
             <Avatar className='size-5'>
-              {assignee.user?.image ? <AvatarImage src={assignee.user.image} /> : null}
-              <AvatarFallback className='text-xs'>{assignee.user?.name?.[0] ?? '?'}</AvatarFallback>
+              <AvatarImage src={undefined} />
+              <AvatarFallback className='text-xs'>{assignee.userId.toHexString().slice(2, 4)}</AvatarFallback>
             </Avatar>
-            <span className='text-xs text-muted-foreground'>{assignee.user?.name}</span>
+            <span className='text-xs text-muted-foreground'>{assignee.userId.toHexString()}</span>
           </div>
         ) : null}
         {canEdit ? (
@@ -138,53 +139,54 @@ const TaskRow = ({ canAssign, canEdit, members, onAssign, onDelete, onToggle, on
       </div>
     )
   },
-  ProjectDetailPage = ({ params }: { params: Promise<{ projectId: Id<'project'> }> }) => {
+  ProjectDetailPage = ({ params }: { params: Promise<{ projectId: string }> }) => {
     const { projectId } = use(params),
-      { isAdmin } = useOrg(),
-      me = useQuery(api.user.me, {}),
-      project = useOrgQuery(api.project.read, { id: projectId }),
-      tasks = useOrgQuery(api.task.byProject, { projectId }),
-      members = useOrgQuery(api.org.members),
-      editorsList = useOrgQuery(api.project.editors, { projectId }),
-      createTask = useOrgMutation(api.task.create),
-      updateTask = useOrgMutation(api.task.update),
-      removeTask = useOrgMutation(api.task.rm),
-      bulkRm = useOrgMutation(api.task.bulkRm),
-      bulkUpdate = useOrgMutation(api.task.bulkUpdate),
-      toggleTask = useOrgMutation(api.task.toggle),
-      assignTask = useOrgMutation(api.task.assign),
-      addEditorMut = useOrgMutation(api.project.addEditor),
-      removeEditorMut = useOrgMutation(api.project.removeEditor),
+      pid = Number(projectId),
+      { isAdmin, org } = useOrg(),
+      { identity } = useSpacetimeDB(),
+      [allProjects] = useTable(tables.project),
+      [allTasks] = useTable(tables.task),
+      [allMembers] = useTable(tables.orgMember),
+      project = allProjects.find((p: Project) => p.id === pid && p.orgId === Number(org._id)),
+      tasks = allTasks.filter((t: Task) => t.projectId === pid && t.orgId === Number(org._id)),
+      members = allMembers.filter((m: OrgMember) => m.orgId === Number(org._id)),
+      createTask = useReducer(reducers.createTask),
+      updateTask = useReducer(reducers.updateTask),
+      removeTask = useReducer(reducers.rmTask),
       [title, setTitle] = useState(''),
       [priority, setPriority] = useState<Priority>('medium'),
-      [selected, setSelected] = useState<Set<Id<'task'>>>(new Set())
+      [selected, setSelected] = useState<Set<number>>(new Set())
 
-    if (!(project && tasks && me && members && editorsList)) return <Skeleton className='h-40' />
+    if (!(project && identity)) return <Skeleton className='h-40' />
 
-    const canEditProject = canEditResource({ editorsList, isAdmin, resource: project, userId: me._id }),
+    const canEditProject =
+        isAdmin || sameIdentity(project.userId, identity) || (project.editors ?? []).some(e => sameIdentity(e, identity)),
+      editorsList = (project.editors ?? []).map(e => ({ userId: e.toHexString() })),
       doAddTask = async () => {
         if (!title.trim()) return
         try {
-          await createTask({ completed: false, priority, projectId, title })
+          await createTask({ completed: false, orgId: Number(org._id), priority, projectId: pid, title })
           setTitle('')
           toast.success('Task added')
         } catch (error) {
           fail(error)
         }
       },
-      handleAddTask = (e: React.SyntheticEvent) => {
+      handleAddTask = (e: SyntheticEvent) => {
         e.preventDefault()
         doAddTask()
       },
-      handleToggle = (id: Id<'task'>) => {
-        toggleTask({ id }).catch(fail)
+      handleToggle = (id: number) => {
+        const current = tasks.find(t => t.id === id)
+        if (!current) return
+        updateTask({ completed: !current.completed, id }).catch(fail)
       },
-      handleDeleteTask = (id: Id<'task'>) => {
+      handleDeleteTask = (id: number) => {
         removeTask({ id })
           .then(() => toast.success('Task deleted'))
           .catch(fail)
       },
-      toggleSelect = (id: Id<'task'>) => {
+      toggleSelect = (id: number) => {
         setSelected(prev => {
           const next = new Set(prev)
           if (next.has(id)) next.delete(id)
@@ -194,11 +196,16 @@ const TaskRow = ({ canAssign, canEdit, members, onAssign, onDelete, onToggle, on
       },
       toggleSelectAll = () => {
         if (selected.size === tasks.length) setSelected(new Set())
-        else setSelected(new Set(tasks.map(t => t._id)))
+        else setSelected(new Set(tasks.map(t => t.id)))
       },
       handleBulkDelete = () => {
         if (selected.size === 0) return
-        bulkRm({ ids: [...selected] })
+        const run = async () => {
+          const jobs: Promise<void>[] = []
+          for (const id of selected) jobs.push(removeTask({ id }))
+          await Promise.all(jobs)
+        }
+        run()
           .then(() => {
             toast.success(`${selected.size} task(s) deleted`)
             setSelected(new Set())
@@ -208,22 +215,17 @@ const TaskRow = ({ canAssign, canEdit, members, onAssign, onDelete, onToggle, on
       },
       handleBulkComplete = (completed: boolean) => {
         if (selected.size === 0) return
-        bulkUpdate({ data: { completed }, ids: [...selected] })
+        const run = async () => {
+          const jobs: Promise<void>[] = []
+          for (const id of selected) jobs.push(updateTask({ completed, id }))
+          await Promise.all(jobs)
+        }
+        run()
           .then(() => {
             toast.success(`${selected.size} task(s) updated`)
             setSelected(new Set())
             return null
           })
-          .catch(fail)
-      },
-      handleAddEditor = (userId: string) => {
-        addEditorMut({ editorId: userId, projectId })
-          .then(() => toast.success('Editor added'))
-          .catch(fail)
-      },
-      handleRemoveEditor = (userId: string) => {
-        removeEditorMut({ editorId: userId, projectId })
-          .then(() => toast.success('Editor removed'))
           .catch(fail)
       }
 
@@ -290,25 +292,26 @@ const TaskRow = ({ canAssign, canEdit, members, onAssign, onDelete, onToggle, on
                 </div>
               ) : null}
               {tasks.map(t => {
-                const isTaskCreator = t.userId === me._id,
+                const isTaskCreator = sameIdentity(t.userId, identity),
                   canEdit = isTaskCreator || canEditProject
                 return (
-                  <div className='flex items-center gap-2' key={t._id}>
-                    {isAdmin ? (
-                      <Checkbox checked={selected.has(t._id)} onCheckedChange={() => toggleSelect(t._id)} />
-                    ) : null}
+                  <div className='flex items-center gap-2' key={t.id}>
+                    {isAdmin ? <Checkbox checked={selected.has(t.id)} onCheckedChange={() => toggleSelect(t.id)} /> : null}
                     <div className='flex-1'>
                       <TaskRow
                         canAssign={canEditProject}
                         canEdit={canEdit}
                         members={members}
                         onAssign={userId => {
-                          assignTask({ assigneeId: userId ?? undefined, id: t._id }).catch(fail)
+                          const assignee = userId
+                            ? members.find(m => m.userId.toHexString() === userId)?.userId
+                            : undefined
+                          updateTask({ assigneeId: assignee, id: t.id }).catch(fail)
                         }}
-                        onDelete={() => handleDeleteTask(t._id)}
-                        onToggle={() => handleToggle(t._id)}
+                        onDelete={() => handleDeleteTask(t.id)}
+                        onToggle={() => handleToggle(t.id)}
                         onUpdate={async (newTitle, newPriority) => {
-                          await updateTask({ id: t._id, priority: newPriority, title: newTitle })
+                          await updateTask({ id: t.id, priority: newPriority, title: newTitle })
                         }}
                         task={t}
                       />
@@ -321,14 +324,7 @@ const TaskRow = ({ canAssign, canEdit, members, onAssign, onDelete, onToggle, on
           </CardContent>
         </Card>
 
-        {isAdmin ? (
-          <EditorsSection
-            editorsList={editorsList}
-            members={members}
-            onAdd={handleAddEditor}
-            onRemove={handleRemoveEditor}
-          />
-        ) : null}
+        {isAdmin ? <EditorsSection editorsList={editorsList} members={[]} onAdd={noop} onRemove={noop} /> : null}
       </div>
     )
   }

@@ -1,9 +1,9 @@
 'use client'
 
-import { api } from '@a/be'
+import { tables } from '@a/be/spacetimedb'
 import { Card, CardContent, CardHeader, CardTitle } from '@a/ui/card'
 import { RoleBadge } from 'betterspace/components'
-import { useOrgQuery } from 'betterspace/react'
+import { useTable } from 'spacetimedb/react'
 import { FolderOpen, Users } from 'lucide-react'
 import Link from 'next/link'
 
@@ -11,8 +11,10 @@ import { useOrg } from '~/hook/use-org'
 
 const OrgDashboard = () => {
   const { org, role } = useOrg(),
-    members = useOrgQuery(api.org.members),
-    projects = useOrgQuery(api.project.list, { paginationOpts: { cursor: null, numItems: 5 } })
+    [allMembers] = useTable(tables.orgMember),
+    [allProjects] = useTable(tables.project),
+    members = allMembers.filter(m => m.orgId === Number(org._id)),
+    projects = allProjects.filter(p => p.orgId === Number(org._id)).slice(0, 5)
 
   return (
     <div className='space-y-6'>
@@ -44,7 +46,7 @@ const OrgDashboard = () => {
             <CardTitle>Projects</CardTitle>
           </CardHeader>
           <CardContent>
-            <div className='text-3xl font-bold'>{projects?.page.length ?? '-'}</div>
+            <div className='text-3xl font-bold'>{projects.length}</div>
             <Link className='text-sm text-primary hover:underline' href='/projects'>
               View all projects
             </Link>

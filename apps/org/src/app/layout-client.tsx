@@ -4,6 +4,8 @@ import type { OrgRole } from 'betterspace'
 import type { OrgDocLike } from 'betterspace/server'
 import type { ReactNode } from 'react'
 
+import type { OrgMembership } from 'betterspace/react'
+
 import { OrgProvider } from 'betterspace/react'
 import Link from 'next/link'
 import { usePathname } from 'next/navigation'
@@ -43,14 +45,16 @@ const OrgNav = () => {
     children,
     membership,
     org,
+    orgs,
     role
   }: {
     children: ReactNode
     membership: null
     org: OrgDocLike
+    orgs?: OrgMembership<OrgDocLike>[]
     role: OrgRole
   }) => (
-    <OrgProvider membership={membership} org={org} role={role}>
+    <OrgProvider membership={membership} org={org} orgs={orgs} role={role}>
       <OrgNav />
       <main className='p-4'>{children}</main>
     </OrgProvider>

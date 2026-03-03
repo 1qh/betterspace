@@ -1,22 +1,25 @@
 /* oxlint-disable promise/prefer-await-to-then */
 'use client'
 
-import { api } from '@a/be'
+import type { OrgInvite } from '@a/be/spacetimedb/types'
+
+import { tables } from '@a/be/spacetimedb'
 import { fail, formatExpiry } from '@a/fe/utils'
 import { Button } from '@a/ui/button'
-import { Skeleton } from '@a/ui/skeleton'
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@a/ui/table'
 import { RoleBadge } from 'betterspace/components'
-import { useOrgQuery } from 'betterspace/react'
-import { useMutation } from 'convex/react'
+import { useTable } from 'spacetimedb/react'
 import { Copy, Trash } from 'lucide-react'
 import { toast } from 'sonner'
 
-const PendingInvites = () => {
-  const invites = useOrgQuery(api.org.pendingInvites),
-    revokeInvite = useMutation(api.org.revokeInvite)
+import { useOrg } from '~/hook/use-org'
 
-  if (invites === undefined) return <Skeleton className='h-20 w-full' />
+const PendingInvites = () => {
+  const { org } = useOrg(),
+    [allInvites] = useTable(tables.orgInvite),
+    invites = allInvites.filter((i: OrgInvite) => i.orgId === Number(org._id)),
+    revokeInvite = async (_args: Record<string, unknown>) => undefined
+
   if (invites.length === 0) return null
 
   const handleCopy = (token: string) => {
@@ -26,7 +29,7 @@ const PendingInvites = () => {
         .then(() => toast.success('Invite link copied'))
         .catch(() => toast.error('Failed to copy'))
     },
-    handleRevoke = (inviteId: (typeof invites)[number]['_id']) => {
+    handleRevoke = (inviteId: (typeof invites)[number]['id']) => {
       revokeInvite({ inviteId })
         .then(() => toast.success('Invite revoked'))
         .catch(fail)
@@ -46,7 +49,7 @@ const PendingInvites = () => {
         </TableHeader>
         <TableBody>
           {invites.map(i => (
-            <TableRow key={i._id}>
+            <TableRow key={i.id}>
               <TableCell>{i.email}</TableCell>
               <TableCell>
                 <RoleBadge role={i.isAdmin ? 'admin' : 'member'} />
@@ -56,7 +59,7 @@ const PendingInvites = () => {
                 <Button onClick={() => handleCopy(i.token)} size='icon' variant='ghost'>
                   <Copy className='size-4' />
                 </Button>
-                <Button onClick={() => handleRevoke(i._id)} size='icon' variant='ghost'>
+                <Button onClick={() => handleRevoke(i.id)} size='icon' variant='ghost'>
                   <Trash className='size-4' />
                 </Button>
               </TableCell>
