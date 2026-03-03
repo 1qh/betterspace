@@ -3994,7 +3994,7 @@ Note: Decision Gates may add tasks (Task 2b React binding, Task 7b multi-table j
   - Update all workspace `package.json` files: reference "betterspace" not "lazyconvex"
   - Update `packages/e2e/package.json`: Replace `convex` dependency with `spacetimedb` (unified package — canonical name validated by spike)
   - Update `packages/fe/package.json`: Replace `convex` and `@convex-dev/auth` with `spacetimedb`
-  - Update `LICENSE`, `CHANGELOG.md` if they exist
+  - Update `LICENSE` if it exists
 
   **Must NOT do**:
   - Do NOT change license
