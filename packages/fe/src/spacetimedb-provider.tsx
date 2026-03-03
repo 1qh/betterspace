@@ -3,6 +3,7 @@
 import type { ReactNode } from 'react'
 import type { DbConnectionConfig } from 'spacetimedb'
 
+import { api } from '@a/be'
 import { FileApiProvider } from 'betterspace/components'
 import { NavigationGuardProvider } from 'next-navigation-guard'
 import { AuthProvider as OidcProvider } from 'react-oidc-context'
@@ -26,11 +27,12 @@ const REMOTE_MODULE = {
     versionInfo: { cliVersion: '2.0.0' }
   } as const,
   TOKEN_KEY = 'spacetimedb.token',
+  FILE_API = { info: api.file.info, upload: api.file.upload },
   clients = new Map<string, DbConnectionBuilder<DbConnectionImpl<typeof REMOTE_MODULE>>>(),
   getToken = () => {
     if (typeof window === 'undefined') return
     const token = window.localStorage.getItem(TOKEN_KEY)
-    return token || undefined
+    return token ?? undefined
   },
   storeToken = (token: string) => {
     if (typeof window === 'undefined') return
@@ -65,7 +67,7 @@ const REMOTE_MODULE = {
       uri = spacetimeUri ?? convexUrl ?? env.NEXT_PUBLIC_SPACETIMEDB_URI,
       builder = getClient(uri, moduleName),
       guarded = <NavigationGuardProvider>{children}</NavigationGuardProvider>,
-      inner = fileApi ? <FileApiProvider value={{}}>{guarded}</FileApiProvider> : guarded,
+      inner = fileApi ? <FileApiProvider value={FILE_API}>{guarded}</FileApiProvider> : guarded,
       authInner = noAuth ? (
         inner
       ) : (

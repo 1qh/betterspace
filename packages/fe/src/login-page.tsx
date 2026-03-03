@@ -12,15 +12,17 @@ interface LoginPageProps {
 
 const LoginPage = ({ emailLoginPath = '/login/email', redirectTo = '/' }: LoginPageProps) => {
   const auth = useAuth(),
-    signInWithGoogle = async () => {
-      try {
-        await auth.signinRedirect({
-          extraQueryParams: { provider: 'google' },
-          state: { redirectTo }
-        })
-      } catch (error) {
-        toast.error(error instanceof Error ? error.message : 'Could not sign in')
-      }
+    signInWithGoogle = () => {
+      ;(async () => {
+        try {
+          await auth.signinRedirect({
+            extraQueryParams: { provider: 'google' },
+            state: { redirectTo }
+          })
+        } catch (error) {
+          toast.error(error instanceof Error ? error.message : 'Could not sign in')
+        }
+      })()
     }
   return (
     <div className='m-auto space-y-2'>

@@ -10,30 +10,32 @@ const EmailLoginPage = () => {
   const auth = useAuth(),
     [login, setLogin] = useState(true),
     [pending, setPending] = useState(false),
-    submitMagicLink = async (email: string) => {
-      await auth.signinRedirect({
-        extraQueryParams: {
-          login_hint: email,
-          provider: 'magic_link'
-        },
-        state: { flow: login ? 'signIn' : 'signUp' }
-      })
+    submitMagicLink = (email: string) => {
+      ;(async () => {
+        try {
+          await auth.signinRedirect({
+            extraQueryParams: {
+              login_hint: email,
+              provider: 'magic_link'
+            },
+            state: { flow: login ? 'signIn' : 'signUp' }
+          })
+        } catch (error) {
+          toast.error(error instanceof Error ? error.message : 'Could not continue with email')
+          setPending(false)
+        }
+      })()
     }
   return (
     <form
       className='m-auto max-w-60 space-y-2 *:w-full'
-      onSubmit={async ev => {
+      onSubmit={ev => {
         ev.preventDefault()
         setPending(true)
         const fd = new FormData(ev.currentTarget),
           emailVal = fd.get('email'),
           email = typeof emailVal === 'string' ? emailVal.trim() : ''
-        try {
-          await submitMagicLink(email)
-        } catch (error) {
-          toast.error(error instanceof Error ? error.message : 'Could not continue with email')
-          setPending(false)
-        }
+        submitMagicLink(email)
       }}>
       <Input autoComplete='email' id='email' name='email' placeholder='Email' />
       <Button disabled={pending} type='submit'>

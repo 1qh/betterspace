@@ -36,7 +36,7 @@ const toHttpUri = (uri: string) => {
   readString = (val: unknown) => (typeof val === 'string' && val.length > 0 ? val : undefined),
   getFirstRow = (payload: unknown): UserInfo => {
     if (!Array.isArray(payload)) return {}
-    const [first] = payload
+    const first: unknown = payload.length > 0 ? payload[0] : undefined
     if (!isObject(first)) return {}
     return {
       email: readString(first.email),
