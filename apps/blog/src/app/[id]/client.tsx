@@ -1,23 +1,22 @@
 // biome-ignore-all lint/performance/noImgElement: x
 'use client'
 
-import type { api } from '@a/be'
-import type { Preloaded } from 'convex/react'
+import type { Blog } from '@a/be/spacetimedb/types'
 
-import { usePreloadedQuery } from 'convex/react'
 import Link from 'next/link'
+import { useSpacetimeDB } from 'spacetimedb/react'
 
 import { Author } from '../common'
 
-const Client = ({ preloaded }: { preloaded: Preloaded<typeof api.blog.read> }) => {
-  const b = usePreloadedQuery(preloaded)
-  if (!b)
+const Client = ({ blog }: { blog: Blog | null }) => {
+  const { identity } = useSpacetimeDB()
+  if (!blog)
     return (
       <p className='text-muted-foreground' data-testid='blog-not-found'>
         Blog not found
       </p>
     )
-  if (!(b.own || b.published))
+  if (!((identity && blog.userId.isEqual(identity)) || blog.published))
     return (
       <p className='text-muted-foreground' data-testid='blog-not-published'>
         Blog not published
@@ -25,38 +24,35 @@ const Client = ({ preloaded }: { preloaded: Preloaded<typeof api.blog.read> }) =
     )
   return (
     <div data-testid='blog-detail-page'>
-      <Author {...b} />
-      {b.coverImageUrl ? (
+      <Author {...blog} />
+      {blog.coverImage ? (
         // eslint-disable-next-line @next/next/no-img-element
         <img
           alt=''
           className='mt-3 w-full rounded-lg object-cover'
           data-testid='blog-detail-cover'
           height={1000}
-          src={b.coverImageUrl}
+          src={blog.coverImage}
           width={1000}
         />
       ) : null}
       <p className='mt-2 text-3xl font-bold' data-testid='blog-detail-title'>
-        {b.title}
+        {blog.title}
       </p>
       <p className='whitespace-pre-line' data-testid='blog-detail-content'>
-        {b.content.trim()}
+        {blog.content.trim()}
       </p>
       <div className='flex flex-col' data-testid='blog-detail-attachments'>
-        {b.attachmentsUrls?.map(
-          (url: null | string) =>
-            url && (
-              <Link
-                className='hover:text-blue-500 hover:underline'
-                href={url}
-                key={url}
-                rel='noopener noreferrer'
-                target='_blank'>
-                {url}
-              </Link>
-            )
-        )}
+        {blog.attachments?.map(url => (
+          <Link
+            className='hover:text-blue-500 hover:underline'
+            href={url}
+            key={url}
+            rel='noopener noreferrer'
+            target='_blank'>
+            {url}
+          </Link>
+        ))}
       </div>
     </div>
   )

@@ -1,10 +1,8 @@
 // biome-ignore-all lint/performance/noImgElement: x
 'use client'
 
-import type { FunctionReturnType } from 'convex/server'
-import type { ComponentProps } from 'react'
-
-import { api } from '@a/be'
+import type { Blog } from '@a/be/spacetimedb/types'
+import { reducers } from '@a/be/spacetimedb'
 import { cn } from '@a/ui'
 import {
   AlertDialog,
@@ -22,33 +20,31 @@ import { FieldGroup } from '@a/ui/field'
 import { Spinner } from '@a/ui/spinner'
 import { Form, useForm } from 'betterspace/components'
 import { useOptimisticMutation } from 'betterspace/react'
-import { useMutation } from 'convex/react'
 import { format, formatDistance } from 'date-fns'
 import { Pencil, Plus, Send, Trash, UserRound } from 'lucide-react'
-import Image from 'next/image'
 import Link from 'next/link'
 import { useState } from 'react'
 import { toast } from 'sonner'
+import { useReducer, useSpacetimeDB } from 'spacetimedb/react'
 
-import { createBlog } from '~/schema'
+import { createBlog } from '~/schema-client'
 
 import { Publish } from './[id]/edit/client'
 
-type Blog = FunctionReturnType<typeof api.blog.list>['page'][number]
-
-const Delete = ({ id, onOptimisticRemove }: { id: Blog['_id']; onOptimisticRemove?: () => void }) => {
-    const { execute, isPending } = useOptimisticMutation({
-      mutation: api.blog.rm,
-      onOptimistic: () => {
-        onOptimisticRemove?.()
-      },
-      onRollback: () => {
-        toast.error('Failed to delete')
-      },
-      onSuccess: () => {
-        toast.success('Deleted')
-      }
-    })
+const Delete = ({ id, onOptimisticRemove }: { id: number; onOptimisticRemove?: () => void }) => {
+    const rmBlog = useReducer(reducers.rmBlog),
+      { execute, isPending } = useOptimisticMutation({
+        mutate: rmBlog,
+        onOptimistic: () => {
+          onOptimisticRemove?.()
+        },
+        onRollback: () => {
+          toast.error('Failed to delete')
+        },
+        onSuccess: () => {
+          toast.success('Deleted')
+        }
+      })
     return isPending ? (
       <Spinner className='size-8' data-testid='delete-spinner' />
     ) : (
@@ -84,10 +80,18 @@ const Delete = ({ id, onOptimisticRemove }: { id: Blog['_id']; onOptimisticRemov
   },
   Create = () => {
     const [open, setOpen] = useState(false),
-      create = useMutation(api.blog.create),
+      create = useReducer(reducers.createBlog),
       form = useForm({
         onSubmit: async d => {
-          await create({ ...d, published: false })
+          await create({
+            attachments: d.attachments,
+            category: d.category,
+            content: d.content,
+            coverImage: d.coverImage ?? undefined,
+            published: false,
+            tags: d.tags,
+            title: d.title
+          })
           return d
         },
         onSuccess: () => {
@@ -147,75 +151,68 @@ const Delete = ({ id, onOptimisticRemove }: { id: Blog['_id']; onOptimisticRemov
     )
   },
   Author = ({
-    _id: id,
-    author,
     category,
     className,
+    id,
     onOptimisticRemove,
-    own,
     published,
     tags,
-    updatedAt
-  }: Blog & ComponentProps<'div'> & { onOptimisticRemove?: () => void }) => (
-    <div className={cn('flex items-center', className)}>
-      {author?.image ? (
-        <Image alt='' className='rounded-full' height={32} src={author.image} width={32} />
-      ) : (
+    updatedAt,
+    userId
+  }: Blog & { className?: string; onOptimisticRemove?: () => void }) => {
+    const { identity } = useSpacetimeDB(),
+      own = identity ? userId.isEqual(identity) : false,
+      updatedAtDate = updatedAt.toDate()
+    return (
+      <div className={cn('flex items-center', className)}>
         <UserRound className='size-8 shrink-0 rounded-full bg-border stroke-1 pt-0.5 text-background' />
-      )}
-      <div className='mx-2'>
-        <p className='text-sm'>{author?.name ?? author?.email}</p>
-        <div className='flex items-center gap-1 text-xs text-muted-foreground' title={format(updatedAt, 'PPPPpp')}>
-          {formatDistance(updatedAt, new Date(), { addSuffix: true })}
-          <p>•</p>
-          <p className='rounded-full bg-muted-foreground px-1.5 text-background capitalize'>{category}</p>
-          {tags?.length ? (
-            <>
-              <p>•</p>
-              <p>{tags.map((tag: string) => `#${tag} `)}</p>
-            </>
-          ) : null}
+        <div className='mx-2'>
+          <p className='text-sm'>Author</p>
+          <div className='flex items-center gap-1 text-xs text-muted-foreground' title={format(updatedAtDate, 'PPPPpp')}>
+            {formatDistance(updatedAtDate, new Date(), { addSuffix: true })}
+            <p>•</p>
+            <p className='rounded-full bg-muted-foreground px-1.5 text-background capitalize'>{category}</p>
+            {tags?.length ? (
+              <>
+                <p>•</p>
+                <p>{tags.map(tag => `#${tag} `)}</p>
+              </>
+            ) : null}
+          </div>
         </div>
+        {own ? (
+          <>
+            <Publish className='mr-2 ml-auto' id={id} published={published} />
+            <Link href={`/${id}/edit`}>
+              <Pencil className='size-8 rounded-lg stroke-1 p-1.5 group-hover:block hover:bg-muted' />
+            </Link>
+            <Delete id={id} onOptimisticRemove={onOptimisticRemove} />
+          </>
+        ) : null}
       </div>
-      {own ? (
-        <>
-          <Publish className='mr-2 ml-auto' id={id} published={published} />
-          <Link href={`/${id}/edit`}>
-            <Pencil className='size-8 rounded-lg stroke-1 p-1.5 group-hover:block hover:bg-muted' />
-          </Link>
-          <Delete id={id} onOptimisticRemove={onOptimisticRemove} />
-        </>
-      ) : null}
-    </div>
-  ),
-  Card = ({
-    _id,
-    content,
-    coverImageUrl,
-    onOptimisticRemove,
-    title,
-    ...rest
-  }: Blog & { onOptimisticRemove?: () => void }) => (
+    )
+  },
+  Card = ({ id, content, coverImage, onOptimisticRemove, title, ...rest }: Blog & { onOptimisticRemove?: () => void }) => (
     <div
       className='group -mt-0.5 w-full rounded-xs border-2 border-transparent px-2.5 pt-2 transition-all duration-300 hover:rounded-3xl hover:border-border'
       data-testid='blog-card'>
       <Author
-        _id={_id}
+        id={id}
         content={content}
-        coverImageUrl={coverImageUrl}
+        coverImage={coverImage}
         onOptimisticRemove={onOptimisticRemove}
         title={title}
         {...rest}
       />
-      <Link className='mt-1 block' data-testid='blog-card-link' href={`/${_id}`}>
-        {coverImageUrl ? (
+      <Link className='mt-1 block' data-testid='blog-card-link' href={`/${id}`}>
+        {coverImage ? (
           // eslint-disable-next-line @next/next/no-img-element
           <img
             alt={title}
             className='my-1 w-full rounded-lg object-cover'
             data-testid='blog-cover-image'
             height={1000}
-            src={coverImageUrl}
+            src={coverImage}
             width={1000}
           />
         ) : null}
@@ -229,11 +226,11 @@ const Delete = ({ id, onOptimisticRemove }: { id: Blog['_id']; onOptimisticRemov
       <hr className='mx-3 mt-2.5 translate-y-px transition-all duration-500 group-hover:opacity-0' />
     </div>
   ),
-  List = ({ blogs, onRemove }: { blogs: Blog[]; onRemove?: (id: Blog['_id']) => void }) =>
+  List = ({ blogs, onRemove }: { blogs: Blog[]; onRemove?: (id: number) => void }) =>
     blogs.length ? (
       <div data-testid='blog-list'>
         {blogs.map(b => (
-          <Card key={b._id} onOptimisticRemove={onRemove ? () => onRemove(b._id) : undefined} {...b} />
+          <Card key={b.id} onOptimisticRemove={onRemove ? () => onRemove(b.id) : undefined} {...b} />
         ))}
       </div>
     ) : (

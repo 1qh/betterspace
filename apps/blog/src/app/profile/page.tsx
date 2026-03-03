@@ -1,42 +1,49 @@
 'use client'
 
-import { api } from '@a/be'
+import { reducers, tables } from '@a/be/spacetimedb'
 import { FieldGroup } from '@a/ui/field'
 import { Spinner } from '@a/ui/spinner'
 import { Form, useForm } from 'betterspace/components'
-import { useMutation, useQuery } from 'convex/react'
 import Link from 'next/link'
 import { toast } from 'sonner'
+import { useReducer, useSpacetimeDB, useTable } from 'spacetimedb/react'
 
-import { profileSchema } from '~/schema'
+import { profileSchema } from '~/schema-client'
 
 const Page = () => {
-  const profile = useQuery(api.blogProfile.get, {}),
-    upsert = useMutation(api.blogProfile.upsert),
+  const [profiles, isReady] = useTable(tables.blogProfile),
+    { identity } = useSpacetimeDB(),
+    profile = profiles.find(p => identity && p.userId.isEqual(identity)) ?? null,
+    upsert = useReducer(reducers.upsertBlogProfile),
     form = useForm({
       onSubmit: async d => {
-        await upsert(d)
+        await upsert({
+          avatar: d.avatar ?? undefined,
+          bio: d.bio,
+          displayName: d.displayName,
+          notifications: d.notifications,
+          theme: d.theme
+        })
         return d
       },
       onSuccess: () => {
         toast.success('Profile saved')
       },
       schema: profileSchema,
-      values:
-        profile === undefined
-          ? undefined
-          : profile
-            ? {
-                avatar: profile.avatar ?? null,
-                bio: profile.bio,
-                displayName: profile.displayName,
-                notifications: profile.notifications,
-                theme: profile.theme
-              }
-            : { displayName: '', notifications: true, theme: 'system' as const }
+      values: isReady
+        ? profile
+          ? {
+              avatar: profile.avatar ?? null,
+              bio: profile.bio,
+              displayName: profile.displayName,
+              notifications: profile.notifications,
+              theme: profile.theme
+            }
+          : { displayName: '', notifications: true, theme: 'system' as const }
+        : undefined
     })
 
-  if (profile === undefined)
+  if (!isReady)
     return (
       <div className='flex min-h-40 items-center justify-center'>
         <Spinner />

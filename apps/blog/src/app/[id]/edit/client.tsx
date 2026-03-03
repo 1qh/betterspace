@@ -1,10 +1,9 @@
 'use client'
 
-import type { Preloaded } from 'convex/react'
-import type { FunctionReturnType } from 'convex/server'
+import type { Blog } from '@a/be/spacetimedb/types'
 import type { ComponentProps } from 'react'
 
-import { api } from '@a/be'
+import { reducers } from '@a/be/spacetimedb'
 import { cn } from '@a/ui'
 import { FieldGroup } from '@a/ui/field'
 import { Label } from '@a/ui/label'
@@ -12,16 +11,21 @@ import { Popover, PopoverContent, PopoverTrigger } from '@a/ui/popover'
 import { Spinner } from '@a/ui/spinner'
 import { Switch } from '@a/ui/switch'
 import { AutoSaveIndicator, Form, useForm } from 'betterspace/components'
-import { useMutation, usePreloadedQuery } from 'convex/react'
 import { Settings } from 'lucide-react'
 import Link from 'next/link'
 import { useTransition } from 'react'
 import { toast } from 'sonner'
+import { useReducer, useSpacetimeDB } from 'spacetimedb/react'
 
-import { editBlog } from '~/schema'
+import { editBlog } from '~/schema-client'
 
-const Publish = ({ className, id, published, ...props }: ComponentProps<'div'> & { id: string; published: boolean }) => {
-    const update = useMutation(api.blog.update),
+const Publish = ({
+    className,
+    id,
+    published,
+    ...props
+  }: Omit<ComponentProps<'div'>, 'id'> & { id: number; published: boolean }) => {
+    const update = useReducer(reducers.updateBlog),
       [pending, go] = useTransition()
     return (
       <div className={cn('flex items-center gap-2', className)} data-testid='publish-toggle' {...props}>
@@ -33,7 +37,17 @@ const Publish = ({ className, id, published, ...props }: ComponentProps<'div'> &
           id='publish'
           onCheckedChange={() =>
             go(async () => {
-              await update({ id, published: !published })
+              await update({
+                attachments: undefined,
+                category: undefined,
+                content: undefined,
+                coverImage: undefined,
+                expectedUpdatedAt: undefined,
+                id,
+                published: !published,
+                tags: undefined,
+                title: undefined
+              })
               toast.success(published ? 'Unpublished' : 'Published')
             })
           }
@@ -42,12 +56,22 @@ const Publish = ({ className, id, published, ...props }: ComponentProps<'div'> &
       </div>
     )
   },
-  Edit = ({ blog }: { blog: NonNullable<FunctionReturnType<typeof api.blog.read>> }) => {
-    const update = useMutation(api.blog.update),
+  Edit = ({ blog }: { blog: Blog }) => {
+    const update = useReducer(reducers.updateBlog),
       form = useForm({
         autoSave: { debounceMs: 2000, enabled: true },
         onSubmit: async d => {
-          await update({ id: blog._id, ...d, expectedUpdatedAt: blog.updatedAt })
+          await update({
+            attachments: d.attachments,
+            category: d.category,
+            content: d.content,
+            coverImage: d.coverImage ?? undefined,
+            expectedUpdatedAt: blog.updatedAt,
+            id: blog.id,
+            published: d.published,
+            tags: d.tags,
+            title: d.title
+          })
           return d
         },
         schema: editBlog,
@@ -85,11 +109,21 @@ const Publish = ({ className, id, published, ...props }: ComponentProps<'div'> &
       />
     )
   },
-  Setting = ({ blog }: { blog: NonNullable<FunctionReturnType<typeof api.blog.read>> }) => {
-    const update = useMutation(api.blog.update),
+  Setting = ({ blog }: { blog: Blog }) => {
+    const update = useReducer(reducers.updateBlog),
       form = useForm({
         onSubmit: async d => {
-          await update({ id: blog._id, ...d })
+          await update({
+            attachments: undefined,
+            category: d.category,
+            content: undefined,
+            coverImage: undefined,
+            expectedUpdatedAt: undefined,
+            id: blog.id,
+            published: d.published,
+            tags: undefined,
+            title: undefined
+          })
           return d
         },
         onSuccess: () => {
@@ -114,9 +148,9 @@ const Publish = ({ className, id, published, ...props }: ComponentProps<'div'> &
       />
     )
   },
-  Client = ({ preloaded }: { preloaded: Preloaded<typeof api.blog.read> }) => {
-    const b = usePreloadedQuery(preloaded)
-    if (!b?.own)
+  Client = ({ blog }: { blog: Blog | null }) => {
+    const { identity } = useSpacetimeDB()
+    if (!(blog && identity && blog.userId.isEqual(identity)))
       return (
         <p className='text-muted-foreground' data-testid='blog-not-found'>
           Blog not found
@@ -125,7 +159,7 @@ const Publish = ({ className, id, published, ...props }: ComponentProps<'div'> &
     return (
       <div data-testid='edit-blog-page'>
         <div className='mb-3 flex justify-between'>
-          <Link className='rounded-lg px-3 py-2 hover:bg-muted' data-testid='back-link' href={`/${b._id}`}>
+          <Link className='rounded-lg px-3 py-2 hover:bg-muted' data-testid='back-link' href={`/${blog.id}`}>
             &larr; Back
           </Link>
           <Popover>
@@ -136,11 +170,11 @@ const Publish = ({ className, id, published, ...props }: ComponentProps<'div'> &
               />
             </PopoverTrigger>
             <PopoverContent data-testid='settings-popover'>
-              <Setting blog={b} key={b._id} />
+              <Setting blog={blog} key={blog.id} />
             </PopoverContent>
           </Popover>
         </div>
-        <Edit blog={b} key={b._id} />
+        <Edit blog={blog} key={blog.id} />
       </div>
     )
   }

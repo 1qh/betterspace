@@ -1,21 +1,24 @@
-import type { Id } from '@a/be/model'
+'use client'
 
-import { api } from '@a/be'
-import { isId } from '@a/fe/utils'
-import { getToken } from 'betterspace/next'
-import { preloadQuery } from 'convex/nextjs'
-import { notFound } from 'next/navigation'
-import { connection } from 'next/server'
+import { tables } from '@a/be/spacetimedb'
+import { parseId } from '@a/fe/utils'
+import { Spinner } from '@a/ui/spinner'
+import { useParams } from 'next/navigation'
+import { useTable } from 'spacetimedb/react'
 
 import Client from './client'
 
-const Page = async ({ params }: { params: Promise<{ id: Id<'blog'> }> }) => {
-  await connection()
-  const { id: raw } = await params,
-    id = isId<'blog'>(raw) ? raw : null
-  if (!id) return notFound()
-  const preloaded = await preloadQuery(api.blog.read, { id }, { token: await getToken() })
-  return <Client preloaded={preloaded} />
+const Page = () => {
+  const { id: raw } = useParams<{ id: string }>(),
+    id = parseId(raw),
+    [blogs, isReady] = useTable(tables.blog)
+  if (!isReady)
+    return (
+      <div className='flex min-h-40 items-center justify-center'>
+        <Spinner />
+      </div>
+    )
+  return <Client blog={id === null ? null : (blogs.find(b => b.id === id) ?? null)} />
 }
 
 export default Page

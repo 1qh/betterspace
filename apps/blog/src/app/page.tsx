@@ -1,28 +1,37 @@
 'use client'
 
-import { api } from '@a/be'
+import { tables } from '@a/be/spacetimedb'
 import { Input } from '@a/ui/input'
 import { useList } from 'betterspace/react'
 import { Search } from 'lucide-react'
-import { useCallback, useDeferredValue, useState } from 'react'
+import { useTable, useSpacetimeDB } from 'spacetimedb/react'
+import { useCallback, useDeferredValue, useMemo, useState } from 'react'
 
 import { Create, List } from './common'
 
 const Page = () => {
-  const { items, loadMore, status } = useList(api.blog.list, { where: { or: [{ published: true }, { own: true }] } }),
-    [removedIds, setRemovedIds] = useState<Set<string>>(new Set()),
+  const [allBlogs, isReady] = useTable(tables.blog),
+    { identity } = useSpacetimeDB(),
+    blogs = useMemo(
+      () => allBlogs.map(b => ({ ...b, own: identity ? b.userId.isEqual(identity) : false })),
+      [allBlogs, identity]
+    ),
+    { data, hasMore, isLoading, loadMore } = useList(blogs, isReady, {
+      where: { or: [{ published: true }, { own: true }] }
+    }),
+    [removedIds, setRemovedIds] = useState<Set<number>>(new Set()),
     [query, setQuery] = useState(''),
     deferredQuery = useDeferredValue(query.toLowerCase()),
-    filtered = items.filter(b => {
-      if (removedIds.has(b._id)) return false
+    filtered = data.filter(b => {
+      if (removedIds.has(b.id)) return false
       if (!deferredQuery) return true
       return (
         b.title.toLowerCase().includes(deferredQuery) ||
         b.content.toLowerCase().includes(deferredQuery) ||
-        b.tags?.some((t: string) => t.toLowerCase().includes(deferredQuery))
+        b.tags?.some(t => t.toLowerCase().includes(deferredQuery))
       )
     }),
-    handleRemove = useCallback((id: string) => {
+    handleRemove = useCallback((id: number) => {
       setRemovedIds(prev => new Set(prev).add(id))
     }, [])
   return (
@@ -40,7 +49,7 @@ const Page = () => {
         />
       </div>
       <List blogs={filtered} onRemove={handleRemove} />
-      {!deferredQuery && status === 'CanLoadMore' ? (
+      {!deferredQuery && hasMore && !isLoading ? (
         <button
           className='mx-auto mt-4 block text-sm text-muted-foreground hover:text-foreground'
           onClick={() => loadMore()}
