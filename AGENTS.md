@@ -1,4 +1,4 @@
-I'm the author of betterspace, see README to learn more. This repo contains the library itself and 4 real-world app examples, each app have 3 web/mobile/desktop versions to showcase the ultimate capabilities of betterspace. I've spent significant amount of effort is to raise DX to maximum so anyone who adapt betterspace will have maximum typesafety for both typescript and swift, every typo will raise type error as expected.
+I'm the author of betterspace, see README to learn more. This repo contains the library itself and 4 real-world web app examples to showcase the capabilities of betterspace. I've spent significant effort raising DX to maximum so anyone who adopts betterspace will have maximum typesafety for TypeScript, with every typo raising a type error as expected.
 
 # RULES
 
@@ -21,12 +21,6 @@ NEVER push before ALL of these pass locally:
 bun fix
 bun test:all
 ```
-
-## Swift Mobile API
-
-- Subscription cleanup uses `cancelSubscription(&subscriptionID)` — NOT `ConvexService.shared.unsubscribe()`
-- `cancelSubscription` is a free function from `ConvexShared/SharedUI.swift`
-- Mobile subscriptions use `Sub<T>` pattern or manual `subscriptionID` + `cancelSubscription`
 
 ---
 
@@ -89,7 +83,7 @@ Run `bun fix` to auto-fix and verify all linters pass (zero errors, warnings all
 Same UI, fewest DOM nodes.** Every element must *earn its place
 If you can delete it and nothing breaks (semantics, layout, behavior, required styling) → it shouldn't exist. Wrappers require justification in code review.
 
-### When a node is allowed (“real reasons”)
+### When a node is allowed ("real reasons")
 
 A DOM node is allowed only if it provides at least 1 of:
 
@@ -358,38 +352,33 @@ Before running any E2E test:
 2. [ ] Dev server killed: `pkill -9 -f "next"`
 3. [ ] Test results cleaned: `rm -rf test-results`
 
-For individual tests (`bun with-env playwright test`), deploy Convex first:
+For individual tests (`bun with-env playwright test`), publish the SpacetimeDB module first:
 
 ```bash
-cd packages/cv && CONVEX_TEST_MODE=true bun with-env convex dev --once
+SPACETIMEDB_TEST_MODE=true bun spacetime:publish
 ```
 
 `bun test:e2e` does this automatically before running tests.
 
 ---
 
-## Next.js Prerendering with Convex
+## Next.js Dynamic Rendering with SpacetimeDB
 
-Next.js requires signaling dynamic rendering BEFORE calling `Math.random()`. Convex's `preloadQuery`/`fetchQuery` use `Math.random()` internally.
-
-**Fix**: Add `await connection()` at the START of async Server Components:
+SpacetimeDB data fetching happens client-side via WebSocket subscriptions. Server Components that need to signal dynamic rendering should use `await connection()` before any data access:
 
 ```tsx
 import { connection } from 'next/server'
 
 const Page = async () => {
-  await connection()  // MUST be first - signals dynamic rendering
-  const data = await preloadQuery(api.foo.bar, {}, { token })
-  return <Client data={data} />
+  await connection()  // signals dynamic rendering
+  return <ClientComponent />
 }
 ```
 
 **Affected patterns:**
 
-- `preloadQuery()` / `fetchQuery()` / `fetchAction()` from `convex/nextjs`
-- `convexAuthNextjsToken()` from `@convex-dev/auth/nextjs/server`
-
-Without this, you get: `Error: Route "/path" used Math.random() before accessing uncached data`
+- Any Server Component that renders SpacetimeDB-subscribed client components
+- Pages with user-specific data that must not be statically cached
 
 ---
 
@@ -409,8 +398,8 @@ Run `bunx -y react-doctor@latest . --verbose` to scan all projects for React bes
 |---------|-------------|
 | Unused file (Next.js pages/layouts/configs) | Framework entry points, not imported by user code |
 | Unused export (cross-package library API) | Public API consumed by other packages — react-doctor scans per-project |
-| `<img>` for Convex storage URLs | Dynamic URLs from `storage.getUrl()` — `next/image` requires known `images.domains` |
-| `preventDefault()` on `<form>` | SPA forms submitting via Convex mutations, no server action |
+| `<img>` for SpacetimeDB storage URLs | Dynamic URLs from storage — `next/image` requires known `images.domains` |
+| `preventDefault()` on `<form>` | SPA forms submitting via SpacetimeDB reducers, no server action |
 | `useEffect` with intersection observer `inView` | Standard infinite scroll pattern with `react-intersection-observer` |
 | `useSearchParams requires Suspense` when already wrapped at call site | react-doctor scans the component file, not where it's rendered |
 | `dangerouslySetInnerHTML` / `<script>` in org-redirect | Controlled redirect pattern for setting active org cookie |
@@ -424,33 +413,35 @@ Run `bunx -y react-doctor@latest . --verbose` to scan all projects for React bes
 | Array keys must use stable IDs, never indices | Use `item.id`, `item.toolCallId`, etc. |
 | `useSearchParams()` needs `<Suspense>` boundary | Wrap the component using it at the render site |
 | No `Date.now()` / `Math.random()` during render | Move impure calls into `useEffect` / `useState` initializer / event handlers |
-| Convex camelCase filenames need oxlint override | Add to `.oxlintrc.json` `overrides` with `unicorn/filename-case: off` |
+| SpacetimeDB camelCase filenames need oxlint override | Add to `.oxlintrc.json` `overrides` with `unicorn/filename-case: off` |
 
 ---
 
-## Convex `anyApi` Proxy — Type Safety Gap
+## SpacetimeDB Module Type Safety
 
-Convex's generated `api` object is typed as `FilterApi<typeof fullApi, ...>` (strict, case-sensitive), but the runtime value is `anyApi` — a `Proxy` with `[key: string]` index signatures that accept ANY property name at runtime.
+SpacetimeDB generates TypeScript bindings from the Rust module. Always regenerate after schema changes:
 
-**Impact**: `api.blogprofile.get` (wrong casing) won't raise a TypeScript error even though only `api.blogProfile.get` exists. The typo silently constructs an invalid function reference that crashes at runtime with "Could not find public function".
+```bash
+bun spacetime:generate
+```
 
 **Where it bites**:
 
-- Module paths (e.g. `api.blogprofile` vs `api.blogProfile`)
-- `convex-test` masks the issue because it routes modules differently from production Convex
-- macOS case-insensitive filesystem masks import typos (e.g. `import('./blogprofile')` resolves to `blogProfile.ts`)
+- Table names and reducer names must match the generated bindings exactly
+- Column names are snake_case in Rust but camelCase in generated TypeScript
+- Run `bun spacetime:generate` after any schema change, then check for TypeScript errors
 
 **Defense**:
 
-- Always match `api.<module>` references to the EXACT filename in `convex/` (use `api.d.ts` as reference)
-- Rely on E2E tests and `convex dev --once` deployments to catch casing errors
-- In `f.test.ts` module maps, use exact casing: `'./blogProfile.ts'` not `'./blogprofile.ts'`
+- Always import from `@a/be/spacetimedb` (the generated bindings), never from raw paths
+- Rely on E2E tests and `bun spacetime:publish` to catch schema drift
+- In test files, use the generated types directly
 
 ---
 
 ## Refactoring
 
-After any significant refactoring, verify `api.blog.update({ typoField: ... })` fails to compile.
+After any significant refactoring, verify that passing a wrong field name to a reducer call fails to compile.
 
 ---
 
@@ -474,23 +465,21 @@ After any significant refactoring, verify `api.blog.update({ typoField: ... })` 
 |------|------|------------------------------------|
 | `packages/betterspace/` | Library (npm published) | N/A — IS the library |
 | `packages/be/` | Demo backend (consumer) | NO — uses public API only |
+| `packages/be/spacetimedb/` | SpacetimeDB Rust module + generated bindings | NO |
 | `apps/` | Demo web apps (consumer) | NO — uses public API only |
-| `desktop/` | Demo desktop apps (consumer) | NO — uses generated output only |
-| `mobile/` | Demo mobile apps (consumer) | NO — uses generated output only |
-| `swift-core/` | Shared Swift protocol (consumer) | NO — uses generated output only |
 | `packages/ui/` | Shared UI components (read-only) | NO |
 
-**The library must work for ANY project, not just these demos.** A developer who runs `bun add betterspace` and defines their own Zod schemas must get correct codegen output without editing library source.
+**The library must work for ANY project, not just these demos.** A developer who runs `bun add betterspace` and defines their own Zod schemas must get correct output without editing library source.
 
 ---
 
-## codegen-swift: No Project-Specific Data
+## codegen: No Project-Specific Data
 
-`codegen-swift.ts` must derive ALL output from inputs it receives (schema file, convex directory, CLI flags). It must NEVER contain:
+`codegen.ts` must derive ALL output from inputs it receives (schema file, spacetimedb directory, CLI flags). It must NEVER contain:
 
 - Hardcoded function names, parameter lists, or return types for specific tables/modules
-- Data structures that describe THIS project's endpoints (e.g. `desktopCustomFns`, `mobileCustomFns`, `mobileSubscriptions`)
-- Anything that would require editing library source when a consumer adds a table, changes ACL, or writes custom functions
+- Data structures that describe THIS project's endpoints
+- Anything that would require editing library source when a consumer adds a table, changes ACL, or writes custom reducers
 
 ### What codegen CAN know (from its own library code)
 
@@ -504,10 +493,10 @@ After any significant refactoring, verify `api.blog.update({ typoField: ... })` 
 
 ### What codegen CANNOT know (must come from project-level config)
 
-- Custom function signatures (`assign`, `toggle`, `byProject`, `mobileAi.chat`)
+- Custom reducer signatures
 - Custom return types for non-standard endpoints
 - Custom subscription descriptors beyond standard patterns
 
 ### Test: is this generic?
 
-If a developer runs `bunx betterspace codegen-swift --schema their-schema.ts --convex their-convex/` on a project betterspace has never seen, does it produce correct output? If not, something is hardcoded that shouldn't be.
+If a developer runs `bunx betterspace codegen --schema their-schema.ts --spacetimedb their-spacetimedb/` on a project betterspace has never seen, does it produce correct output? If not, something is hardcoded that shouldn't be.

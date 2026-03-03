@@ -24,7 +24,7 @@
   "dependencies": {
     "@t3-oss/env-nextjs": "latest",
     "betterspace": "*",
-    "convex": "latest",
-    "ky": "latest"
+    "ky": "latest",
+    "spacetimedb": "latest"
   }
 }

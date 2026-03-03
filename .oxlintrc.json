@@ -131,7 +131,14 @@
   },
   "overrides": [
     {
-      "files": ["**/convex/blogProfile.ts", "**/convex/mobileAi.ts", "**/convex/orgProfile.ts"],
+      "files": [
+        "**/spacetimedb/blogProfile.ts",
+        "**/spacetimedb/mobileAi.ts",
+        "**/spacetimedb/orgProfile.ts",
+        "**/convex/blogProfile.ts",
+        "**/convex/mobileAi.ts",
+        "**/convex/orgProfile.ts"
+      ],
       "rules": {
         "unicorn/filename-case": "off"
       }

@@ -1,10 +1,11 @@
 {
   "name": "betterspace",
   "version": "0.0.1",
-  "description": "Zod schema to fullstack app. One schema, zero boilerplate.",
+  "description": "TypeScript CRUD library for SpacetimeDB. Maximum typesafety, thin consumer code.",
   "keywords": [
-    "convex",
+    "spacetimedb",
     "crud",
+    "typesafety",
     "zod",
     "react",
     "nextjs",
@@ -66,11 +67,8 @@
   },
   "peerDependencies": {
     "@auth/core": "^0.41",
-    "@convex-dev/auth": "latest",
     "@stepperize/react": "latest",
     "@tanstack/react-form": "latest",
-    "convex": "latest",
-    "convex-helpers": "latest",
     "next": "latest",
     "react": "latest",
     "react-dom": "latest",

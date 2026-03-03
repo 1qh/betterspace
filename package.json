@@ -27,7 +27,7 @@
     "spacetime:sql": "PATH=\"$HOME/.local/bin:$PATH\" spacetime sql betterspace",
     "spacetime:up": "docker compose up -d && PATH=\"$HOME/.local/bin:$PATH\" spacetime server add local --url http://localhost:3000 --no-fingerprint --default 2>/dev/null; echo 'SpacetimeDB ready on http://localhost:3000'",
     "test:all": "bash test-all.sh",
-    "test:web": "CONVEX_TEST_MODE=true bun --cwd packages/be with-env convex dev --once && bun --cwd packages/be with-env convex env set CONVEX_TEST_MODE true && SKIP_CONVEX_ENV_TOGGLE=1 turbo run test --filter=betterspace --filter=@a/be && SKIP_CONVEX_ENV_TOGGLE=1 turbo run test --filter=@a/movie && SKIP_CONVEX_ENV_TOGGLE=1 turbo run test --filter=@a/blog && SKIP_CONVEX_ENV_TOGGLE=1 turbo run test --filter=@a/chat && SKIP_CONVEX_ENV_TOGGLE=1 turbo run test --filter=@a/org; EXIT=$?; bun --cwd packages/be with-env convex env remove CONVEX_TEST_MODE; exit $EXIT",
+    "test:web": "SPACETIMEDB_TEST_MODE=true bun spacetime:publish && SPACETIMEDB_TEST_MODE=true turbo run test --filter=betterspace --filter=@a/be && SPACETIMEDB_TEST_MODE=true turbo run test --filter=@a/movie && SPACETIMEDB_TEST_MODE=true turbo run test --filter=@a/blog && SPACETIMEDB_TEST_MODE=true turbo run test --filter=@a/chat && SPACETIMEDB_TEST_MODE=true turbo run test --filter=@a/org",
     "tsc": "turbo run typecheck"
   },
   "devDependencies": {
