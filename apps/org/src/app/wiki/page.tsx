@@ -18,7 +18,7 @@ import { toast } from 'sonner'
 
 import { useOrg } from '~/hook/use-org'
 
-const wikiRestore = (api.wiki).restore,
+const wikiRestore = api.wiki.restore,
   WikiPage = () => {
     const { isAdmin, org } = useOrg(),
       [showDeleted, setShowDeleted] = useState(false),

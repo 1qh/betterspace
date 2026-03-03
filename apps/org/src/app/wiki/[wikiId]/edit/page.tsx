@@ -19,7 +19,7 @@ import { toast } from 'sonner'
 
 import { useOrg } from '~/hook/use-org'
 
-const wikiRestore = (api.wiki).restore,
+const wikiRestore = api.wiki.restore,
   EditWikiForm = ({ wikiId }: { wikiId: Id<'wiki'> }) => {
     const router = useRouter(),
       { org } = useOrg(),
