@@ -7,15 +7,17 @@ import {
   TypeBuilder as __TypeBuilder,
   t as __t,
   type AlgebraicTypeType as __AlgebraicTypeType,
-  type Infer as __Infer
-} from 'spacetimedb'
+  type Infer as __Infer,
+} from "spacetimedb";
 
-import { MessagePart } from './types'
+import {
+  MessagePart,
+} from "./types";
 
 export default {
   chatId: __t.u32(),
   get parts() {
-    return __t.array(MessagePart)
+    return __t.array(MessagePart);
   },
-  role: __t.string()
-}
+  role: __t.string(),
+};

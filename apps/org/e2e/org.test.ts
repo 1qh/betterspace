@@ -13,6 +13,7 @@ import {
   removeTestOrgMember,
   tc
 } from '@a/e2e/org-helpers'
+import { login } from '@a/e2e/helpers'
 
 const testPrefix = `e2e-org-app-${Date.now()}`
 const { cleanupOrgTestData, cleanupTestUsers, generateSlug } = makeOrgTestUtils(testPrefix)
@@ -29,6 +30,10 @@ test.describe
 
     test.afterAll(async () => {
       await cleanupOrgTestData()
+    })
+
+    test.beforeEach(async ({ page }) => {
+      await login(page)
     })
 
     test('dashboard loads with org info', async ({ page }) => {
@@ -76,6 +81,10 @@ test.describe
 
     test.afterAll(async () => {
       await cleanupOrgTestData()
+    })
+
+    test.beforeEach(async ({ page }) => {
+      await login(page)
     })
 
     test('nav has Dashboard link', async ({ page }) => {

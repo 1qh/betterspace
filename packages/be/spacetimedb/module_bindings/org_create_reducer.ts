@@ -11,5 +11,7 @@ import {
 } from "spacetimedb";
 
 export default {
-  fileId: __t.u32(),
+  avatarId: __t.option(__t.string()),
+  name: __t.string(),
+  slug: __t.string(),
 };

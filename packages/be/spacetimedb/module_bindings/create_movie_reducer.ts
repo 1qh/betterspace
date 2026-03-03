@@ -7,17 +7,19 @@ import {
   TypeBuilder as __TypeBuilder,
   t as __t,
   type AlgebraicTypeType as __AlgebraicTypeType,
-  type Infer as __Infer
-} from 'spacetimedb'
+  type Infer as __Infer,
+} from "spacetimedb";
 
-import { MovieGenreInput } from './types'
+import {
+  MovieGenreInput,
+} from "./types";
 
 export default {
   tmdbId: __t.f64(),
   backdropPath: __t.option(__t.string()),
   budget: __t.option(__t.f64()),
   get genres() {
-    return __t.array(MovieGenreInput)
+    return __t.array(MovieGenreInput);
   },
   originalTitle: __t.string(),
   overview: __t.string(),
@@ -28,5 +30,5 @@ export default {
   tagline: __t.option(__t.string()),
   title: __t.string(),
   voteAverage: __t.f64(),
-  voteCount: __t.f64()
-}
+  voteCount: __t.f64(),
+};

@@ -11,5 +11,5 @@ import {
 } from "spacetimedb";
 
 export default {
-  fileId: __t.u32(),
+  memberId: __t.u32(),
 };

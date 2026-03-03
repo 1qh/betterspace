@@ -11,5 +11,7 @@ import {
 } from "spacetimedb";
 
 export default {
-  fileId: __t.u32(),
+  email: __t.string(),
+  isAdmin: __t.bool(),
+  orgId: __t.u32(),
 };

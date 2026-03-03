@@ -7,8 +7,8 @@ import {
   TypeBuilder as __TypeBuilder,
   t as __t,
   type AlgebraicTypeType as __AlgebraicTypeType,
-  type Infer as __Infer
-} from 'spacetimedb'
+  type Infer as __Infer,
+} from "spacetimedb";
 
 export default {
   orgId: __t.u32(),
@@ -16,5 +16,5 @@ export default {
   completed: __t.option(__t.bool()),
   priority: __t.option(__t.string()),
   projectId: __t.u32(),
-  title: __t.string()
-}
+  title: __t.string(),
+};

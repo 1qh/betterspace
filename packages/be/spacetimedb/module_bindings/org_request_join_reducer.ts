@@ -11,5 +11,6 @@ import {
 } from "spacetimedb";
 
 export default {
-  fileId: __t.u32(),
+  message: __t.option(__t.string()),
+  orgId: __t.u32(),
 };

@@ -7,9 +7,9 @@ import {
   TypeBuilder as __TypeBuilder,
   t as __t,
   type AlgebraicTypeType as __AlgebraicTypeType,
-  type Infer as __Infer
-} from 'spacetimedb'
+  type Infer as __Infer,
+} from "spacetimedb";
 
 export default {
-  tmdbId: __t.f64()
-}
+  tmdbId: __t.f64(),
+};

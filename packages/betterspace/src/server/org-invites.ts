@@ -290,7 +290,7 @@ const DAY_HOURS = 24,
     config: OrgInviteReducersConfig<DB, OrgId, MemberId, InviteId, RequestId, OrgRow, MemberRow, InviteRow, JoinRequestRow>
   ): OrgInviteReducersExports => {
     const inviteReducer = spacetimedb.reducer(
-        { name: 'org_invite' },
+        { name: 'org_send_invite' },
         {
           email: config.builders.email,
           isAdmin: config.builders.isAdmin,
@@ -359,7 +359,7 @@ const DAY_HOURS = 24,
     return {
       exports: {
         org_accept_invite: acceptInviteReducer,
-        org_invite: inviteReducer,
+        org_send_invite: inviteReducer,
         org_revoke_invite: revokeInviteReducer
       }
     }

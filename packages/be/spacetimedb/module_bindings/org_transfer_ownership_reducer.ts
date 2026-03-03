@@ -11,5 +11,6 @@ import {
 } from "spacetimedb";
 
 export default {
-  fileId: __t.u32(),
+  newOwnerId: __t.identity(),
+  orgId: __t.u32(),
 };
