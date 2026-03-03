@@ -74,6 +74,7 @@
     "next": "latest",
     "react": "latest",
     "react-dom": "latest",
+    "spacetimedb": "latest",
     "zod": "latest"
   }
 }
