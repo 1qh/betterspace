@@ -1,7 +1,7 @@
 'use client'
 
 import { api } from '@a/be'
-import { useList } from 'lazyconvex/react'
+import { useList } from 'betterspace/react'
 import Link from 'next/link'
 
 const Page = () => {

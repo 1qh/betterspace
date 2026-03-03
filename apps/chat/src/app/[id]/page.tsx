@@ -3,7 +3,7 @@ import type { UIMessage } from 'ai'
 
 import { api } from '@a/be'
 import { fetchQuery } from 'convex/nextjs'
-import { getToken, isAuthenticated } from 'lazyconvex/next'
+import { getToken, isAuthenticated } from 'betterspace/next'
 import { redirect } from 'next/navigation'
 import { connection } from 'next/server'
 import { Suspense } from 'react'

@@ -1,6 +1,6 @@
 import type { NextRequest } from 'next/server'
 
-import { setActiveOrgCookie } from 'lazyconvex/next'
+import { setActiveOrgCookie } from 'betterspace/next'
 import { NextResponse } from 'next/server'
 
 const GET = async (req: NextRequest) => {

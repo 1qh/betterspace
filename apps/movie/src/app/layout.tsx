@@ -3,7 +3,7 @@ import type { ReactNode } from 'react'
 
 import ConvexProvider from '@a/fe/convex-provider'
 import { Toaster } from '@a/ui/sonner'
-import { ConvexErrorBoundary } from 'lazyconvex/components'
+import { ConvexErrorBoundary } from 'betterspace/components'
 import { ThemeProvider } from 'next-themes'
 import { Suspense } from 'react'
 

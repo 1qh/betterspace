@@ -3,7 +3,7 @@ import type { ReactNode } from 'react'
 
 import { Toaster } from '@a/ui/sonner'
 import { ConvexAuthNextjsServerProvider as AuthProvider } from '@convex-dev/auth/nextjs/server'
-import { OfflineIndicator } from 'lazyconvex/components'
+import { OfflineIndicator } from 'betterspace/components'
 import { ThemeProvider } from 'next-themes'
 import { Suspense } from 'react'
 

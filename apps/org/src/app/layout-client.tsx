@@ -1,10 +1,10 @@
 'use client'
 
-import type { OrgRole } from 'lazyconvex'
-import type { OrgDocLike } from 'lazyconvex/server'
+import type { OrgRole } from 'betterspace'
+import type { OrgDocLike } from 'betterspace/server'
 import type { ReactNode } from 'react'
 
-import { OrgProvider } from 'lazyconvex/react'
+import { OrgProvider } from 'betterspace/react'
 import Link from 'next/link'
 import { usePathname } from 'next/navigation'
 

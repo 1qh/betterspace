@@ -1,8 +1,8 @@
 'use client'
-import type { OrgRole } from 'lazyconvex'
+import type { OrgRole } from 'betterspace'
 
-import { OrgAvatar, RoleBadge } from 'lazyconvex/components'
-import { setActiveOrgCookieClient } from 'lazyconvex/react'
+import { OrgAvatar, RoleBadge } from 'betterspace/components'
+import { setActiveOrgCookieClient } from 'betterspace/react'
 import { useRouter } from 'next/navigation'
 
 interface OrgItem {

@@ -1,13 +1,13 @@
 import type { Doc } from '@a/be/model'
 import type { FunctionReference } from 'convex/server'
-import type { OrgRole } from 'lazyconvex'
+import type { OrgRole } from 'betterspace'
 import type { ReactNode } from 'react'
 
 import { api } from '@a/be'
 import AuthLayout from '@a/fe/auth-layout'
 import ConvexProvider from '@a/fe/convex-provider'
 import { fetchQuery } from 'convex/nextjs'
-import { getActiveOrg, getToken, isAuthenticated } from 'lazyconvex/next'
+import { getActiveOrg, getToken, isAuthenticated } from 'betterspace/next'
 import { headers } from 'next/headers'
 import { redirect } from 'next/navigation'
 import { connection } from 'next/server'
@@ -38,7 +38,7 @@ const queryOrDirect = async <T,>(
   query: FunctionReference<'query'>,
   args: Record<string, unknown>
 ): Promise<null | T> => {
-  // eslint-disable-next-line lazyconvex/require-connection
+  // eslint-disable-next-line betterspace/require-connection
   if (token) return fetchQuery(query, args, { token }) as Promise<T>
   return getTestClient().query(query, args) as Promise<T>
 }

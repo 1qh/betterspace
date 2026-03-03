@@ -3,8 +3,8 @@
 // biome-ignore-all lint/performance/noAwaitInLoops: test fixtures
 import { describe, expect, test } from 'bun:test'
 import { convexTest } from 'convex-test'
-import { createTestContext } from 'lazyconvex/test'
-import { discoverModules } from 'lazyconvex/test/discover'
+import { createTestContext } from 'betterspace/test'
+import { discoverModules } from 'betterspace/test/discover'
 
 import { api } from './_generated/api'
 import schema from './schema'

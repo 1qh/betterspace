@@ -1,4 +1,4 @@
-import { orgCascade } from 'lazyconvex/server'
+import { orgCascade } from 'betterspace/server'
 
 import { orgCrud } from '../lazy'
 import { orgScoped } from '../t'

@@ -15,7 +15,7 @@ import {
   tool
 } from 'ai'
 import { fetchMutation, fetchQuery } from 'convex/nextjs'
-import { getToken, isAuthenticated } from 'lazyconvex/next'
+import { getToken, isAuthenticated } from 'betterspace/next'
 import { z } from 'zod/v4'
 export const maxDuration = 60
 

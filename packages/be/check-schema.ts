@@ -1,6 +1,6 @@
 import type { ZodObject, ZodRawShape } from 'zod/v4'
 
-import { checkSchema } from 'lazyconvex/server'
+import { checkSchema } from 'betterspace/server'
 
 import { base, children, owned } from './t'
 

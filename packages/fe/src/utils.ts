@@ -1,6 +1,6 @@
 import type { Id, TableNames } from '@a/be/model'
 
-import { getErrorMessage, handleConvexError } from 'lazyconvex/server'
+import { getErrorMessage, handleConvexError } from 'betterspace/server'
 import { toast } from 'sonner'
 
 const fail = (error: unknown) => {

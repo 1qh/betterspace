@@ -3,7 +3,7 @@ import type { Id } from '@a/be/model'
 import { api } from '@a/be'
 import { isId } from '@a/fe/utils'
 import { preloadQuery } from 'convex/nextjs'
-import { getToken } from 'lazyconvex/next'
+import { getToken } from 'betterspace/next'
 import { notFound } from 'next/navigation'
 import { connection } from 'next/server'
 

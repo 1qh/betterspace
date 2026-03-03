@@ -1,4 +1,4 @@
 import { defineConfig } from 'eslint/config'
-import { recommended } from 'lazyconvex/eslint'
+import { recommended } from 'betterspace/eslint'
 
 export default defineConfig(recommended)

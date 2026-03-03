@@ -1,9 +1,9 @@
 /* eslint-disable max-statements */
-import type { OrgRole } from 'lazyconvex'
+import type { OrgRole } from 'betterspace'
 
 import { api } from '@a/be'
 import { fetchQuery } from 'convex/nextjs'
-import { getToken, isAuthenticated } from 'lazyconvex/next'
+import { getToken, isAuthenticated } from 'betterspace/next'
 import { redirect } from 'next/navigation'
 import { connection } from 'next/server'
 

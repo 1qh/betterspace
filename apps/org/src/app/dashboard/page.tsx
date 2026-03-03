@@ -2,8 +2,8 @@
 
 import { api } from '@a/be'
 import { Card, CardContent, CardHeader, CardTitle } from '@a/ui/card'
-import { RoleBadge } from 'lazyconvex/components'
-import { useOrgQuery } from 'lazyconvex/react'
+import { RoleBadge } from 'betterspace/components'
+import { useOrgQuery } from 'betterspace/react'
 import { FolderOpen, Users } from 'lucide-react'
 import Link from 'next/link'
 

@@ -8,7 +8,7 @@ import { UserRound } from 'lucide-react'
 import { headers } from 'next/headers'
 import Link from 'next/link'
 
-const metadata: Metadata = { description: 'lazyconvex blog demo', title: 'Blog' },
+const metadata: Metadata = { description: 'betterspace blog demo', title: 'Blog' },
   Layout = async ({ children }: { children: ReactNode }) => {
     const pathname = (await headers()).get('x-pathname') ?? '/',
       isLogin = pathname === '/login' || pathname.startsWith('/login/')

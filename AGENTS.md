@@ -1,4 +1,4 @@
-I'm the author of lazyconvex, see README to learn more. This repo contains the library itself and 4 real-world app examples, each app have 3 web/mobile/desktop versions to showcase the ultimate capabilities of lazyconvex. I've spent significant amount of effort is to raise DX to maximum so anyone who adapt lazyconvex will have maximum typesafety for both typescript and swift, every typo will raise type error as expected.
+I'm the author of betterspace, see README to learn more. This repo contains the library itself and 4 real-world app examples, each app have 3 web/mobile/desktop versions to showcase the ultimate capabilities of betterspace. I've spent significant amount of effort is to raise DX to maximum so anyone who adapt betterspace will have maximum typesafety for both typescript and swift, every typo will raise type error as expected.
 
 # RULES
 
@@ -462,17 +462,17 @@ After any significant refactoring, verify `api.blog.update({ typoField: ... })` 
 - NEVER use `forEach()`, use `for` loops instead
 - NEVER use non-null assertion operator (`!`)
 - NEVER use `any` type
-- NEVER hardcode project-specific data in `packages/lazyconvex/` — it is a general-purpose library for any developer
+- NEVER hardcode project-specific data in `packages/betterspace/` — it is a general-purpose library for any developer
 
 ---
 
 ## Repository Architecture
 
-`packages/lazyconvex/` is the **published library** (`bun add lazyconvex`). Everything else is **consumer code** — demo apps that happen to live in the same monorepo:
+`packages/betterspace/` is the **published library** (`bun add betterspace`). Everything else is **consumer code** — demo apps that happen to live in the same monorepo:
 
-| Path | Role | Can reference lazyconvex internals? |
+| Path | Role | Can reference betterspace internals? |
 |------|------|------------------------------------|
-| `packages/lazyconvex/` | Library (npm published) | N/A — IS the library |
+| `packages/betterspace/` | Library (npm published) | N/A — IS the library |
 | `packages/be/` | Demo backend (consumer) | NO — uses public API only |
 | `apps/` | Demo web apps (consumer) | NO — uses public API only |
 | `desktop/` | Demo desktop apps (consumer) | NO — uses generated output only |
@@ -480,7 +480,7 @@ After any significant refactoring, verify `api.blog.update({ typoField: ... })` 
 | `swift-core/` | Shared Swift protocol (consumer) | NO — uses generated output only |
 | `packages/ui/` | Shared UI components (read-only) | NO |
 
-**The library must work for ANY project, not just these demos.** A developer who runs `bun add lazyconvex` and defines their own Zod schemas must get correct codegen output without editing library source.
+**The library must work for ANY project, not just these demos.** A developer who runs `bun add betterspace` and defines their own Zod schemas must get correct codegen output without editing library source.
 
 ---
 
@@ -510,4 +510,4 @@ After any significant refactoring, verify `api.blog.update({ typoField: ... })` 
 
 ### Test: is this generic?
 
-If a developer runs `bunx lazyconvex codegen-swift --schema their-schema.ts --convex their-convex/` on a project lazyconvex has never seen, does it produce correct output? If not, something is hardcoded that shouldn't be.
+If a developer runs `bunx betterspace codegen-swift --schema their-schema.ts --convex their-convex/` on a project betterspace has never seen, does it produce correct output? If not, something is hardcoded that shouldn't be.

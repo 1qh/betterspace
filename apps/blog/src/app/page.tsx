@@ -2,7 +2,7 @@
 
 import { api } from '@a/be'
 import { Input } from '@a/ui/input'
-import { useList } from 'lazyconvex/react'
+import { useList } from 'betterspace/react'
 import { Search } from 'lucide-react'
 import { useCallback, useDeferredValue, useState } from 'react'
 

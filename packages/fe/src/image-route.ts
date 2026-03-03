@@ -1,4 +1,4 @@
-import { makeImageRoute } from 'lazyconvex/next'
+import { makeImageRoute } from 'betterspace/next'
 
 import env from './env'
 

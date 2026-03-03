@@ -5,7 +5,7 @@ import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@a/ui
 import { FieldGroup } from '@a/ui/field'
 import slugify from '@sindresorhus/slugify'
 import { useMutation } from 'convex/react'
-import { Form, useForm } from 'lazyconvex/components'
+import { Form, useForm } from 'betterspace/components'
 import { useRouter } from 'next/navigation'
 import { useEffect, useRef } from 'react'
 import { toast } from 'sonner'

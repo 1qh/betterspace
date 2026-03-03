@@ -1,5 +1,5 @@
 import { zid } from 'convex-helpers/server/zod4'
-import { requireOrgMember } from 'lazyconvex/server'
+import { requireOrgMember } from 'betterspace/server'
 
 import { orgCrud, q, uniqueCheck } from '../lazy'
 import { orgScoped } from '../t'

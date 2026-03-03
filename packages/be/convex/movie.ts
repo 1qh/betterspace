@@ -2,7 +2,7 @@ import type { output } from 'zod/v4'
 
 import { v } from 'convex/values'
 import ky from 'ky'
-import { withRetry } from 'lazyconvex/retry'
+import { withRetry } from 'betterspace/retry'
 
 import env from '../env'
 import { cacheCrud } from '../lazy'

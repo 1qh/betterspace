@@ -11,7 +11,7 @@ import {
   rateLimitTable,
   singletonTable,
   uploadTables
-} from 'lazyconvex/server'
+} from 'betterspace/server'
 
 import { base, children, orgScoped, owned, singleton } from '../t'
 

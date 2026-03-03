@@ -26,6 +26,6 @@
     "convex": "latest",
     "convex-test": "latest",
     "ky": "latest",
-    "lazyconvex": "*"
+    "betterspace": "*"
   }
 }

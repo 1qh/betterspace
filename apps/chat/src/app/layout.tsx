@@ -4,13 +4,13 @@ import type { ReactNode } from 'react'
 import AuthLayout from '@a/fe/auth-layout'
 import ConvexProvider from '@a/fe/convex-provider'
 import { SidebarInset, SidebarProvider } from '@a/ui/sidebar'
-import { isAuthenticated } from 'lazyconvex/next'
+import { isAuthenticated } from 'betterspace/next'
 import { headers } from 'next/headers'
 import { redirect } from 'next/navigation'
 
 import Sidebar from './sidebar'
 
-const metadata: Metadata = { description: 'lazyconvex chat demo', title: 'Chat' },
+const metadata: Metadata = { description: 'betterspace chat demo', title: 'Chat' },
   PUBLIC_PATHS = ['/login', '/public'],
   isPublicPath = (pathname: string) => {
     for (const p of PUBLIC_PATHS) if (pathname === p || pathname.startsWith(`${p}/`)) return true

@@ -9,8 +9,8 @@ import {
   DropdownMenuTrigger
 } from '@a/ui/dropdown-menu'
 import { Skeleton } from '@a/ui/skeleton'
-import { OrgAvatar, RoleBadge } from 'lazyconvex/components'
-import { setActiveOrgCookieClient } from 'lazyconvex/react'
+import { OrgAvatar, RoleBadge } from 'betterspace/components'
+import { setActiveOrgCookieClient } from 'betterspace/react'
 import { ChevronDown, Plus } from 'lucide-react'
 import { useRouter } from 'next/navigation'
 

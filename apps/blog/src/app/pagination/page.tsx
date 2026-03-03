@@ -2,7 +2,7 @@
 
 import { api } from '@a/be'
 import { Spinner } from '@a/ui/spinner'
-import { useList } from 'lazyconvex/react'
+import { useList } from 'betterspace/react'
 import { Check } from 'lucide-react'
 import { useEffect } from 'react'
 import { useInView } from 'react-intersection-observer'

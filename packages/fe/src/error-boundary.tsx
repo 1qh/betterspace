@@ -1,5 +1,5 @@
 'use client'
 
-import { ConvexErrorBoundary } from 'lazyconvex/components'
+import { ConvexErrorBoundary } from 'betterspace/components'
 
 export default ConvexErrorBoundary

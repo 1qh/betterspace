@@ -9,8 +9,8 @@ import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuTrigge
 import { Skeleton } from '@a/ui/skeleton'
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@a/ui/table'
 import { useMutation } from 'convex/react'
-import { RoleBadge } from 'lazyconvex/components'
-import { useOrgQuery } from 'lazyconvex/react'
+import { RoleBadge } from 'betterspace/components'
+import { useOrgQuery } from 'betterspace/react'
 import { MoreHorizontal, UserMinus } from 'lucide-react'
 import { toast } from 'sonner'
 

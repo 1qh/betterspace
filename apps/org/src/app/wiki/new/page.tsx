@@ -4,7 +4,7 @@ import { api } from '@a/be'
 import { orgScoped } from '@a/be/t'
 import { Card, CardContent, CardHeader, CardTitle } from '@a/ui/card'
 import { FieldGroup } from '@a/ui/field'
-import { Form, useFormMutation } from 'lazyconvex/components'
+import { Form, useFormMutation } from 'betterspace/components'
 import { useRouter } from 'next/navigation'
 import { toast } from 'sonner'
 

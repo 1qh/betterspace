@@ -1,6 +1,6 @@
 /* oxlint-disable eslint/max-statements */
 import { zid } from 'convex-helpers/server/zod4'
-import { time } from 'lazyconvex/server'
+import { time } from 'betterspace/server'
 
 import { crud, m, pq } from '../lazy'
 import { owned } from '../t'

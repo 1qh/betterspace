@@ -5,7 +5,7 @@ import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@a/ui
 import { FieldGroup } from '@a/ui/field'
 import { Spinner } from '@a/ui/spinner'
 import { useMutation, useQuery } from 'convex/react'
-import { defineSteps } from 'lazyconvex/components'
+import { defineSteps } from 'betterspace/components'
 import { toast } from 'sonner'
 
 import { appearanceStep, orgStep, preferencesStep, profileStep } from '~/schema'
