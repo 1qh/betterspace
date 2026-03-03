@@ -1,45 +1,103 @@
 /* eslint-disable @next/next/no-img-element */
 // biome-ignore-all lint/correctness/useImageSize: x
 'use client'
-import { api } from '@a/be'
+import { reducers } from '@a/be/spacetimedb'
 import { Badge } from '@a/ui/badge'
 import { Input } from '@a/ui/input'
 import { Skeleton } from '@a/ui/skeleton'
-import { useAction } from 'convex/react'
 import { ArrowLeft } from 'lucide-react'
 import Link from 'next/link'
+import { useReducer } from 'spacetimedb/react'
 import { useState, useTransition } from 'react'
-
-import type { Movie } from '../types'
 
 const TMDB_IMG = 'https://image.tmdb.org/t/p/w300',
   TMDB_BACKDROP = 'https://image.tmdb.org/t/p/w780',
-  formatMoney = (n: null | number) => (n ? `$${(n / 1_000_000).toFixed(1)}M` : 'N/A'),
-  MovieDetail = ({ movie }: { movie: Movie }) => (
+  formatMoney = (n: null | number) => (n ? `$${(n / 1_000_000).toFixed(1)}M` : 'N/A')
+
+interface MovieDetailData {
+  backdropPath: null | string
+  budget: null | number
+  genres: { id: number; name: string }[]
+  originalTitle: string
+  overview: string
+  posterPath: null | string
+  releaseDate: string
+  revenue: null | number
+  runtime: null | number
+  tagline: null | string
+  title: string
+  tmdbId: number
+  voteAverage: number
+  voteCount: number
+}
+
+interface TmdbMovieResponse {
+  backdrop_path: null | string
+  budget: number
+  genres: { id: number; name: string }[]
+  id: number
+  original_title: string
+  overview: string
+  poster_path: null | string
+  release_date: string
+  revenue: number
+  runtime: null | number
+  tagline: string
+  title: string
+  vote_average: number
+  vote_count: number
+}
+
+const fetchMovie = async (id: number): Promise<MovieDetailData> => {
+    const apiKey = process.env.NEXT_PUBLIC_TMDB_API_KEY
+    if (!apiKey) throw new Error('Missing NEXT_PUBLIC_TMDB_API_KEY')
+    const url = new URL(`https://api.themoviedb.org/3/movie/${id}`)
+    url.searchParams.set('api_key', apiKey)
+    const response = await fetch(url)
+    if (!response.ok) throw new Error('Movie not found')
+    const payload = (await response.json()) as TmdbMovieResponse
+    return {
+      backdropPath: payload.backdrop_path,
+      budget: payload.budget || null,
+      genres: payload.genres,
+      originalTitle: payload.original_title,
+      overview: payload.overview,
+      posterPath: payload.poster_path,
+      releaseDate: payload.release_date,
+      revenue: payload.revenue || null,
+      runtime: payload.runtime,
+      tagline: payload.tagline || null,
+      title: payload.title,
+      tmdbId: payload.id,
+      voteAverage: payload.vote_average,
+      voteCount: payload.vote_count
+    }
+  },
+  MovieDetail = ({ movie }: { movie: MovieDetailData }) => (
     <div className='flex flex-col gap-4' data-testid='movie-detail'>
       <div className='flex items-center gap-2'>
-        <Badge data-testid='cache-status' variant={movie.cacheHit ? 'secondary' : 'default'}>
-          {movie.cacheHit ? 'Cache Hit' : 'Cache Miss → Fetched'}
+        <Badge data-testid='cache-status' variant='default'>
+          Fetched from TMDB
         </Badge>
         <span className='text-sm text-muted-foreground' data-testid='movie-id'>
-          ID: {movie.tmdb_id}
+          ID: {movie.tmdbId}
         </span>
       </div>
-      {movie.backdrop_path ? (
-        <img alt={movie.title} className='w-full rounded-lg object-cover' src={`${TMDB_BACKDROP}${movie.backdrop_path}`} />
+      {movie.backdropPath ? (
+        <img alt={movie.title} className='w-full rounded-lg object-cover' src={`${TMDB_BACKDROP}${movie.backdropPath}`} />
       ) : null}
       <div className='flex gap-4'>
-        {movie.poster_path ? (
+        {movie.posterPath ? (
           <img
             alt={movie.title}
             className='h-56 w-36 shrink-0 rounded-lg object-cover'
-            src={`${TMDB_IMG}${movie.poster_path}`}
+            src={`${TMDB_IMG}${movie.posterPath}`}
           />
         ) : null}
         <div className='flex flex-col gap-2'>
           <h2 className='text-2xl font-bold'>{movie.title}</h2>
-          {movie.original_title === movie.title ? null : (
-            <p className='text-sm text-muted-foreground'>{movie.original_title}</p>
+          {movie.originalTitle === movie.title ? null : (
+            <p className='text-sm text-muted-foreground'>{movie.originalTitle}</p>
           )}
           {movie.tagline ? <p className='text-muted-foreground italic'>{movie.tagline}</p> : null}
           <div className='flex flex-wrap gap-1'>
@@ -51,13 +109,13 @@ const TMDB_IMG = 'https://image.tmdb.org/t/p/w300',
           </div>
           <div className='mt-2 grid grid-cols-2 gap-x-4 gap-y-1 text-sm [&_span]:text-muted-foreground'>
             <p>
-              <span>Release:</span> {movie.release_date}
+              <span>Release:</span> {movie.releaseDate}
             </p>
             <p>
               <span>Runtime:</span> {movie.runtime ?? 'N/A'} min
             </p>
             <p>
-              <span>Rating:</span> {movie.vote_average.toFixed(1)} ({movie.vote_count.toLocaleString()} votes)
+              <span>Rating:</span> {movie.voteAverage.toFixed(1)} ({movie.voteCount.toLocaleString()} votes)
             </p>
             <p>
               <span>Budget:</span> {formatMoney(movie.budget)}
@@ -72,9 +130,9 @@ const TMDB_IMG = 'https://image.tmdb.org/t/p/w300',
     </div>
   ),
   Page = () => {
-    const fetchById = useAction(api.movie.load),
+    const createMovie = useReducer(reducers.createMovie),
       [id, setId] = useState(''),
-      [movie, setMovie] = useState<Movie | null>(null),
+      [movie, setMovie] = useState<MovieDetailData | null>(null),
       [fetchError, setFetchError] = useState(''),
       [pending, go] = useTransition()
     return (
@@ -98,8 +156,28 @@ const TMDB_IMG = 'https://image.tmdb.org/t/p/w300',
             setFetchError('')
             go(async () => {
               try {
-                const res = await fetchById({ tmdb_id: n })
-                setMovie(res)
+                const loadedMovie = await fetchMovie(n)
+                setMovie(loadedMovie)
+                try {
+                  await createMovie({
+                    backdropPath: loadedMovie.backdropPath ?? undefined,
+                    budget: loadedMovie.budget ?? undefined,
+                    genres: loadedMovie.genres,
+                    originalTitle: loadedMovie.originalTitle,
+                    overview: loadedMovie.overview,
+                    posterPath: loadedMovie.posterPath ?? undefined,
+                    releaseDate: loadedMovie.releaseDate,
+                    revenue: loadedMovie.revenue ?? undefined,
+                    runtime: loadedMovie.runtime ?? undefined,
+                    tagline: loadedMovie.tagline ?? undefined,
+                    title: loadedMovie.title,
+                    tmdbId: loadedMovie.tmdbId,
+                    voteAverage: loadedMovie.voteAverage,
+                    voteCount: loadedMovie.voteCount
+                  })
+                } catch (error) {
+                  if (error instanceof Error) setFetchError(m => m)
+                }
               } catch {
                 setFetchError('Movie not found')
                 setMovie(null)

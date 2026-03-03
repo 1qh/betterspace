@@ -1,6 +1,3 @@
-import type { api } from '@a/be'
-import type { FunctionReturnType } from 'convex/server'
-
-type Movie = FunctionReturnType<typeof api.movie.load>
+import type { Movie } from '@a/be/spacetimedb/types'
 
 export type { Movie }

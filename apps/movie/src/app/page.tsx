@@ -1,17 +1,47 @@
 // biome-ignore-all lint/performance/noImgElement: x
 'use client'
 
-import type { FunctionReturnType } from 'convex/server'
-
-import { api } from '@a/be'
 import { Input } from '@a/ui/input'
-import { useAction } from 'convex/react'
 import Link from 'next/link'
 import { useState, useTransition } from 'react'
 
-type SearchResult = FunctionReturnType<typeof api.movie.search>[number]
+interface SearchResult {
+  id: number
+  overview: string
+  poster_path: null | string
+  release_date: string
+  title: string
+  tmdb_id: number
+  vote_average: number
+}
+
+interface TmdbSearchResponse {
+  results: SearchResult[]
+}
 
 const TMDB_IMG = 'https://image.tmdb.org/t/p/w200',
+  searchMovies = async (query: string) => {
+    const apiKey = process.env.NEXT_PUBLIC_TMDB_API_KEY
+    if (!apiKey) throw new Error('Missing NEXT_PUBLIC_TMDB_API_KEY')
+    const url = new URL('https://api.themoviedb.org/3/search/movie')
+    url.searchParams.set('api_key', apiKey)
+    url.searchParams.set('query', query)
+    const response = await fetch(url)
+    if (!response.ok) throw new Error('Search failed')
+    const payload = (await response.json()) as TmdbSearchResponse
+    const rows: SearchResult[] = []
+    for (const m of payload.results)
+      rows.push({
+        id: m.id,
+        overview: m.overview,
+        poster_path: m.poster_path,
+        release_date: m.release_date,
+        title: m.title,
+        tmdb_id: m.id,
+        vote_average: m.vote_average
+      })
+    return rows
+  },
   MovieCard = ({ movie }: { movie: SearchResult }) => (
     <div className='flex gap-3 rounded-lg border p-3' data-testid='movie-card'>
       {movie.poster_path ? (
@@ -39,9 +69,9 @@ const TMDB_IMG = 'https://image.tmdb.org/t/p/w200',
     </div>
   ),
   Page = () => {
-    const search = useAction(api.movie.search),
-      [query, setQuery] = useState(''),
+    const [query, setQuery] = useState(''),
       [results, setResults] = useState<SearchResult[]>([]),
+      [searchError, setSearchError] = useState(''),
       [pending, go] = useTransition()
 
     return (
@@ -58,7 +88,15 @@ const TMDB_IMG = 'https://image.tmdb.org/t/p/w200',
           onSubmit={e => {
             e.preventDefault()
             if (!query.trim()) return
-            go(async () => setResults(await search({ query: query.trim() })))
+            setSearchError('')
+            go(async () => {
+              try {
+                setResults(await searchMovies(query.trim()))
+              } catch {
+                setResults([])
+                setSearchError('Unable to search TMDB right now')
+              }
+            })
           }}>
           <Input
             data-testid='movie-search-input'
@@ -67,6 +105,7 @@ const TMDB_IMG = 'https://image.tmdb.org/t/p/w200',
             value={query}
           />
         </form>
+        {searchError ? <p className='text-sm text-destructive'>{searchError}</p> : null}
         {results.length ? (
           <div data-testid='movie-results'>
             {results.map(m => (
