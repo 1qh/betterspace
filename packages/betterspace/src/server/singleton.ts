@@ -1,5 +1,4 @@
 import type { Identity, Timestamp } from 'spacetimedb'
-import type { TypeBuilder } from 'spacetimedb/server'
 
 import type {
   SingletonConfig,
@@ -9,40 +8,16 @@ import type {
   SingletonTableLike
 } from './types/singleton'
 
-interface OptionalBuilder {
-  optional: () => TypeBuilder<unknown, unknown>
-}
+import { identityEquals, makeError, makeOptionalFields } from './reducer-utils'
 
 interface SingletonRow {
   updatedAt: Timestamp
   userId: Identity
 }
 
-const makeError = (code: string, message: string): Error => new Error(`${code}: ${message}`),
-  identityEquals = (a: Identity, b: Identity): boolean => {
-    const left = a as unknown as { isEqual?: (v: unknown) => boolean; toHexString?: () => string }
-    if (typeof left.isEqual === 'function') return left.isEqual(b)
-    const right = b as unknown as { toHexString?: () => string }
-    if (typeof left.toHexString === 'function' && typeof right.toHexString === 'function')
-      return left.toHexString() === right.toHexString()
-    return Object.is(a, b)
-  },
-  makeOptionalFields = (fields: SingletonFieldBuilders) => {
-    const params: Record<string, TypeBuilder<unknown, unknown>> = {},
-      keys = Object.keys(fields)
-    for (const key of keys) {
-      const field = fields[key] as unknown as OptionalBuilder
-      params[key] = field.optional()
-    }
-    return params
-  },
-  findByUser = (
-    table: SingletonTableLike<SingletonRow>,
-    sender: Identity
-  ): null | SingletonRow => {
-    for (const row of table) 
-      if (identityEquals(row.userId, sender)) return row
-    
+const findByUser = (table: SingletonTableLike<SingletonRow>, sender: Identity): null | SingletonRow => {
+    for (const row of table) if (identityEquals(row.userId, sender)) return row
+
     return null
   },
   applyPatch = <Row extends SingletonRow>(

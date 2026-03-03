@@ -21,6 +21,8 @@ interface FileUploadConfig<
   Pk extends FileUploadPkLike<Row, Id>
 > {
   allowedTypes?: Set<string>
+  fields: FileUploadFields
+  idField: TypeBuilder<Id, unknown>
   maxFileSize?: number
   namespace: string
   pk: (table: Tbl) => Pk
@@ -31,18 +33,20 @@ interface FileUploadExports {
   exports: Record<string, ReducerExportLike>
 }
 
+interface FileUploadFields {
+  contentType: FileUploadBuilder
+  filename: FileUploadBuilder
+  size: FileUploadBuilder
+  storageKey: FileUploadBuilder
+}
+
 interface FileUploadPkLike<Row, Id> {
   delete: (id: Id) => boolean
   find: (id: Id) => null | Row
 }
 
-interface FileUploadTableLike<Row> extends Iterable<Row> {
-  contentType: FileUploadBuilder
-  filename: FileUploadBuilder
-  id: FileUploadBuilder
+interface FileUploadTableLike<Row> {
   insert: (row: Row) => Row
-  size: FileUploadBuilder
-  storageKey: FileUploadBuilder
 }
 
 type ReducerExportLike = ReducerExport<never, never>
@@ -77,6 +81,7 @@ export type {
   FileUploadBuilder,
   FileUploadConfig,
   FileUploadExports,
+  FileUploadFields,
   FileUploadPkLike,
   FileUploadTableLike,
   S3PresignDownloadOptions,

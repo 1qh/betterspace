@@ -12,6 +12,7 @@ import type {
 } from './types/file'
 
 import { BYTES_PER_MB } from '../constants'
+import { identityEquals, makeError } from './reducer-utils'
 
 interface FileRowBase<Id> {
   contentType: string
@@ -55,34 +56,19 @@ const DEFAULT_ALLOWED_TYPES = new Set([
   ZERO_PREFIX_REGEX = /^0x/u,
   TRAILING_SLASH_REGEX = /\/$/u,
   URI_EXTRA_REGEX = /[!'()*]/gu,
-  makeError = (code: string, message: string): Error => new Error(`${code}: ${message}`),
-  makeSenderError = (code: string, message: string): Error => {
-    const senderError = new Error(`${code}: ${message}`)
-    senderError.name = 'SenderError'
-    return senderError
-  },
-  identityEquals = (a: Identity, b: Identity): boolean => {
-    const left = a as unknown as { isEqual?: (v: unknown) => boolean; toHexString?: () => string }
-    if (typeof left.isEqual === 'function') return left.isEqual(b)
-    const right = b as unknown as { toHexString?: () => string }
-    if (typeof left.toHexString === 'function' && typeof right.toHexString === 'function')
-      return left.toHexString() === right.toHexString()
-    return Object.is(a, b)
-  },
   normalizeHexIdentity = (sender: Identity): string => {
     const senderLike = sender as unknown as SenderLike,
-      raw = typeof senderLike.toHexString === 'function' ? senderLike.toHexString() : senderLike.toString?.() ?? ''
+      raw = typeof senderLike.toHexString === 'function' ? senderLike.toHexString() : (senderLike.toString?.() ?? '')
     return raw.trim().toLowerCase().replace(ZERO_PREFIX_REGEX, '')
   },
   isAuthenticatedSender = (sender: Identity): boolean => {
     const normalized = normalizeHexIdentity(sender)
     if (!normalized) return false
-    for (const ch of normalized)
-      if (ch !== '0') return true
+    for (const ch of normalized) if (ch !== '0') return true
     return false
   },
   encodeUriSegment = (value: string): string =>
-    encodeURIComponent(value).replace(URI_EXTRA_REGEX, c => `%${c.charCodeAt(0).toString(HEX_RADIX).toUpperCase()}`),
+    encodeURIComponent(value).replace(URI_EXTRA_REGEX, c => `%${c.codePointAt(0).toString(HEX_RADIX).toUpperCase()}`),
   encodeCanonicalPath = (value: string): string => {
     const segments = value.split('/'),
       out: string[] = []
@@ -109,7 +95,7 @@ const DEFAULT_ALLOWED_TYPES = new Set([
     }
   },
   toCanonicalQuery = (params: Record<string, string>): string => {
-    const keys = Object.keys(params).sort(),
+    const keys = Object.keys(params).toSorted(),
       pairs: string[] = []
     for (const key of keys) pairs.push(`${encodeUriSegment(key)}=${encodeUriSegment(params[key] ?? '')}`)
     return pairs.join('&')
@@ -129,7 +115,7 @@ const DEFAULT_ALLOWED_TYPES = new Set([
       kService = await hmac(kRegion, 's3')
     return hmac(kService, 'aws4_request')
   },
-  toHost = (endpoint: URL): string => endpoint.port ? `${endpoint.hostname}:${endpoint.port}` : endpoint.hostname,
+  toHost = (endpoint: URL): string => (endpoint.port ? `${endpoint.hostname}:${endpoint.port}` : endpoint.hostname),
   makePresignedRequest = async ({
     accessKeyId,
     bucket,
@@ -155,7 +141,10 @@ const DEFAULT_ALLOWED_TYPES = new Set([
   }): Promise<S3PresignedUrl> => {
     const now = new Date(),
       { amzDate, dateStamp } = toDateParts(now),
-      normalizedExpiry = Math.max(1, Math.min(expiresInSeconds ?? DEFAULT_PRESIGN_EXPIRY_SECONDS, MAX_PRESIGN_EXPIRY_SECONDS)),
+      normalizedExpiry = Math.max(
+        1,
+        Math.min(expiresInSeconds ?? DEFAULT_PRESIGN_EXPIRY_SECONDS, MAX_PRESIGN_EXPIRY_SECONDS)
+      ),
       endpointUrl = new URL(endpoint),
       host = toHost(endpointUrl),
       pathPrefix = endpointUrl.pathname === '/' ? '' : endpointUrl.pathname.replace(TRAILING_SLASH_REGEX, ''),
@@ -226,6 +215,8 @@ const DEFAULT_ALLOWED_TYPES = new Set([
   ): FileUploadExports => {
     const {
         allowedTypes = DEFAULT_ALLOWED_TYPES,
+        fields,
+        idField,
         maxFileSize = DEFAULT_MAX_FILE_SIZE,
         namespace,
         pk: pkAccessor,
@@ -233,14 +224,13 @@ const DEFAULT_ALLOWED_TYPES = new Set([
       } = config,
       registerName = `register_upload_${namespace}`,
       deleteName = `delete_file_${namespace}`,
-      typeBuilder = {} as TypeBuilder<unknown, unknown>,
       registerReducer = spacetimedb.reducer(
         { name: registerName },
         {
-          contentType: typeBuilder,
-          filename: typeBuilder,
-          size: typeBuilder,
-          storageKey: typeBuilder
+          contentType: fields.contentType as TypeBuilder<unknown, unknown>,
+          filename: fields.filename as TypeBuilder<unknown, unknown>,
+          size: fields.size as TypeBuilder<unknown, unknown>,
+          storageKey: fields.storageKey as TypeBuilder<unknown, unknown>
         },
         (
           ctx,
@@ -253,9 +243,9 @@ const DEFAULT_ALLOWED_TYPES = new Set([
         ) => {
           if (!isAuthenticatedSender(ctx.sender)) throw makeError('NOT_AUTHENTICATED', `${namespace}:register`)
           if (!allowedTypes.has(args.contentType))
-            throw makeSenderError('INVALID_FILE_TYPE', `File type ${args.contentType} not allowed`)
+            throw makeError('INVALID_FILE_TYPE', `File type ${args.contentType} not allowed`)
           if (args.size > maxFileSize)
-            throw makeSenderError('FILE_TOO_LARGE', `File size ${args.size} exceeds ${maxFileSize} bytes`)
+            throw makeError('FILE_TOO_LARGE', `File size ${args.size} exceeds ${maxFileSize} bytes`)
 
           const table = tableAccessor(ctx.db)
           table.insert({
@@ -272,7 +262,7 @@ const DEFAULT_ALLOWED_TYPES = new Set([
       deleteReducer = spacetimedb.reducer(
         { name: deleteName },
         {
-          fileId: typeBuilder
+          fileId: idField as TypeBuilder<unknown, unknown>
         },
         (ctx, { fileId }: { fileId: Id }) => {
           if (!isAuthenticatedSender(ctx.sender)) throw makeError('NOT_AUTHENTICATED', `${namespace}:delete`)

@@ -13,53 +13,14 @@ import type {
   OrgCrudTableLike
 } from './types/org-crud'
 
-interface OptionalBuilder {
-  optional: () => TypeBuilder<unknown, unknown>
-}
+import { identityEquals, makeError, makeOptionalFields, pickPatch, timestampEquals } from './reducer-utils'
 
 interface UpdateArgs<F extends OrgCrudFieldBuilders, Id> extends Partial<OrgCrudFieldValues<F>> {
   expectedUpdatedAt?: Timestamp
   id: Id
 }
 
-const makeError = (code: string, message: string): Error => new Error(`${code}: ${message}`),
-  identityEquals = (a: Identity, b: Identity): boolean => {
-    const left = a as unknown as { isEqual?: (v: unknown) => boolean; toHexString?: () => string }
-    if (typeof left.isEqual === 'function') return left.isEqual(b)
-    const right = b as unknown as { toHexString?: () => string }
-    if (typeof left.toHexString === 'function' && typeof right.toHexString === 'function')
-      return left.toHexString() === right.toHexString()
-    return Object.is(a, b)
-  },
-  timestampEquals = (a: Timestamp, b: Timestamp): boolean => {
-    const left = a as unknown as { isEqual?: (v: unknown) => boolean; toJSON?: () => string }
-    if (typeof left.isEqual === 'function') return left.isEqual(b)
-    const right = b as unknown as { toJSON?: () => string }
-    if (typeof left.toJSON === 'function' && typeof right.toJSON === 'function') return left.toJSON() === right.toJSON()
-    return Object.is(a, b)
-  },
-  makeOptionalFields = (fields: OrgCrudFieldBuilders) => {
-    const params: Record<string, TypeBuilder<unknown, unknown>> = {},
-      keys = Object.keys(fields)
-    for (const key of keys) {
-      const field = fields[key] as unknown as OptionalBuilder
-      params[key] = field.optional()
-    }
-    return params
-  },
-  pickPatch = <F extends OrgCrudFieldBuilders>(
-    args: UpdateArgs<F, unknown>,
-    fieldNames: string[]
-  ): Partial<OrgCrudFieldValues<F>> => {
-    const patchRecord: Record<string, unknown> = {},
-      argsRecord = args as unknown as Record<string, unknown>
-    for (const key of fieldNames) {
-      const value = argsRecord[key]
-      if (value !== undefined) patchRecord[key] = value
-    }
-    return patchRecord as Partial<OrgCrudFieldValues<F>>
-  },
-  applyPatch = <Row extends OrgCrudOwnedRow<OrgId>, OrgId>(
+const applyOrgPatch = <Row extends OrgCrudOwnedRow<OrgId>, OrgId>(
     row: Row,
     patch: Record<string, unknown>,
     timestamp: Timestamp
@@ -75,9 +36,9 @@ const makeError = (code: string, message: string): Error => new Error(`${code}: 
     orgId: OrgId,
     sender: Identity
   ): Member | null => {
-    for (const member of orgMemberTable) 
+    for (const member of orgMemberTable)
       if (Object.is(member.orgId, orgId) && identityEquals(member.userId, sender)) return member
-    
+
     return null
   },
   requireMembership = <OrgId, Member extends OrgCrudMemberLike<OrgId>>({
@@ -216,13 +177,13 @@ const makeError = (code: string, message: string): Error => new Error(`${code}: 
           if (hooks?.beforeCreate) data = hooks.beforeCreate(hookCtx, { data })
 
           const { orgId, ...payload } = data as unknown as Record<string, unknown> & { orgId: OrgId },
-           row = table.insert({
-            ...payload,
-            id: 0 as Id,
-            orgId,
-            updatedAt: ctx.timestamp,
-            userId: ctx.sender
-          } as Row)
+            row = table.insert({
+              ...payload,
+              id: 0 as Id,
+              orgId,
+              updatedAt: ctx.timestamp,
+              userId: ctx.sender
+            } as Row)
           if (hooks?.afterCreate) hooks.afterCreate(hookCtx, { data, row })
         }
       ),
@@ -246,7 +207,7 @@ const makeError = (code: string, message: string): Error => new Error(`${code}: 
         let patch = pickPatch(args, fieldNames)
         if (hooks?.beforeUpdate) patch = hooks.beforeUpdate(hookCtx, { patch, prev: row })
 
-        const next = pk.update(applyPatch(row, patch as Record<string, unknown>, ctx.timestamp))
+        const next = pk.update(applyOrgPatch(row, patch as Record<string, unknown>, ctx.timestamp))
         if (hooks?.afterUpdate) hooks.afterUpdate(hookCtx, { next, patch, prev: row })
       }),
       rmReducer = spacetimedb.reducer({ name: rmName }, { id: idField }, (ctx, { id }: { id: Id }) => {

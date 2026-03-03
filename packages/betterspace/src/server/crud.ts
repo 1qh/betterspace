@@ -4,86 +4,14 @@ import type { ZodObject, ZodRawShape } from 'zod/v4'
 
 import type { CrudConfig, CrudExports, CrudFieldBuilders, CrudFieldValues, CrudPkLike, CrudTableLike } from './types/crud'
 
-interface OptionalBuilder {
-  optional: () => TypeBuilder<unknown, unknown>
-}
-
-interface OwnedRow {
-  updatedAt: Timestamp
-  userId: Identity
-}
+import { applyPatch, getOwnedRow, makeError, makeOptionalFields, pickPatch, timestampEquals } from './reducer-utils'
 
 interface UpdateArgs<F extends CrudFieldBuilders, Id> extends Partial<CrudFieldValues<F>> {
   expectedUpdatedAt?: Timestamp
   id: Id
 }
 
-const makeError = (code: string, message: string): Error => new Error(`${code}: ${message}`),
-  identityEquals = (a: Identity, b: Identity): boolean => {
-    const left = a as unknown as { isEqual?: (v: unknown) => boolean; toHexString?: () => string }
-    if (typeof left.isEqual === 'function') return left.isEqual(b)
-    const right = b as unknown as { toHexString?: () => string }
-    if (typeof left.toHexString === 'function' && typeof right.toHexString === 'function')
-      return left.toHexString() === right.toHexString()
-    return Object.is(a, b)
-  },
-  timestampEquals = (a: Timestamp, b: Timestamp): boolean => {
-    const left = a as unknown as { isEqual?: (v: unknown) => boolean; toJSON?: () => string }
-    if (typeof left.isEqual === 'function') return left.isEqual(b)
-    const right = b as unknown as { toJSON?: () => string }
-    if (typeof left.toJSON === 'function' && typeof right.toJSON === 'function') return left.toJSON() === right.toJSON()
-    return Object.is(a, b)
-  },
-  makeOptionalFields = (fields: CrudFieldBuilders) => {
-    const params: Record<string, TypeBuilder<unknown, unknown>> = {},
-      keys = Object.keys(fields)
-    for (const key of keys) {
-      const field = fields[key] as unknown as OptionalBuilder
-      params[key] = field.optional()
-    }
-    return params
-  },
-  pickPatch = <F extends CrudFieldBuilders>(
-    args: UpdateArgs<F, unknown>,
-    fieldNames: string[]
-  ): Partial<CrudFieldValues<F>> => {
-    const patchRecord: Record<string, unknown> = {},
-      argsRecord = args as unknown as Record<string, unknown>
-    for (const key of fieldNames) {
-      const value = argsRecord[key]
-      if (value !== undefined) patchRecord[key] = value
-    }
-    return patchRecord as Partial<CrudFieldValues<F>>
-  },
-  applyPatch = <Row extends OwnedRow>(row: Row, patch: Record<string, unknown>, timestamp: Timestamp): Row => {
-    const nextRecord = { ...(row as unknown as Record<string, unknown>) },
-      patchKeys = Object.keys(patch)
-    for (const key of patchKeys) nextRecord[key] = patch[key]
-    nextRecord.updatedAt = timestamp
-    return nextRecord as Row
-  },
-  getOwnedRow = <Row extends OwnedRow, Id, Tbl extends CrudTableLike<Row>, Pk extends CrudPkLike<Row, Id>>({
-    ctxSender,
-    id,
-    operation,
-    pkAccessor,
-    table,
-    tableName
-  }: {
-    ctxSender: Identity
-    id: Id
-    operation: string
-    pkAccessor: (table: Tbl) => Pk
-    table: Tbl
-    tableName: string
-  }): { pk: Pk; row: Row } => {
-    const pk = pkAccessor(table),
-      row = pk.find(id)
-    if (!row) throw makeError('NOT_FOUND', `${tableName}:${operation}`)
-    if (!identityEquals(row.userId, ctxSender)) throw makeError('FORBIDDEN', `${tableName}:${operation}`)
-    return { pk, row }
-  },
-  makeCrud = <
+const makeCrud = <
     DB,
     F extends CrudFieldBuilders,
     Row extends OwnedRow,
