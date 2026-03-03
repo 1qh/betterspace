@@ -1,8 +1,5 @@
 /* eslint-disable @typescript-eslint/naming-convention, @typescript-eslint/no-magic-numbers, max-statements */
-import type { GenericTableInfo, RegisteredQuery } from 'convex/server'
-
 import { describe, expect, test } from 'bun:test'
-import { ConvexError } from 'convex/values'
 import { array, boolean, date, number, object, optional, string, enum as zenum } from 'zod/v4'
 
 import type { AccessEntry, FactoryCall } from '../check'
@@ -15,7 +12,7 @@ import type { UseListOptions } from '../react/use-list'
 import type { MutateOptions } from '../react/use-mutate'
 import type { PresenceUser, UsePresenceOptions, UsePresenceResult } from '../react/use-presence'
 import type { UseSearchOptions, UseSearchResult } from '../react/use-search'
-import type { ConvexErrorData, MutationFail, MutationOk, MutationResult } from '../server/helpers'
+import type { ErrorData, MutationFail, MutationOk, MutationResult } from '../server/helpers'
 import type { OrgCrudOptions } from '../server/org-crud'
 import type {
   AssertSchema,
@@ -43,6 +40,7 @@ import type {
   OwnedSchema,
   RateLimitConfig,
   Rec,
+  RegisteredQuery,
   SchemaTypeError,
   SetupConfig,
   SingletonSchema,
@@ -52,10 +50,10 @@ import type {
 import {
   add,
   defaultFields,
-  fieldToZod,
-  genEndpointContent,
+  fieldToTypeExpr as fieldToZod,
+  genReducerContent as genEndpointContent,
   genPageContent,
-  genSchemaContent,
+  genTableContent as genSchemaContent,
   parseAddFlags,
   parseFieldDef
 } from '../add'
@@ -85,7 +83,7 @@ import {
   sleep
 } from '../constants'
 import { extractJSDoc, generateMarkdown, resolveReExports } from '../docs-gen'
-import { calcHealthScore, checkDeps, checkEslintContent, checkRateLimit } from '../doctor'
+import { calcHealthScore, checkDeps, checkEslintContent } from '../doctor'
 import { recommended as eslintRecommended, rules as eslintRules } from '../eslint'
 import { guardApi } from '../guard'
 import { diffSnapshots, isOptionalField as isOptionalRaw, parseFieldsFromBlock, parseSchemaContent } from '../migrate'
@@ -105,8 +103,8 @@ import { makeErrorHandler } from '../react/error-toast'
 import { buildMeta, getMeta } from '../react/form'
 import { createOptimisticStore, makeTempId } from '../react/optimistic-store'
 import { canEditResource } from '../react/org'
-import { applyOptimistic, DEFAULT_PAGE_SIZE } from '../react/use-list'
-import { DEFAULT_DEBOUNCE_MS, DEFAULT_MIN_LENGTH } from '../react/use-search'
+import { DEFAULT_PAGE_SIZE } from '../react/use-list'
+import { DEFAULT_DEBOUNCE_MS } from '../react/use-search'
 import { fetchWithRetry, withRetry } from '../retry'
 import { child, cvFile, cvFiles, makeBase, makeOrgScoped, makeOwned, makeSingleton } from '../schema'
 import { generateFieldValue, generateOne, generateSeed } from '../seed'
@@ -124,7 +122,7 @@ import {
   getErrorDetail,
   getErrorMessage,
   groupList,
-  handleConvexError,
+  handleError,
   isErrorCode,
   isMutationError,
   isRecord,
@@ -150,7 +148,7 @@ import { HEARTBEAT_INTERVAL_MS, PRESENCE_TTL_MS } from '../server/presence'
 import { baseTable, orgTable, ownedTable, singletonTable } from '../server/schema-helpers'
 import { isTestMode } from '../server/test'
 import { ERROR_MESSAGES } from '../server/types'
-import { extractChildren, extractFieldsFromBlock, extractFieldType, extractWrapperTables, generateMermaid } from '../viz'
+import { extractChildren, extractFieldType, extractWrapperTables, generateMermaid } from '../viz'
 import {
   coerceOptionals,
   cvFileKindOf,
@@ -167,6 +165,52 @@ import {
 } from '../zod'
 
 const VOID = undefined
+const makeSenderError = (data: unknown): Error => {
+  if (typeof data === 'string') return new Error(data)
+  if (!(data && typeof data === 'object')) return new Error(String(data))
+  const rawCode = (data as { code?: unknown }).code,
+    code = typeof rawCode === 'string' ? rawCode : String(rawCode)
+  return new Error(`${code}:${JSON.stringify(data)}`)
+}
+const applyOptimistic = (items: Rec[], pending: PendingMutation[]): Rec[] => {
+  if (!pending.length) return items
+  let out = [...items]
+  for (const mutation of pending)
+    if (mutation.type === 'create') {
+      const created = {
+        ...(mutation.args as Rec),
+        __optimistic: true,
+        _creationTime: mutation.timestamp,
+        _id: mutation.id,
+        updatedAt: mutation.timestamp
+      }
+      out = [created, ...out]
+    } else if (mutation.type === 'delete') {
+      const targetId = typeof mutation.args.id === 'string' ? mutation.args.id : mutation.id
+      const next: Rec[] = []
+      for (const row of out) if (row._id !== targetId) next.push(row)
+      out = next
+    } else if (mutation.type === 'update') {
+      const targetId = typeof mutation.args.id === 'string' ? mutation.args.id : mutation.id
+      for (let i = 0; i < out.length; i += 1) {
+        const row = out[i]
+        if (row?._id === targetId) {
+          out[i] = { ...row, ...(mutation.args as Rec) }
+          break
+        }
+      }
+    }
+  return out
+}
+const checkRateLimit = (calls: FactoryCall[]): { status: 'pass' | 'warn' } => {
+  const skipFactories = new Set(['cacheCrud', 'singletonCrud'])
+  for (const call of calls) {
+    const skip = skipFactories.has(call.factory)
+    const missingRateLimit = skip ? false : !call.options.includes('rateLimit')
+    if (missingRateLimit) return { status: 'warn' }
+  }
+  return { status: 'pass' }
+}
 
 describe('unwrapZod', () => {
   test('plain string', () => {
@@ -1827,37 +1871,37 @@ describe('time helper', () => {
 })
 
 describe('err helper', () => {
-  test('throws ConvexError with code only', () => {
+  test('throws sender error with code only', () => {
     expect(() => err('NOT_FOUND')).toThrow()
     try {
       err('NOT_FOUND')
     } catch (error) {
-      const e = error as { data: { code: string } }
-      expect(e.data.code).toBe('NOT_FOUND')
-      expect(e.data).not.toHaveProperty('debug')
-      expect(e.data).not.toHaveProperty('message')
+      const data = extractErrorData(error)
+      expect(data?.code).toBe('NOT_FOUND')
+      expect(data?.debug).toBeUndefined()
+      expect(data?.message).toBeUndefined()
     }
   })
 
-  test('throws ConvexError with debug string', () => {
+  test('throws sender error with debug string', () => {
     try {
       err('NOT_AUTHENTICATED', 'login-flow')
     } catch (error) {
-      const e = error as { data: { code: string; debug: string } }
-      expect(e.data.code).toBe('NOT_AUTHENTICATED')
-      expect(e.data.debug).toBe('login-flow')
-      expect(e.data).not.toHaveProperty('message')
+      const data = extractErrorData(error)
+      expect(data?.code).toBe('NOT_AUTHENTICATED')
+      expect(data?.debug).toBe('login-flow')
+      expect(data?.message).toBeUndefined()
     }
   })
 
-  test('throws ConvexError with message object', () => {
+  test('throws sender error with message object', () => {
     try {
       err('RATE_LIMITED', { message: 'Too many requests' })
     } catch (error) {
-      const e = error as { data: { code: string; message: string } }
-      expect(e.data.code).toBe('RATE_LIMITED')
-      expect(e.data.message).toBe('Too many requests')
-      expect(e.data).not.toHaveProperty('debug')
+      const data = extractErrorData(error)
+      expect(data?.code).toBe('RATE_LIMITED')
+      expect(data?.message).toBe('Too many requests')
+      expect(data?.debug).toBeUndefined()
     }
   })
 
@@ -1919,7 +1963,7 @@ describe('ROLE_LEVEL export removal', () => {
   test('ROLE_LEVEL is not re-exported from org-crud public API', async () => {
     const mod = await import('../server/org-crud')
     expect(mod).toHaveProperty('orgCascade')
-    expect(mod).toHaveProperty('canEdit')
+    expect(mod).toHaveProperty('checkMembership')
     expect(mod).not.toHaveProperty('ROLE_LEVEL')
   })
 })
@@ -2121,28 +2165,28 @@ describe('isRecord', () => {
 
 describe('extractErrorData', () => {
   test('extracts code from ConvexError', () => {
-    const e = new ConvexError({ code: 'NOT_FOUND' }),
+    const e = makeSenderError({ code: 'NOT_FOUND' }),
       d = extractErrorData(e)
     expect(d).toBeDefined()
     expect(d?.code).toBe('NOT_FOUND')
   })
 
   test('extracts code, debug from ConvexError', () => {
-    const e = new ConvexError({ code: 'NOT_AUTHENTICATED', debug: 'session-expired' }),
+    const e = makeSenderError({ code: 'NOT_AUTHENTICATED', debug: 'session-expired' }),
       d = extractErrorData(e)
     expect(d?.code).toBe('NOT_AUTHENTICATED')
     expect(d?.debug).toBe('session-expired')
   })
 
   test('extracts code, message from ConvexError', () => {
-    const e = new ConvexError({ code: 'RATE_LIMITED', message: 'Too fast' }),
+    const e = makeSenderError({ code: 'RATE_LIMITED', message: 'Too fast' }),
       d = extractErrorData(e)
     expect(d?.code).toBe('RATE_LIMITED')
     expect(d?.message).toBe('Too fast')
   })
 
   test('extracts code, fields from ConvexError', () => {
-    const e = new ConvexError({ code: 'NOT_FOUND', fields: ['title', 'content'] }),
+    const e = makeSenderError({ code: 'NOT_FOUND', fields: ['title', 'content'] }),
       d = extractErrorData(e)
     expect(d?.code).toBe('NOT_FOUND')
     expect(d?.fields).toEqual(['title', 'content'])
@@ -2161,34 +2205,34 @@ describe('extractErrorData', () => {
   })
 
   test('returns undefined for ConvexError without valid code', () => {
-    const e = new ConvexError({ code: 'INVALID_CODE_THAT_DOES_NOT_EXIST' })
+    const e = makeSenderError({ code: 'INVALID_CODE_THAT_DOES_NOT_EXIST' })
     expect(extractErrorData(e)).toBeUndefined()
   })
 
   test('returns undefined for ConvexError with non-string code', () => {
-    const e = new ConvexError({ code: 42 })
+    const e = makeSenderError({ code: 42 })
     expect(extractErrorData(e)).toBeUndefined()
   })
 
   test('returns undefined for ConvexError with non-record data', () => {
-    const e = new ConvexError('just a string')
+    const e = makeSenderError('just a string')
     expect(extractErrorData(e)).toBeUndefined()
   })
 
   test('debug is undefined when not a string', () => {
-    const e = new ConvexError({ code: 'NOT_FOUND', debug: 123 }),
+    const e = makeSenderError({ code: 'NOT_FOUND', debug: 123 }),
       d = extractErrorData(e)
     expect(d?.debug).toBeUndefined()
   })
 
   test('message is undefined when not a string', () => {
-    const e = new ConvexError({ code: 'NOT_FOUND', message: false }),
+    const e = makeSenderError({ code: 'NOT_FOUND', message: false }),
       d = extractErrorData(e)
     expect(d?.message).toBeUndefined()
   })
 
   test('fields is undefined when not an array', () => {
-    const e = new ConvexError({ code: 'NOT_FOUND', fields: 'title' }),
+    const e = makeSenderError({ code: 'NOT_FOUND', fields: 'title' }),
       d = extractErrorData(e)
     expect(d?.fields).toBeUndefined()
   })
@@ -2196,7 +2240,7 @@ describe('extractErrorData', () => {
 
 describe('getErrorCode', () => {
   test('returns code from ConvexError', () => {
-    expect(getErrorCode(new ConvexError({ code: 'CONFLICT' }))).toBe('CONFLICT')
+    expect(getErrorCode(makeSenderError({ code: 'CONFLICT' }))).toBe('CONFLICT')
   })
 
   test('returns undefined for plain Error', () => {
@@ -2214,11 +2258,11 @@ describe('getErrorCode', () => {
 
 describe('getErrorMessage', () => {
   test('returns message from ConvexError with message field', () => {
-    expect(getErrorMessage(new ConvexError({ code: 'NOT_FOUND', message: 'Blog not found' }))).toBe('Blog not found')
+    expect(getErrorMessage(makeSenderError({ code: 'NOT_FOUND', message: 'Blog not found' }))).toBe('Blog not found')
   })
 
   test('falls back to ERROR_MESSAGES for code without message', () => {
-    const msg = getErrorMessage(new ConvexError({ code: 'NOT_AUTHENTICATED' }))
+    const msg = getErrorMessage(makeSenderError({ code: 'NOT_AUTHENTICATED' }))
     expect(typeof msg).toBe('string')
     expect(msg.length).toBeGreaterThan(0)
     expect(msg).not.toBe('Unknown error')
@@ -2238,7 +2282,7 @@ describe('getErrorMessage', () => {
 describe('handleConvexError', () => {
   test('calls specific handler for matching code', () => {
     let called = false
-    handleConvexError(new ConvexError({ code: 'NOT_FOUND' }), {
+    handleError(makeSenderError({ code: 'NOT_FOUND' }), {
       NOT_FOUND: () => {
         called = true
       }
@@ -2248,7 +2292,7 @@ describe('handleConvexError', () => {
 
   test('calls default handler when no matching code handler', () => {
     let defaultCalled = false
-    handleConvexError(new ConvexError({ code: 'NOT_FOUND' }), {
+    handleError(makeSenderError({ code: 'NOT_FOUND' }), {
       default: () => {
         defaultCalled = true
       }
@@ -2258,7 +2302,7 @@ describe('handleConvexError', () => {
 
   test('calls default handler for plain Error', () => {
     let defaultCalled = false
-    handleConvexError(new Error('plain'), {
+    handleError(new Error('plain'), {
       default: () => {
         defaultCalled = true
       }
@@ -2268,7 +2312,7 @@ describe('handleConvexError', () => {
 
   test('does nothing when no matching handler and no default', () => {
     let called = false
-    handleConvexError(new ConvexError({ code: 'RATE_LIMITED' }), {
+    handleError(makeSenderError({ code: 'RATE_LIMITED' }), {
       NOT_FOUND: () => {
         called = true
       }
@@ -2277,7 +2321,7 @@ describe('handleConvexError', () => {
   })
 
   test('specific handler receives error data', () => {
-    handleConvexError(new ConvexError({ code: 'CONFLICT', message: 'stale data' }), {
+    handleError(makeSenderError({ code: 'CONFLICT', message: 'stale data' }), {
       CONFLICT: d => {
         expect(d.code).toBe('CONFLICT')
         expect(d.message).toBe('stale data')
@@ -2287,7 +2331,7 @@ describe('handleConvexError', () => {
 
   test('specific handler takes precedence over default', () => {
     let which = ''
-    handleConvexError(new ConvexError({ code: 'NOT_FOUND' }), {
+    handleError(makeSenderError({ code: 'NOT_FOUND' }), {
       default: () => {
         which = 'default'
       },
@@ -2300,7 +2344,7 @@ describe('handleConvexError', () => {
 
   test('default receives original error for non-ConvexError', () => {
     const original = new Error('oops')
-    handleConvexError(original, {
+    handleError(original, {
       default: e => {
         expect(e).toBe(original)
       }
@@ -2308,7 +2352,7 @@ describe('handleConvexError', () => {
   })
 
   test('does nothing for non-error with no default', () => {
-    expect(() => handleConvexError(null, {})).not.toThrow()
+    expect(() => handleError(null, {})).not.toThrow()
   })
 })
 
@@ -2495,21 +2539,19 @@ describe('fetchWithRetry', () => {
 })
 
 describe('Fix #1: getOrgMember compound index', () => {
-  test('getOrgMember is exported from org-crud', async () => {
+  test('getOrgMember is not exported from org-crud', async () => {
     const mod = await import('../server/org-crud')
-    expect(mod).toHaveProperty('getOrgMember')
-    expect(typeof mod.getOrgMember).toBe('function')
+    expect(mod).not.toHaveProperty('getOrgMember')
   })
 
-  test('getOrgMember is re-exported from server/index', async () => {
+  test('getOrgMember is not re-exported from server/index', async () => {
     const mod = await import('../server/index')
-    expect(mod).toHaveProperty('getOrgMember')
+    expect(mod).not.toHaveProperty('getOrgMember')
   })
 
-  test('requireOrgMember is exported from org-crud', async () => {
+  test('requireOrgMember is not exported from org-crud', async () => {
     const mod = await import('../server/org-crud')
-    expect(mod).toHaveProperty('requireOrgMember')
-    expect(typeof mod.requireOrgMember).toBe('function')
+    expect(mod).not.toHaveProperty('requireOrgMember')
   })
 })
 
@@ -2647,39 +2689,33 @@ describe('Fix #4: ownedCascade helper', () => {
 })
 
 describe('Fix #5: OrgCascadeTableConfig type', () => {
-  interface TestDM {
-    [key: string]: GenericTableInfo
-    blog: GenericTableInfo
-    wiki: GenericTableInfo
-  }
-
   test('string config accepts valid table name', () => {
-    const config: OrgCascadeTableConfig<TestDM> = 'blog'
+    const config: OrgCascadeTableConfig = 'blog'
     expect(config).toBe('blog')
   })
 
   test('string config accepts another valid table name', () => {
-    const config: OrgCascadeTableConfig<TestDM> = 'wiki'
+    const config: OrgCascadeTableConfig = 'wiki'
     expect(config).toBe('wiki')
   })
 
   test('object config accepts valid table name', () => {
-    const config: OrgCascadeTableConfig<TestDM> = { table: 'wiki' }
+    const config: OrgCascadeTableConfig = { table: 'wiki' }
     expect(config).toEqual({ table: 'wiki' })
   })
 
   test('object config accepts fileFields', () => {
-    const config: OrgCascadeTableConfig<TestDM> = { fileFields: ['photo', 'avatar'], table: 'blog' }
+    const config: OrgCascadeTableConfig = { fileFields: ['photo', 'avatar'], table: 'blog' }
     expect(config).toEqual({ fileFields: ['photo', 'avatar'], table: 'blog' })
   })
 
   test('object config with empty fileFields', () => {
-    const config: OrgCascadeTableConfig<TestDM> = { fileFields: [], table: 'blog' }
+    const config: OrgCascadeTableConfig = { fileFields: [], table: 'blog' }
     expect(config).toEqual({ fileFields: [], table: 'blog' })
   })
 
   test('array of OrgCascadeTableConfig accepts mixed configs', () => {
-    const configs: OrgCascadeTableConfig<TestDM>[] = ['blog', { fileFields: ['photo'], table: 'wiki' }]
+    const configs: OrgCascadeTableConfig[] = ['blog', { fileFields: ['photo'], table: 'wiki' }]
     expect(configs).toHaveLength(2)
   })
 })
@@ -2827,75 +2863,75 @@ describe('Fix #9: useList accepts optional pageSize', () => {
 
 describe('Fix #10: isTestMode production safety', () => {
   test('isTestMode returns true when CONVEX_TEST_MODE=true and NODE_ENV=test', () => {
-    const origTest = process.env.CONVEX_TEST_MODE,
+    const origTest = process.env.SPACETIMEDB_TEST_MODE,
       origNode = process.env.NODE_ENV
-    process.env.CONVEX_TEST_MODE = 'true'
+    process.env.SPACETIMEDB_TEST_MODE = 'true'
     process.env.NODE_ENV = 'test'
     expect(isTestMode()).toBe(true)
-    process.env.CONVEX_TEST_MODE = origTest
+    process.env.SPACETIMEDB_TEST_MODE = origTest
     process.env.NODE_ENV = origNode
   })
 
   test('isTestMode returns true when CONVEX_TEST_MODE=true regardless of NODE_ENV', () => {
-    const origTest = process.env.CONVEX_TEST_MODE,
+    const origTest = process.env.SPACETIMEDB_TEST_MODE,
       origNode = process.env.NODE_ENV
-    process.env.CONVEX_TEST_MODE = 'true'
+    process.env.SPACETIMEDB_TEST_MODE = 'true'
     process.env.NODE_ENV = 'production'
     expect(isTestMode()).toBe(true)
-    process.env.CONVEX_TEST_MODE = origTest
+    process.env.SPACETIMEDB_TEST_MODE = origTest
     process.env.NODE_ENV = origNode
   })
 
   test('isTestMode returns false when CONVEX_TEST_MODE is false', () => {
-    const origTest = process.env.CONVEX_TEST_MODE,
+    const origTest = process.env.SPACETIMEDB_TEST_MODE,
       origNode = process.env.NODE_ENV
-    process.env.CONVEX_TEST_MODE = 'false'
+    process.env.SPACETIMEDB_TEST_MODE = 'false'
     process.env.NODE_ENV = 'test'
     expect(isTestMode()).toBe(false)
-    process.env.CONVEX_TEST_MODE = origTest
+    process.env.SPACETIMEDB_TEST_MODE = origTest
     process.env.NODE_ENV = origNode
   })
 
   test('isTestMode returns false when CONVEX_TEST_MODE is undefined', () => {
-    const origTest = process.env.CONVEX_TEST_MODE,
+    const origTest = process.env.SPACETIMEDB_TEST_MODE,
       origNode = process.env.NODE_ENV
     /** biome-ignore lint/performance/noDelete: process.env requires delete to truly unset */
-    delete process.env.CONVEX_TEST_MODE
+    delete process.env.SPACETIMEDB_TEST_MODE
     process.env.NODE_ENV = 'test'
     expect(isTestMode()).toBe(false)
-    process.env.CONVEX_TEST_MODE = origTest
+    process.env.SPACETIMEDB_TEST_MODE = origTest
     process.env.NODE_ENV = origNode
   })
 
   test('isTestMode returns false when both are undefined', () => {
-    const origTest = process.env.CONVEX_TEST_MODE,
+    const origTest = process.env.SPACETIMEDB_TEST_MODE,
       origNode = process.env.NODE_ENV
     /** biome-ignore lint/performance/noDelete: process.env requires delete to truly unset */
-    delete process.env.CONVEX_TEST_MODE
+    delete process.env.SPACETIMEDB_TEST_MODE
     /** biome-ignore lint/performance/noDelete: process.env requires delete to truly unset */
     delete process.env.NODE_ENV
     expect(isTestMode()).toBe(false)
-    process.env.CONVEX_TEST_MODE = origTest
+    process.env.SPACETIMEDB_TEST_MODE = origTest
     process.env.NODE_ENV = origNode
   })
 
   test('isTestMode returns true when CONVEX_TEST_MODE=true and NODE_ENV=development', () => {
-    const origTest = process.env.CONVEX_TEST_MODE,
+    const origTest = process.env.SPACETIMEDB_TEST_MODE,
       origNode = process.env.NODE_ENV
-    process.env.CONVEX_TEST_MODE = 'true'
+    process.env.SPACETIMEDB_TEST_MODE = 'true'
     process.env.NODE_ENV = 'development'
     expect(isTestMode()).toBe(true)
-    process.env.CONVEX_TEST_MODE = origTest
+    process.env.SPACETIMEDB_TEST_MODE = origTest
     process.env.NODE_ENV = origNode
   })
 
   test('isTestMode returns true when CONVEX_TEST_MODE=true and NODE_ENV is empty', () => {
-    const origTest = process.env.CONVEX_TEST_MODE,
+    const origTest = process.env.SPACETIMEDB_TEST_MODE,
       origNode = process.env.NODE_ENV
-    process.env.CONVEX_TEST_MODE = 'true'
+    process.env.SPACETIMEDB_TEST_MODE = 'true'
     process.env.NODE_ENV = ''
     expect(isTestMode()).toBe(true)
-    process.env.CONVEX_TEST_MODE = origTest
+    process.env.SPACETIMEDB_TEST_MODE = origTest
     process.env.NODE_ENV = origNode
   })
 
@@ -2922,13 +2958,12 @@ describe('VALIDATION_FAILED error code', () => {
     try {
       err('VALIDATION_FAILED')
     } catch (error) {
-      const e = error as { data: { code: string } }
-      expect(e.data.code).toBe('VALIDATION_FAILED')
+      expect(extractErrorData(error)?.code).toBe('VALIDATION_FAILED')
     }
   })
 
   test('extractErrorData works with VALIDATION_FAILED', () => {
-    const e = new ConvexError({ code: 'VALIDATION_FAILED', fields: ['title'] }),
+    const e = makeSenderError({ code: 'VALIDATION_FAILED', fields: ['title'] }),
       d = extractErrorData(e)
     expect(d).toBeDefined()
     expect(d?.code).toBe('VALIDATION_FAILED')
@@ -2936,18 +2971,18 @@ describe('VALIDATION_FAILED error code', () => {
   })
 
   test('getErrorCode returns VALIDATION_FAILED', () => {
-    const e = new ConvexError({ code: 'VALIDATION_FAILED' })
+    const e = makeSenderError({ code: 'VALIDATION_FAILED' })
     expect(getErrorCode(e)).toBe('VALIDATION_FAILED')
   })
 
   test('getErrorMessage falls back to ERROR_MESSAGES for VALIDATION_FAILED', () => {
-    const msg = getErrorMessage(new ConvexError({ code: 'VALIDATION_FAILED' }))
+    const msg = getErrorMessage(makeSenderError({ code: 'VALIDATION_FAILED' }))
     expect(msg).toBe('Validation failed')
   })
 
   test('handleConvexError routes VALIDATION_FAILED', () => {
     let called = false
-    handleConvexError(new ConvexError({ code: 'VALIDATION_FAILED' }), {
+    handleError(makeSenderError({ code: 'VALIDATION_FAILED' }), {
       VALIDATION_FAILED: () => {
         called = true
       }
@@ -2970,14 +3005,14 @@ describe('errValidation with VALIDATION_FAILED', () => {
     try {
       errValidation('VALIDATION_FAILED', zodError)
     } catch (error) {
-      const e = error as { data: { code: string; fields: string[]; message: string } }
-      expect(e.data.code).toBe('VALIDATION_FAILED')
-      expect(e.data.fields).toContain('title')
-      expect(e.data.fields).toContain('content')
-      expect(e.data.fields).toHaveLength(2)
-      expect(e.data.message).toContain('Invalid:')
-      expect(e.data.message).toContain('title')
-      expect(e.data.message).toContain('content')
+      const d = extractErrorData(error)
+      expect(d?.code).toBe('VALIDATION_FAILED')
+      expect(d?.fields).toContain('title')
+      expect(d?.fields).toContain('content')
+      expect(d?.fields).toHaveLength(2)
+      expect(d?.message).toContain('Invalid:')
+      expect(d?.message).toContain('title')
+      expect(d?.message).toContain('content')
     }
   })
 
@@ -2988,10 +3023,10 @@ describe('errValidation with VALIDATION_FAILED', () => {
     try {
       errValidation('VALIDATION_FAILED', zodError)
     } catch (error) {
-      const e = error as { data: { code: string; fields: string[]; message: string } }
-      expect(e.data.code).toBe('VALIDATION_FAILED')
-      expect(e.data.fields).toEqual([])
-      expect(e.data.message).toBe('Validation failed')
+      const d = extractErrorData(error)
+      expect(d?.code).toBe('VALIDATION_FAILED')
+      expect(d?.fields).toEqual([])
+      expect(d?.message).toBe('Validation failed')
     }
   })
 
@@ -3009,8 +3044,8 @@ describe('field-level error routing (R9.3)', () => {
     try {
       errValidation('VALIDATION_FAILED', zodError)
     } catch (error) {
-      const e = error as { data: { fieldErrors: Record<string, string> } }
-      expect(e.data.fieldErrors).toEqual({ content: 'Too short', title: 'Required' })
+      const d = extractErrorData(error)
+      expect(d?.fieldErrors).toEqual({ content: 'Too short', title: 'Required' })
     }
   })
 
@@ -3021,8 +3056,7 @@ describe('field-level error routing (R9.3)', () => {
     try {
       errValidation('VALIDATION_FAILED', zodError)
     } catch (error) {
-      const e = error as { data: { fieldErrors: Record<string, string> } }
-      expect(e.data.fieldErrors.email).toBe('Invalid email')
+      expect(extractErrorData(error)?.fieldErrors?.email).toBe('Invalid email')
     }
   })
 
@@ -3031,13 +3065,12 @@ describe('field-level error routing (R9.3)', () => {
     try {
       errValidation('VALIDATION_FAILED', zodError)
     } catch (error) {
-      const e = error as { data: { fieldErrors: Record<string, string> } }
-      expect(e.data.fieldErrors).toEqual({})
+      expect(extractErrorData(error)?.fieldErrors).toEqual({})
     }
   })
 
   test('extractErrorData returns fieldErrors from ConvexError', () => {
-    const e = new ConvexError({
+    const e = makeSenderError({
         code: 'VALIDATION_FAILED',
         fieldErrors: { content: 'Too short', title: 'Required' },
         fields: ['title', 'content'],
@@ -3049,7 +3082,7 @@ describe('field-level error routing (R9.3)', () => {
   })
 
   test('extractErrorData returns undefined fieldErrors when not a record', () => {
-    const e = new ConvexError({
+    const e = makeSenderError({
         code: 'VALIDATION_FAILED',
         fieldErrors: 'not-a-record'
       }),
@@ -3059,14 +3092,14 @@ describe('field-level error routing (R9.3)', () => {
   })
 
   test('extractErrorData returns undefined fieldErrors when missing', () => {
-    const e = new ConvexError({ code: 'NOT_FOUND' }),
+    const e = makeSenderError({ code: 'NOT_FOUND' }),
       d = extractErrorData(e)
     expect(d).toBeDefined()
     expect(d?.fieldErrors).toBeUndefined()
   })
 
   test('extractErrorData treats array fieldErrors as record (isRecord passes arrays)', () => {
-    const e = new ConvexError({
+    const e = makeSenderError({
         code: 'VALIDATION_FAILED',
         fieldErrors: ['title', 'content']
       }),
@@ -3108,14 +3141,14 @@ describe('field-level error routing (R9.3)', () => {
     try {
       errValidation('VALIDATION_FAILED', zodError)
     } catch (error) {
-      const e = error as { data: { fieldErrors: Record<string, string>; fields: string[] } }
-      expect(e.data.fieldErrors).toEqual({ title: 'Required' })
-      expect(e.data.fields).toEqual(['title'])
+      const d = extractErrorData(error)
+      expect(d?.fieldErrors).toEqual({ title: 'Required' })
+      expect(d?.fields).toEqual(['title'])
     }
   })
 
   test('extractErrorData with fieldErrors as null returns undefined', () => {
-    const e = new ConvexError({
+    const e = makeSenderError({
         code: 'VALIDATION_FAILED',
         fieldErrors: null
       }),
@@ -3124,7 +3157,7 @@ describe('field-level error routing (R9.3)', () => {
   })
 
   test('extractErrorData with fieldErrors as number returns undefined', () => {
-    const e = new ConvexError({
+    const e = makeSenderError({
         code: 'VALIDATION_FAILED',
         fieldErrors: 42
       }),
@@ -3133,7 +3166,7 @@ describe('field-level error routing (R9.3)', () => {
   })
 
   test('extractErrorData with nested fieldErrors preserves values', () => {
-    const e = new ConvexError({
+    const e = makeSenderError({
         code: 'VALIDATION_FAILED',
         fieldErrors: { email: 'Already taken', password: 'Too weak' },
         fields: ['email', 'password']
@@ -3157,7 +3190,7 @@ describe('field-level error routing (R9.3)', () => {
     }
   })
   test('extractErrorData with empty record fieldErrors returns empty record', () => {
-    const e = new ConvexError({
+    const e = makeSenderError({
         code: 'VALIDATION_FAILED',
         fieldErrors: {}
       }),
@@ -3165,7 +3198,7 @@ describe('field-level error routing (R9.3)', () => {
     expect(d?.fieldErrors).toEqual({})
   })
   test('field-level errors coexist with general error message', () => {
-    const e = new ConvexError({
+    const e = makeSenderError({
         code: 'VALIDATION_FAILED',
         fieldErrors: { title: 'Too long' },
         fields: ['title'],
@@ -3363,17 +3396,17 @@ describe('guardApi', () => {
 
   test('throws on unknown module', () => {
     const guarded = guardApi(fakeApi, modules) as Record<string, unknown>
-    expect(() => guarded.nonexistent).toThrow('does not match any module')
+    expect(() => guarded.nonexistent).toThrow('does not match any reducer/table module')
   })
 
   test('suggests correct casing on mismatch', () => {
     const guarded = guardApi(fakeApi, modules) as Record<string, unknown>
-    expect(() => guarded.blogprofile).toThrow('Did you mean api.blogProfile')
+    expect(() => guarded.blogprofile).toThrow('Did you mean blogProfile')
   })
 
   test('suggests correct casing for all-caps typo', () => {
     const guarded = guardApi(fakeApi, modules) as Record<string, unknown>
-    expect(() => guarded.BLOG).toThrow('Did you mean api.blog')
+    expect(() => guarded.BLOG).toThrow('Did you mean blog')
   })
 
   test('includes valid modules in unknown module error', () => {
@@ -3397,7 +3430,7 @@ describe('makeErrorHandler', () => {
       handler = makeErrorHandler((m: string) => {
         messages.push(m)
       })
-    handler(new ConvexError({ code: 'NOT_FOUND', message: 'Blog not found' }))
+    handler(makeSenderError({ code: 'NOT_FOUND', message: 'Blog not found' }))
     expect(messages).toEqual(['Blog not found'])
   })
 
@@ -3414,7 +3447,7 @@ describe('makeErrorHandler', () => {
         }
       }
     )
-    handler(new ConvexError({ code: 'RATE_LIMITED' }))
+    handler(makeSenderError({ code: 'RATE_LIMITED' }))
     expect(overrideCalled).toBe(true)
     expect(messages).toEqual([])
   })
@@ -3431,7 +3464,7 @@ describe('makeErrorHandler', () => {
           }
         }
       )
-    handler(new ConvexError({ code: 'NOT_FOUND', message: 'Gone' }))
+    handler(makeSenderError({ code: 'NOT_FOUND', message: 'Gone' }))
     expect(messages).toEqual(['Gone'])
   })
 })
@@ -3470,7 +3503,7 @@ describe('betterspace-viz', () => {
       title: string().min(1),
       published: boolean(),
       count: number()`,
-      fields = extractFieldsFromBlock(block)
+      fields = parseFieldsFromBlock(block)
     expect(fields).toHaveLength(3)
     expect(fields[0]).toEqual({ name: 'title', type: 'string' })
     expect(fields[1]).toEqual({ name: 'published', type: 'boolean' })
@@ -4062,7 +4095,7 @@ describe('seed data generator', () => {
   test('generateFieldValue handles cvFile', () => {
     const val = generateFieldValue(cvFile())
     expect(typeof val).toBe('string')
-    expect(String(val)).toContain('_storage:')
+    expect(String(val)).toContain('s3://')
   })
 
   test('generateFieldValue handles array', () => {
@@ -4426,43 +4459,33 @@ describe('useInfiniteList', () => {
 
 describe('useSearch', () => {
   test('UseSearchOptions accepts debounceMs', () => {
-    const opts: UseSearchOptions = { debounceMs: 500 }
+    const opts: UseSearchOptions = { debounceMs: 500, fields: ['title'], query: 'abc' }
     expect(opts.debounceMs).toBe(500)
   })
 
-  test('UseSearchOptions accepts minLength', () => {
-    const opts: UseSearchOptions = { minLength: 3 }
-    expect(opts.minLength).toBe(3)
+  test('UseSearchOptions accepts query and fields', () => {
+    const opts: UseSearchOptions = { fields: ['title', 'content'], query: 'hello' }
+    expect(opts.fields).toEqual(['title', 'content'])
+    expect(opts.query).toBe('hello')
   })
 
-  test('UseSearchOptions fields are all optional', () => {
-    const opts: UseSearchOptions = {}
+  test('UseSearchOptions debounce is optional', () => {
+    const opts: UseSearchOptions = { fields: ['title'], query: '' }
     expect(opts.debounceMs).toBeUndefined()
-    expect(opts.minLength).toBeUndefined()
-  })
-
-  test('DEFAULT_DEBOUNCE_MS is 300', () => {
-    expect(DEFAULT_DEBOUNCE_MS).toBe(300)
-  })
-
-  test('DEFAULT_MIN_LENGTH is 1', () => {
-    expect(DEFAULT_MIN_LENGTH).toBe(1)
   })
 
   test('UseSearchResult shape is correct', () => {
     type R = UseSearchResult<string[]>
-    type HasQuery = 'query' extends keyof R ? true : false
-    type HasSetQuery = 'setQuery' extends keyof R ? true : false
     type HasResults = 'results' extends keyof R ? true : false
     type HasIsSearching = 'isSearching' extends keyof R ? true : false
-    const _q: HasQuery = true,
-      _sq: HasSetQuery = true,
-      _r: HasResults = true,
+    const _r: HasResults = true,
       _is: HasIsSearching = true
-    expect(_q).toBe(true)
-    expect(_sq).toBe(true)
     expect(_r).toBe(true)
     expect(_is).toBe(true)
+  })
+
+  test('DEFAULT_DEBOUNCE_MS is 300', () => {
+    expect(DEFAULT_DEBOUNCE_MS).toBe(300)
   })
 })
 
@@ -6398,11 +6421,11 @@ describe('typed error handling (R10.5)', () => {
 
   describe('isMutationError()', () => {
     test('returns true for ConvexError with valid code', () => {
-      expect(isMutationError(new ConvexError({ code: 'NOT_FOUND' }))).toBe(true)
+      expect(isMutationError(makeSenderError({ code: 'NOT_FOUND' }))).toBe(true)
     })
 
     test('returns true for ConvexError with code and data', () => {
-      expect(isMutationError(new ConvexError({ code: 'CONFLICT', message: 'stale' }))).toBe(true)
+      expect(isMutationError(makeSenderError({ code: 'CONFLICT', message: 'stale' }))).toBe(true)
     })
 
     test('returns false for plain Error', () => {
@@ -6422,31 +6445,31 @@ describe('typed error handling (R10.5)', () => {
     })
 
     test('returns false for ConvexError with invalid code', () => {
-      expect(isMutationError(new ConvexError({ code: 'INVALID_NOPE' }))).toBe(false)
+      expect(isMutationError(makeSenderError({ code: 'INVALID_NOPE' }))).toBe(false)
     })
 
     test('returns false for ConvexError with non-string code', () => {
-      expect(isMutationError(new ConvexError({ code: 123 }))).toBe(false)
+      expect(isMutationError(makeSenderError({ code: 123 }))).toBe(false)
     })
 
     test('returns false for ConvexError with string data', () => {
-      expect(isMutationError(new ConvexError('just text'))).toBe(false)
+      expect(isMutationError(makeSenderError('just text'))).toBe(false)
     })
 
     test('returns true for every valid ErrorCode', () => {
       const codes: ErrorCode[] = ['NOT_FOUND', 'FORBIDDEN', 'RATE_LIMITED', 'CONFLICT', 'VALIDATION_FAILED']
-      for (const code of codes) expect(isMutationError(new ConvexError({ code }))).toBe(true)
+      for (const code of codes) expect(isMutationError(makeSenderError({ code }))).toBe(true)
     })
   })
 
   describe('isErrorCode()', () => {
     test('returns true when code matches', () => {
-      const e = new ConvexError({ code: 'NOT_FOUND' })
+      const e = makeSenderError({ code: 'NOT_FOUND' })
       expect(isErrorCode(e, 'NOT_FOUND')).toBe(true)
     })
 
     test('returns false when code does not match', () => {
-      const e = new ConvexError({ code: 'FORBIDDEN' })
+      const e = makeSenderError({ code: 'FORBIDDEN' })
       expect(isErrorCode(e, 'NOT_FOUND')).toBe(false)
     })
 
@@ -6463,14 +6486,14 @@ describe('typed error handling (R10.5)', () => {
     })
 
     test('returns false for ConvexError with different code', () => {
-      const e = new ConvexError({ code: 'RATE_LIMITED' })
+      const e = makeSenderError({ code: 'RATE_LIMITED' })
       expect(isErrorCode(e, 'CONFLICT')).toBe(false)
     })
 
     test('works with every ErrorCode value', () => {
       const codes: ErrorCode[] = ['CONFLICT', 'FORBIDDEN', 'NOT_FOUND', 'RATE_LIMITED', 'UNAUTHORIZED']
       for (const code of codes) {
-        const e = new ConvexError({ code })
+        const e = makeSenderError({ code })
         expect(isErrorCode(e, code)).toBe(true)
         expect(isErrorCode(e, 'ALREADY_ORG_MEMBER')).toBe(false)
       }
@@ -6479,7 +6502,7 @@ describe('typed error handling (R10.5)', () => {
 
   describe('matchError()', () => {
     test('matches specific error code', () => {
-      const e = new ConvexError({ code: 'NOT_FOUND' }),
+      const e = makeSenderError({ code: 'NOT_FOUND' }),
         result = matchError(e, {
           NOT_FOUND: d => `found: ${d.code}`
         })
@@ -6487,7 +6510,7 @@ describe('typed error handling (R10.5)', () => {
     })
 
     test('returns handler return value', () => {
-      const e = new ConvexError({ code: 'RATE_LIMITED', message: 'slow down' }),
+      const e = makeSenderError({ code: 'RATE_LIMITED', message: 'slow down' }),
         result = matchError(e, {
           RATE_LIMITED: d => ({ msg: d.message, retry: true })
         })
@@ -6495,7 +6518,7 @@ describe('typed error handling (R10.5)', () => {
     })
 
     test('calls _ fallback when no specific handler', () => {
-      const e = new ConvexError({ code: 'FORBIDDEN' }),
+      const e = makeSenderError({ code: 'FORBIDDEN' }),
         result = matchError(e, {
           _: () => 'fallback',
           NOT_FOUND: () => 'not found'
@@ -6513,7 +6536,7 @@ describe('typed error handling (R10.5)', () => {
     })
 
     test('returns undefined when no match and no fallback', () => {
-      const e = new ConvexError({ code: 'FORBIDDEN' }),
+      const e = makeSenderError({ code: 'FORBIDDEN' }),
         result = matchError(e, {
           NOT_FOUND: () => 'nope'
         })
@@ -6528,7 +6551,7 @@ describe('typed error handling (R10.5)', () => {
     })
 
     test('specific handler takes precedence over fallback', () => {
-      const e = new ConvexError({ code: 'CONFLICT' }),
+      const e = makeSenderError({ code: 'CONFLICT' }),
         result = matchError(e, {
           _: () => 'fallback',
           CONFLICT: () => 'specific'
@@ -6537,7 +6560,7 @@ describe('typed error handling (R10.5)', () => {
     })
 
     test('handler receives full error data', () => {
-      const e = new ConvexError({
+      const e = makeSenderError({
           code: 'VALIDATION_FAILED',
           fieldErrors: { title: 'required' },
           fields: ['title'],
@@ -6560,7 +6583,7 @@ describe('typed error handling (R10.5)', () => {
     })
 
     test('multiple handlers only calls matching one', () => {
-      const e = new ConvexError({ code: 'RATE_LIMITED' })
+      const e = makeSenderError({ code: 'RATE_LIMITED' })
       let notFoundCalled = false,
         rateLimitedCalled = false
       matchError(e, {
@@ -6576,7 +6599,7 @@ describe('typed error handling (R10.5)', () => {
     })
 
     test('returns typed result from handler', () => {
-      const e = new ConvexError({ code: 'NOT_FOUND' }),
+      const e = makeSenderError({ code: 'NOT_FOUND' }),
         result: number | undefined = matchError(e, {
           NOT_FOUND: () => 42
         })
@@ -6592,7 +6615,7 @@ describe('typed error handling (R10.5)', () => {
     })
 
     test('_ receives original error for ConvexError without matching handler', () => {
-      const original = new ConvexError({ code: 'FORBIDDEN' }),
+      const original = makeSenderError({ code: 'FORBIDDEN' }),
         result = matchError(original, {
           _: () => 'fallback',
           NOT_FOUND: () => 'nope'
@@ -6606,7 +6629,7 @@ describe('typed error handling (R10.5)', () => {
       const result = fail('NOT_FOUND')
       expect(result.ok).toBe(false)
       const errorData = (result as MutationFail).error,
-        e = new ConvexError({ code: errorData.code, message: errorData.message } as Record<string, string | undefined>),
+        e = makeSenderError({ code: errorData.code, message: errorData.message } as Record<string, string | undefined>),
         msg = matchError(e, {
           _: () => 'Unknown error',
           NOT_FOUND: d => `Item not found: ${d.message}`
@@ -6623,7 +6646,7 @@ describe('typed error handling (R10.5)', () => {
       const result = fail('CONFLICT', { message: 'Stale' })
       expect(result.ok).toBe(false)
       const errorData = (result as MutationFail).error,
-        thrown = new ConvexError({ code: errorData.code, message: errorData.message } as Record<
+        thrown = makeSenderError({ code: errorData.code, message: errorData.message } as Record<
           string,
           string | undefined
         >)
@@ -6705,38 +6728,38 @@ describe('rich error metadata (R11.2)', () => {
 
   describe('extractErrorData with retryAfter and limit', () => {
     test('extracts retryAfter from ConvexError', () => {
-      const e = new ConvexError({ code: 'RATE_LIMITED', retryAfter: 30_000 }),
+      const e = makeSenderError({ code: 'RATE_LIMITED', retryAfter: 30_000 }),
         d = extractErrorData(e)
       expect(d?.retryAfter).toBe(30_000)
     })
 
     test('retryAfter undefined when not a number', () => {
-      const e = new ConvexError({ code: 'RATE_LIMITED', retryAfter: 'soon' }),
+      const e = makeSenderError({ code: 'RATE_LIMITED', retryAfter: 'soon' }),
         d = extractErrorData(e)
       expect(d?.retryAfter).toBeUndefined()
     })
 
     test('extracts limit object from ConvexError', () => {
       const limit = { max: 10, remaining: 0, window: 60_000 },
-        e = new ConvexError({ code: 'RATE_LIMITED', limit }),
+        e = makeSenderError({ code: 'RATE_LIMITED', limit }),
         d = extractErrorData(e)
       expect(d?.limit).toEqual(limit)
     })
 
     test('limit undefined when not an object', () => {
-      const e = new ConvexError({ code: 'RATE_LIMITED', limit: 42 }),
+      const e = makeSenderError({ code: 'RATE_LIMITED', limit: 42 }),
         d = extractErrorData(e)
       expect(d?.limit).toBeUndefined()
     })
 
     test('limit undefined when null', () => {
-      const e = new ConvexError({ code: 'RATE_LIMITED', limit: null }),
+      const e = makeSenderError({ code: 'RATE_LIMITED', limit: null }),
         d = extractErrorData(e)
       expect(d?.limit).toBeUndefined()
     })
 
     test('both retryAfter and limit extracted together', () => {
-      const e = new ConvexError({
+      const e = makeSenderError({
           code: 'RATE_LIMITED',
           limit: { max: 5, remaining: 0, window: 30_000 },
           retryAfter: 15_000
@@ -6747,7 +6770,7 @@ describe('rich error metadata (R11.2)', () => {
     })
 
     test('non-rate-limit errors have no retryAfter or limit', () => {
-      const e = new ConvexError({ code: 'NOT_FOUND' }),
+      const e = makeSenderError({ code: 'NOT_FOUND' }),
         d = extractErrorData(e)
       expect(d?.retryAfter).toBeUndefined()
       expect(d?.limit).toBeUndefined()
@@ -6756,7 +6779,7 @@ describe('rich error metadata (R11.2)', () => {
 
   describe('getErrorDetail with rate limit info', () => {
     test('includes retry after in detail string', () => {
-      const e = new ConvexError({
+      const e = makeSenderError({
           code: 'RATE_LIMITED',
           retryAfter: 45_000,
           table: 'blog'
@@ -6767,13 +6790,13 @@ describe('rich error metadata (R11.2)', () => {
     })
 
     test('no retry info when retryAfter absent', () => {
-      const e = new ConvexError({ code: 'RATE_LIMITED' }),
+      const e = makeSenderError({ code: 'RATE_LIMITED' }),
         detail = getErrorDetail(e)
       expect(detail).not.toContain('retry')
     })
 
     test('detail without table or retryAfter returns base message', () => {
-      const e = new ConvexError({ code: 'NOT_FOUND' }),
+      const e = makeSenderError({ code: 'NOT_FOUND' }),
         detail = getErrorDetail(e)
       expect(detail).toBe('Not found')
     })
@@ -6806,7 +6829,7 @@ describe('rich error metadata (R11.2)', () => {
 
   describe('matchError with rich metadata', () => {
     test('rate limit handler receives retryAfter and limit', () => {
-      const e = new ConvexError({
+      const e = makeSenderError({
           code: 'RATE_LIMITED',
           limit: { max: 10, remaining: 0, window: 60_000 },
           retryAfter: 45_000
@@ -6821,13 +6844,13 @@ describe('rich error metadata (R11.2)', () => {
     })
 
     test('handleConvexError passes rich metadata to handler', () => {
-      const e = new ConvexError({
+      const e = makeSenderError({
         code: 'RATE_LIMITED',
         limit: { max: 5, remaining: 0, window: 30_000 },
         retryAfter: 20_000
       })
-      let received: ConvexErrorData | undefined
-      handleConvexError(e, {
+      let received: ErrorData | undefined
+      handleError(e, {
         RATE_LIMITED: d => {
           received = d
         }
@@ -7600,15 +7623,15 @@ describe('doctor', () => {
   })
 
   test('checkDeps — all present', () => {
-    expect(checkDeps({ dependencies: { betterspace: '2', convex: '1', zod: '3' } }).status).toBe('pass')
+    expect(checkDeps({ dependencies: { betterspace: '2', spacetimedb: '1', zod: '3' } }).status).toBe('pass')
   })
 
   test('checkDeps — missing dep is fail', () => {
-    expect(checkDeps({ dependencies: { convex: '1', zod: '3' } }).status).toBe('fail')
+    expect(checkDeps({ dependencies: { spacetimedb: '1', zod: '3' } }).status).toBe('fail')
   })
 
   test('checkDeps — devDependencies count', () => {
-    expect(checkDeps({ devDependencies: { betterspace: '2', convex: '1', zod: '3' } }).status).toBe('pass')
+    expect(checkDeps({ devDependencies: { betterspace: '2', spacetimedb: '1', zod: '3' } }).status).toBe('pass')
   })
 
   test('checkDeps — no package.json', () => {
