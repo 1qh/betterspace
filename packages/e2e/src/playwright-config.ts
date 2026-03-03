@@ -6,6 +6,8 @@ interface PlaywrightOptions {
 }
 
 const createPlaywrightConfig = ({ port, webServerUrl }: PlaywrightOptions) => {
+  process.env.NEXT_PUBLIC_PLAYWRIGHT = '1'
+  process.env.PLAYWRIGHT = '1'
   const baseURL = `http://localhost:${port}`,
     isCI = Boolean(process.env.CI)
 

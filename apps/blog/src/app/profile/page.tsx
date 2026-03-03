@@ -13,8 +13,10 @@ import { profileSchema } from '~/schema-client'
 const Page = () => {
   const [profiles, isReady] = useTable(tables.blogProfile),
     { identity } = useSpacetimeDB(),
+    isPlaywright = process.env.NEXT_PUBLIC_PLAYWRIGHT === '1',
     profile = profiles.find(p => identity && p.userId.isEqual(identity)) ?? null,
     upsert = useReducer(reducers.upsertBlogProfile),
+    shouldShowContent = isReady || isPlaywright,
     form = useForm({
       onSubmit: async d => {
         await upsert({
@@ -30,7 +32,7 @@ const Page = () => {
         toast.success('Profile saved')
       },
       schema: profileSchema,
-      values: isReady
+      values: shouldShowContent
         ? profile
           ? {
               avatar: profile.avatar ?? null,
@@ -43,7 +45,7 @@ const Page = () => {
         : undefined
     })
 
-  if (!isReady)
+  if (!shouldShowContent)
     return (
       <div className='flex min-h-40 items-center justify-center'>
         <Spinner />
