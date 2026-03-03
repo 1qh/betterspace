@@ -20,6 +20,7 @@ import type {
 
 import { cvFileKindOf } from '../zod'
 import { flt, idx, typed } from './bridge'
+import { identityEquals } from './reducer-utils'
 import { ERROR_MESSAGES } from './types'
 
 class SenderError extends Error {
@@ -85,7 +86,7 @@ const TOKEN_BYTES = 24,
   time = (timestamp?: number) => ({ updatedAt: timestamp ?? Date.now() }),
   identityToHex = (identity: Identity): string => identity.toHexString(),
   identityFromHex = (hex: string): Identity => Identity.fromString(hex),
-  identityEquals = (a: Identity, b: Identity): boolean => a.isEqual(b),
+
   idToWire = String as unknown as (id: number) => string,
   idFromWire = (str: string): number => {
     const id = Number(str)
