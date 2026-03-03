@@ -30,33 +30,33 @@ const withOp = (ctx: GlobalHookCtx, op: MiddlewareCtx['operation']): MiddlewareC
       }
 
     if (hasAfterCreate)
-      hooks.afterCreate = async (ctx: GlobalHookCtx, args: { data: Rec; id: string }) => {
+      hooks.afterCreate = async (ctx: GlobalHookCtx, args: { data: Rec; row: Rec }) => {
         const mCtx = withOp(ctx, 'create')
         for (const mw of middlewares) if (mw.afterCreate) await mw.afterCreate(mCtx, args)
       }
 
     if (hasBeforeUpdate)
-      hooks.beforeUpdate = async (ctx: GlobalHookCtx, args: { id: string; patch: Rec; prev: Rec }) => {
+      hooks.beforeUpdate = async (ctx: GlobalHookCtx, args: { patch: Rec; prev: Rec }) => {
         let { patch } = args
         const mCtx = withOp(ctx, 'update')
-        for (const mw of middlewares) if (mw.beforeUpdate) patch = await mw.beforeUpdate(mCtx, { ...args, patch })
+        for (const mw of middlewares) if (mw.beforeUpdate) patch = await mw.beforeUpdate(mCtx, { patch, prev: args.prev })
         return patch
       }
 
     if (hasAfterUpdate)
-      hooks.afterUpdate = async (ctx: GlobalHookCtx, args: { id: string; patch: Rec; prev: Rec }) => {
+      hooks.afterUpdate = async (ctx: GlobalHookCtx, args: { next: Rec; patch: Rec; prev: Rec }) => {
         const mCtx = withOp(ctx, 'update')
         for (const mw of middlewares) if (mw.afterUpdate) await mw.afterUpdate(mCtx, args)
       }
 
     if (hasBeforeDelete)
-      hooks.beforeDelete = async (ctx: GlobalHookCtx, args: { doc: Rec; id: string }) => {
+      hooks.beforeDelete = async (ctx: GlobalHookCtx, args: { row: Rec }) => {
         const mCtx = withOp(ctx, 'delete')
         for (const mw of middlewares) if (mw.beforeDelete) await mw.beforeDelete(mCtx, args)
       }
 
     if (hasAfterDelete)
-      hooks.afterDelete = async (ctx: GlobalHookCtx, args: { doc: Rec; id: string }) => {
+      hooks.afterDelete = async (ctx: GlobalHookCtx, args: { row: Rec }) => {
         const mCtx = withOp(ctx, 'delete')
         for (const mw of middlewares) if (mw.afterDelete) await mw.afterDelete(mCtx, args)
       }
@@ -72,16 +72,16 @@ const withOp = (ctx: GlobalHookCtx, op: MiddlewareCtx['operation']): MiddlewareC
     const level = opts?.logLevel ?? 'info',
       verbose = opts?.verbose ?? false
     return {
-      afterCreate: (ctx, { data, id }) => {
-        const entry: Rec = { id, op: 'create', table: ctx.table, userId: ctx.userId }
+      afterCreate: (ctx, { data, row }) => {
+        const entry: Rec = { op: 'create', row, sender: ctx.sender.toString(), table: ctx.table }
         if (verbose) entry.data = data
         log(level, 'audit:create', entry)
       },
-      afterDelete: (ctx, { id }) => {
-        log(level, 'audit:delete', { id, op: 'delete', table: ctx.table, userId: ctx.userId })
+      afterDelete: (ctx, { row }) => {
+        log(level, 'audit:delete', { op: 'delete', row, sender: ctx.sender.toString(), table: ctx.table })
       },
-      afterUpdate: (ctx, { id, patch }) => {
-        const entry: Rec = { id, op: 'update', table: ctx.table, userId: ctx.userId }
+      afterUpdate: (ctx, { patch, prev }) => {
+        const entry: Rec = { op: 'update', prev, sender: ctx.sender.toString(), table: ctx.table }
         if (verbose) entry.fields = Object.keys(patch)
         log(level, 'audit:update', entry)
       },
@@ -97,17 +97,17 @@ const withOp = (ctx: GlobalHookCtx, op: MiddlewareCtx['operation']): MiddlewareC
   slowQueryWarn = (opts?: { threshold?: number }): Middleware => {
     const threshold = opts?.threshold ?? DEFAULT_SLOW_THRESHOLD_MS
     return {
-      afterCreate: (ctx, { id }) => {
+      afterCreate: (ctx, { row }) => {
         const dur = Date.now() - (((ctx as unknown as Rec)._mwStart as number | undefined) ?? Date.now())
-        if (dur > threshold) log('warn', 'slow:create', { durationMs: dur, id, table: ctx.table, threshold })
+        if (dur > threshold) log('warn', 'slow:create', { durationMs: dur, row, table: ctx.table, threshold })
       },
-      afterDelete: (ctx, { id }) => {
+      afterDelete: (ctx, { row }) => {
         const dur = Date.now() - (((ctx as unknown as Rec)._mwStart as number | undefined) ?? Date.now())
-        if (dur > threshold) log('warn', 'slow:delete', { durationMs: dur, id, table: ctx.table, threshold })
+        if (dur > threshold) log('warn', 'slow:delete', { durationMs: dur, row, table: ctx.table, threshold })
       },
-      afterUpdate: (ctx, { id }) => {
+      afterUpdate: (ctx, { prev }) => {
         const dur = Date.now() - (((ctx as unknown as Rec)._mwStart as number | undefined) ?? Date.now())
-        if (dur > threshold) log('warn', 'slow:update', { durationMs: dur, id, table: ctx.table, threshold })
+        if (dur > threshold) log('warn', 'slow:update', { durationMs: dur, prev, table: ctx.table, threshold })
       },
       beforeCreate: (ctx, { data }) => {
         ;(ctx as unknown as Rec)._mwStart = Date.now()

@@ -1,23 +1,37 @@
-import type { ZodNullable, ZodNumber, ZodObject, ZodOptional, ZodRawShape, z as _ } from 'zod/v4'
+import type { Identity, Timestamp } from 'spacetimedb'
+import type { z as _, ZodNullable, ZodNumber, ZodObject, ZodOptional, ZodRawShape } from 'zod/v4'
 
-type Rec = Record<string, unknown>
-type Visibility = 'internal' | 'public'
-
-interface IdentityLike {
-  equals?: (other: IdentityLike) => boolean
-  toHexString?: () => string
-  toString: () => string
+type Ab<V extends Visibility = 'public'> = <A = Rec, R = unknown, C = Rec>(
+  ...args: unknown[]
+) => C & RegisteredAction<V, A, R>
+interface ActionCtxLike extends ReducerCtx<DbLike> {
+  runMutation: (ref: string, args: Rec) => Promise<unknown>
+  runQuery: (ref: string, args: Rec) => Promise<unknown>
 }
 
-interface ReducerCtx<DB = unknown> {
-  db: DB
-  sender?: IdentityLike
-  timestamp?: number
+interface AuthorInfo {
+  [key: string]: unknown
+  email?: string
+  image?: string
+  name?: string
 }
 
-interface DbReadLike {
-  get: (id: number | string) => Promise<null | Rec>
-  query: (table: string) => QueryLike
+interface BaseBuilders {
+  m: Mb
+  pq?: Qb
+  q: Qb
+}
+
+interface ComparisonOp<V> {
+  $between?: [V, V]
+  $gt?: V
+  $gte?: V
+  $lt?: V
+  $lte?: V
+}
+
+interface DbCtx {
+  db: DbLike
 }
 
 interface DbLike extends DbReadLike {
@@ -27,10 +41,26 @@ interface DbLike extends DbReadLike {
   system?: DbReadLike
 }
 
-interface StorageLike {
-  delete: (id: string) => Promise<void>
-  getUrl: (id: string) => Promise<null | string>
+interface DbReadLike {
+  get: (id: number | string) => Promise<null | Rec>
+  query: (table: string) => QueryLike
 }
+
+type DocBase<S extends ZodRawShape> = _.output<ZodObject<S>> & {
+  _creationTime: number
+  _id: number | string
+  updatedAt: number
+}
+
+type EnrichedDoc<S extends ZodRawShape> = WithUrls<
+  DocBase<S> & {
+    author: AuthorInfo | null
+    own: boolean | null
+    userId: string
+  }
+>
+
+type FID = string
 
 interface FilterLike {
   and: (a: unknown, b: unknown) => unknown
@@ -43,12 +73,101 @@ interface FilterLike {
   or: (a: unknown, b: unknown) => unknown
 }
 
+interface GlobalHookCtx {
+  db: unknown
+  sender: Identity
+  table: string
+  timestamp: Timestamp
+}
+
+interface GlobalHooks {
+  afterCreate?: (ctx: GlobalHookCtx, args: { data: Rec; row: Rec }) => Promise<void> | void
+  afterDelete?: (ctx: GlobalHookCtx, args: { row: Rec }) => Promise<void> | void
+  afterUpdate?: (ctx: GlobalHookCtx, args: { next: Rec; patch: Rec; prev: Rec }) => Promise<void> | void
+  beforeCreate?: (ctx: GlobalHookCtx, args: { data: Rec }) => Promise<Rec> | Rec
+  beforeDelete?: (ctx: GlobalHookCtx, args: { row: Rec }) => Promise<void> | void
+  beforeUpdate?: (ctx: GlobalHookCtx, args: { patch: Rec; prev: Rec }) => Promise<Rec> | Rec
+}
+
+interface HookCtx extends ReducerCtx<DbLike> {
+  storage?: StorageLike
+  userId: string
+}
+
+interface IdentityLike {
+  equals?: (other: IdentityLike) => boolean
+  toHexString?: () => string
+  toString: () => string
+}
+
 interface IndexLike {
   eq: (field: string, value: unknown) => IndexLike
 }
 
-interface SearchLike {
-  search: (field: string, query: string) => unknown
+type Mb<V extends Visibility = 'public'> = <A = Rec, R = unknown, C = Rec>(
+  ...args: unknown[]
+) => C & RegisteredMutation<V, A, R>
+
+interface Middleware {
+  afterCreate?: (ctx: MiddlewareCtx, args: { data: Rec; row: Rec }) => Promise<void> | void
+  afterDelete?: (ctx: MiddlewareCtx, args: { row: Rec }) => Promise<void> | void
+  afterUpdate?: (ctx: MiddlewareCtx, args: { next: Rec; patch: Rec; prev: Rec }) => Promise<void> | void
+  beforeCreate?: (ctx: MiddlewareCtx, args: { data: Rec }) => Promise<Rec> | Rec
+  beforeDelete?: (ctx: MiddlewareCtx, args: { row: Rec }) => Promise<void> | void
+  beforeUpdate?: (ctx: MiddlewareCtx, args: { patch: Rec; prev: Rec }) => Promise<Rec> | Rec
+  name: string
+}
+
+interface MiddlewareCtx extends GlobalHookCtx {
+  operation: 'create' | 'delete' | 'update'
+}
+
+interface MutationCtxLike extends ReducerCtx<DbLike> {
+  auth?: { getUserIdentity: () => Promise<unknown> }
+  storage?: StorageLike
+}
+
+interface MutCtx extends UserCtx {
+  storage?: StorageLike
+}
+
+type OrgEnrichedDoc<S extends ZodRawShape> = WithUrls<
+  DocBase<S> & {
+    author: AuthorInfo | null
+    orgId: number | string
+    own: boolean | null
+    userId: string
+  }
+>
+
+type OrgRole = 'admin' | 'member' | 'owner'
+
+interface OrgUserLike {
+  [k: string]: unknown
+  _id: number
+  email?: string
+  image?: string
+  name?: string
+}
+
+interface PaginatedResult<D> {
+  continueCursor: string
+  isDone: boolean
+  page: D[]
+}
+
+type PaginationOptsShape = Record<
+  'cursor' | 'endCursor' | 'id' | 'maximumBytesRead' | 'maximumRowsRead' | 'numItems',
+  ZodNullable | ZodNumber | ZodOptional
+>
+
+type Qb<V extends Visibility = 'public'> = <A = Rec, R = unknown, C = Rec>(
+  ...args: unknown[]
+) => C & RegisteredQuery<V, A, R>
+
+interface QueryCtxLike extends ReducerCtx<DbLike> {
+  auth?: { getUserIdentity: () => Promise<unknown> }
+  storage?: StorageLike
 }
 
 interface QueryLike {
@@ -68,65 +187,26 @@ interface RateLimitConfig {
   window: number
 }
 
-interface DbCtx {
+interface ReadCtx {
   db: DbLike
-}
-
-interface UserCtx extends DbCtx {
-  user: Rec
-}
-
-interface MutCtx extends UserCtx {
   storage?: StorageLike
+  viewerId: null | string
+  withAuthor: <T extends { userId: string }>(
+    docs: T[]
+  ) => Promise<
+    (T & {
+      author: null | Rec
+      own: boolean | null
+    })[]
+  >
 }
 
-interface ActionCtxLike extends ReducerCtx<DbLike> {
-  runMutation: (ref: string, args: Rec) => Promise<unknown>
-  runQuery: (ref: string, args: Rec) => Promise<unknown>
-}
+type Rec = Record<string, unknown>
 
-interface MutationCtxLike extends ReducerCtx<DbLike> {
-  auth?: { getUserIdentity: () => Promise<unknown> }
-  storage?: StorageLike
-}
-
-interface QueryCtxLike extends ReducerCtx<DbLike> {
-  auth?: { getUserIdentity: () => Promise<unknown> }
-  storage?: StorageLike
-}
-
-interface HookCtx extends ReducerCtx<DbLike> {
-  storage?: StorageLike
-  userId: string
-}
-
-interface GlobalHookCtx extends ReducerCtx<DbLike> {
-  storage?: StorageLike
-  table: string
-  userId?: string
-}
-
-interface GlobalHooks {
-  afterCreate?: (ctx: GlobalHookCtx, args: { data: Rec; id: number | string }) => Promise<void> | void
-  afterDelete?: (ctx: GlobalHookCtx, args: { doc: Rec; id: number | string }) => Promise<void> | void
-  afterUpdate?: (ctx: GlobalHookCtx, args: { id: number | string; patch: Rec; prev: Rec }) => Promise<void> | void
-  beforeCreate?: (ctx: GlobalHookCtx, args: { data: Rec }) => Promise<Rec> | Rec
-  beforeDelete?: (ctx: GlobalHookCtx, args: { doc: Rec; id: number | string }) => Promise<void> | void
-  beforeUpdate?: (ctx: GlobalHookCtx, args: { id: number | string; patch: Rec; prev: Rec }) => Promise<Rec> | Rec
-}
-
-interface MiddlewareCtx extends GlobalHookCtx {
-  operation: 'create' | 'delete' | 'update'
-}
-
-interface Middleware {
-  afterCreate?: (ctx: MiddlewareCtx, args: { data: Rec; id: number | string }) => Promise<void> | void
-  afterDelete?: (ctx: MiddlewareCtx, args: { doc: Rec; id: number | string }) => Promise<void> | void
-  afterUpdate?: (ctx: MiddlewareCtx, args: { id: number | string; patch: Rec; prev: Rec }) => Promise<void> | void
-  beforeCreate?: (ctx: MiddlewareCtx, args: { data: Rec }) => Promise<Rec> | Rec
-  beforeDelete?: (ctx: MiddlewareCtx, args: { doc: Rec; id: number | string }) => Promise<void> | void
-  beforeUpdate?: (ctx: MiddlewareCtx, args: { id: number | string; patch: Rec; prev: Rec }) => Promise<Rec> | Rec
-  name: string
+interface ReducerCtx<DB = unknown> {
+  db: DB
+  sender?: IdentityLike
+  timestamp?: number
 }
 
 interface RegisteredAction<V extends Visibility, A, R> {
@@ -150,122 +230,9 @@ interface RegisteredQuery<V extends Visibility, A, R> {
   __visibility: V
 }
 
-type Ab<V extends Visibility = 'public'> = <A = Rec, R = unknown, C = Rec>(
-  ...args: unknown[]
-) => RegisteredAction<V, A, R> & C
-
-type Mb<V extends Visibility = 'public'> = <A = Rec, R = unknown, C = Rec>(
-  ...args: unknown[]
-) => RegisteredMutation<V, A, R> & C
-
-type Qb<V extends Visibility = 'public'> = <A = Rec, R = unknown, C = Rec>(
-  ...args: unknown[]
-) => RegisteredQuery<V, A, R> & C
-
-interface BaseBuilders {
-  m: Mb
-  pq?: Qb
-  q: Qb
+interface SearchLike {
+  search: (field: string, query: string) => unknown
 }
-
-interface AuthorInfo {
-  [key: string]: unknown
-  email?: string
-  image?: string
-  name?: string
-}
-
-interface PaginatedResult<D> {
-  continueCursor: string
-  isDone: boolean
-  page: D[]
-}
-
-interface ComparisonOp<V> {
-  $between?: [V, V]
-  $gt?: V
-  $gte?: V
-  $lt?: V
-  $lte?: V
-}
-
-type FID = string
-
-type UrlKey<K, V> =
-  NonNullable<V> extends FID | FID[] | readonly FID[] ? `${K & string}Url${NonNullable<V> extends FID ? '' : 's'}` : never
-
-type UrlVal<V> =
-  NonNullable<V> extends FID | FID[] | readonly FID[]
-    ? NonNullable<V> extends FID
-      ? null | string
-      : (null | string)[]
-    : never
-
-type WithUrls<D> = D & { [K in keyof D as UrlKey<K, D[K]>]: UrlVal<D[K]> }
-
-type WhereFieldValue<V> = ComparisonOp<V> | V
-
-type WhereGroupOf<S extends ZodRawShape> = {
-  [K in keyof _.output<ZodObject<S>>]?: WhereFieldValue<_.output<ZodObject<S>>[K]>
-} & {
-  own?: boolean
-}
-
-type WhereOf<S extends ZodRawShape> = WhereGroupOf<S> & {
-  or?: WhereGroupOf<S>[]
-}
-
-type DocBase<S extends ZodRawShape> = _.output<ZodObject<S>> & {
-  _creationTime: number
-  _id: number | string
-  updatedAt: number
-}
-
-type EnrichedDoc<S extends ZodRawShape> = WithUrls<
-  DocBase<S> & {
-    author: AuthorInfo | null
-    own: boolean | null
-    userId: string
-  }
->
-
-type OrgRole = 'admin' | 'member' | 'owner'
-
-type OrgEnrichedDoc<S extends ZodRawShape> = WithUrls<
-  DocBase<S> & {
-    author: AuthorInfo | null
-    orgId: number | string
-    own: boolean | null
-    userId: string
-  }
->
-
-interface OrgUserLike {
-  [k: string]: unknown
-  _id: number
-  email?: string
-  image?: string
-  name?: string
-}
-
-interface ReadCtx {
-  db: DbLike
-  storage?: StorageLike
-  viewerId: null | string
-  withAuthor: <T extends { userId: string }>(
-    docs: T[]
-  ) => Promise<
-    (T & {
-      author: null | Rec
-      own: boolean | null
-    })[]
-  >
-}
-
-type PaginationOptsShape = Record<
-  'cursor' | 'endCursor' | 'id' | 'maximumBytesRead' | 'maximumRowsRead' | 'numItems',
-  ZodNullable | ZodNumber | ZodOptional
->
 
 interface SetupConfig<DM = unknown> {
   action: Ab
@@ -280,6 +247,41 @@ interface SetupConfig<DM = unknown> {
   query: Qb
   strictFilter?: boolean
 }
+
+interface StorageLike {
+  delete: (id: string) => Promise<void>
+  getUrl: (id: string) => Promise<null | string>
+}
+
+type UrlKey<K, V> =
+  NonNullable<V> extends FID | FID[] | readonly FID[] ? `${K & string}Url${NonNullable<V> extends FID ? '' : 's'}` : never
+
+type UrlVal<V> =
+  NonNullable<V> extends FID | FID[] | readonly FID[]
+    ? NonNullable<V> extends FID
+      ? null | string
+      : (null | string)[]
+    : never
+
+interface UserCtx extends DbCtx {
+  user: Rec
+}
+
+type Visibility = 'internal' | 'public'
+
+type WhereFieldValue<V> = ComparisonOp<V> | V
+
+type WhereGroupOf<S extends ZodRawShape> = {
+  [K in keyof _.output<ZodObject<S>>]?: WhereFieldValue<_.output<ZodObject<S>>[K]>
+} & {
+  own?: boolean
+}
+
+type WhereOf<S extends ZodRawShape> = WhereGroupOf<S> & {
+  or?: WhereGroupOf<S>[]
+}
+
+type WithUrls<D> = D & { [K in keyof D as UrlKey<K, D[K]>]: UrlVal<D[K]> }
 
 const ERROR_MESSAGES = {
   ALREADY_ORG_MEMBER: 'Already a member of this organization',
@@ -324,19 +326,10 @@ type ErrorCode = keyof typeof ERROR_MESSAGES
 
 declare const __brand: unique symbol
 
-interface SchemaBrand<K extends string> {
-  readonly [__brand]: K
-  readonly __hint: SchemaHint<K>
-}
+type AssertSchema<T, Expected extends keyof BrandLabelMap> =
+  DetectBrand<T> extends Expected ? T : SchemaTypeError<Expected, DetectBrand<T> & keyof BrandLabelMap>
 
-type SchemaHint<K extends string> = K extends keyof SchemaHintMap ? SchemaHintMap[K] : string
-
-interface SchemaHintMap {
-  base: 'Created by makeBase() → use cacheCrud() + baseTable()'
-  org: 'Created by makeOrgScoped() → use orgCrud() + orgTable()'
-  owned: 'Created by makeOwned() → use crud() + ownedTable()'
-  singleton: 'Created by makeSingleton() → use singletonCrud() + singletonTable()'
-}
+type BaseSchema<T extends ZodRawShape> = SchemaBrand<'base'> & ZodObject<T>
 
 interface BrandLabelMap {
   base: 'BaseSchema (from makeBase())'
@@ -348,17 +341,26 @@ interface BrandLabelMap {
 
 type DetectBrand<T> = T extends SchemaBrand<infer K> ? K : 'unbranded'
 
+type OrgSchema<T extends ZodRawShape> = SchemaBrand<'org'> & ZodObject<T>
+
+type OwnedSchema<T extends ZodRawShape> = SchemaBrand<'owned'> & ZodObject<T>
+
+interface SchemaBrand<K extends string> {
+  readonly [__brand]: K
+  readonly __hint: SchemaHint<K>
+}
+
+type SchemaHint<K extends string> = K extends keyof SchemaHintMap ? SchemaHintMap[K] : string
+interface SchemaHintMap {
+  base: 'Created by makeBase() → use cacheCrud() + baseTable()'
+  org: 'Created by makeOrgScoped() → use orgCrud() + orgTable()'
+  owned: 'Created by makeOwned() → use crud() + ownedTable()'
+  singleton: 'Created by makeSingleton() → use singletonCrud() + singletonTable()'
+}
 type SchemaTypeError<
   Expected extends keyof BrandLabelMap,
   Got extends keyof BrandLabelMap
 > = `Schema mismatch: expected ${BrandLabelMap[Expected]}, got ${BrandLabelMap[Got]}. ${Expected extends keyof SchemaHintMap ? SchemaHintMap[Expected] : ''}`
-
-type AssertSchema<T, Expected extends keyof BrandLabelMap> =
-  DetectBrand<T> extends Expected ? T : SchemaTypeError<Expected, DetectBrand<T> & keyof BrandLabelMap>
-
-type BaseSchema<T extends ZodRawShape> = SchemaBrand<'base'> & ZodObject<T>
-type OwnedSchema<T extends ZodRawShape> = SchemaBrand<'owned'> & ZodObject<T>
-type OrgSchema<T extends ZodRawShape> = SchemaBrand<'org'> & ZodObject<T>
 type SingletonSchema<T extends ZodRawShape> = SchemaBrand<'singleton'> & ZodObject<T>
 
 export type {
@@ -387,8 +389,8 @@ export type {
   Mb,
   Middleware,
   MiddlewareCtx,
-  MutCtx,
   MutationCtxLike,
+  MutCtx,
   OrgEnrichedDoc,
   OrgRole,
   OrgSchema,
