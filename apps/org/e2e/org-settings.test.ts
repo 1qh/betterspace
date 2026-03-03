@@ -3,9 +3,14 @@
 import { expect, test } from '@playwright/test'
 
 import { addTestOrgMember, createTestOrg, createTestUser, ensureTestUser, makeOrgTestUtils } from '@a/e2e/org-helpers'
+import { login } from '@a/e2e/helpers'
 
 const testPrefix = `e2e-org-settings-${Date.now()}`
 const { cleanupOrgTestData, cleanupTestUsers, generateSlug } = makeOrgTestUtils(testPrefix)
+
+test.beforeEach(async ({ page }) => {
+  await login(page)
+})
 
 test.describe
   .serial('Settings Page UI', () => {

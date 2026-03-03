@@ -19,7 +19,8 @@ import { useOrg } from '~/hook/use-org'
 
 const sameIdentity = (a: { toHexString: () => string }, b: { toHexString: () => string }) =>
     a.toHexString() === b.toHexString(),
-  noop: () => void = () => undefined,
+  /** biome-ignore lint/suspicious/noEmptyBlockStatements: intentional noop */
+  noop: () => void = () => {},
   WikiDetailPage = ({ params }: { params: Promise<{ wikiId: string }> }) => {
     const { wikiId } = use(params),
       id = Number(wikiId),

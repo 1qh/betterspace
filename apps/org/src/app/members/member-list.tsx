@@ -1,7 +1,7 @@
 /* oxlint-disable promise/prefer-await-to-then */
 'use client'
 
-import type { OrgMember } from '@a/be/spacetimedb/types'
+import type { OrgMember, OrgProfile } from '@a/be/spacetimedb/types'
 
 import { reducers, tables } from '@a/be/spacetimedb'
 import { fail } from '@a/fe/utils'
@@ -21,14 +21,25 @@ const MemberList = () => {
   const { canManageAdmins, canManageMembers, org, role: myRole } = useOrg(),
     { identity } = useSpacetimeDB(),
     [allMembers] = useTable(tables.orgMember),
-    members = allMembers
-      .filter((m: OrgMember) => m.orgId === Number(org._id))
-      .map((m: OrgMember) => {
-        const role = m.userId.toHexString() === org.userId.toHexString() ? 'owner' : m.isAdmin ? 'admin' : 'member'
-        return { memberId: `${m.id}`, role, user: null, userId: m.userId.toHexString() }
-      }),
+    [profiles] = useTable(tables.orgProfile),
     removeMember = useReducer(reducers.orgRemoveMember),
-    setAdmin = useReducer(reducers.orgSetAdmin)
+    setAdmin = useReducer(reducers.orgSetAdmin),
+    profileByUserId = new Map<string, OrgProfile>()
+
+  for (const p of profiles) profileByUserId.set(p.userId.toHexString(), p)
+
+  const members = allMembers
+    .filter((m: OrgMember) => m.orgId === Number(org._id))
+    .map((m: OrgMember) => {
+      const p = profileByUserId.get(m.userId.toHexString())
+      const role = m.userId.toHexString() === org.userId.toHexString() ? 'owner' : m.isAdmin ? 'admin' : 'member'
+      return {
+        memberId: `${m.id}`,
+        role,
+        user: p ? { image: p.avatar ?? null, name: p.displayName } : null,
+        userId: m.userId.toHexString()
+      }
+    })
 
   if (!identity) return <Skeleton className='h-40 w-full' />
 

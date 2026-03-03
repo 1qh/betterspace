@@ -61,10 +61,7 @@ const { StepForm, useStepper } = defineSteps(
             <CardDescription>Set up your account in a few steps</CardDescription>
           </CardHeader>
           <CardContent>
-            <StepForm
-              key={`${initialValues.profile.displayName ?? ''}:${initialValues.preferences.theme}:${initialValues.preferences.notifications}`}
-              stepper={stepper}
-              submitLabel='Complete'>
+            <StepForm stepper={stepper} submitLabel='Complete'>
               <StepForm.Step
                 id='profile'
                 render={({ File, Text }) => (

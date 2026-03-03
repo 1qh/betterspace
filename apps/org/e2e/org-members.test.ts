@@ -11,9 +11,14 @@ import {
   makeOrgTestUtils,
   tc
 } from '@a/e2e/org-helpers'
+import { login } from '@a/e2e/helpers'
 
 const testPrefix = `e2e-org-members-${Date.now()}`
 const { cleanupOrgTestData, cleanupTestUsers, generateSlug } = makeOrgTestUtils(testPrefix)
+
+test.beforeEach(async ({ page }) => {
+  await login(page)
+})
 
 test.describe
   .serial('Members Page UI', () => {
@@ -38,19 +43,19 @@ test.describe
     test('members page loads', async ({ page }) => {
       await page.goto('/members')
       const heading = page.getByRole('heading', { name: /members/iu }).first()
-      await expect(heading).toBeVisible({ timeout: 8000 })
+      await expect(heading).toBeVisible({ timeout: 5000 })
     })
 
     test('owner shown in members list', async ({ page }) => {
       await page.goto('/members')
       const ownerBadge = page.getByText('Owner').first()
-      await expect(ownerBadge).toBeVisible({ timeout: 8000 })
+      await expect(ownerBadge).toBeVisible({ timeout: 5000 })
     })
 
     test('member shown in members list', async ({ page }) => {
       await page.goto('/members')
-      const memberText = page.getByText('UI Test Member').first()
-      await expect(memberText).toBeVisible({ timeout: 8000 })
+      const memberBadge = page.getByText(/^member$/iu).first()
+      await expect(memberBadge).toBeVisible({ timeout: 5000 })
     })
   })
 
@@ -78,13 +83,13 @@ test.describe
     test('pending invites visible for admin+', async ({ page }) => {
       await page.goto('/members')
       const heading = page.getByText('Pending Invites')
-      await expect(heading).toBeVisible({ timeout: 8000 })
+      await expect(heading).toBeVisible({ timeout: 5000 })
     })
 
     test('shows email and role badge', async ({ page }) => {
       await page.goto('/members')
       const emailCell = page.getByText(`${testPrefix}-pending@test.local`)
-      await expect(emailCell).toBeVisible({ timeout: 8000 })
+      await expect(emailCell).toBeVisible({ timeout: 5000 })
       const roleBadge = page.getByText(/member/iu).first()
       await expect(roleBadge).toBeVisible()
     })
@@ -129,7 +134,7 @@ test.describe
 
       await page.goto('/members')
       const joinRequestsHeading = page.getByText('Join Requests')
-      await expect(joinRequestsHeading).toBeVisible({ timeout: 8000 })
+      await expect(joinRequestsHeading).toBeVisible({ timeout: 5000 })
     })
 
     test('approve adds user to members list', async ({ page }) => {

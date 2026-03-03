@@ -18,10 +18,8 @@ class OnboardingPage extends BasePage {
 
   public async fillOrg(data: { name: string; slug: string }): Promise<void> {
     const nameInput = this.getOrgNameInput()
-    await nameInput.clear()
     await nameInput.fill(data.name)
     const slugInput = this.getOrgSlugInput()
-    await slugInput.clear()
     await slugInput.fill(data.slug)
   }
 
@@ -40,12 +38,10 @@ class OnboardingPage extends BasePage {
   public async fillProfile(data: { bio?: string; displayName?: string }): Promise<void> {
     if (data.displayName !== undefined) {
       const input = this.getDisplayNameInput()
-      await input.clear()
       await input.fill(data.displayName)
     }
     if (data.bio !== undefined) {
       const textarea = this.getBioTextarea()
-      await textarea.clear()
       await textarea.fill(data.bio)
     }
   }
@@ -120,7 +116,7 @@ class OnboardingPage extends BasePage {
 
   public async goto(): Promise<void> {
     await this.page.goto('/onboarding')
-    await this.page.locator('[data-testid="step-form"]').waitFor({ timeout: 15_000 })
+    await this.page.locator('[data-testid="step-form"]').waitFor({ timeout: 5000 })
   }
 }
 

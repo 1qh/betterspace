@@ -9,6 +9,7 @@ import AuthLayout from '@a/fe/auth-layout'
 import SpacetimeProvider from '@a/fe/spacetimedb-provider'
 import { useSpacetimeDB, useTable } from 'spacetimedb/react'
 import { usePathname, useRouter } from 'next/navigation'
+import { useEffect, useState } from 'react'
 
 import OrgLayoutClient from './layout-client'
 import OrgRedirect from './org-redirect'
@@ -36,7 +37,16 @@ const ORG_PATHS = ['/dashboard', '/members', '/projects', '/wiki', '/settings'],
       { identity } = useSpacetimeDB(),
       [orgs, orgsReady] = useTable(tables.org),
       [members, membersReady] = useTable(tables.orgMember),
-      isPlaywright = process.env.NEXT_PUBLIC_PLAYWRIGHT === '1'
+      isPlaywright = process.env.NEXT_PUBLIC_PLAYWRIGHT === '1',
+      activeOrgId = readActiveOrgId(),
+      [playwrightWaitExpired, setPlaywrightWaitExpired] = useState(false)
+
+    useEffect(() => {
+      if (!isPlaywright) return
+      setPlaywrightWaitExpired(false)
+      const timer = window.setTimeout(() => setPlaywrightWaitExpired(true), 1500)
+      return () => window.clearTimeout(timer)
+    }, [activeOrgId, isPlaywright, pathname])
 
     if (!pathname) return <>{children}</>
 
@@ -59,21 +69,12 @@ const ORG_PATHS = ['/dashboard', '/members', '/projects', '/wiki', '/settings'],
       : orgs.map((o: Org) => ({ org: toLegacyOrg(o), role: 'owner' as OrgRole }))
 
     if (myOrgItems.length === 0) {
-      if (isPlaywright) {
-        const fallbackOrg = { _id: '0', name: 'Test Org', slug: 'test-org' },
-          fallbackOrgs = [{ org: fallbackOrg, role: 'owner' as OrgRole }]
-        return (
-          <OrgLayoutClient membership={null} org={fallbackOrg} orgs={fallbackOrgs} role={fallbackOrgs[0].role}>
-            {children}
-          </OrgLayoutClient>
-        )
-      }
+      if (isPlaywright && !playwrightWaitExpired) return null
       router.replace('/')
       return null
     }
 
-    const activeOrgId = readActiveOrgId(),
-      active = (activeOrgId ? myOrgItems.find(item => item.org._id === activeOrgId) : null) ?? myOrgItems[0]
+    const active = (activeOrgId ? myOrgItems.find(item => item.org._id === activeOrgId) : null) ?? myOrgItems[0]
 
     if (!active) {
       router.replace('/')

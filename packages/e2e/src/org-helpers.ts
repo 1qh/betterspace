@@ -800,8 +800,6 @@ const runMutation = async <T>(name: string, args: Record<string, unknown>): Prom
     await callReducer('update_wiki', {
       content: wiki.content,
       deletedAt: null,
-      editors: wiki.editors,
-      expectedUpdatedAt: wiki.updatedAt,
       id: toInt(wiki._id),
       slug: wiki.slug,
       status: wiki.status,

@@ -1,7 +1,6 @@
 'use client'
 
 import { reducers } from '@a/be/spacetimedb'
-import { orgScoped } from '@a/be/t'
 import { Card, CardContent, CardHeader, CardTitle } from '@a/ui/card'
 import { FieldGroup } from '@a/ui/field'
 import { Form, useForm } from 'betterspace/components'
@@ -10,6 +9,7 @@ import { useReducer } from 'spacetimedb/react'
 import { toast } from 'sonner'
 
 import { useOrg } from '~/hook/use-org'
+import { wiki } from '~/schema'
 
 const NewWikiPage = () => {
   const router = useRouter(),
@@ -23,7 +23,7 @@ const NewWikiPage = () => {
         return d
       },
       resetOnSuccess: true,
-      schema: orgScoped.wiki
+      schema: wiki
     })
 
   return (

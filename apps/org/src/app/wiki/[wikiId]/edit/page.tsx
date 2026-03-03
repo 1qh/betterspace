@@ -4,7 +4,6 @@
 import type { Wiki } from '@a/be/spacetimedb/types'
 
 import { reducers, tables } from '@a/be/spacetimedb'
-import { orgScoped } from '@a/be/t'
 import { Button } from '@a/ui/button'
 import { Card, CardContent, CardHeader, CardTitle } from '@a/ui/card'
 import { FieldGroup } from '@a/ui/field'
@@ -16,6 +15,7 @@ import { use } from 'react'
 import { useReducer, useSpacetimeDB, useTable } from 'spacetimedb/react'
 
 import { useOrg } from '~/hook/use-org'
+import { wiki as wikiSchema } from '~/schema'
 
 const sameIdentity = (a: { toHexString: () => string }, b: { toHexString: () => string }) =>
     a.toHexString() === b.toHexString(),
@@ -31,8 +31,8 @@ const sameIdentity = (a: { toHexString: () => string }, b: { toHexString: () => 
           await update({ ...d, id: wikiId, orgId: Number(org._id) })
           return d
         },
-        schema: orgScoped.wiki,
-        values: wiki ? pickValues(orgScoped.wiki, wiki) : undefined
+        schema: wikiSchema,
+        values: wiki ? pickValues(wikiSchema, wiki) : undefined
       }),
       handleDelete = () => {
         remove({ id: wikiId }).then(() => router.push('/wiki'))
