@@ -9,5 +9,5 @@ export default createEnv({
   },
   runtimeEnv: process.env,
   skipValidation:
-    Boolean(process.env.CI) || Boolean(process.env.CONVEX_TEST_MODE) || process.env.npm_lifecycle_event === 'lint'
+    Boolean(process.env.CI) || Boolean(process.env.SPACETIMEDB_TEST_MODE) || process.env.npm_lifecycle_event === 'lint'
 })
