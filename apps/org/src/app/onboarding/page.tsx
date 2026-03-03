@@ -21,7 +21,7 @@ const { StepForm, useStepper } = defineSteps(
       [profiles, profileReady] = useTable(tables.orgProfile),
       profile = identity ? profiles.find(p => p.userId.toHexString() === identity.toHexString()) : null,
       upsert = useReducer(reducers.upsertOrgProfile),
-      create = async (_args: Record<string, unknown>) => undefined,
+      create = useReducer(reducers.orgCreate),
       stepper = useStepper({
         onSubmit: async d => {
           await upsert({ ...d.profile, ...d.preferences })

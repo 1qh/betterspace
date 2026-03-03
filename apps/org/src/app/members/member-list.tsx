@@ -3,7 +3,7 @@
 
 import type { OrgMember } from '@a/be/spacetimedb/types'
 
-import { tables } from '@a/be/spacetimedb'
+import { reducers, tables } from '@a/be/spacetimedb'
 import { fail } from '@a/fe/utils'
 import { Avatar, AvatarFallback, AvatarImage } from '@a/ui/avatar'
 import { Button } from '@a/ui/button'
@@ -11,7 +11,7 @@ import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuTrigge
 import { Skeleton } from '@a/ui/skeleton'
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@a/ui/table'
 import { RoleBadge } from 'betterspace/components'
-import { useSpacetimeDB, useTable } from 'spacetimedb/react'
+import { useReducer, useSpacetimeDB, useTable } from 'spacetimedb/react'
 import { MoreHorizontal, UserMinus } from 'lucide-react'
 import { toast } from 'sonner'
 
@@ -27,8 +27,8 @@ const MemberList = () => {
         const role = m.userId.toHexString() === org.userId.toHexString() ? 'owner' : m.isAdmin ? 'admin' : 'member'
         return { memberId: `${m.id}`, role, user: null, userId: m.userId.toHexString() }
       }),
-    removeMember = async (_args: Record<string, unknown>) => undefined,
-    setAdmin = async (_args: Record<string, unknown>) => undefined
+    removeMember = useReducer(reducers.orgRemoveMember),
+    setAdmin = useReducer(reducers.orgSetAdmin)
 
   if (!identity) return <Skeleton className='h-40 w-full' />
 

@@ -37,7 +37,7 @@ test.describe
 
     test('members page loads', async ({ page }) => {
       await page.goto('/members')
-      const heading = page.getByRole('heading', { name: /members/i }).first()
+      const heading = page.getByRole('heading', { name: /members/iu }).first()
       await expect(heading).toBeVisible({ timeout: 8000 })
     })
 
@@ -85,7 +85,7 @@ test.describe
       await page.goto('/members')
       const emailCell = page.getByText(`${testPrefix}-pending@test.local`)
       await expect(emailCell).toBeVisible({ timeout: 8000 })
-      const roleBadge = page.getByText(/member/i).first()
+      const roleBadge = page.getByText(/member/iu).first()
       await expect(roleBadge).toBeVisible()
     })
 

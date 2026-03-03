@@ -1,18 +1,20 @@
 'use client'
 
+import { reducers } from '@a/be/spacetimedb'
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@a/ui/card'
 import { FieldGroup } from '@a/ui/field'
 import slugify from '@sindresorhus/slugify'
 import { Form, useForm } from 'betterspace/components'
 import { useRouter } from 'next/navigation'
 import { useEffect, useRef } from 'react'
+import { useReducer } from 'spacetimedb/react'
 import { toast } from 'sonner'
 
 import { orgTeam } from '~/schema'
 
 const NewOrgPage = () => {
   const router = useRouter(),
-    create = async (_args: Record<string, unknown>) => undefined,
+    create = useReducer(reducers.orgCreate),
     form = useForm({
       onSubmit: async d => {
         await create(d)

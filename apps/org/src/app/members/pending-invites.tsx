@@ -3,12 +3,12 @@
 
 import type { OrgInvite } from '@a/be/spacetimedb/types'
 
-import { tables } from '@a/be/spacetimedb'
+import { reducers, tables } from '@a/be/spacetimedb'
 import { fail, formatExpiry } from '@a/fe/utils'
 import { Button } from '@a/ui/button'
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@a/ui/table'
 import { RoleBadge } from 'betterspace/components'
-import { useTable } from 'spacetimedb/react'
+import { useReducer, useTable } from 'spacetimedb/react'
 import { Copy, Trash } from 'lucide-react'
 import { toast } from 'sonner'
 
@@ -18,7 +18,7 @@ const PendingInvites = () => {
   const { org } = useOrg(),
     [allInvites] = useTable(tables.orgInvite),
     invites = allInvites.filter((i: OrgInvite) => i.orgId === Number(org._id)),
-    revokeInvite = async (_args: Record<string, unknown>) => undefined
+    revokeInvite = useReducer(reducers.orgRevokeInvite)
 
   if (invites.length === 0) return null
 

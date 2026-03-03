@@ -1,8 +1,8 @@
 import { expect, test } from './fixtures'
 import { login } from './helpers'
 
-const FETCH_BY_ID_RE = /Fetch by ID/i,
-  CACHE_HIT_RE = /Cache Hit/i
+const FETCH_BY_ID_RE = /Fetch by ID/iu,
+  CACHE_HIT_RE = /Cache Hit/iu
 
 test.describe
   .serial('Movie Search', () => {

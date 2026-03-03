@@ -3,7 +3,7 @@
 
 import type { Wiki } from '@a/be/spacetimedb/types'
 
-import { tables } from '@a/be/spacetimedb'
+import { reducers, tables } from '@a/be/spacetimedb'
 import { fail } from '@a/fe/utils'
 import { Badge } from '@a/ui/badge'
 import { Button } from '@a/ui/button'
@@ -12,7 +12,7 @@ import { EditorsSection } from 'betterspace/components'
 import { Pencil, RotateCcw, Trash2 } from 'lucide-react'
 import Link from 'next/link'
 import { use } from 'react'
-import { useSpacetimeDB, useTable } from 'spacetimedb/react'
+import { useReducer, useSpacetimeDB, useTable } from 'spacetimedb/react'
 import { toast } from 'sonner'
 
 import { useOrg } from '~/hook/use-org'
@@ -27,7 +27,8 @@ const sameIdentity = (a: { toHexString: () => string }, b: { toHexString: () => 
       { identity } = useSpacetimeDB(),
       [allWikis] = useTable(tables.wiki),
       wiki = allWikis.find((w: Wiki) => w.id === id && w.orgId === Number(org._id)),
-      restoreMut = async (_args: Record<string, unknown>) => undefined
+      updateWiki = useReducer(reducers.updateWiki),
+      restoreMut = async (args: { id: number }) => updateWiki({ deletedAt: null, id: args.id })
 
     if (!(wiki && identity)) return <Skeleton className='h-40' />
 

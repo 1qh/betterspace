@@ -4,7 +4,7 @@
 
 import type { OrgMember } from '@a/be/spacetimedb/types'
 
-import { tables } from '@a/be/spacetimedb'
+import { reducers, tables } from '@a/be/spacetimedb'
 import { fail } from '@a/fe/utils'
 import { Button } from '@a/ui/button'
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@a/ui/card'
@@ -12,7 +12,7 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@
 import { clearActiveOrgCookie } from 'betterspace/next'
 import { useRouter } from 'next/navigation'
 import { useState } from 'react'
-import { useTable } from 'spacetimedb/react'
+import { useReducer, useTable } from 'spacetimedb/react'
 import { toast } from 'sonner'
 
 import { useOrg } from '~/hook/use-org'
@@ -22,9 +22,9 @@ import OrgSettingsForm from './org-settings-form'
 const OrgSettingsPage = () => {
   const router = useRouter(),
     { canDeleteOrg, isAdmin, isOwner, org } = useOrg(),
-    removeOrg = async (_args: Record<string, unknown>) => undefined,
-    leaveOrg = async (_args: Record<string, unknown>) => undefined,
-    transferOwnership = async (_args: Record<string, unknown>) => undefined,
+    removeOrg = useReducer(reducers.orgRemove),
+    leaveOrg = useReducer(reducers.orgLeave),
+    transferOwnership = useReducer(reducers.orgTransferOwnership),
     [allMembers] = useTable(tables.orgMember),
     members = allMembers.filter((m: OrgMember) => m.orgId === Number(org._id)),
     [transferTarget, setTransferTarget] = useState<string>('')
@@ -59,7 +59,7 @@ const OrgSettingsPage = () => {
     handleDelete = () => {
       /** biome-ignore lint/suspicious/noAlert: demo page uses native confirm */
       if (!confirm('Are you sure? This will delete all data.')) return
-      removeOrg({ id: Number(org._id) })
+      removeOrg({ orgId: Number(org._id) })
         .then(async () => {
           await clearActiveOrgCookie()
           toast.success('Organization deleted')

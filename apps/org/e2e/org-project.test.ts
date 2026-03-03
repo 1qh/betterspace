@@ -38,7 +38,7 @@ test.describe
 
     test('projects page loads', async ({ page }) => {
       await page.goto('/projects')
-      const heading = page.getByRole('heading', { name: /projects/i }).first()
+      const heading = page.getByRole('heading', { name: /projects/iu }).first()
       await expect(heading).toBeVisible({ timeout: 8000 })
     })
 
@@ -50,10 +50,10 @@ test.describe
 
     test('new project link navigates to /projects/new', async ({ page }) => {
       await page.goto('/projects')
-      const newLink = page.getByRole('link', { name: /new|create/i }).first()
+      const newLink = page.getByRole('link', { name: /new|create/iu }).first()
       if (await newLink.isVisible().catch(() => false)) {
         await newLink.click()
-        await expect(page).toHaveURL(/\/projects\/new/)
+        await expect(page).toHaveURL(/\/projects\/new/u)
       }
     })
   })

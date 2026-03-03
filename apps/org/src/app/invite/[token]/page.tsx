@@ -2,11 +2,13 @@
 
 'use client'
 
+import { reducers } from '@a/be/spacetimedb'
 import { Button } from '@a/ui/button'
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@a/ui/card'
 import { CheckCircle, XCircle } from 'lucide-react'
 import { useRouter } from 'next/navigation'
 import { use, useState } from 'react'
+import { useReducer } from 'spacetimedb/react'
 
 import { toast } from 'sonner'
 
@@ -15,7 +17,7 @@ const AcceptInvitePage = ({ params }: { params: Promise<{ token: string }> }) =>
     router = useRouter(),
     [accepted, setAccepted] = useState(false),
     [inviteError, setInviteError] = useState<null | string>(null),
-    acceptInvite = async (_args: Record<string, unknown>) => undefined,
+    acceptInvite = useReducer(reducers.orgAcceptInvite),
     handleAccept = () => {
       acceptInvite({ token })
         .then(() => {

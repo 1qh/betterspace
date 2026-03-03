@@ -29,18 +29,18 @@ test.describe
 
     test('settings page loads for admin', async ({ page }) => {
       await page.goto('/settings')
-      await expect(page.getByRole('heading', { name: /settings/i })).toBeVisible({ timeout: 8000 })
+      await expect(page.getByRole('heading', { name: /settings/iu })).toBeVisible({ timeout: 8000 })
     })
 
     test('shows org name field', async ({ page }) => {
       await page.goto('/settings')
-      const nameInput = page.getByLabel(/name/i).first()
+      const nameInput = page.getByLabel(/name/iu).first()
       await expect(nameInput).toBeVisible({ timeout: 8000 })
     })
 
     test('shows org slug field', async ({ page }) => {
       await page.goto('/settings')
-      const slugInput = page.getByLabel(/slug/i).first()
+      const slugInput = page.getByLabel(/slug/iu).first()
       await expect(slugInput).toBeVisible({ timeout: 8000 })
     })
 
@@ -52,7 +52,7 @@ test.describe
 
     test('delete org section visible for owner', async ({ page }) => {
       await page.goto('/settings')
-      const deleteSection = page.getByText(/delete.*org/i).first()
+      const deleteSection = page.getByText(/delete.*org/iu).first()
       await expect(deleteSection).toBeVisible({ timeout: 8000 })
     })
   })
@@ -86,7 +86,7 @@ test.describe
 
     test('dropdown shows only admin members', async ({ page }) => {
       await page.goto('/settings')
-      const selectTrigger = page.getByRole('combobox', { name: /select an admin/i }).first()
+      const selectTrigger = page.getByRole('combobox', { name: /select an admin/iu }).first()
       if (await selectTrigger.isVisible().catch(() => false)) {
         await selectTrigger.click()
         const adminOption = page.getByText('Transfer Admin')
@@ -96,14 +96,14 @@ test.describe
 
     test('transfer confirms and succeeds', async ({ page }) => {
       await page.goto('/settings')
-      const selectTrigger = page.getByRole('combobox', { name: /select an admin/i }).first()
+      const selectTrigger = page.getByRole('combobox', { name: /select an admin/iu }).first()
       if (await selectTrigger.isVisible().catch(() => false)) {
         await selectTrigger.click()
         const adminOption = page.getByText('Transfer Admin')
         if (await adminOption.isVisible().catch(() => false)) {
           await adminOption.click()
           page.on('dialog', d => d.accept())
-          const transferButton = page.getByRole('button', { name: /^Transfer$/i })
+          const transferButton = page.getByRole('button', { name: /^Transfer$/iu })
           await transferButton.click()
           await expect(transferButton).not.toBeVisible({ timeout: 5000 })
         }
@@ -134,7 +134,7 @@ test.describe
 
     test('leave button NOT visible for owner on settings', async ({ page }) => {
       await page.goto('/settings')
-      const leaveButton = page.getByRole('button', { name: /leave organization/i })
+      const leaveButton = page.getByRole('button', { name: /leave organization/iu })
       const isVisible = await leaveButton.isVisible().catch(() => false)
       expect(isVisible).toBe(false)
     })

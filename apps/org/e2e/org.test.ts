@@ -56,18 +56,18 @@ test.describe
 
     test('view all members link navigates to /members', async ({ page }) => {
       await page.goto('/dashboard')
-      const link = page.getByRole('link', { name: /view all members/i })
+      const link = page.getByRole('link', { name: /view all members/iu })
       await expect(link).toBeVisible({ timeout: 8000 })
       await link.click()
-      await expect(page).toHaveURL(/\/members/)
+      await expect(page).toHaveURL(/\/members/u)
     })
 
     test('view all projects link navigates to /projects', async ({ page }) => {
       await page.goto('/dashboard')
-      const link = page.getByRole('link', { name: /view all projects/i })
+      const link = page.getByRole('link', { name: /view all projects/iu })
       await expect(link).toBeVisible({ timeout: 8000 })
       await link.click()
-      await expect(page).toHaveURL(/\/projects/)
+      await expect(page).toHaveURL(/\/projects/u)
     })
   })
 
@@ -89,31 +89,31 @@ test.describe
 
     test('nav has Dashboard link', async ({ page }) => {
       await page.goto('/dashboard')
-      const link = page.getByRole('link', { name: /dashboard/i }).first()
+      const link = page.getByRole('link', { name: /dashboard/iu }).first()
       await expect(link).toBeVisible({ timeout: 8000 })
     })
 
     test('nav has Projects link', async ({ page }) => {
       await page.goto('/dashboard')
-      const link = page.getByRole('link', { name: /projects/i }).first()
+      const link = page.getByRole('link', { name: /projects/iu }).first()
       await expect(link).toBeVisible({ timeout: 8000 })
     })
 
     test('nav has Wiki link', async ({ page }) => {
       await page.goto('/dashboard')
-      const link = page.getByRole('link', { name: /wiki/i }).first()
+      const link = page.getByRole('link', { name: /wiki/iu }).first()
       await expect(link).toBeVisible({ timeout: 8000 })
     })
 
     test('nav has Members link', async ({ page }) => {
       await page.goto('/dashboard')
-      const link = page.getByRole('link', { name: /members/i }).first()
+      const link = page.getByRole('link', { name: /members/iu }).first()
       await expect(link).toBeVisible({ timeout: 8000 })
     })
 
     test('nav has Settings link', async ({ page }) => {
       await page.goto('/dashboard')
-      const link = page.getByRole('link', { name: /settings/i }).first()
+      const link = page.getByRole('link', { name: /settings/iu }).first()
       await expect(link).toBeVisible({ timeout: 8000 })
     })
   })

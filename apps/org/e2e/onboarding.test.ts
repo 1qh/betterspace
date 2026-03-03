@@ -244,7 +244,7 @@ test.describe
       await expect(onboardingPage.getSubmitButton()).toBeVisible({ timeout: 5000 })
       await onboardingPage.clickSubmit()
 
-      await page.waitForURL(/\/dashboard/, { timeout: 15_000 })
+      await page.waitForURL(/\/dashboard/u, { timeout: 15_000 })
     })
   })
 
@@ -277,8 +277,8 @@ test.describe
       await expect(onboardingPage.getSubmitButton()).toBeVisible({ timeout: 5000 })
 
       await onboardingPage.clickSubmit()
-      await page.waitForURL(/\/dashboard/, { timeout: 15_000 })
-      await expect(page).toHaveURL(/\/dashboard/)
+      await page.waitForURL(/\/dashboard/u, { timeout: 15_000 })
+      await expect(page).toHaveURL(/\/dashboard/u)
     })
 
     test('profile and org were created with correct data', async () => {
@@ -294,7 +294,7 @@ test.describe
 
     test('dashboard shows org after onboarding', async ({ page }) => {
       await page.goto('/')
-      await page.waitForURL(/\/dashboard/, { timeout: 15_000 })
+      await page.waitForURL(/\/dashboard/u, { timeout: 15_000 })
       const heading = page.getByRole('heading').first()
       await expect(heading).toBeVisible({ timeout: 8000 })
     })
@@ -333,8 +333,8 @@ test.describe
       await onboardingPage.fillPreferences({ notifications: true, theme: 'dark' })
 
       await onboardingPage.clickSubmit()
-      await page.waitForURL(/\/dashboard/, { timeout: 15_000 })
-      await expect(page).toHaveURL(/\/dashboard/)
+      await page.waitForURL(/\/dashboard/u, { timeout: 15_000 })
+      await expect(page).toHaveURL(/\/dashboard/u)
     })
   })
 
@@ -475,7 +475,7 @@ test.describe
       await expect(onboardingPage.getSubmitButton()).toBeVisible({ timeout: 5000 })
       await onboardingPage.clickSubmit()
 
-      await page.waitForURL(/\/dashboard/, { timeout: 15_000 })
+      await page.waitForURL(/\/dashboard/u, { timeout: 15_000 })
     })
 
     test('clicking Cancel on guard dialog stays on page with data preserved', async ({ onboardingPage, page }) => {
@@ -496,7 +496,7 @@ test.describe
 
       await page.getByRole('button', { name: 'Cancel' }).click()
       await expect(onboardingPage.getNavGuardDialog()).not.toBeVisible({ timeout: 3000 })
-      await expect(page).toHaveURL(/\/onboarding/)
+      await expect(page).toHaveURL(/\/onboarding/u)
     })
 
     test('clicking Discard on guard dialog dismisses guard', async ({ onboardingPage, page }) => {
@@ -533,8 +533,8 @@ test.describe
 
     test('new user with no orgs redirects to /onboarding', async ({ page }) => {
       await page.goto('/')
-      await page.waitForURL(/\/onboarding/, { timeout: 15_000 })
-      await expect(page).toHaveURL(/\/onboarding/)
+      await page.waitForURL(/\/onboarding/u, { timeout: 15_000 })
+      await expect(page).toHaveURL(/\/onboarding/u)
     })
 
     test('completing onboarding creates org with user-chosen name', async ({ onboardingPage, page }) => {
@@ -554,7 +554,7 @@ test.describe
       await expect(onboardingPage.getSubmitButton()).toBeVisible({ timeout: 5000 })
       await onboardingPage.clickSubmit()
 
-      await page.waitForURL(/\/dashboard/, { timeout: 15_000 })
+      await page.waitForURL(/\/dashboard/u, { timeout: 15_000 })
       const heading = page.getByRole('heading').first()
       await expect(heading).toBeVisible({ timeout: 8000 })
     })
@@ -698,6 +698,6 @@ test.describe
       await expect(onboardingPage.getSubmitButton()).toBeVisible({ timeout: 5000 })
       await onboardingPage.clickSubmit()
 
-      await page.waitForURL(/\/dashboard/, { timeout: 15_000 })
+      await page.waitForURL(/\/dashboard/u, { timeout: 15_000 })
     })
   })

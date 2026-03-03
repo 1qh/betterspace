@@ -1,6 +1,6 @@
 'use client'
 
-import { tables } from '@a/be/spacetimedb'
+import { reducers, tables } from '@a/be/spacetimedb'
 import { fail } from '@a/fe/utils'
 import { Button } from '@a/ui/button'
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@a/ui/card'
@@ -9,7 +9,7 @@ import { Form, OrgAvatar, useForm } from 'betterspace/components'
 import { setActiveOrgCookieClient } from 'betterspace/react'
 import { useRouter } from 'next/navigation'
 import { use } from 'react'
-import { useSpacetimeDB, useTable } from 'spacetimedb/react'
+import { useReducer, useSpacetimeDB, useTable } from 'spacetimedb/react'
 import { toast } from 'sonner'
 
 import { joinRequest } from '~/schema'
@@ -30,8 +30,8 @@ const JoinPage = ({ params }: { params: Promise<{ slug: string }> }) => {
         : null,
     membership =
       identity && org ? members.find(m => m.orgId === org.id && m.userId.toHexString() === identity.toHexString()) : null,
-    cancelRequest = async (_args: Record<string, unknown>) => undefined,
-    requestJoin = async (_args: Record<string, unknown>) => undefined,
+    cancelRequest = useReducer(reducers.orgCancelJoin),
+    requestJoin = useReducer(reducers.orgRequestJoin),
     form = useForm({
       onSubmit: async d => {
         if (!org) return d

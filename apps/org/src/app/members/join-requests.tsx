@@ -3,13 +3,13 @@
 
 import type { OrgJoinRequest } from '@a/be/spacetimedb/types'
 
-import { tables } from '@a/be/spacetimedb'
+import { reducers, tables } from '@a/be/spacetimedb'
 import { fail } from '@a/fe/utils'
 import { Avatar, AvatarFallback, AvatarImage } from '@a/ui/avatar'
 import { Button } from '@a/ui/button'
 import { Switch } from '@a/ui/switch'
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@a/ui/table'
-import { useTable } from 'spacetimedb/react'
+import { useReducer, useTable } from 'spacetimedb/react'
 import { Check, X } from 'lucide-react'
 import { useState } from 'react'
 import { toast } from 'sonner'
@@ -22,8 +22,8 @@ const JoinRequests = () => {
     requests = allRequests
       .filter((r: OrgJoinRequest) => r.orgId === Number(org._id) && r.status === 'pending')
       .map((r: OrgJoinRequest) => ({ request: r, user: null })),
-    approveRequest = async (_args: Record<string, unknown>) => undefined,
-    rejectRequest = async (_args: Record<string, unknown>) => undefined,
+    approveRequest = useReducer(reducers.orgApproveJoin),
+    rejectRequest = useReducer(reducers.orgRejectJoin),
     [asAdmin, setAsAdmin] = useState<Record<string, boolean>>({})
 
   if (requests.length === 0) return null

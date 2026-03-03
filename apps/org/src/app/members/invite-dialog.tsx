@@ -1,10 +1,12 @@
 'use client'
 
+import { reducers } from '@a/be/spacetimedb'
 import { Button } from '@a/ui/button'
 import { Dialog, DialogContent, DialogDescription, DialogHeader, DialogTitle, DialogTrigger } from '@a/ui/dialog'
 import { Form, useForm } from 'betterspace/components'
 import { Plus } from 'lucide-react'
 import { useState } from 'react'
+import { useReducer } from 'spacetimedb/react'
 
 import { toast } from 'sonner'
 
@@ -16,7 +18,7 @@ interface InviteDialogProps {
 
 const InviteDialog = ({ orgId }: InviteDialogProps) => {
   const [open, setOpen] = useState(false),
-    sendInvite = async (_args: Record<string, unknown>) => undefined,
+    sendInvite = useReducer(reducers.orgSendInvite),
     form = useForm({
       onSubmit: async d => {
         await sendInvite({ ...d, orgId: Number(orgId) })

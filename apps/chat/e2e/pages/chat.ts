@@ -6,7 +6,7 @@ import BaseChatPage from '@a/e2e/base-chat'
 
 class ChatPage extends BaseChatPage {
   protected readonly basePath = '/'
-  protected readonly urlPattern = /\/[a-z0-9]+/i
+  protected readonly urlPattern = /\/[a-z0-9]+/iu
 
   public async abortStream(): Promise<void> {
     await this.getStopButton().click()

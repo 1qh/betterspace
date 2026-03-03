@@ -58,7 +58,7 @@ test.describe
 
     test('wiki page loads', async ({ page }) => {
       await page.goto('/wiki')
-      const heading = page.getByRole('heading', { name: /wiki/i }).first()
+      const heading = page.getByRole('heading', { name: /wiki/iu }).first()
       await expect(heading).toBeVisible({ timeout: 8000 })
     })
 

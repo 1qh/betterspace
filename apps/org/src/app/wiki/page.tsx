@@ -20,179 +20,179 @@ import { toast } from 'sonner'
 
 import { useOrg } from '~/hook/use-org'
 
-const wikiRestore = async (_args: Record<string, unknown>) => undefined,
-  WikiPage = () => {
-    const { isAdmin, org } = useOrg(),
-      [showDeleted, setShowDeleted] = useState(false),
-      [allWikis] = useTable(tables.wiki),
-      wikis = allWikis
-        .filter((w: Wiki) => w.orgId === Number(org._id) && (w.deletedAt === null || w.deletedAt === undefined))
-        .map((w: Wiki) => ({ ...w, _id: `${w.id}` })),
-      deletedWikis = allWikis
-        .filter((w: Wiki) => w.orgId === Number(org._id) && w.deletedAt !== null && w.deletedAt !== undefined)
-        .map((w: Wiki) => ({ ...w, _id: `${w.id}` })),
-      restoreMut = wikiRestore,
-      rmWiki = useReducer(reducers.rmWiki),
-      bulkRm = async ({ ids }: { ids: string[]; orgId: string }) => {
-        const tasks: Promise<void>[] = []
-        for (const id of ids) tasks.push(rmWiki({ id: Number(id) }))
-        await Promise.all(tasks)
+const WikiPage = () => {
+  const { isAdmin, org } = useOrg(),
+    [showDeleted, setShowDeleted] = useState(false),
+    [allWikis] = useTable(tables.wiki),
+    wikis = allWikis
+      .filter((w: Wiki) => w.orgId === Number(org._id) && (w.deletedAt === null || w.deletedAt === undefined))
+      .map((w: Wiki) => ({ ...w, _id: `${w.id}` })),
+    deletedWikis = allWikis
+      .filter((w: Wiki) => w.orgId === Number(org._id) && w.deletedAt !== null && w.deletedAt !== undefined)
+      .map((w: Wiki) => ({ ...w, _id: `${w.id}` })),
+    updateWiki = useReducer(reducers.updateWiki),
+    restoreMut = async (args: { id: number }) => updateWiki({ deletedAt: null, id: args.id }),
+    rmWiki = useReducer(reducers.rmWiki),
+    bulkRm = async ({ ids }: { ids: string[]; orgId: string }) => {
+      const tasks: Promise<void>[] = []
+      for (const id of ids) tasks.push(rmWiki({ id: Number(id) }))
+      await Promise.all(tasks)
+    },
+    { clear, handleBulkDelete, selected, toggleSelect, toggleSelectAll } = useBulkSelection({
+      bulkRm,
+      items: wikis,
+      onError: (e: unknown) => {
+        fail(e)
       },
-      { clear, handleBulkDelete, selected, toggleSelect, toggleSelectAll } = useBulkSelection({
-        bulkRm,
-        items: wikis,
-        onError: (e: unknown) => {
-          fail(e)
-        },
-        orgId: org._id,
-        restore: restoreMut,
-        toast: (msg, opts) => {
-          toast(msg, opts)
-        },
-        undoLabel: 'wiki page'
-      })
+      orgId: org._id,
+      restore: restoreMut,
+      toast: (msg, opts) => {
+        toast(msg, opts)
+      },
+      undoLabel: 'wiki page'
+    })
 
-    if (showDeleted && !deletedWikis) return <Skeleton className='h-40' />
-    if (!(showDeleted || wikis)) return <Skeleton className='h-40' />
+  if (showDeleted && !deletedWikis) return <Skeleton className='h-40' />
+  if (!(showDeleted || wikis)) return <Skeleton className='h-40' />
 
-    const activeItems = showDeleted ? [] : wikis,
-      deletedItems = deletedWikis ?? [],
-      visibleCount = showDeleted ? deletedItems.length : activeItems.length
+  const activeItems = showDeleted ? [] : wikis,
+    deletedItems = deletedWikis ?? [],
+    visibleCount = showDeleted ? deletedItems.length : activeItems.length
 
-    return (
-      <div className='space-y-6'>
-        <div className='flex items-center justify-between'>
-          <div className='flex items-center gap-4'>
-            <h1 className='text-2xl font-bold'>
-              Wiki <span className='text-base font-normal text-muted-foreground'>({visibleCount ?? 0})</span>
-            </h1>
-            {isAdmin && !showDeleted && selected.size > 0 ? (
-              <div className='flex items-center gap-2'>
-                <span className='text-sm text-muted-foreground'>{selected.size} selected</span>
-                <Button onClick={handleBulkDelete} size='sm' variant='destructive'>
-                  Delete
-                </Button>
-                <Button onClick={clear} size='sm' variant='ghost'>
-                  Clear
-                </Button>
-              </div>
-            ) : null}
-          </div>
-          <div className='flex items-center gap-2'>
-            <Button
-              className={showDeleted ? 'border-destructive/50 text-destructive' : ''}
-              data-testid='trash-toggle'
-              onClick={() => {
-                setShowDeleted(v => !v)
-                clear()
-              }}
-              size='sm'
-              variant='outline'>
-              <Trash2 className='mr-1.5 size-3.5' />
-              Trash
-            </Button>
-            {showDeleted ? null : (
-              <Button asChild>
-                <Link href='/wiki/new'>
-                  <Plus className='mr-2 size-4' />
-                  New wiki
-                </Link>
+  return (
+    <div className='space-y-6'>
+      <div className='flex items-center justify-between'>
+        <div className='flex items-center gap-4'>
+          <h1 className='text-2xl font-bold'>
+            Wiki <span className='text-base font-normal text-muted-foreground'>({visibleCount ?? 0})</span>
+          </h1>
+          {isAdmin && !showDeleted && selected.size > 0 ? (
+            <div className='flex items-center gap-2'>
+              <span className='text-sm text-muted-foreground'>{selected.size} selected</span>
+              <Button onClick={handleBulkDelete} size='sm' variant='destructive'>
+                Delete
               </Button>
-            )}
-          </div>
-        </div>
-
-        {showDeleted ? (
-          deletedItems.length === 0 ? (
-            <Card>
-              <CardContent className='flex flex-col items-center gap-2 py-8 text-center'>
-                <Trash2 className='size-12 text-muted-foreground/50' />
-                <p className='text-muted-foreground'>No deleted wiki pages</p>
-              </CardContent>
-            </Card>
-          ) : (
-            <div className='grid gap-4 md:grid-cols-2 lg:grid-cols-3'>
-              {deletedItems.map(w => (
-                <Card className='border-dashed opacity-60' data-testid='deleted-wiki-item' key={w._id}>
-                  <CardHeader>
-                    <div className='flex items-center justify-between'>
-                      <CardTitle className='line-through'>{w.title}</CardTitle>
-                      <Badge variant='destructive'>deleted</Badge>
-                    </div>
-                  </CardHeader>
-                  <CardContent className='flex items-center justify-between'>
-                    <span className='text-sm text-muted-foreground'>{w.slug}</span>
-                    <Button
-                      data-testid='restore-wiki'
-                      onClick={() => {
-                        const run = async () => {
-                          try {
-                            await restoreMut({ id: w._id })
-                          } catch (restoreError: unknown) {
-                            fail(restoreError)
-                          }
-                        }
-                        run()
-                      }}
-                      size='sm'
-                      variant='outline'>
-                      <RotateCcw className='mr-1.5 size-3.5' />
-                      Restore
-                    </Button>
-                  </CardContent>
-                </Card>
-              ))}
+              <Button onClick={clear} size='sm' variant='ghost'>
+                Clear
+              </Button>
             </div>
-          )
-        ) : activeItems.length === 0 ? (
+          ) : null}
+        </div>
+        <div className='flex items-center gap-2'>
+          <Button
+            className={showDeleted ? 'border-destructive/50 text-destructive' : ''}
+            data-testid='trash-toggle'
+            onClick={() => {
+              setShowDeleted(v => !v)
+              clear()
+            }}
+            size='sm'
+            variant='outline'>
+            <Trash2 className='mr-1.5 size-3.5' />
+            Trash
+          </Button>
+          {showDeleted ? null : (
+            <Button asChild>
+              <Link href='/wiki/new'>
+                <Plus className='mr-2 size-4' />
+                New wiki
+              </Link>
+            </Button>
+          )}
+        </div>
+      </div>
+
+      {showDeleted ? (
+        deletedItems.length === 0 ? (
           <Card>
-            <CardContent className='flex flex-col items-center py-8 text-center'>
-              <FileText className='mb-2 size-12 text-muted-foreground' />
-              <p className='text-muted-foreground'>No wiki pages yet</p>
+            <CardContent className='flex flex-col items-center gap-2 py-8 text-center'>
+              <Trash2 className='size-12 text-muted-foreground/50' />
+              <p className='text-muted-foreground'>No deleted wiki pages</p>
             </CardContent>
           </Card>
         ) : (
-          <>
-            {isAdmin && activeItems.length > 0 ? (
-              <div className='flex items-center gap-2'>
-                <Checkbox
-                  aria-label='Select all wiki pages'
-                  checked={selected.size === activeItems.length}
-                  onCheckedChange={toggleSelectAll}
-                />
-                <span className='text-sm text-muted-foreground'>Select all</span>
-              </div>
-            ) : null}
-            <div className='grid gap-4 md:grid-cols-2 lg:grid-cols-3'>
-              {activeItems.map(w => (
-                <div className='relative' key={w._id}>
-                  {isAdmin ? (
-                    <Checkbox
-                      aria-label={`Select ${w.title}`}
-                      checked={selected.has(w._id)}
-                      className='absolute top-2 left-2 z-10'
-                      onCheckedChange={() => toggleSelect(w._id)}
-                      onClick={e => e.stopPropagation()}
-                    />
-                  ) : null}
-                  <Link href={`/wiki/${w.id}`}>
-                    <Card className='transition-colors hover:bg-muted'>
-                      <CardHeader className={isAdmin ? 'pl-10' : ''}>
-                        <CardTitle>{w.title}</CardTitle>
-                      </CardHeader>
-                      <CardContent className='flex items-center gap-2'>
-                        <span className='text-sm text-muted-foreground'>{w.slug}</span>
-                        <Badge variant={w.status === 'published' ? 'default' : 'secondary'}>{w.status}</Badge>
-                      </CardContent>
-                    </Card>
-                  </Link>
-                </div>
-              ))}
+          <div className='grid gap-4 md:grid-cols-2 lg:grid-cols-3'>
+            {deletedItems.map(w => (
+              <Card className='border-dashed opacity-60' data-testid='deleted-wiki-item' key={w._id}>
+                <CardHeader>
+                  <div className='flex items-center justify-between'>
+                    <CardTitle className='line-through'>{w.title}</CardTitle>
+                    <Badge variant='destructive'>deleted</Badge>
+                  </div>
+                </CardHeader>
+                <CardContent className='flex items-center justify-between'>
+                  <span className='text-sm text-muted-foreground'>{w.slug}</span>
+                  <Button
+                    data-testid='restore-wiki'
+                    onClick={() => {
+                      const run = async () => {
+                        try {
+                          await restoreMut({ id: w._id })
+                        } catch (restoreError: unknown) {
+                          fail(restoreError)
+                        }
+                      }
+                      run()
+                    }}
+                    size='sm'
+                    variant='outline'>
+                    <RotateCcw className='mr-1.5 size-3.5' />
+                    Restore
+                  </Button>
+                </CardContent>
+              </Card>
+            ))}
+          </div>
+        )
+      ) : activeItems.length === 0 ? (
+        <Card>
+          <CardContent className='flex flex-col items-center py-8 text-center'>
+            <FileText className='mb-2 size-12 text-muted-foreground' />
+            <p className='text-muted-foreground'>No wiki pages yet</p>
+          </CardContent>
+        </Card>
+      ) : (
+        <>
+          {isAdmin && activeItems.length > 0 ? (
+            <div className='flex items-center gap-2'>
+              <Checkbox
+                aria-label='Select all wiki pages'
+                checked={selected.size === activeItems.length}
+                onCheckedChange={toggleSelectAll}
+              />
+              <span className='text-sm text-muted-foreground'>Select all</span>
             </div>
-          </>
-        )}
-      </div>
-    )
-  }
+          ) : null}
+          <div className='grid gap-4 md:grid-cols-2 lg:grid-cols-3'>
+            {activeItems.map(w => (
+              <div className='relative' key={w._id}>
+                {isAdmin ? (
+                  <Checkbox
+                    aria-label={`Select ${w.title}`}
+                    checked={selected.has(w._id)}
+                    className='absolute top-2 left-2 z-10'
+                    onCheckedChange={() => toggleSelect(w._id)}
+                    onClick={e => e.stopPropagation()}
+                  />
+                ) : null}
+                <Link href={`/wiki/${w.id}`}>
+                  <Card className='transition-colors hover:bg-muted'>
+                    <CardHeader className={isAdmin ? 'pl-10' : ''}>
+                      <CardTitle>{w.title}</CardTitle>
+                    </CardHeader>
+                    <CardContent className='flex items-center gap-2'>
+                      <span className='text-sm text-muted-foreground'>{w.slug}</span>
+                      <Badge variant={w.status === 'published' ? 'default' : 'secondary'}>{w.status}</Badge>
+                    </CardContent>
+                  </Card>
+                </Link>
+              </div>
+            ))}
+          </div>
+        </>
+      )}
+    </div>
+  )
+}
 
 export default WikiPage
