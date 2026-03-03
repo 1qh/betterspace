@@ -1,145 +1,280 @@
-import type { GenericId } from 'convex/values'
+import type { Identity, Timestamp } from 'spacetimedb'
+import type { ReducerExport, TypeBuilder } from 'spacetimedb/server'
 
-import { zid } from 'convex-helpers/server/zod4'
-import { z } from 'zod/v4'
+interface OptionalBuilder {
+  optional: () => TypeBuilder<unknown, unknown>
+}
 
-import type { DbLike, FilterLike, Mb, OrgUserLike, Qb, Rec } from './types'
-
-import { idx } from './bridge'
-import { err, time } from './helpers'
-import { getOrgMember, requireOrgRole } from './org-crud'
-
-/** Shape of a join request item returned by pendingJoinRequests, including the request doc and associated user. */
-interface JoinRequestItem {
-  request: {
-    [k: string]: unknown
-    _creationTime: number
-    _id: GenericId<'orgJoinRequest'>
-    message?: string
-    orgId: GenericId<'org'>
-    status: string
-    userId: GenericId<'users'>
+interface OrgJoinReducersConfig<
+  DB,
+  OrgId,
+  MemberId,
+  RequestId,
+  OrgRow extends OrgRowLike<OrgId>,
+  MemberRow extends OrgMemberRowLike<MemberId, OrgId>,
+  JoinRequestRow extends OrgJoinRequestRowLike<RequestId, OrgId>
+> {
+  builders: {
+    isAdmin: TypeBuilder<boolean, unknown>
+    message: OptionalBuilder
+    orgId: TypeBuilder<OrgId, unknown>
+    requestId: TypeBuilder<RequestId, unknown>
   }
-  user: null | OrgUserLike
+  orgJoinRequestByOrgStatusIndex: (
+    table: OrgJoinRequestTableLike<JoinRequestRow>
+  ) => OrgJoinRequestByOrgStatusIndexLike<JoinRequestRow, OrgId>
+  orgJoinRequestPk: (table: OrgJoinRequestTableLike<JoinRequestRow>) => OrgJoinRequestPkLike<JoinRequestRow, RequestId>
+  orgJoinRequestTable: (db: DB) => OrgJoinRequestTableLike<JoinRequestRow>
+  orgMemberTable: (db: DB) => OrgMemberTableLike<MemberRow>
+  orgPk: (table: Iterable<OrgRow>) => OrgPkLike<OrgRow, OrgId>
+  orgTable: (db: DB) => Iterable<OrgRow>
 }
 
-const makeJoinHandlers = ({ m, q }: { m: Mb; q: Qb }) => {
-  const requestJoin = m({
-      args: { message: z.string().optional(), orgId: zid('org') },
-      handler: async (c: Rec, { message, orgId }: { message?: string; orgId: string }) => {
-        const db = c.db as DbLike,
-          userId = (c.user as Rec)._id as string,
-          orgDoc = await db.get(orgId)
-        if (!orgDoc) return err('NOT_FOUND')
-        const existingMember = await getOrgMember({ db, orgId, userId })
-        if (existingMember || orgDoc.userId === userId) return err('ALREADY_ORG_MEMBER')
-        const existingRequest = await db
-          .query('orgJoinRequest')
-          .withIndex(
-            'by_org_status',
-            idx(o => o.eq('orgId', orgId).eq('status', 'pending'))
-          )
-          .filter((o: FilterLike) => o.eq(o.field('userId'), userId))
-          .unique()
-        if (existingRequest) return err('JOIN_REQUEST_EXISTS')
-        const requestId = await db.insert('orgJoinRequest', {
-          message,
-          orgId,
-          status: 'pending',
-          userId
-        })
-        return { requestId } as { requestId: GenericId<'orgJoinRequest'> }
-      }
-    }),
-    approveJoinRequest = m({
-      args: { isAdmin: z.boolean().optional(), requestId: zid('orgJoinRequest') },
-      handler: async (c: Rec, { isAdmin, requestId }: { isAdmin?: boolean; requestId: string }) => {
-        const db = c.db as DbLike,
-          requestDoc = await db.get(requestId)
-        if (!requestDoc) return err('NOT_FOUND')
-        await requireOrgRole({
-          db,
-          minRole: 'admin',
-          orgId: requestDoc.orgId as string,
-          userId: (c.user as Rec)._id as string
-        })
-        await db.insert('orgMember', {
-          isAdmin: isAdmin ?? false,
-          orgId: requestDoc.orgId,
-          userId: requestDoc.userId,
-          ...time()
-        })
-        await db.patch(requestId, { status: 'approved' })
-      }
-    }),
-    rejectJoinRequest = m({
-      args: { requestId: zid('orgJoinRequest') },
-      handler: async (c: Rec, { requestId }: { requestId: string }) => {
-        const db = c.db as DbLike,
-          requestDoc = await db.get(requestId)
-        if (!requestDoc) return err('NOT_FOUND')
-        await requireOrgRole({
-          db,
-          minRole: 'admin',
-          orgId: requestDoc.orgId as string,
-          userId: (c.user as Rec)._id as string
-        })
-        await db.patch(requestId, { status: 'rejected' })
-      }
-    }),
-    cancelJoinRequest = m({
-      args: { requestId: zid('orgJoinRequest') },
-      handler: async (c: Rec, { requestId }: { requestId: string }) => {
-        const db = c.db as DbLike,
-          requestDoc = await db.get(requestId)
-        if (!requestDoc) return err('NOT_FOUND')
-        if (requestDoc.userId !== (c.user as Rec)._id) return err('FORBIDDEN')
-        if (requestDoc.status !== 'pending') return err('NOT_FOUND')
-        await db.delete(requestId)
-      }
-    }),
-    pendingJoinRequests = q({
-      args: { orgId: zid('org') },
-      handler: async (c: Rec, { orgId }: { orgId: string }): Promise<JoinRequestItem[]> => {
-        const db = c.db as DbLike
-        await requireOrgRole({ db, minRole: 'admin', orgId, userId: (c.user as Rec)._id as string })
-        const requests = await db
-            .query('orgJoinRequest')
-            .withIndex(
-              'by_org_status',
-              idx(o => o.eq('orgId', orgId).eq('status', 'pending'))
-            )
-            .collect(),
-          users = await Promise.all(requests.map(async (r: Rec) => db.get(r.userId as string))),
-          result: JoinRequestItem[] = []
-        for (let i = 0; i < requests.length; i += 1) {
-          const req = requests[i],
-            usr = users[i]
-          if (req) result.push({ request: req as JoinRequestItem['request'], user: (usr as null | OrgUserLike) ?? null })
+interface OrgJoinReducersExports {
+  exports: Record<string, ReducerExport<never, never>>
+}
+
+interface OrgJoinRequestByOrgStatusIndexLike<Row, OrgId> extends Iterable<Row> {
+  filterByOrgStatus: (orgId: OrgId, status: 'approved' | 'pending' | 'rejected') => Iterable<Row>
+}
+
+interface OrgJoinRequestPkLike<Row, Id> {
+  delete: (id: Id) => boolean
+  find: (id: Id) => null | Row
+  update: (row: Row) => Row
+}
+
+interface OrgJoinRequestRowLike<RequestId, OrgId> {
+  id: RequestId
+  message?: string
+  orgId: OrgId
+  status: 'approved' | 'pending' | 'rejected'
+  userId: Identity
+}
+
+interface OrgJoinRequestTableLike<Row> extends Iterable<Row> {
+  insert: (row: Row) => Row
+}
+
+interface OrgMemberRowLike<MemberId, OrgId> {
+  id: MemberId
+  isAdmin: boolean
+  orgId: OrgId
+  userId: Identity
+}
+
+interface OrgMemberTableLike<Row> extends Iterable<Row> {
+  insert: (row: Row) => Row
+}
+
+interface OrgPkLike<Row, Id> {
+  find: (id: Id) => null | Row
+}
+
+type OrgRole = 'admin' | 'member' | 'owner'
+
+interface OrgRowLike<OrgId> {
+  id: OrgId
+  userId: Identity
+}
+
+const makeError = (code: string, message: string): Error => new Error(`${code}: ${message}`),
+  identityEquals = (a: Identity, b: Identity): boolean => {
+    const left = a as unknown as { isEqual?: (v: unknown) => boolean; toHexString?: () => string }
+    if (typeof left.isEqual === 'function') return left.isEqual(b)
+    const right = b as unknown as { toHexString?: () => string }
+    if (typeof left.toHexString === 'function' && typeof right.toHexString === 'function')
+      return left.toHexString() === right.toHexString()
+    return Object.is(a, b)
+  },
+  findOrgMember = <OrgId, MemberId, MemberRow extends OrgMemberRowLike<MemberId, OrgId>>(
+    orgMemberTable: Iterable<MemberRow>,
+    orgId: OrgId,
+    userId: Identity
+  ): MemberRow | null => {
+    for (const member of orgMemberTable)
+      if (Object.is(member.orgId, orgId) && identityEquals(member.userId, userId)) return member
+    return null
+  },
+  getRole = <OrgId, MemberId>(
+    org: OrgRowLike<OrgId>,
+    member: null | OrgMemberRowLike<MemberId, OrgId>,
+    sender: Identity
+  ): null | OrgRole => {
+    if (identityEquals(org.userId, sender)) return 'owner'
+    if (!member) return null
+    if (member.isAdmin) return 'admin'
+    return 'member'
+  },
+  requireAdminRole = <OrgId, MemberId>({
+    operation,
+    org,
+    orgMemberTable,
+    sender
+  }: {
+    operation: string
+    org: OrgRowLike<OrgId>
+    orgMemberTable: Iterable<OrgMemberRowLike<MemberId, OrgId>>
+    sender: Identity
+  }) => {
+    const member = findOrgMember(orgMemberTable, org.id, sender),
+      role = getRole(org, member, sender)
+    if (!role) throw makeError('NOT_ORG_MEMBER', `org:${operation}`)
+    if (role === 'member') throw makeError('FORBIDDEN', `org:${operation}`)
+  },
+  findPendingJoinRequestByUser = <RequestId, OrgId, JoinRequestRow extends OrgJoinRequestRowLike<RequestId, OrgId>>(
+    byOrgStatusIndex: OrgJoinRequestByOrgStatusIndexLike<JoinRequestRow, OrgId>,
+    orgId: OrgId,
+    userId: Identity
+  ): JoinRequestRow | null => {
+    const pendingRequests = byOrgStatusIndex.filterByOrgStatus(orgId, 'pending')
+    for (const request of pendingRequests) if (identityEquals(request.userId, userId)) return request
+    return null
+  },
+  makeJoinReducers = <
+    DB,
+    OrgId,
+    MemberId,
+    RequestId,
+    OrgRow extends OrgRowLike<OrgId>,
+    MemberRow extends OrgMemberRowLike<MemberId, OrgId>,
+    JoinRequestRow extends OrgJoinRequestRowLike<RequestId, OrgId>
+  >(
+    spacetimedb: {
+      reducer: (
+        opts: { name: string },
+        params: Record<string, TypeBuilder<unknown, unknown>>,
+        fn: (ctx: { db: DB; sender: Identity; timestamp: Timestamp }, args: Record<string, unknown>) => void
+      ) => ReducerExport<never, never>
+    },
+    config: OrgJoinReducersConfig<DB, OrgId, MemberId, RequestId, OrgRow, MemberRow, JoinRequestRow>
+  ): OrgJoinReducersExports => {
+    const requestJoinReducer = spacetimedb.reducer(
+        { name: 'org_request_join' },
+        {
+          message: config.builders.message.optional(),
+          orgId: config.builders.orgId
+        },
+        (ctx, args: { message?: string; orgId: OrgId }) => {
+          const orgTable = config.orgTable(ctx.db),
+            orgPk = config.orgPk(orgTable),
+            orgMemberTable = config.orgMemberTable(ctx.db),
+            orgJoinRequestTable = config.orgJoinRequestTable(ctx.db),
+            joinByOrgStatusIndex = config.orgJoinRequestByOrgStatusIndex(orgJoinRequestTable),
+            org = orgPk.find(args.orgId)
+
+          if (!org) throw makeError('NOT_FOUND', 'org:request_join')
+          if (identityEquals(org.userId, ctx.sender)) throw makeError('ALREADY_ORG_MEMBER', 'org:request_join')
+
+          const existingMember = findOrgMember(orgMemberTable, args.orgId, ctx.sender)
+          if (existingMember) throw makeError('ALREADY_ORG_MEMBER', 'org:request_join')
+
+          const existingRequest = findPendingJoinRequestByUser(joinByOrgStatusIndex, args.orgId, ctx.sender)
+          if (existingRequest) throw makeError('JOIN_REQUEST_EXISTS', 'org:request_join')
+
+          orgJoinRequestTable.insert({
+            id: 0 as RequestId,
+            message: args.message,
+            orgId: args.orgId,
+            status: 'pending',
+            userId: ctx.sender
+          } as JoinRequestRow)
         }
-        return result
-      }
-    }),
-    myJoinRequest = q({
-      args: { orgId: zid('org') },
-      handler: async (c: Rec, { orgId }: { orgId: string }) =>
-        (c.db as DbLike)
-          .query('orgJoinRequest')
-          .withIndex(
-            'by_org_status',
-            idx(o => o.eq('orgId', orgId).eq('status', 'pending'))
-          )
-          .filter((o: FilterLike) => o.eq(o.field('userId'), (c.user as Rec)._id))
-          .unique() as Promise<null | {
-          _id: GenericId<'orgJoinRequest'>
-          message?: string
-          orgId: GenericId<'org'>
-          status: string
-          userId: GenericId<'users'>
-        }>
-    })
-  return { approveJoinRequest, cancelJoinRequest, myJoinRequest, pendingJoinRequests, rejectJoinRequest, requestJoin }
-}
+      ),
+      approveJoinReducer = spacetimedb.reducer(
+        { name: 'org_approve_join' },
+        {
+          isAdmin: config.builders.isAdmin.optional(),
+          requestId: config.builders.requestId
+        },
+        (ctx, args: { isAdmin?: boolean; requestId: RequestId }) => {
+          const orgTable = config.orgTable(ctx.db),
+            orgPk = config.orgPk(orgTable),
+            orgMemberTable = config.orgMemberTable(ctx.db),
+            orgJoinRequestTable = config.orgJoinRequestTable(ctx.db),
+            orgJoinRequestPk = config.orgJoinRequestPk(orgJoinRequestTable),
+            request = orgJoinRequestPk.find(args.requestId)
 
-export type { JoinRequestItem }
-export { makeJoinHandlers }
+          if (!request) throw makeError('NOT_FOUND', 'org:approve_join')
+          if (request.status !== 'pending') throw makeError('NOT_FOUND', 'org:approve_join')
+
+          const org = orgPk.find(request.orgId)
+          if (!org) throw makeError('NOT_FOUND', 'org:approve_join')
+          requireAdminRole({ operation: 'approve_join', org, orgMemberTable, sender: ctx.sender })
+
+          orgJoinRequestPk.update({
+            ...(request as unknown as Record<string, unknown>),
+            status: 'approved'
+          } as JoinRequestRow)
+          orgMemberTable.insert({
+            id: 0 as MemberId,
+            isAdmin: args.isAdmin ?? false,
+            orgId: request.orgId,
+            userId: request.userId
+          } as MemberRow)
+        }
+      ),
+      rejectJoinReducer = spacetimedb.reducer(
+        { name: 'org_reject_join' },
+        { requestId: config.builders.requestId },
+        (ctx, args: { requestId: RequestId }) => {
+          const orgTable = config.orgTable(ctx.db),
+            orgPk = config.orgPk(orgTable),
+            orgMemberTable = config.orgMemberTable(ctx.db),
+            orgJoinRequestTable = config.orgJoinRequestTable(ctx.db),
+            orgJoinRequestPk = config.orgJoinRequestPk(orgJoinRequestTable),
+            request = orgJoinRequestPk.find(args.requestId)
+
+          if (!request) throw makeError('NOT_FOUND', 'org:reject_join')
+          if (request.status !== 'pending') throw makeError('NOT_FOUND', 'org:reject_join')
+
+          const org = orgPk.find(request.orgId)
+          if (!org) throw makeError('NOT_FOUND', 'org:reject_join')
+          requireAdminRole({ operation: 'reject_join', org, orgMemberTable, sender: ctx.sender })
+
+          orgJoinRequestPk.update({
+            ...(request as unknown as Record<string, unknown>),
+            status: 'rejected'
+          } as JoinRequestRow)
+        }
+      ),
+      cancelJoinReducer = spacetimedb.reducer(
+        { name: 'org_cancel_join' },
+        { requestId: config.builders.requestId },
+        (ctx, args: { requestId: RequestId }) => {
+          const orgJoinRequestTable = config.orgJoinRequestTable(ctx.db),
+            orgJoinRequestPk = config.orgJoinRequestPk(orgJoinRequestTable),
+            request = orgJoinRequestPk.find(args.requestId)
+
+          if (!request) throw makeError('NOT_FOUND', 'org:cancel_join')
+          if (!identityEquals(request.userId, ctx.sender)) throw makeError('FORBIDDEN', 'org:cancel_join')
+          if (request.status !== 'pending') throw makeError('NOT_FOUND', 'org:cancel_join')
+
+          const removed = orgJoinRequestPk.delete(args.requestId)
+          if (!removed) throw makeError('NOT_FOUND', 'org:cancel_join')
+        }
+      )
+
+    return {
+      exports: {
+        org_approve_join: approveJoinReducer,
+        org_cancel_join: cancelJoinReducer,
+        org_reject_join: rejectJoinReducer,
+        org_request_join: requestJoinReducer
+      }
+    }
+  }
+
+export type {
+  OrgJoinReducersConfig,
+  OrgJoinReducersExports,
+  OrgJoinRequestByOrgStatusIndexLike,
+  OrgJoinRequestPkLike,
+  OrgJoinRequestRowLike,
+  OrgJoinRequestTableLike,
+  OrgMemberRowLike,
+  OrgMemberTableLike,
+  OrgPkLike,
+  OrgRowLike
+}
+export { makeJoinReducers }

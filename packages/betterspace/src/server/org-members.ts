@@ -1,144 +1,273 @@
-/* eslint-disable max-statements, @typescript-eslint/no-unnecessary-condition */
-import type { GenericId } from 'convex/values'
+import type { Identity, Timestamp } from 'spacetimedb'
+import type { ReducerExport, TypeBuilder } from 'spacetimedb/server'
 
-import { zid } from 'convex-helpers/server/zod4'
-import { z } from 'zod/v4'
-
-import type { DbLike, Mb, OrgRole, OrgUserLike, Qb, Rec } from './types'
-
-import { idx } from './bridge'
-import { err, time } from './helpers'
-import { getOrgMember, getOrgRole, requireOrgMember, requireOrgRole } from './org-crud'
-
-/** Shape of an org member item returned by the members endpoint, including role and user info. */
-interface OrgMemberItem {
-  memberId?: GenericId<'orgMember'>
-  role: OrgRole
-  user: null | OrgUserLike
-  userId: GenericId<'users'>
+interface OrgMemberPkLike<Row, Id> {
+  delete: (id: Id) => boolean
+  find: (id: Id) => null | Row
+  update: (row: Row) => Row
 }
 
-const makeMemberHandlers = ({ m, q }: { m: Mb; q: Qb }) => {
-  const membership = q({
-      args: { orgId: zid('org') },
-      handler: async (
-        c: Rec,
-        { orgId }: { orgId: string }
-      ): Promise<null | { memberId: GenericId<'orgMember'> | null; role: OrgRole }> => {
-        const db = c.db as DbLike,
-          orgDoc = await db.get(orgId)
-        if (!orgDoc) return err('NOT_FOUND')
-        const userId = (c.user as Rec)._id as string,
-          member = await getOrgMember({ db, orgId, userId }),
-          role = getOrgRole({ member, org: orgDoc, userId })
-        if (!role) return null
-        return { memberId: ((member as null | Rec)?._id as GenericId<'orgMember'>) ?? null, role }
-      }
-    }),
-    members = q({
-      args: { orgId: zid('org') },
-      handler: async (c: Rec, { orgId }: { orgId: string }): Promise<OrgMemberItem[]> => {
-        const db = c.db as DbLike,
-          userId = (c.user as Rec)._id as string
-        await requireOrgMember({ db, orgId, userId })
-        const orgDoc = await db.get(orgId)
-        if (!orgDoc) return err('NOT_FOUND')
-        const result: OrgMemberItem[] = [],
-          ownerUser = await db.get(orgDoc.userId as string)
-        result.push({
-          role: 'owner',
-          user: ownerUser as null | OrgUserLike,
-          userId: orgDoc.userId as GenericId<'users'>
-        })
-        const memberDocs = await db
-            .query('orgMember')
-            .withIndex(
-              'by_org',
-              idx(o => o.eq('orgId', orgId))
-            )
-            .collect(),
-          userDocs = await Promise.all(memberDocs.map(async (x: Rec) => db.get(x.userId as string)))
-        for (let i = 0; i < memberDocs.length; i += 1) {
-          const memberDoc = memberDocs[i],
-            userDoc = userDocs[i]
-          if (memberDoc)
-            result.push({
-              memberId: memberDoc._id as GenericId<'orgMember'>,
-              role: memberDoc.isAdmin ? 'admin' : 'member',
-              user: (userDoc as null | OrgUserLike) ?? null,
-              userId: memberDoc.userId as GenericId<'users'>
-            })
+interface OrgMemberReducersConfig<
+  DB,
+  OrgId,
+  MemberId,
+  UserId,
+  OrgRow extends OrgRowLike<OrgId>,
+  MemberRow extends OrgMemberRowLike<MemberId, OrgId>
+> {
+  builders: {
+    isAdmin: TypeBuilder<boolean, unknown>
+    memberId: TypeBuilder<MemberId, unknown>
+    newOwnerId: TypeBuilder<UserId, unknown>
+    orgId: TypeBuilder<OrgId, unknown>
+  }
+  orgMemberPk: (table: OrgMemberTableLike<MemberRow>) => OrgMemberPkLike<MemberRow, MemberId>
+  orgMemberTable: (db: DB) => OrgMemberTableLike<MemberRow>
+  orgPk: (table: Iterable<OrgRow>) => OrgPkLike<OrgRow, OrgId>
+  orgTable: (db: DB) => Iterable<OrgRow>
+}
+
+interface OrgMemberReducersExports {
+  exports: Record<string, ReducerExport<never, never>>
+}
+
+interface OrgMemberRowLike<MemberId, OrgId> {
+  id: MemberId
+  isAdmin: boolean
+  orgId: OrgId
+  updatedAt: Timestamp
+  userId: Identity
+}
+
+interface OrgMemberTableLike<Row> extends Iterable<Row> {
+  delete: (row: Row) => boolean
+  insert: (row: Row) => Row
+}
+
+interface OrgPkLike<Row, Id> {
+  delete: (id: Id) => boolean
+  find: (id: Id) => null | Row
+  update: (row: Row) => Row
+}
+
+type OrgRole = 'admin' | 'member' | 'owner'
+
+interface OrgRowLike<OrgId> {
+  id: OrgId
+  updatedAt: Timestamp
+  userId: Identity
+}
+
+const makeError = (code: string, message: string): Error => new Error(`${code}: ${message}`),
+  identityEquals = (a: Identity, b: Identity): boolean => {
+    const left = a as unknown as { isEqual?: (v: unknown) => boolean; toHexString?: () => string }
+    if (typeof left.isEqual === 'function') return left.isEqual(b)
+    const right = b as unknown as { toHexString?: () => string }
+    if (typeof left.toHexString === 'function' && typeof right.toHexString === 'function')
+      return left.toHexString() === right.toHexString()
+    return Object.is(a, b)
+  },
+  findOrgMember = <OrgId, MemberId, MemberRow extends OrgMemberRowLike<MemberId, OrgId>>(
+    orgMemberTable: Iterable<MemberRow>,
+    orgId: OrgId,
+    userId: Identity
+  ): MemberRow | null => {
+    for (const member of orgMemberTable)
+      if (Object.is(member.orgId, orgId) && identityEquals(member.userId, userId)) return member
+    return null
+  },
+  getRole = <OrgId, MemberId>(
+    org: OrgRowLike<OrgId>,
+    member: null | OrgMemberRowLike<MemberId, OrgId>,
+    sender: Identity
+  ): null | OrgRole => {
+    if (identityEquals(org.userId, sender)) return 'owner'
+    if (!member) return null
+    if (member.isAdmin) return 'admin'
+    return 'member'
+  },
+  requireRole = <OrgId, MemberId>({
+    minRole,
+    operation,
+    org,
+    orgMemberTable,
+    sender,
+    tableName
+  }: {
+    minRole: 'admin' | 'owner'
+    operation: string
+    org: OrgRowLike<OrgId>
+    orgMemberTable: Iterable<OrgMemberRowLike<MemberId, OrgId>>
+    sender: Identity
+    tableName: string
+  }): OrgRole => {
+    const member = findOrgMember(orgMemberTable, org.id, sender),
+      role = getRole(org, member, sender)
+    if (!role) throw makeError('NOT_ORG_MEMBER', `${tableName}:${operation}`)
+    if (minRole === 'owner' && role !== 'owner') throw makeError('FORBIDDEN', `${tableName}:${operation}`)
+    if (minRole === 'admin' && role === 'member') throw makeError('FORBIDDEN', `${tableName}:${operation}`)
+    return role
+  },
+  makeMemberReducers = <
+    DB,
+    OrgId,
+    MemberId,
+    UserId,
+    OrgRow extends OrgRowLike<OrgId>,
+    MemberRow extends OrgMemberRowLike<MemberId, OrgId>
+  >(
+    spacetimedb: {
+      reducer: (
+        opts: { name: string },
+        params: Record<string, TypeBuilder<unknown, unknown>>,
+        fn: (ctx: { db: DB; sender: Identity; timestamp: Timestamp }, args: Record<string, unknown>) => void
+      ) => ReducerExport<never, never>
+    },
+    config: OrgMemberReducersConfig<DB, OrgId, MemberId, UserId, OrgRow, MemberRow>
+  ): OrgMemberReducersExports => {
+    const setAdminReducer = spacetimedb.reducer(
+        { name: 'org_set_admin' },
+        { isAdmin: config.builders.isAdmin, memberId: config.builders.memberId },
+        (ctx, args: { isAdmin: boolean; memberId: MemberId }) => {
+          const orgTable = config.orgTable(ctx.db),
+            orgPk = config.orgPk(orgTable),
+            orgMemberTable = config.orgMemberTable(ctx.db),
+            orgMemberPk = config.orgMemberPk(orgMemberTable),
+            member = orgMemberPk.find(args.memberId)
+
+          if (!member) throw makeError('NOT_FOUND', 'org:set_admin')
+          const org = orgPk.find(member.orgId)
+          if (!org) throw makeError('NOT_FOUND', 'org:set_admin')
+
+          requireRole({
+            minRole: 'owner',
+            operation: 'set_admin',
+            org,
+            orgMemberTable,
+            sender: ctx.sender,
+            tableName: 'org'
+          })
+
+          if (identityEquals(member.userId, org.userId)) throw makeError('CANNOT_MODIFY_OWNER', 'org:set_admin')
+
+          orgMemberPk.update({
+            ...(member as unknown as Record<string, unknown>),
+            isAdmin: args.isAdmin,
+            updatedAt: ctx.timestamp
+          } as MemberRow)
         }
-        return result
-      }
-    }),
-    setAdmin = m({
-      args: { isAdmin: z.boolean(), memberId: zid('orgMember') },
-      handler: async (c: Rec, { isAdmin, memberId }: { isAdmin: boolean; memberId: string }) => {
-        const db = c.db as DbLike,
-          memberDoc = await db.get(memberId)
-        if (!memberDoc) return err('NOT_FOUND')
-        const orgDoc = await db.get(memberDoc.orgId as string)
-        if (!orgDoc) return err('NOT_FOUND')
-        if (orgDoc.userId !== (c.user as Rec)._id) return err('FORBIDDEN')
-        if (memberDoc.userId === orgDoc.userId) return err('CANNOT_MODIFY_OWNER')
-        await db.patch(memberId, { isAdmin, ...time() })
-      }
-    }),
-    removeMember = m({
-      args: { memberId: zid('orgMember') },
-      handler: async (c: Rec, { memberId }: { memberId: string }) => {
-        const db = c.db as DbLike,
-          memberDoc = await db.get(memberId)
-        if (!memberDoc) return err('NOT_FOUND')
-        const orgDoc = await db.get(memberDoc.orgId as string)
-        if (!orgDoc) return err('NOT_FOUND')
-        if (memberDoc.userId === orgDoc.userId) return err('CANNOT_MODIFY_OWNER')
-        const { role } = await requireOrgRole({
-          db,
-          minRole: 'admin',
-          orgId: memberDoc.orgId as string,
-          userId: (c.user as Rec)._id as string
-        })
-        if (role === 'admin' && memberDoc.isAdmin) return err('CANNOT_MODIFY_ADMIN')
-        await db.delete(memberId)
-      }
-    }),
-    leave = m({
-      args: { orgId: zid('org') },
-      handler: async (c: Rec, { orgId }: { orgId: string }) => {
-        const db = c.db as DbLike,
-          orgDoc = await db.get(orgId)
-        if (!orgDoc) return err('NOT_FOUND')
-        const userId = (c.user as Rec)._id as string
-        if (orgDoc.userId === userId) return err('MUST_TRANSFER_OWNERSHIP')
-        const member = await getOrgMember({ db, orgId, userId })
-        if (!member) return err('NOT_ORG_MEMBER')
-        await db.delete((member as Rec)._id as string)
-      }
-    }),
-    transferOwnership = m({
-      args: { newOwnerId: zid('users'), orgId: zid('org') },
-      handler: async (c: Rec, { newOwnerId, orgId }: { newOwnerId: string; orgId: string }) => {
-        const db = c.db as DbLike,
-          orgDoc = await db.get(orgId)
-        if (!orgDoc) return err('NOT_FOUND')
-        if (orgDoc.userId !== (c.user as Rec)._id) return err('FORBIDDEN')
-        const targetMember = await getOrgMember({ db, orgId, userId: newOwnerId })
-        if (!targetMember) return err('NOT_ORG_MEMBER')
-        if (!(targetMember as Rec).isAdmin) return err('TARGET_MUST_BE_ADMIN')
-        await db.patch(orgId, { userId: newOwnerId, ...time() })
-        await db.delete((targetMember as Rec)._id as string)
-        await db.insert('orgMember', {
-          isAdmin: true,
-          orgId,
-          userId: (c.user as Rec)._id,
-          ...time()
-        })
-      }
-    })
-  return { leave, members, membership, removeMember, setAdmin, transferOwnership }
-}
+      ),
+      removeMemberReducer = spacetimedb.reducer(
+        { name: 'org_remove_member' },
+        { memberId: config.builders.memberId },
+        (ctx, args: { memberId: MemberId }) => {
+          const orgTable = config.orgTable(ctx.db),
+            orgPk = config.orgPk(orgTable),
+            orgMemberTable = config.orgMemberTable(ctx.db),
+            orgMemberPk = config.orgMemberPk(orgMemberTable),
+            member = orgMemberPk.find(args.memberId)
 
-export type { OrgMemberItem }
-export { makeMemberHandlers }
+          if (!member) throw makeError('NOT_FOUND', 'org:remove_member')
+          const org = orgPk.find(member.orgId)
+          if (!org) throw makeError('NOT_FOUND', 'org:remove_member')
+          if (identityEquals(member.userId, org.userId)) throw makeError('CANNOT_MODIFY_OWNER', 'org:remove_member')
+
+          const actorRole = requireRole({
+            minRole: 'admin',
+            operation: 'remove_member',
+            org,
+            orgMemberTable,
+            sender: ctx.sender,
+            tableName: 'org'
+          })
+
+          if (actorRole === 'admin' && member.isAdmin) throw makeError('CANNOT_MODIFY_ADMIN', 'org:remove_member')
+
+          const removed = orgMemberPk.delete(args.memberId)
+          if (!removed) throw makeError('NOT_FOUND', 'org:remove_member')
+        }
+      ),
+      leaveReducer = spacetimedb.reducer(
+        { name: 'org_leave' },
+        { orgId: config.builders.orgId },
+        (ctx, args: { orgId: OrgId }) => {
+          const orgTable = config.orgTable(ctx.db),
+            orgPk = config.orgPk(orgTable),
+            orgMemberTable = config.orgMemberTable(ctx.db),
+            orgMemberPk = config.orgMemberPk(orgMemberTable),
+            org = orgPk.find(args.orgId)
+
+          if (!org) throw makeError('NOT_FOUND', 'org:leave')
+          if (identityEquals(org.userId, ctx.sender)) throw makeError('MUST_TRANSFER_OWNERSHIP', 'org:leave')
+
+          const member = findOrgMember(orgMemberTable, args.orgId, ctx.sender)
+          if (!member) throw makeError('NOT_ORG_MEMBER', 'org:leave')
+          const removed = orgMemberPk.delete(member.id)
+          if (!removed) throw makeError('NOT_FOUND', 'org:leave')
+        }
+      ),
+      transferOwnershipReducer = spacetimedb.reducer(
+        { name: 'org_transfer_ownership' },
+        {
+          newOwnerId: config.builders.newOwnerId,
+          orgId: config.builders.orgId
+        },
+        (ctx, args: { newOwnerId: UserId; orgId: OrgId }) => {
+          const orgTable = config.orgTable(ctx.db),
+            orgPk = config.orgPk(orgTable),
+            orgMemberTable = config.orgMemberTable(ctx.db),
+            orgMemberPk = config.orgMemberPk(orgMemberTable),
+            org = orgPk.find(args.orgId)
+
+          if (!org) throw makeError('NOT_FOUND', 'org:transfer_ownership')
+          requireRole({
+            minRole: 'owner',
+            operation: 'transfer_ownership',
+            org,
+            orgMemberTable,
+            sender: ctx.sender,
+            tableName: 'org'
+          })
+
+          const targetMember = findOrgMember(orgMemberTable, args.orgId, args.newOwnerId as unknown as Identity)
+          if (!targetMember) throw makeError('NOT_ORG_MEMBER', 'org:transfer_ownership')
+          if (!targetMember.isAdmin) throw makeError('TARGET_MUST_BE_ADMIN', 'org:transfer_ownership')
+
+          orgPk.update({
+            ...(org as unknown as Record<string, unknown>),
+            updatedAt: ctx.timestamp,
+            userId: args.newOwnerId
+          } as OrgRow)
+
+          const removed = orgMemberPk.delete(targetMember.id)
+          if (!removed) throw makeError('NOT_FOUND', 'org:transfer_ownership')
+
+          orgMemberTable.insert({
+            id: 0 as MemberId,
+            isAdmin: true,
+            orgId: args.orgId,
+            updatedAt: ctx.timestamp,
+            userId: ctx.sender
+          } as MemberRow)
+        }
+      )
+
+    return {
+      exports: {
+        org_leave: leaveReducer,
+        org_remove_member: removeMemberReducer,
+        org_set_admin: setAdminReducer,
+        org_transfer_ownership: transferOwnershipReducer
+      }
+    }
+  }
+
+export type {
+  OrgMemberReducersConfig,
+  OrgMemberReducersExports,
+  OrgMemberRowLike,
+  OrgMemberTableLike,
+  OrgPkLike,
+  OrgRowLike
+}
+export { makeMemberReducers }

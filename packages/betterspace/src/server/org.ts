@@ -1,304 +1,434 @@
-/* eslint-disable no-await-in-loop, max-statements, @typescript-eslint/no-unnecessary-condition */
-/** biome-ignore-all lint/performance/noAwaitInLoops: sequential deletes */
-import type { GenericDataModel, GenericMutationCtx, GenericQueryCtx, MutationBuilder, QueryBuilder } from 'convex/server'
-import type { GenericId } from 'convex/values'
-import type { ZodObject, ZodRawShape } from 'zod/v4'
+import type { Identity, Timestamp } from 'spacetimedb'
+import type { ReducerExport, TypeBuilder } from 'spacetimedb/server'
 
-import { customCtx } from 'convex-helpers/server/customFunctions'
-import { zCustomMutation, zCustomQuery, zid } from 'convex-helpers/server/zod4'
-import { z } from 'zod/v4'
+import type { OrgInviteByTokenIndexLike, OrgInvitePkLike, OrgInviteRowLike, OrgInviteTableLike } from './org-invites'
+import type {
+  OrgJoinRequestByOrgStatusIndexLike,
+  OrgJoinRequestPkLike,
+  OrgJoinRequestRowLike,
+  OrgJoinRequestTableLike
+} from './org-join'
+import type { OrgMemberPkLike, OrgMemberRowLike, OrgMemberTableLike, OrgPkLike, OrgRowLike } from './org-members'
 
-import type { DbLike, Mb, OrgRole, Qb, Rec, StorageLike } from './types'
+import { makeInviteReducers } from './org-invites'
+import { makeJoinReducers } from './org-join'
+import { makeMemberReducers } from './org-members'
 
-import { idx, typed } from './bridge'
-import { cleanFiles, err, getUser, log, time } from './helpers'
-import { requireOrgMember, requireOrgRole } from './org-crud'
-import { makeInviteHandlers } from './org-invites'
-import { makeJoinHandlers } from './org-join'
-import { makeMemberHandlers } from './org-members'
-
-interface CascadeTableEntry {
-  fileFields?: string[]
-  table: string
+interface CascadeTableConfig<DB, OrgId> {
+  deleteById: (db: DB, id: unknown) => boolean
+  rowsByOrg: (db: DB, orgId: OrgId) => Iterable<{ id: unknown }>
 }
 
-/** Shape of an organization document as returned by org queries. */
+interface InviteDocLike {
+  email: string
+  expiresAt: number
+  id: unknown
+  isAdmin: boolean
+  orgId: unknown
+  token: string
+}
+
+interface JoinRequestItem {
+  request: OrgJoinRequestRowLike<unknown, unknown>
+  user: null | OrgUserLike
+}
+
+interface OptionalBuilder {
+  optional: () => TypeBuilder<unknown, unknown>
+}
+
+type OrgByUserIndexLike<Row> = Iterable<Row>
+
+interface OrgConfig<
+  DB,
+  OrgId,
+  MemberId,
+  InviteId,
+  RequestId,
+  UserId,
+  OrgRow extends OrgRowLike<OrgId>,
+  MemberRow extends OrgMemberRowLike<MemberId, OrgId>,
+  InviteRow extends OrgInviteRowLike<InviteId, OrgId>,
+  JoinRequestRow extends OrgJoinRequestRowLike<RequestId, OrgId>
+> {
+  builders: {
+    email: TypeBuilder<string, unknown>
+    inviteId: TypeBuilder<InviteId, unknown>
+    isAdmin: TypeBuilder<boolean, unknown>
+    memberId: TypeBuilder<MemberId, unknown>
+    message: OptionalBuilder
+    newOwnerId: TypeBuilder<UserId, unknown>
+    orgId: TypeBuilder<OrgId, unknown>
+    requestId: TypeBuilder<RequestId, unknown>
+    token: TypeBuilder<string, unknown>
+  }
+  cascadeTables?: CascadeTableConfig<DB, OrgId>[]
+  fields: OrgFieldBuilders
+  orgByUserIndex: (table: Iterable<OrgRow>) => OrgByUserIndexLike<OrgRow>
+  orgInviteByOrgIndex: (table: OrgInviteTableLike<InviteRow>) => OrgInviteByOrgIndexLike<InviteRow, OrgId>
+  orgInviteByTokenIndex: (table: OrgInviteTableLike<InviteRow>) => OrgInviteByTokenIndexLike<InviteRow>
+  orgInvitePk: (table: OrgInviteTableLike<InviteRow>) => OrgInvitePkLike<InviteRow, InviteId>
+  orgInviteTable: (db: DB) => OrgInviteTableLike<InviteRow>
+  orgJoinRequestByOrgIndex: (
+    table: OrgJoinRequestTableLike<JoinRequestRow>
+  ) => OrgJoinRequestByOrgIndexLike<JoinRequestRow, OrgId>
+  orgJoinRequestByOrgStatusIndex: (
+    table: OrgJoinRequestTableLike<JoinRequestRow>
+  ) => OrgJoinRequestByOrgStatusIndexLike<JoinRequestRow, OrgId>
+  orgJoinRequestPk: (table: OrgJoinRequestTableLike<JoinRequestRow>) => OrgJoinRequestPkLike<JoinRequestRow, RequestId>
+  orgJoinRequestTable: (db: DB) => OrgJoinRequestTableLike<JoinRequestRow>
+  orgMemberByOrgIndex: (table: OrgMemberTableLike<MemberRow>) => OrgMemberByOrgIndexLike<MemberRow, OrgId>
+  orgMemberByUserIndex: (table: OrgMemberTableLike<MemberRow>) => Iterable<MemberRow>
+  orgMemberPk: (table: OrgMemberTableLike<MemberRow>) => OrgMemberPkLike<MemberRow, MemberId>
+  orgMemberTable: (db: DB) => OrgMemberTableLike<MemberRow>
+  orgPk: (table: Iterable<OrgRow>) => OrgPkLike<OrgRow, OrgId>
+  orgSlugIndex: (table: Iterable<OrgRow>) => OrgSlugIndexLike<OrgRow>
+  orgTable: (db: DB) => Iterable<OrgRow> & { insert: (row: OrgRow) => OrgRow }
+}
+
 interface OrgDocLike {
-  [k: string]: unknown
-  _creationTime: number
-  _id: GenericId<'org'>
-  avatarId?: GenericId<'_storage'>
+  [key: string]: unknown
+  id: unknown
   name: string
   slug: string
-  updatedAt: number
-  userId: GenericId<'users'>
+  userId: Identity
 }
 
-/**
- * Creates the full set of org management endpoints: CRUD, members, invites, and join requests.
- * @param config - Query/mutation builders, auth function, org schema, and optional cascade table config
- * @returns Object with create, update, get, getBySlug, myOrgs, remove, member/invite/join endpoints
- */
-const makeOrg = <DM extends GenericDataModel, S extends ZodRawShape>({
-  cascadeTables,
-  getAuthUserId,
-  mutation,
-  query,
-  schema: orgSchema
-}: {
-  cascadeTables?: CascadeTableEntry[]
-  getAuthUserId: (ctx: never) => Promise<null | string>
-  mutation: MutationBuilder<DM, 'public'>
-  query: QueryBuilder<DM, 'public'>
-  schema: ZodObject<S>
-}) => {
-  const mb = typed(
-      zCustomMutation(
-        mutation,
-        customCtx(async (c: GenericMutationCtx<DM>) => ({
-          storage: typed(c.storage),
-          user: await getUser({ ctx: typed(c), db: typed(c.db) as DbLike, getAuthUserId })
-        }))
-      )
-    ) as Mb,
-    qb = typed(
-      zCustomQuery(
-        query,
-        customCtx(async (c: GenericQueryCtx<DM>) => ({
-          user: await getUser({ ctx: typed(c), db: typed(c.db) as DbLike, getAuthUserId })
-        }))
-      )
-    ) as Qb,
-    pqb = typed(
-      zCustomQuery(
-        query,
-        customCtx(() => ({}))
-      )
-    ) as Qb,
-    m = mb,
-    q = qb,
-    pq = pqb,
-    create = m({
-      args: { data: orgSchema },
-      handler: async (c: Rec, { data }: { data: Rec }) => {
-        const existing = await (c.db as DbLike)
-          .query('org')
-          .withIndex(
-            'by_slug',
-            idx(o => o.eq('slug', data.slug))
-          )
-          .unique()
-        if (existing) return err('ORG_SLUG_TAKEN')
-        const orgId = await (c.db as DbLike).insert('org', {
-          avatarId: (data.avatarId as string) ?? undefined,
-          name: data.name,
-          slug: data.slug,
-          userId: (c.user as Rec)._id,
-          ...time()
-        })
-        return { orgId } as { orgId: GenericId<'org'> }
+interface OrgExports {
+  exports: Record<string, ReducerExport<never, never>>
+}
+
+interface OrgFieldBuilders {
+  [key: string]: OptionalBuilder | TypeBuilder<unknown, unknown>
+  name: TypeBuilder<string, unknown>
+  slug: TypeBuilder<string, unknown>
+}
+
+interface OrgInviteByOrgIndexLike<Row, OrgId> extends Iterable<Row> {
+  filterByOrg: (orgId: OrgId) => Iterable<Row>
+}
+
+interface OrgJoinRequestByOrgIndexLike<Row, OrgId> extends Iterable<Row> {
+  filterByOrg: (orgId: OrgId) => Iterable<Row>
+}
+
+interface OrgMemberByOrgIndexLike<Row, OrgId> extends Iterable<Row> {
+  filterByOrg: (orgId: OrgId) => Iterable<Row>
+}
+
+interface OrgMemberItem {
+  memberId?: unknown
+  role: OrgRole
+  user: null | OrgUserLike
+  userId: Identity
+}
+
+type OrgRole = 'admin' | 'member' | 'owner'
+
+type OrgSlugIndexLike<Row> = Iterable<Row>
+
+interface OrgUserLike {
+  [key: string]: unknown
+  email?: string
+  id?: unknown
+  image?: string
+  name?: string
+}
+
+const makeError = (code: string, message: string): Error => new Error(`${code}: ${message}`),
+  identityEquals = (a: Identity, b: Identity): boolean => {
+    const left = a as unknown as { isEqual?: (v: unknown) => boolean; toHexString?: () => string }
+    if (typeof left.isEqual === 'function') return left.isEqual(b)
+    const right = b as unknown as { toHexString?: () => string }
+    if (typeof left.toHexString === 'function' && typeof right.toHexString === 'function')
+      return left.toHexString() === right.toHexString()
+    return Object.is(a, b)
+  },
+  makeOptionalFields = (fields: OrgFieldBuilders) => {
+    const optionalFields: Record<string, TypeBuilder<unknown, unknown>> = {},
+      keys = Object.keys(fields)
+    for (const key of keys) {
+      const field = fields[key] as OptionalBuilder
+      if (typeof field.optional === 'function') optionalFields[key] = field.optional()
+    }
+    return optionalFields
+  },
+  findOrgBySlug = <OrgRow extends { slug: string }>(slugIndex: Iterable<OrgRow>, slug: string): null | OrgRow => {
+    for (const org of slugIndex) if (org.slug === slug) return org
+    return null
+  },
+  findOrgMember = <OrgId, MemberId, MemberRow extends OrgMemberRowLike<MemberId, OrgId>>(
+    orgMemberTable: Iterable<MemberRow>,
+    orgId: OrgId,
+    userId: Identity
+  ): MemberRow | null => {
+    for (const member of orgMemberTable)
+      if (Object.is(member.orgId, orgId) && identityEquals(member.userId, userId)) return member
+    return null
+  },
+  getRole = <OrgId, MemberId>(
+    org: OrgRowLike<OrgId>,
+    member: null | OrgMemberRowLike<MemberId, OrgId>,
+    sender: Identity
+  ): null | OrgRole => {
+    if (identityEquals(org.userId, sender)) return 'owner'
+    if (!member) return null
+    if (member.isAdmin) return 'admin'
+    return 'member'
+  },
+  requireRole = <OrgId, MemberId>({
+    minRole,
+    operation,
+    org,
+    orgMemberTable,
+    sender
+  }: {
+    minRole: 'admin' | 'owner'
+    operation: string
+    org: OrgRowLike<OrgId>
+    orgMemberTable: Iterable<OrgMemberRowLike<MemberId, OrgId>>
+    sender: Identity
+  }) => {
+    const member = findOrgMember(orgMemberTable, org.id, sender),
+      role = getRole(org, member, sender)
+    if (!role) throw makeError('NOT_ORG_MEMBER', `org:${operation}`)
+    if (minRole === 'owner' && role !== 'owner') throw makeError('FORBIDDEN', `org:${operation}`)
+    if (minRole === 'admin' && role === 'member') throw makeError('FORBIDDEN', `org:${operation}`)
+  },
+  applyOrgUpdate = <OrgId, MemberId, OrgRow extends OrgRowLike<OrgId> & { slug: string }>(opts: {
+    args: Record<string, unknown> & { orgId: OrgId }
+    org: OrgRow
+    orgMemberTable: Iterable<OrgMemberRowLike<MemberId, OrgId>>
+    orgPk: OrgPkLike<OrgRow, OrgId>
+    orgSlugIndex: OrgSlugIndexLike<OrgRow>
+    sender: Identity
+    timestamp: Timestamp
+  }) => {
+    requireRole({
+      minRole: 'admin',
+      operation: 'update',
+      org: opts.org,
+      orgMemberTable: opts.orgMemberTable,
+      sender: opts.sender
+    })
+    const nextSlugValue = opts.args.slug
+    if (typeof nextSlugValue === 'string' && nextSlugValue !== opts.org.slug) {
+      const existing = findOrgBySlug(opts.orgSlugIndex, nextSlugValue)
+      if (existing && !Object.is(existing.id, opts.org.id)) throw makeError('ORG_SLUG_TAKEN', 'org:update')
+    }
+    const nextRecord = { ...(opts.org as unknown as Record<string, unknown>), updatedAt: opts.timestamp },
+      argKeys = Object.keys(opts.args)
+    for (const key of argKeys)
+      if (key !== 'orgId') {
+        const value = opts.args[key]
+        if (value !== undefined) nextRecord[key] = value
       }
-    }),
-    update = m({
-      args: { data: orgSchema.partial(), orgId: zid('org') },
-      handler: async (c: Rec, { data, orgId }: { data: Rec; orgId: string }) => {
-        await requireOrgRole({ db: c.db, minRole: 'admin', orgId, userId: (c.user as Rec)._id as string })
-        const newSlug = data.slug as string | undefined
-        if (newSlug !== undefined) {
-          const existing = await (c.db as DbLike)
-            .query('org')
-            .withIndex(
-              'by_slug',
-              idx(o => o.eq('slug', newSlug))
-            )
-            .unique()
-          if (existing && existing._id !== orgId) return err('ORG_SLUG_TAKEN')
+    opts.orgPk.update(nextRecord as OrgRow)
+  },
+  removeByPk = <Id>(rows: Iterable<{ id: Id }>, pk: { delete: (id: Id) => boolean }, message: string) => {
+    for (const row of rows) {
+      const removed = pk.delete(row.id)
+      if (!removed) throw makeError('NOT_FOUND', message)
+    }
+  },
+  removeCascadeRows = <DB, OrgId>(cascadeTables: CascadeTableConfig<DB, OrgId>[] | undefined, db: DB, orgId: OrgId) => {
+    if (!cascadeTables) return
+    for (const cascadeTable of cascadeTables)
+      for (const row of cascadeTable.rowsByOrg(db, orgId)) {
+        const removed = cascadeTable.deleteById(db, row.id)
+        if (!removed) throw makeError('NOT_FOUND', 'org:remove_cascade')
+      }
+  },
+  removeMembersByOrg = <OrgId, MemberRow>(
+    memberByOrgIndex: OrgMemberByOrgIndexLike<MemberRow, OrgId>,
+    orgId: OrgId,
+    orgMemberTable: { delete: (row: MemberRow) => boolean }
+  ) => {
+    for (const member of memberByOrgIndex.filterByOrg(orgId)) {
+      const removed = orgMemberTable.delete(member)
+      if (!removed) throw makeError('NOT_FOUND', 'org:remove_member')
+    }
+  },
+  mergeReducerExports = (...parts: OrgExports[]): OrgExports => {
+    const exportsRecord: Record<string, ReducerExport<never, never>> = {}
+    for (const part of parts) {
+      const names = Object.keys(part.exports)
+      for (const name of names) {
+        const reducer = part.exports[name]
+        if (reducer) exportsRecord[name] = reducer
+      }
+    }
+    return { exports: exportsRecord }
+  },
+  makeOrg = <
+    DB,
+    OrgId,
+    MemberId,
+    InviteId,
+    RequestId,
+    UserId,
+    OrgRow extends OrgRowLike<OrgId> & { name: string; slug: string },
+    MemberRow extends OrgMemberRowLike<MemberId, OrgId>,
+    InviteRow extends OrgInviteRowLike<InviteId, OrgId>,
+    JoinRequestRow extends OrgJoinRequestRowLike<RequestId, OrgId>
+  >(
+    spacetimedb: {
+      reducer: (
+        opts: { name: string },
+        params: Record<string, TypeBuilder<unknown, unknown>>,
+        fn: (ctx: { db: DB; sender: Identity; timestamp: Timestamp }, args: Record<string, unknown>) => void
+      ) => ReducerExport<never, never>
+    },
+    config: OrgConfig<DB, OrgId, MemberId, InviteId, RequestId, UserId, OrgRow, MemberRow, InviteRow, JoinRequestRow>
+  ): OrgExports => {
+    const orgFields = config.fields,
+      optionalOrgFields = makeOptionalFields(orgFields),
+      updateParams: Record<string, TypeBuilder<unknown, unknown>> = {
+        orgId: config.builders.orgId
+      },
+      optionalKeys = Object.keys(optionalOrgFields)
+
+    for (const key of optionalKeys) {
+      const field = optionalOrgFields[key]
+      if (field) updateParams[key] = field
+    }
+
+    const createReducer = spacetimedb.reducer(
+        { name: 'org_create' },
+        orgFields as Record<string, TypeBuilder<unknown, unknown>>,
+        (ctx, args: Record<string, unknown>) => {
+          const orgTable = config.orgTable(ctx.db),
+            orgSlugIndex = config.orgSlugIndex(orgTable),
+            { slug } = args
+
+          if (typeof slug !== 'string') throw makeError('VALIDATION_FAILED', 'org:create_slug')
+          const existing = findOrgBySlug(orgSlugIndex as Iterable<OrgRow>, slug)
+          if (existing) throw makeError('ORG_SLUG_TAKEN', 'org:create')
+
+          const payload = {
+            ...args,
+            id: 0 as OrgId,
+            updatedAt: ctx.timestamp,
+            userId: ctx.sender
+          } as OrgRow
+          orgTable.insert(payload)
         }
-        const patchData: Rec = {},
-          db = c.db as DbLike
-        if (data.name !== undefined) patchData.name = data.name
-        if (newSlug !== undefined) patchData.slug = newSlug
-        if (data.avatarId !== undefined) {
-          const org = await db.get(orgId),
-            oldAvatarId = org?.avatarId as string | undefined
-          patchData.avatarId = data.avatarId ?? undefined
-          if (oldAvatarId && oldAvatarId !== data.avatarId) {
-            const storage = c.storage as undefined | { delete: (id: string) => Promise<void> }
-            if (storage)
-              try {
-                await storage.delete(oldAvatarId)
-              } catch {
-                log('warn', 'org:avatar_cleanup_failed', { avatarId: oldAvatarId, orgId })
-              }
-          }
+      ),
+      updateReducer = spacetimedb.reducer(
+        { name: 'org_update' },
+        updateParams,
+        (ctx, args: Record<string, unknown> & { orgId: OrgId }) => {
+          const orgTable = config.orgTable(ctx.db),
+            orgPk: OrgPkLike<OrgRow, OrgId> = config.orgPk(orgTable),
+            orgMemberTable = config.orgMemberTable(ctx.db),
+            orgSlugIndex: OrgSlugIndexLike<OrgRow> = config.orgSlugIndex(orgTable),
+            org = orgPk.find(args.orgId)
+
+          if (!org) throw makeError('NOT_FOUND', 'org:update')
+          applyOrgUpdate({ args, org, orgMemberTable, orgPk, orgSlugIndex, sender: ctx.sender, timestamp: ctx.timestamp })
         }
-        await db.patch(orgId, { ...patchData, ...time() })
-      }
-    }),
-    get = q({
-      args: { orgId: zid('org') },
-      handler: async (c: Rec, { orgId }: { orgId: string }): Promise<null | OrgDocLike> => {
-        await requireOrgMember({ db: c.db, orgId, userId: (c.user as Rec)._id as string })
-        return (c.db as DbLike).get(orgId) as Promise<null | OrgDocLike>
-      }
-    }),
-    getBySlug = pq({
-      args: { slug: z.string() },
-      handler: async (c: Rec, { slug }: { slug: string }): Promise<null | OrgDocLike> =>
-        (c.db as DbLike)
-          .query('org')
-          .withIndex(
-            'by_slug',
-            idx(o => o.eq('slug', slug))
-          )
-          .unique() as Promise<null | OrgDocLike>
-    }),
-    getPublic = pq({
-      args: { slug: z.string() },
-      handler: async (
-        c: Rec,
-        { slug }: { slug: string }
-      ): Promise<null | { _id: GenericId<'org'>; avatarId?: GenericId<'_storage'>; name: string; slug: string }> => {
-        const orgDoc = await (c.db as DbLike)
-          .query('org')
-          .withIndex(
-            'by_slug',
-            idx(o => o.eq('slug', slug))
-          )
-          .unique()
-        if (!orgDoc) return null
-        return {
-          _id: orgDoc._id as GenericId<'org'>,
-          avatarId: orgDoc.avatarId as GenericId<'_storage'> | undefined,
-          name: orgDoc.name as string,
-          slug: orgDoc.slug as string
+      ),
+      removeReducer = spacetimedb.reducer(
+        { name: 'org_remove' },
+        { orgId: config.builders.orgId },
+        (ctx, args: { orgId: OrgId }) => {
+          const orgTable = config.orgTable(ctx.db),
+            orgPk: OrgPkLike<OrgRow, OrgId> = config.orgPk(orgTable),
+            orgMemberTable = config.orgMemberTable(ctx.db),
+            orgInviteTable = config.orgInviteTable(ctx.db),
+            orgInvitePk: OrgInvitePkLike<InviteRow, InviteId> = config.orgInvitePk(orgInviteTable),
+            orgJoinRequestTable = config.orgJoinRequestTable(ctx.db),
+            orgJoinRequestPk: OrgJoinRequestPkLike<JoinRequestRow, RequestId> =
+              config.orgJoinRequestPk(orgJoinRequestTable),
+            org = orgPk.find(args.orgId)
+
+          if (!org) throw makeError('NOT_FOUND', 'org:remove')
+          requireRole({ minRole: 'owner', operation: 'remove', org, orgMemberTable, sender: ctx.sender })
+          removeCascadeRows(config.cascadeTables, ctx.db, args.orgId)
+
+          const joinByOrg = config.orgJoinRequestByOrgIndex(orgJoinRequestTable),
+            inviteByOrg = config.orgInviteByOrgIndex(orgInviteTable),
+            memberByOrg = config.orgMemberByOrgIndex(orgMemberTable)
+
+          removeByPk(joinByOrg.filterByOrg(args.orgId), orgJoinRequestPk, 'org:remove_join_request')
+          removeByPk(inviteByOrg.filterByOrg(args.orgId), orgInvitePk, 'org:remove_invite')
+          removeMembersByOrg(memberByOrg, args.orgId, orgMemberTable)
+
+          if (!orgPk.delete(args.orgId)) throw makeError('NOT_FOUND', 'org:remove')
+        }
+      ),
+      memberReducers = makeMemberReducers(spacetimedb, {
+        builders: {
+          isAdmin: config.builders.isAdmin,
+          memberId: config.builders.memberId,
+          newOwnerId: config.builders.newOwnerId,
+          orgId: config.builders.orgId
+        },
+        orgMemberPk: config.orgMemberPk,
+        orgMemberTable: config.orgMemberTable,
+        orgPk: config.orgPk,
+        orgTable: config.orgTable
+      }),
+      inviteReducers = makeInviteReducers(spacetimedb, {
+        builders: {
+          email: config.builders.email,
+          inviteId: config.builders.inviteId,
+          isAdmin: config.builders.isAdmin,
+          orgId: config.builders.orgId,
+          token: config.builders.token
+        },
+        orgInviteByTokenIndex: config.orgInviteByTokenIndex,
+        orgInvitePk: config.orgInvitePk,
+        orgInviteTable: config.orgInviteTable,
+        orgJoinRequestByOrgStatusIndex: config.orgJoinRequestByOrgStatusIndex,
+        orgJoinRequestPk: config.orgJoinRequestPk,
+        orgJoinRequestTable: config.orgJoinRequestTable,
+        orgMemberTable: config.orgMemberTable,
+        orgPk: config.orgPk,
+        orgTable: config.orgTable
+      }),
+      joinReducers = makeJoinReducers(spacetimedb, {
+        builders: {
+          isAdmin: config.builders.isAdmin,
+          message: config.builders.message,
+          orgId: config.builders.orgId,
+          requestId: config.builders.requestId
+        },
+        orgJoinRequestByOrgStatusIndex: config.orgJoinRequestByOrgStatusIndex,
+        orgJoinRequestPk: config.orgJoinRequestPk,
+        orgJoinRequestTable: config.orgJoinRequestTable,
+        orgMemberTable: config.orgMemberTable,
+        orgPk: config.orgPk,
+        orgTable: config.orgTable
+      }),
+      lifecycleReducers: OrgExports = {
+        exports: {
+          org_create: createReducer,
+          org_remove: removeReducer,
+          org_update: updateReducer
         }
       }
-    }),
-    myOrgs = q({
-      args: {},
-      handler: async (c: Rec): Promise<{ org: OrgDocLike; role: OrgRole }[]> => {
-        const uid = (c.user as Rec)._id as string,
-          db = c.db as DbLike,
-          ownedOrgs = await db
-            .query('org')
-            .withIndex(
-              'by_user',
-              idx(o => o.eq('userId', uid))
-            )
-            .collect(),
-          memberships = await db
-            .query('orgMember')
-            .withIndex(
-              'by_user',
-              idx(o => o.eq('userId', uid))
-            )
-            .collect(),
-          memberOrgIds = memberships.map((x: Rec) => x.orgId as string),
-          memberOrgResults = await Promise.all(memberOrgIds.map(async (id: string) => db.get(id))),
-          memberOrgs: Rec[] = []
-        for (const orgDoc of memberOrgResults) if (orgDoc) memberOrgs.push(orgDoc)
-        const ownedIds = new Set(ownedOrgs.map((o: Rec) => o._id as string)),
-          result: { org: OrgDocLike; role: OrgRole }[] = []
-        for (const o of ownedOrgs) result.push({ org: o as OrgDocLike, role: 'owner' })
-        for (const o of memberOrgs)
-          if (!ownedIds.has(o._id as string)) {
-            const member = memberships.find((x: Rec) => x.orgId === o._id),
-              role: OrgRole = member?.isAdmin ? 'admin' : 'member'
-            result.push({ org: o as OrgDocLike, role })
-          }
-        return result
-      }
-    }),
-    remove = m({
-      args: { orgId: zid('org') },
-      handler: async (c: Rec, { orgId }: { orgId: string }) => {
-        const db = c.db as DbLike,
-          { storage } = c as { storage?: StorageLike },
-          orgDoc = await db.get(orgId)
-        if (!orgDoc) return err('NOT_FOUND')
-        if (orgDoc.userId !== (c.user as Rec)._id) return err('FORBIDDEN')
-        if (cascadeTables)
-          for (const { fileFields, table } of cascadeTables) {
-            const docs = await db
-              .query(table)
-              .withIndex(
-                'by_org',
-                idx(o => o.eq('orgId', orgId))
-              )
-              .collect()
-            for (const d of docs) {
-              if (fileFields?.length && storage) await cleanFiles({ doc: d, fileFields, storage })
-              await db.delete(d._id as string)
-            }
-          }
-        const joinRequests = await db
-          .query('orgJoinRequest')
-          .withIndex(
-            'by_org',
-            idx(o => o.eq('orgId', orgId))
-          )
-          .collect()
-        await Promise.all(joinRequests.map(async (r: Rec) => db.delete(r._id as string)))
-        const invites = await db
-          .query('orgInvite')
-          .withIndex(
-            'by_org',
-            idx(o => o.eq('orgId', orgId))
-          )
-          .collect()
-        await Promise.all(invites.map(async (i: Rec) => db.delete(i._id as string)))
-        const orgMembers = await db
-          .query('orgMember')
-          .withIndex(
-            'by_org',
-            idx(o => o.eq('orgId', orgId))
-          )
-          .collect()
-        await Promise.all(orgMembers.map(async (x: Rec) => db.delete(x._id as string)))
-        if (storage && orgDoc.avatarId)
-          try {
-            await storage.delete(orgDoc.avatarId as string)
-          } catch {
-            log('warn', 'org:avatar_cleanup_failed', { avatarId: orgDoc.avatarId, orgId })
-          }
-        await db.delete(orgId)
-      }
-    }),
-    isSlugAvailable = pq({
-      args: { slug: z.string() },
-      handler: async (c: Rec, { slug }: { slug: string }) => {
-        const existing = await (c.db as DbLike)
-          .query('org')
-          .withIndex(
-            'by_slug',
-            idx(o => o.eq('slug', slug))
-          )
-          .unique()
-        return { available: !existing } as { available: boolean }
-      }
-    }),
-    memberOps = makeMemberHandlers({ m, q }),
-    inviteOps = makeInviteHandlers({ m, q }),
-    joinOps = makeJoinHandlers({ m, q })
-  return {
-    ...inviteOps,
-    ...joinOps,
-    ...memberOps,
-    create,
-    get,
-    getBySlug,
-    getPublic,
-    isSlugAvailable,
-    myOrgs,
-    remove,
-    update
+
+    return mergeReducerExports(lifecycleReducers, memberReducers, inviteReducers, joinReducers)
   }
-}
 
+export type {
+  CascadeTableConfig,
+  InviteDocLike,
+  JoinRequestItem,
+  OrgByUserIndexLike,
+  OrgConfig,
+  OrgDocLike,
+  OrgExports,
+  OrgFieldBuilders,
+  OrgInviteByOrgIndexLike,
+  OrgJoinRequestByOrgIndexLike,
+  OrgMemberByOrgIndexLike,
+  OrgMemberItem,
+  OrgSlugIndexLike,
+  OrgUserLike
+}
+export type { OrgInviteRowLike } from './org-invites'
+export type { OrgJoinRequestRowLike } from './org-join'
+export type { OrgMemberRowLike, OrgRowLike } from './org-members'
 export { makeOrg }
-export type { OrgDocLike }
-export type { InviteDocLike } from './org-invites'
-export type { JoinRequestItem } from './org-join'
-export type { OrgMemberItem } from './org-members'
-export type { OrgUserLike } from './types'

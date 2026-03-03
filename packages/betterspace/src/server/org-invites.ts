@@ -1,111 +1,391 @@
-/* eslint-disable max-statements */
-import type { GenericId } from 'convex/values'
+import type { Identity, Timestamp } from 'spacetimedb'
+import type { ReducerExport, TypeBuilder } from 'spacetimedb/server'
 
-import { zid } from 'convex-helpers/server/zod4'
-import { z } from 'zod/v4'
+type OrgInviteByTokenIndexLike<Row> = Iterable<Row>
 
-import type { DbLike, FilterLike, Mb, Qb, Rec } from './types'
+interface OrgInvitePkLike<Row, Id> {
+  delete: (id: Id) => boolean
+  find: (id: Id) => null | Row
+}
 
-import { idx } from './bridge'
-import { err, generateToken, SEVEN_DAYS_MS, time } from './helpers'
-import { getOrgMember, requireOrgRole } from './org-crud'
+interface OrgInviteReducersConfig<
+  DB,
+  OrgId,
+  MemberId,
+  InviteId,
+  RequestId,
+  OrgRow extends OrgRowLike<OrgId>,
+  MemberRow extends OrgMemberRowLike<MemberId, OrgId>,
+  InviteRow extends OrgInviteRowLike<InviteId, OrgId>,
+  JoinRequestRow extends OrgJoinRequestRowLike<RequestId, OrgId>
+> {
+  builders: {
+    email: TypeBuilder<string, unknown>
+    inviteId: TypeBuilder<InviteId, unknown>
+    isAdmin: TypeBuilder<boolean, unknown>
+    orgId: TypeBuilder<OrgId, unknown>
+    token: TypeBuilder<string, unknown>
+  }
+  orgInviteByTokenIndex: (table: OrgInviteTableLike<InviteRow>) => OrgInviteByTokenIndexLike<InviteRow>
+  orgInvitePk: (table: OrgInviteTableLike<InviteRow>) => OrgInvitePkLike<InviteRow, InviteId>
+  orgInviteTable: (db: DB) => OrgInviteTableLike<InviteRow>
+  orgJoinRequestByOrgStatusIndex: (
+    table: OrgJoinRequestTableLike<JoinRequestRow>
+  ) => OrgJoinRequestByOrgStatusIndexLike<JoinRequestRow, OrgId>
+  orgJoinRequestPk: (table: OrgJoinRequestTableLike<JoinRequestRow>) => OrgJoinRequestPkLike<JoinRequestRow>
+  orgJoinRequestTable: (db: DB) => OrgJoinRequestTableLike<JoinRequestRow>
+  orgMemberTable: (db: DB) => OrgMemberTableLike<MemberRow>
+  orgPk: (table: Iterable<OrgRow>) => OrgPkLike<OrgRow, OrgId>
+  orgTable: (db: DB) => Iterable<OrgRow>
+}
 
-/** Shape of an org invite document as stored in the orgInvite table. */
-interface InviteDocLike {
-  [k: string]: unknown
-  _creationTime: number
-  _id: GenericId<'orgInvite'>
+interface OrgInviteReducersExports {
+  exports: Record<string, ReducerExport<never, never>>
+}
+
+interface OrgInviteRowLike<InviteId, OrgId> {
   email: string
   expiresAt: number
+  id: InviteId
   isAdmin: boolean
-  orgId: GenericId<'org'>
+  orgId: OrgId
   token: string
 }
 
-const makeInviteHandlers = ({ m, q }: { m: Mb; q: Qb }) => {
-  const invite = m({
-      args: { email: z.email(), isAdmin: z.boolean(), orgId: zid('org') },
-      handler: async (c: Rec, { email, isAdmin, orgId }: { email: string; isAdmin: boolean; orgId: string }) => {
-        await requireOrgRole({ db: c.db, minRole: 'admin', orgId, userId: (c.user as Rec)._id as string })
-        const token = generateToken(),
-          expiresAt = Date.now() + SEVEN_DAYS_MS,
-          inviteId = await (c.db as DbLike).insert('orgInvite', {
-            email,
-            expiresAt,
-            isAdmin,
-            orgId,
-            token
-          })
-        return { inviteId, token } as { inviteId: GenericId<'orgInvite'>; token: string }
-      }
-    }),
-    acceptInvite = m({
-      args: { token: z.string() },
-      handler: async (c: Rec, { token }: { token: string }) => {
-        const db = c.db as DbLike,
-          userId = (c.user as Rec)._id as string,
-          inviteDoc = await db
-            .query('orgInvite')
-            .withIndex(
-              'by_token',
-              idx(o => o.eq('token', token))
-            )
-            .unique()
-        if (!inviteDoc) return err('INVALID_INVITE')
-        if ((inviteDoc.expiresAt as number) < Date.now()) return err('INVITE_EXPIRED')
-        const existingMember = await getOrgMember({ db, orgId: inviteDoc.orgId as string, userId }),
-          orgDoc = await db.get(inviteDoc.orgId as string)
-        if (!orgDoc) return err('NOT_FOUND')
-        if (existingMember || orgDoc.userId === userId) return err('ALREADY_ORG_MEMBER')
-        const pendingRequest = await db
-          .query('orgJoinRequest')
-          .withIndex(
-            'by_org_status',
-            idx(o => o.eq('orgId', inviteDoc.orgId).eq('status', 'pending'))
-          )
-          .filter((o: FilterLike) => o.eq(o.field('userId'), userId))
-          .unique()
-        if (pendingRequest) await db.patch(pendingRequest._id as string, { status: 'approved', ...time() })
-        await db.insert('orgMember', {
-          isAdmin: inviteDoc.isAdmin,
-          orgId: inviteDoc.orgId,
-          userId,
-          ...time()
-        })
-        await db.delete(inviteDoc._id as string)
-        return { orgId: inviteDoc.orgId } as { orgId: GenericId<'org'> }
-      }
-    }),
-    revokeInvite = m({
-      args: { inviteId: zid('orgInvite') },
-      handler: async (c: Rec, { inviteId }: { inviteId: string }) => {
-        const db = c.db as DbLike,
-          inviteDoc = await db.get(inviteId)
-        if (!inviteDoc) return err('NOT_FOUND')
-        await requireOrgRole({
-          db,
-          minRole: 'admin',
-          orgId: inviteDoc.orgId as string,
-          userId: (c.user as Rec)._id as string
-        })
-        await db.delete(inviteId)
-      }
-    }),
-    pendingInvites = q({
-      args: { orgId: zid('org') },
-      handler: async (c: Rec, { orgId }: { orgId: string }): Promise<InviteDocLike[]> => {
-        await requireOrgRole({ db: c.db, minRole: 'admin', orgId, userId: (c.user as Rec)._id as string })
-        return (c.db as DbLike)
-          .query('orgInvite')
-          .withIndex(
-            'by_org',
-            idx(o => o.eq('orgId', orgId))
-          )
-          .collect() as Promise<InviteDocLike[]>
-      }
-    })
-  return { acceptInvite, invite, pendingInvites, revokeInvite }
+interface OrgInviteTableLike<Row> extends Iterable<Row> {
+  insert: (row: Row) => Row
 }
 
-export type { InviteDocLike }
-export { makeInviteHandlers }
+interface OrgJoinRequestByOrgStatusIndexLike<Row, OrgId> extends Iterable<Row> {
+  filterByOrgStatus: (orgId: OrgId, status: 'approved' | 'pending' | 'rejected') => Iterable<Row>
+}
+
+interface OrgJoinRequestPkLike<Row> {
+  update: (row: Row) => Row
+}
+
+interface OrgJoinRequestRowLike<RequestId, OrgId> {
+  id: RequestId
+  message?: string
+  orgId: OrgId
+  status: 'approved' | 'pending' | 'rejected'
+  userId: Identity
+}
+
+type OrgJoinRequestTableLike<Row> = Iterable<Row>
+
+interface OrgMemberRowLike<MemberId, OrgId> {
+  id: MemberId
+  isAdmin: boolean
+  orgId: OrgId
+  updatedAt: Timestamp
+  userId: Identity
+}
+
+interface OrgMemberTableLike<Row> extends Iterable<Row> {
+  insert: (row: Row) => Row
+}
+
+interface OrgPkLike<Row, Id> {
+  find: (id: Id) => null | Row
+}
+
+type OrgRole = 'admin' | 'member' | 'owner'
+
+interface OrgRowLike<OrgId> {
+  id: OrgId
+  userId: Identity
+}
+
+const DAY_HOURS = 24,
+  DAYS_PER_WEEK = 7,
+  MILLIS_PER_SECOND = 1000,
+  MINUTES_PER_HOUR = 60,
+  SECONDS_PER_MINUTE = 60,
+  SEVEN_DAYS_MS = DAYS_PER_WEEK * DAY_HOURS * MINUTES_PER_HOUR * SECONDS_PER_MINUTE * MILLIS_PER_SECOND,
+  TOKEN_BASE = 36,
+  makeError = (code: string, message: string): Error => new Error(`${code}: ${message}`),
+  identityEquals = (a: Identity, b: Identity): boolean => {
+    const left = a as unknown as { isEqual?: (v: unknown) => boolean; toHexString?: () => string }
+    if (typeof left.isEqual === 'function') return left.isEqual(b)
+    const right = b as unknown as { toHexString?: () => string }
+    if (typeof left.toHexString === 'function' && typeof right.toHexString === 'function')
+      return left.toHexString() === right.toHexString()
+    return Object.is(a, b)
+  },
+  makeInviteToken = (): string => {
+    const cryptoApi = globalThis.crypto as undefined | { randomUUID?: () => string }
+    if (cryptoApi && typeof cryptoApi.randomUUID === 'function') return cryptoApi.randomUUID()
+    return `${Date.now()}_${Math.random().toString(TOKEN_BASE).slice(2)}`
+  },
+  findOrgMember = <OrgId, MemberId, MemberRow extends OrgMemberRowLike<MemberId, OrgId>>(
+    orgMemberTable: Iterable<MemberRow>,
+    orgId: OrgId,
+    userId: Identity
+  ): MemberRow | null => {
+    for (const member of orgMemberTable)
+      if (Object.is(member.orgId, orgId) && identityEquals(member.userId, userId)) return member
+    return null
+  },
+  getRole = <OrgId, MemberId>(
+    org: OrgRowLike<OrgId>,
+    member: null | OrgMemberRowLike<MemberId, OrgId>,
+    sender: Identity
+  ): null | OrgRole => {
+    if (identityEquals(org.userId, sender)) return 'owner'
+    if (!member) return null
+    if (member.isAdmin) return 'admin'
+    return 'member'
+  },
+  requireAdminRole = <OrgId, MemberId>({
+    operation,
+    org,
+    orgMemberTable,
+    sender
+  }: {
+    operation: string
+    org: OrgRowLike<OrgId>
+    orgMemberTable: Iterable<OrgMemberRowLike<MemberId, OrgId>>
+    sender: Identity
+  }) => {
+    const member = findOrgMember(orgMemberTable, org.id, sender),
+      role = getRole(org, member, sender)
+    if (!role) throw makeError('NOT_ORG_MEMBER', `org:${operation}`)
+    if (role === 'member') throw makeError('FORBIDDEN', `org:${operation}`)
+  },
+  findInviteByToken = <InviteId, OrgId, InviteRow extends OrgInviteRowLike<InviteId, OrgId>>(
+    inviteByTokenIndex: Iterable<InviteRow>,
+    token: string
+  ): InviteRow | null => {
+    for (const invite of inviteByTokenIndex) if (invite.token === token) return invite
+    return null
+  },
+  findPendingJoinRequest = <RequestId, OrgId, JoinRequestRow extends OrgJoinRequestRowLike<RequestId, OrgId>>(
+    byOrgStatusIndex: OrgJoinRequestByOrgStatusIndexLike<JoinRequestRow, OrgId>,
+    orgId: OrgId,
+    userId: Identity
+  ): JoinRequestRow | null => {
+    const pendingRows = byOrgStatusIndex.filterByOrgStatus(orgId, 'pending')
+    for (const request of pendingRows) if (identityEquals(request.userId, userId)) return request
+    return null
+  },
+  resolveAcceptedInvite = <
+    OrgId,
+    MemberId,
+    InviteId,
+    OrgRow extends OrgRowLike<OrgId>,
+    MemberRow extends OrgMemberRowLike<MemberId, OrgId>,
+    InviteRow extends OrgInviteRowLike<InviteId, OrgId>
+  >({
+    inviteByTokenIndex,
+    orgMemberTable,
+    orgPk,
+    sender,
+    token
+  }: {
+    inviteByTokenIndex: OrgInviteByTokenIndexLike<InviteRow>
+    orgMemberTable: OrgMemberTableLike<MemberRow>
+    orgPk: OrgPkLike<OrgRow, OrgId>
+    sender: Identity
+    token: string
+  }): { invite: InviteRow; org: OrgRow } => {
+    const invite = findInviteByToken(inviteByTokenIndex, token)
+    if (!invite) throw makeError('INVALID_INVITE', 'org:accept_invite')
+    if (invite.expiresAt < Date.now()) throw makeError('INVITE_EXPIRED', 'org:accept_invite')
+    const org = orgPk.find(invite.orgId)
+    if (!org) throw makeError('NOT_FOUND', 'org:accept_invite')
+    if (identityEquals(org.userId, sender)) throw makeError('ALREADY_ORG_MEMBER', 'org:accept_invite')
+    const existingMember = findOrgMember(orgMemberTable, invite.orgId, sender)
+    if (existingMember) throw makeError('ALREADY_ORG_MEMBER', 'org:accept_invite')
+    return { invite, org }
+  },
+  completeInviteAcceptance = <
+    OrgId,
+    MemberId,
+    InviteId,
+    RequestId,
+    MemberRow extends OrgMemberRowLike<MemberId, OrgId>,
+    InviteRow extends OrgInviteRowLike<InviteId, OrgId>,
+    JoinRequestRow extends OrgJoinRequestRowLike<RequestId, OrgId>
+  >({
+    invite,
+    orgInvitePk,
+    orgMemberTable,
+    requestByOrgStatus,
+    requestPk,
+    sender,
+    timestamp
+  }: {
+    invite: InviteRow
+    orgInvitePk: OrgInvitePkLike<InviteRow, InviteId>
+    orgMemberTable: OrgMemberTableLike<MemberRow>
+    requestByOrgStatus: OrgJoinRequestByOrgStatusIndexLike<JoinRequestRow, OrgId>
+    requestPk: OrgJoinRequestPkLike<JoinRequestRow>
+    sender: Identity
+    timestamp: Timestamp
+  }) => {
+    const pendingRequest = findPendingJoinRequest(requestByOrgStatus, invite.orgId, sender)
+    if (pendingRequest)
+      requestPk.update({ ...(pendingRequest as unknown as Record<string, unknown>), status: 'approved' } as JoinRequestRow)
+    orgMemberTable.insert({
+      id: 0 as MemberId,
+      isAdmin: invite.isAdmin,
+      orgId: invite.orgId,
+      updatedAt: timestamp,
+      userId: sender
+    } as MemberRow)
+    const removed = orgInvitePk.delete(invite.id)
+    if (!removed) throw makeError('NOT_FOUND', 'org:accept_invite')
+  },
+  acceptInvite = <
+    OrgId,
+    MemberId,
+    InviteId,
+    RequestId,
+    OrgRow extends OrgRowLike<OrgId>,
+    MemberRow extends OrgMemberRowLike<MemberId, OrgId>,
+    InviteRow extends OrgInviteRowLike<InviteId, OrgId>,
+    JoinRequestRow extends OrgJoinRequestRowLike<RequestId, OrgId>
+  >({
+    ctx,
+    inviteByTokenIndex,
+    orgInvitePk,
+    orgMemberTable,
+    orgPk,
+    requestByOrgStatus,
+    requestPk,
+    token
+  }: {
+    ctx: { sender: Identity; timestamp: Timestamp }
+    inviteByTokenIndex: OrgInviteByTokenIndexLike<InviteRow>
+    orgInvitePk: OrgInvitePkLike<InviteRow, InviteId>
+    orgMemberTable: OrgMemberTableLike<MemberRow>
+    orgPk: OrgPkLike<OrgRow, OrgId>
+    requestByOrgStatus: OrgJoinRequestByOrgStatusIndexLike<JoinRequestRow, OrgId>
+    requestPk: OrgJoinRequestPkLike<JoinRequestRow>
+    token: string
+  }) => {
+    const { invite } = resolveAcceptedInvite({ inviteByTokenIndex, orgMemberTable, orgPk, sender: ctx.sender, token })
+    completeInviteAcceptance({
+      invite,
+      orgInvitePk,
+      orgMemberTable,
+      requestByOrgStatus,
+      requestPk,
+      sender: ctx.sender,
+      timestamp: ctx.timestamp
+    })
+  },
+  makeInviteReducers = <
+    DB,
+    OrgId,
+    MemberId,
+    InviteId,
+    RequestId,
+    OrgRow extends OrgRowLike<OrgId>,
+    MemberRow extends OrgMemberRowLike<MemberId, OrgId>,
+    InviteRow extends OrgInviteRowLike<InviteId, OrgId>,
+    JoinRequestRow extends OrgJoinRequestRowLike<RequestId, OrgId>
+  >(
+    spacetimedb: {
+      reducer: (
+        opts: { name: string },
+        params: Record<string, TypeBuilder<unknown, unknown>>,
+        fn: (ctx: { db: DB; sender: Identity; timestamp: Timestamp }, args: Record<string, unknown>) => void
+      ) => ReducerExport<never, never>
+    },
+    config: OrgInviteReducersConfig<DB, OrgId, MemberId, InviteId, RequestId, OrgRow, MemberRow, InviteRow, JoinRequestRow>
+  ): OrgInviteReducersExports => {
+    const inviteReducer = spacetimedb.reducer(
+        { name: 'org_invite' },
+        {
+          email: config.builders.email,
+          isAdmin: config.builders.isAdmin,
+          orgId: config.builders.orgId
+        },
+        (ctx, args: { email: string; isAdmin: boolean; orgId: OrgId }) => {
+          const orgTable = config.orgTable(ctx.db),
+            orgPk = config.orgPk(orgTable),
+            orgMemberTable = config.orgMemberTable(ctx.db),
+            orgInviteTable = config.orgInviteTable(ctx.db),
+            org = orgPk.find(args.orgId)
+
+          if (!org) throw makeError('NOT_FOUND', 'org:invite')
+          requireAdminRole({ operation: 'invite', org, orgMemberTable, sender: ctx.sender })
+
+          orgInviteTable.insert({
+            email: args.email,
+            expiresAt: Date.now() + SEVEN_DAYS_MS,
+            id: 0 as InviteId,
+            isAdmin: args.isAdmin,
+            orgId: args.orgId,
+            token: makeInviteToken()
+          } as InviteRow)
+        }
+      ),
+      acceptInviteReducer = spacetimedb.reducer(
+        { name: 'org_accept_invite' },
+        { token: config.builders.token },
+        (ctx, args: { token: string }) => {
+          const orgTable = config.orgTable(ctx.db),
+            orgInviteTable = config.orgInviteTable(ctx.db),
+            orgJoinRequestTable = config.orgJoinRequestTable(ctx.db)
+          acceptInvite({
+            ctx,
+            inviteByTokenIndex: config.orgInviteByTokenIndex(orgInviteTable),
+            orgInvitePk: config.orgInvitePk(orgInviteTable),
+            orgMemberTable: config.orgMemberTable(ctx.db),
+            orgPk: config.orgPk(orgTable),
+            requestByOrgStatus: config.orgJoinRequestByOrgStatusIndex(orgJoinRequestTable),
+            requestPk: config.orgJoinRequestPk(orgJoinRequestTable),
+            token: args.token
+          })
+        }
+      ),
+      revokeInviteReducer = spacetimedb.reducer(
+        { name: 'org_revoke_invite' },
+        { inviteId: config.builders.inviteId },
+        (ctx, args: { inviteId: InviteId }) => {
+          const orgTable = config.orgTable(ctx.db),
+            orgPk = config.orgPk(orgTable),
+            orgMemberTable = config.orgMemberTable(ctx.db),
+            orgInviteTable = config.orgInviteTable(ctx.db),
+            orgInvitePk = config.orgInvitePk(orgInviteTable),
+            invite = orgInvitePk.find(args.inviteId)
+
+          if (!invite) throw makeError('NOT_FOUND', 'org:revoke_invite')
+          const org = orgPk.find(invite.orgId)
+          if (!org) throw makeError('NOT_FOUND', 'org:revoke_invite')
+          requireAdminRole({ operation: 'revoke_invite', org, orgMemberTable, sender: ctx.sender })
+
+          const removed = orgInvitePk.delete(args.inviteId)
+          if (!removed) throw makeError('NOT_FOUND', 'org:revoke_invite')
+        }
+      )
+
+    return {
+      exports: {
+        org_accept_invite: acceptInviteReducer,
+        org_invite: inviteReducer,
+        org_revoke_invite: revokeInviteReducer
+      }
+    }
+  }
+
+export type {
+  OrgInviteByTokenIndexLike,
+  OrgInvitePkLike,
+  OrgInviteReducersConfig,
+  OrgInviteReducersExports,
+  OrgInviteRowLike,
+  OrgInviteTableLike,
+  OrgJoinRequestByOrgStatusIndexLike,
+  OrgJoinRequestPkLike,
+  OrgJoinRequestRowLike,
+  OrgJoinRequestTableLike,
+  OrgMemberRowLike,
+  OrgMemberTableLike,
+  OrgPkLike,
+  OrgRowLike
+}
+export { makeInviteReducers }
