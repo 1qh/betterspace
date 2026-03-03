@@ -1,5 +1,5 @@
 #!/usr/bin/env bun
-/* eslint-disable no-console, max-statements, complexity */
+/* eslint-disable no-continue, no-console, max-statements, complexity */
 /* oxlint-disable eslint/max-statements, eslint/complexity, max-depth */
 /** biome-ignore-all lint/style/noProcessEnv: cli */
 /** biome-ignore-all lint/performance/noAwaitInLoops: sequential */
@@ -68,17 +68,17 @@ const schemaMarkers = ['schema(', 'table(', 't.'],
   },
   listTypeScriptFiles = (root: string): string[] => {
     const out: string[] = [],
-      skip = new Set(['.git', '.next', '.turbo', 'build', 'dist', 'node_modules'])
-    const walk = (dir: string) => {
-      if (!existsSync(dir)) return
-      for (const entry of readdirSync(dir, { withFileTypes: true })) {
-        const full = join(dir, entry.name)
-        if (entry.isDirectory()) {
-          if (!(skip.has(entry.name) || entry.name.startsWith('.'))) walk(full)
-        } else if (entry.name.endsWith('.ts') && !entry.name.includes('.test.') && !entry.name.includes('.config.'))
-          out.push(full)
+      skip = new Set(['.git', '.next', '.turbo', 'build', 'dist', 'node_modules']),
+      walk = (dir: string) => {
+        if (!existsSync(dir)) return
+        for (const entry of readdirSync(dir, { withFileTypes: true })) {
+          const full = join(dir, entry.name)
+          if (entry.isDirectory()) {
+            if (!(skip.has(entry.name) || entry.name.startsWith('.'))) walk(full)
+          } else if (entry.name.endsWith('.ts') && !entry.name.includes('.test.') && !entry.name.includes('.config.'))
+            out.push(full)
+        }
       }
-    }
     walk(root)
     return out
   },
@@ -340,37 +340,37 @@ const schemaMarkers = ['schema(', 'table(', 't.'],
   scanWhereUsage = (root: string, moduleDir: string): WhereField[] => {
     const results: WhereField[] = [],
       schemaPath = findSchemaDefFile(moduleDir)?.path ?? '',
-      skip = new Set(['.cache', '.git', '.next', '.turbo', 'build', 'dist', 'node_modules'])
-    const processFile = (filePath: string, fileName: string) => {
-      const fileContent = readFileSync(filePath, 'utf8'),
-        apiPat = /['"](?<tbl>\w+)\.(?:list|search)['"]/gu
-      let am = apiPat.exec(fileContent)
-      while (am) {
-        const table = am.groups?.tbl ?? '',
-          after = fileContent.slice(am.index, Math.min(am.index + 500, fileContent.length)),
-          wIdx = after.indexOf('where:')
-        if (wIdx !== -1 && wIdx < 200) {
-          const wFields = extractWhereFromOptions(after.slice(Math.max(0, wIdx - 10)))
-          for (const f of wFields) results.push({ field: f, source: fileName, table })
+      skip = new Set(['.cache', '.git', '.next', '.turbo', 'build', 'dist', 'node_modules']),
+      processFile = (filePath: string, fileName: string) => {
+        const fileContent = readFileSync(filePath, 'utf8'),
+          apiPat = /['"](?<tbl>\w+)\.(?:list|search)['"]/gu
+        let am = apiPat.exec(fileContent)
+        while (am) {
+          const table = am.groups?.tbl ?? '',
+            after = fileContent.slice(am.index, Math.min(am.index + 500, fileContent.length)),
+            wIdx = after.indexOf('where:')
+          if (wIdx !== -1 && wIdx < 200) {
+            const wFields = extractWhereFromOptions(after.slice(Math.max(0, wIdx - 10)))
+            for (const f of wFields) results.push({ field: f, source: fileName, table })
+          }
+          am = apiPat.exec(fileContent)
         }
-        am = apiPat.exec(fileContent)
+      },
+      scan = (dir: string) => {
+        if (!existsSync(dir)) return
+        for (const entry of readdirSync(dir, { withFileTypes: true })) {
+          const full = join(dir, entry.name)
+          if (entry.isDirectory()) {
+            if (!(skip.has(entry.name) || entry.name.startsWith('.'))) scan(full)
+          } else if (
+            (entry.name.endsWith('.ts') || entry.name.endsWith('.tsx')) &&
+            !entry.name.includes('.test.') &&
+            !entry.name.includes('.config.') &&
+            full !== schemaPath
+          )
+            processFile(full, entry.name)
+        }
       }
-    }
-    const scan = (dir: string) => {
-      if (!existsSync(dir)) return
-      for (const entry of readdirSync(dir, { withFileTypes: true })) {
-        const full = join(dir, entry.name)
-        if (entry.isDirectory()) {
-          if (!(skip.has(entry.name) || entry.name.startsWith('.'))) scan(full)
-        } else if (
-          (entry.name.endsWith('.ts') || entry.name.endsWith('.tsx')) &&
-          !entry.name.includes('.test.') &&
-          !entry.name.includes('.config.') &&
-          full !== schemaPath
-        )
-          processFile(full, entry.name)
-      }
-    }
     scan(root)
     return results
   },

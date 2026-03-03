@@ -139,6 +139,7 @@
             "useErrorCause": "warn",
             "useExplicitType": "off",
             "useGlobalThis": "warn",
+            "useNamedCaptureGroup": "warn",
             "useSortedClasses": "off"
           },
           "performance": {
