@@ -30,37 +30,47 @@ interface JsxNode {
 
 let cachedModules: string[] | undefined
 let cachedSchema: Map<string, Map<string, string>> | undefined
-let discoveredConvexDir: string | undefined
+let discoveredSchemaDir: string | undefined
 let discoveryWarned = false
+let cachedHasSpacetimeImports: boolean | undefined
 const seenCrudTables = new Map<string, string>()
 
-const hasGenerated = (dir: string): boolean => existsSync(join(dir, '_generated'))
+const hasSchemaMarkers = (dir: string): boolean => {
+  if (!existsSync(dir)) return false
+  for (const entry of readdirSync(dir))
+    if (entry.endsWith('.ts') && !entry.endsWith('.test.ts') && !entry.endsWith('.config.ts')) {
+      const content = readFileSync(join(dir, entry), 'utf8')
+      if (isSchemaFile(content)) return true
+    }
+  return false
+}
 
 const searchSubdirs = (root: string): string | undefined => {
   if (!existsSync(root)) return
   for (const sub of readdirSync(root, { withFileTypes: true }))
     if (sub.isDirectory()) {
-      const nested = join(root, sub.name, 'convex')
-      if (hasGenerated(nested)) return nested
+      const nested = join(root, sub.name)
+      if (hasSchemaMarkers(nested)) return nested
+      for (const child of readdirSync(nested, { withFileTypes: true }))
+        if (child.isDirectory()) {
+          const deep = join(nested, child.name)
+          if (hasSchemaMarkers(deep)) return deep
+        }
     }
 }
 
-const findConvexDir = (root: string): string | undefined => {
-  if (discoveredConvexDir) return discoveredConvexDir
-  const direct = join(root, 'convex')
-  const found = hasGenerated(direct) ? direct : searchSubdirs(root)
-  if (found) discoveredConvexDir = found
+const findSchemaDir = (root: string): string | undefined => {
+  if (discoveredSchemaDir) return discoveredSchemaDir
+  const found = hasSchemaMarkers(root) ? root : searchSubdirs(root)
+  if (found) discoveredSchemaDir = found
   return found
 }
 
 const getModules = (root: string): string[] => {
   if (cachedModules) return cachedModules
-  const dir = findConvexDir(root)
-  if (!dir) return []
   const result: string[] = []
-  for (const entry of readdirSync(dir))
-    if (entry.endsWith('.ts') && !entry.startsWith('_') && !entry.includes('.test.') && !entry.includes('.config.'))
-      result.push(entry.slice(0, -'.ts'.length))
+  const tables = parseSchemaFile(root)
+  for (const tableName of tables.keys()) result.push(tableName)
   cachedModules = result
   return result
 }
@@ -97,7 +107,7 @@ const kindToComponent: Record<string, string> = {
 }
 
 const crudFactories = new Set(['childCrud', 'crud', 'orgCrud', 'singletonCrud'])
-const convexFetchFns = new Set(['fetchAction', 'fetchQuery', 'preloadQuery'])
+const spacetimeDataHooks = new Set(['useReducer', 'useTable'])
 const schemaMarkers = ['makeOwned(', 'makeOrgScoped(', 'makeSingleton(', 'makeBase(', 'child(']
 const routeFilePattern = /\/route\.[jt]sx?$/u
 
@@ -111,10 +121,10 @@ const getLiteralString = (node: BaseNode): string | undefined =>
 const getPropertyName = (node: BaseNode): string | undefined =>
   node.type === 'MemberExpression' && node.property?.type === 'Identifier' ? node.property.name : undefined
 
-const isApiExpression = (node: BaseNode): boolean => {
-  if (node.type === 'Identifier') return node.name === 'api'
+const isSpacetimeExpression = (node: BaseNode): boolean => {
+  if (node.type === 'Identifier') return node.name === 'reducers' || node.name === 'tables'
   if (node.type !== 'MemberExpression' || !node.object) return false
-  return isApiExpression(node.object)
+  return isSpacetimeExpression(node.object)
 }
 
 const parseFields = (fieldsStr: string): Map<string, string> => {
@@ -155,8 +165,8 @@ const isSchemaFile = (content: string): boolean => {
 }
 
 const findSchemaContent = (root: string): string => {
-  const convexDir = findConvexDir(root)
-  const searchDir = convexDir ? dirname(convexDir) : root
+  const schemaDir = findSchemaDir(root)
+  const searchDir = schemaDir ? dirname(schemaDir) : root
   if (!existsSync(searchDir)) return ''
   for (const entry of readdirSync(searchDir))
     if (entry.endsWith('.ts') && !entry.endsWith('.test.ts') && !entry.endsWith('.config.ts')) {
@@ -278,6 +288,30 @@ const getCalleeProperty = (node: CallNode): string | undefined => {
   return getPropertyName(first)
 }
 
+const hasSpacetimeImports = (root: string): boolean => {
+  if (typeof cachedHasSpacetimeImports === 'boolean') return cachedHasSpacetimeImports
+  const schemaDir = findSchemaDir(root)
+  const searchRoots: string[] = [root]
+  if (schemaDir) searchRoots.push(dirname(schemaDir))
+  for (const dir of searchRoots) {
+    if (existsSync(dir))
+      for (const { name, isFile } of readdirSync(dir, { withFileTypes: true }))
+        if (isFile() && (name.endsWith('.ts') || name.endsWith('.tsx'))) {
+          const content = readFileSync(join(dir, name), 'utf8')
+          if (content.includes("'@a/be/spacetimedb'") || content.includes('"@a/be/spacetimedb"')) {
+            cachedHasSpacetimeImports = true
+            return true
+          }
+          if (content.includes("'spacetimedb/react'") || content.includes('"spacetimedb/react"')) {
+            cachedHasSpacetimeImports = true
+            return true
+          }
+        }
+  }
+  cachedHasSpacetimeImports = false
+  return false
+}
+
 const isInsideTryBlock = (ancestors: BaseNode[]): boolean => {
   for (let i = ancestors.length - 1; i >= 0; i -= 1) {
     const a = ancestors[i]
@@ -330,7 +364,9 @@ const apiCasing = {
       MemberExpression: (node: MemberNode) => {
         if (node.object.type !== 'MemberExpression') return
         const parent = node.object as MemberNode
-        if (parent.object.type !== 'Identifier' || (parent.object as { name: string }).name !== 'api') return
+        if (parent.object.type !== 'Identifier') return
+        const base = (parent.object as { name: string }).name
+        if (base !== 'reducers' && base !== 'tables') return
         if (parent.property.type !== 'Identifier') return
         const prop = parent.property as BaseNode & { name: string }
         if (modules.includes(prop.name)) return
@@ -345,8 +381,8 @@ const apiCasing = {
   },
   meta: {
     messages: {
-      casingMismatch: 'api.{{used}} \u2014 wrong casing. Use api.{{suggestion}} to match the convex/ filename.',
-      unknownModule: 'api.{{used}} \u2014 no matching file in convex/.'
+      casingMismatch: '{{used}} \u2014 wrong casing. Use {{suggestion}} to match your SpacetimeDB table name.',
+      unknownModule: '{{used}} \u2014 no matching SpacetimeDB table found in schema.'
     },
     type: 'problem' as const
   }
@@ -372,18 +408,18 @@ const consistentCrudNaming = {
 
 const isRouteHandler = (filename: string): boolean => routeFilePattern.test(filename)
 
-/** ESLint rule to require await connection() in Next.js server components before Convex fetches. */
+/** ESLint rule to require useSpacetimeDB() before SpacetimeDB data hooks. */
 const requireConnection = {
   create: (context: EslintContext) => {
     if (isRouteHandler(context.filename)) return {}
     return {
       CallExpression: (node: CallNode) => {
         const callee = getIdentName(node.callee)
-        if (!(callee && convexFetchFns.has(callee))) return
+        if (!(callee && spacetimeDataHooks.has(callee))) return
         const src = context as unknown as { sourceCode: { getAncestors: (n: BaseNode) => BaseNode[] } }
         const body = findEnclosingAsyncBody(src.sourceCode.getAncestors(node))
         if (!body) return
-        if (blockHasConnection(body)) return
+        if (blockHasConnection(body) || bodyContainsIdent(body, 'useSpacetimeDB')) return
         context.report({ data: { fn: callee }, messageId: 'missingConnection', node })
       }
     }
@@ -391,34 +427,34 @@ const requireConnection = {
   meta: {
     messages: {
       missingConnection:
-        "{{fn}}() requires 'await connection()' before it in Next.js server components to signal dynamic rendering."
+        '{{fn}}() should be used with useSpacetimeDB() in scope so reducer and table calls share one initialized client context.'
     },
     type: 'problem' as const
   }
 }
 
-/** ESLint rule to prevent unsafe type casts on api objects. */
+/** ESLint rule to prevent unsafe type casts on SpacetimeDB objects. */
 const noUnsafeApiCast = {
   create: (context: EslintContext) => ({
     TSAsExpression: (node: BaseNode & { expression: BaseNode }) => {
-      if (!isApiExpression(node.expression)) return
+      if (!isSpacetimeExpression(node.expression)) return
       context.report({ messageId: 'unsafeApiCast', node })
     }
   }),
   meta: {
     messages: {
       unsafeApiCast:
-        'Unsafe cast on api object. This bypasses type safety. Extract the function reference from the factory or use a custom query.'
+        'Unsafe cast on reducers/tables object. This bypasses type safety. Extract a typed reducer/table reference instead.'
     },
     type: 'suggestion' as const
   }
 }
 
-/** ESLint rule to suggest useList() instead of useQuery() for list endpoints. */
+/** ESLint rule to suggest useTable() instead of useReducer() for list endpoints. */
 const preferUseList = {
   create: (context: EslintContext) => ({
     CallExpression: (node: CallNode) => {
-      if (!isIdent(node.callee, 'useQuery')) return
+      if (!isIdent(node.callee, 'useReducer')) return
       const prop = getCalleeProperty(node)
       if (prop !== 'list' && prop !== 'pubList') return
       context.report({ messageId: 'preferUseList', node })
@@ -427,17 +463,18 @@ const preferUseList = {
   meta: {
     messages: {
       preferUseList:
-        'useQuery() on a list endpoint \u2014 use useList() instead for built-in pagination, loadMore, and loading states.'
+        'useReducer() on a list endpoint \u2014 use useTable() for subscription-ready reads and readiness state.'
     },
     type: 'suggestion' as const
   }
 }
 
-/** ESLint rule to suggest useOrgQuery() instead of useQuery() with orgId. */
+/** ESLint rule to suggest useSpacetimeDB() context instead of manual orgId args. */
 const preferUseOrgQuery = {
   create: (context: EslintContext) => ({
     CallExpression: (node: CallNode) => {
-      if (!isIdent(node.callee, 'useQuery')) return
+      const callee = getIdentName(node.callee)
+      if (callee !== 'useTable' && callee !== 'useReducer') return
       if (!hasOrgIdArg(node)) return
       context.report({ messageId: 'preferOrgQuery', node })
     }
@@ -445,7 +482,7 @@ const preferUseOrgQuery = {
   meta: {
     messages: {
       preferOrgQuery:
-        'useQuery() with orgId \u2014 use useOrgQuery() instead. It injects orgId automatically from the OrgProvider context.'
+        'Manual orgId in SpacetimeDB hook call \u2014 prefer deriving org context from useSpacetimeDB() instead of passing orgId directly.'
     },
     type: 'suggestion' as const
   }
@@ -498,16 +535,16 @@ const formFieldKind = {
   }
 }
 
-/** ESLint rule to warn if convex/ directory or schema file cannot be discovered. */
+/** ESLint rule to warn if SpacetimeDB bindings or schema file cannot be discovered. */
 const discoveryCheck = {
   create: (context: EslintContext) => {
     if (discoveryWarned) return {}
-    const hasConvex = getModules(context.cwd).length > 0
+    const hasBindings = hasSpacetimeImports(context.cwd)
     const hasSchema = parseSchemaFile(context.cwd).size > 0
-    if (hasConvex && hasSchema) return {}
+    if (hasBindings && hasSchema) return {}
     discoveryWarned = true
     const parts: string[] = []
-    if (!hasConvex) parts.push('convex/ directory')
+    if (!hasBindings) parts.push('SpacetimeDB imports (@a/be/spacetimedb or spacetimedb/react)')
     if (!hasSchema) parts.push('schema file')
     return {
       Program: (node: BaseNode) => {
@@ -522,7 +559,7 @@ const discoveryCheck = {
   meta: {
     messages: {
       discoveryFailed:
-        'betterspace: could not find {{missing}} (searched ./convex/ and ./packages/*/convex/). Some rules are inactive.'
+        'betterspace: could not find {{missing}} while scanning project TypeScript sources. Some rules are inactive.'
     },
     type: 'suggestion' as const
   }
@@ -555,12 +592,12 @@ const noDuplicateCrud = {
   }
 }
 
-/** ESLint rule to require try-catch around Convex fetch functions in server components. */
+/** ESLint rule to require try-catch around SpacetimeDB reducer/table hook calls in server components. */
 const noRawFetchInServerComponent = {
   create: (context: EslintContext) => ({
     CallExpression: (node: CallNode) => {
       const callee = getIdentName(node.callee)
-      if (!(callee && convexFetchFns.has(callee))) return
+      if (!(callee && spacetimeDataHooks.has(callee))) return
       const src = context as unknown as { sourceCode: { getAncestors: (n: BaseNode) => BaseNode[] } }
       if (isInsideTryBlock(src.sourceCode.getAncestors(node))) return
       context.report({ data: { fn: callee }, messageId: 'unhandledFetch', node })
@@ -575,7 +612,7 @@ const noRawFetchInServerComponent = {
   }
 }
 
-/** ESLint rule to require ErrorBoundary when using ConvexProvider. */
+/** ESLint rule to require ErrorBoundary when using SpacetimeDB providers. */
 const requireErrorBoundary = {
   create: (context: EslintContext) => {
     const providerNodes: BaseNode[] = []
@@ -584,7 +621,8 @@ const requireErrorBoundary = {
       JSXOpeningElement: (node: JsxNode) => {
         const name = node.name?.type === 'JSXIdentifier' ? node.name.name : undefined
         if (!name) return
-        if (name.includes('ConvexProvider')) providerNodes.push(node as unknown as BaseNode)
+        if (name.includes('SpacetimeDBProvider') || name.includes('SpacetimeProvider'))
+          providerNodes.push(node as unknown as BaseNode)
         if (name.includes('ErrorBoundary')) hasErrorBoundary = true
       },
       'Program:exit': () => {
@@ -596,7 +634,7 @@ const requireErrorBoundary = {
   meta: {
     messages: {
       missingErrorBoundary:
-        '<ConvexProvider> without an error boundary. Wrap with an ErrorBoundary to handle Convex errors gracefully.'
+        '<SpacetimeDBProvider> without an error boundary. Wrap with an ErrorBoundary to handle realtime data errors gracefully.'
     },
     type: 'suggestion' as const
   }
