@@ -27,7 +27,7 @@ import { useState } from 'react'
 import { toast } from 'sonner'
 import { useReducer, useSpacetimeDB } from 'spacetimedb/react'
 
-import { createBlog } from '~/schema-client'
+import { createBlog } from '~/schema'
 
 import { Publish } from './[id]/edit/client'
 

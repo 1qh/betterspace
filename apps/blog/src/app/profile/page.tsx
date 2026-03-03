@@ -8,7 +8,7 @@ import Link from 'next/link'
 import { toast } from 'sonner'
 import { useReducer, useSpacetimeDB, useTable } from 'spacetimedb/react'
 
-import { profileSchema } from '~/schema-client'
+import { profileSchema } from '~/schema'
 
 const Page = () => {
   const [profiles, isReady] = useTable(tables.blogProfile),

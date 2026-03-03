@@ -4,6 +4,18 @@ import type { StandardSchemaV1 } from '@tanstack/form-core'
 import type { FormValidateOrFn, ReactFormExtendedApi } from '@tanstack/react-form'
 import type { output, ZodObject, ZodRawShape } from 'zod/v4'
 
+type Widen<T> = T extends string
+  ? string
+  : T extends number
+    ? number
+    : T extends boolean
+      ? boolean
+      : T extends (infer U)[]
+        ? Widen<U>[]
+        : T extends Record<string, unknown>
+          ? { [K in keyof T]: Widen<T[K]> }
+          : T
+
 import { useForm as useTanStackForm } from '@tanstack/react-form'
 import { useStore } from '@tanstack/react-store'
 import { useEffect, useMemo, useRef, useState } from 'react'
@@ -124,7 +136,7 @@ const submitError = (error: unknown): Error => new Error(getErrorMessage(error),
     onSuccess?: () => void
     resetOnSuccess?: boolean
     schema: S
-    values?: output<S>
+    values?: Widen<output<S>>
   }) => {
     const resolved = values ?? dv(schema),
       [conflict, setConflict] = useState<ConflictData | null>(null),
@@ -234,7 +246,7 @@ const submitError = (error: unknown): Error => new Error(getErrorMessage(error),
     resetOnSuccess?: boolean
     schema: S
     transform?: (d: output<S>) => Record<string, unknown>
-    values?: output<S>
+    values?: Widen<output<S>>
   }) =>
     useForm({
       autoSave,
@@ -251,5 +263,5 @@ const submitError = (error: unknown): Error => new Error(getErrorMessage(error),
       values
     })
 
-export type { Api, ConflictData, FieldKind, FieldMeta, FieldMetaMap, FormReturn }
+export type { Api, ConflictData, FieldKind, FieldMeta, FieldMetaMap, FormReturn, Widen }
 export { buildMeta, getMeta, useForm, useFormMutation }

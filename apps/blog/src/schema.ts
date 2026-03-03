@@ -1,8 +1,7 @@
-import { owned, singleton } from '@a/be/t'
-import { zodFromTable } from 'betterspace'
+import { owned, singleton } from '@a/be/z'
 
-const createBlog = zodFromTable(owned.blog, { exclude: ['published'] }),
-  editBlog = zodFromTable(owned.blog).partial(),
-  profileSchema = zodFromTable(singleton.blogProfile)
+const createBlog = owned.blog.omit({ published: true }),
+  editBlog = owned.blog.partial(),
+  profileSchema = singleton.blogProfile
 
 export { createBlog, editBlog, profileSchema }

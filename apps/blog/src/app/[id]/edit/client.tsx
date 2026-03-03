@@ -17,7 +17,7 @@ import { useTransition } from 'react'
 import { toast } from 'sonner'
 import { useReducer, useSpacetimeDB } from 'spacetimedb/react'
 
-import { editBlog } from '~/schema-client'
+import { editBlog } from '~/schema'
 
 const Publish = ({
     className,

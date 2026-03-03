@@ -1,17 +1,11 @@
+import { org, orgScoped, singleton } from '@a/be/z'
 import { cvFile } from 'betterspace/schema'
-import { boolean, email, enum as zEnum, object, string } from 'zod/v4'
+import { boolean, email, object, string } from 'zod/v4'
 
-const orgTeam = object({
-    name: string(),
-    slug: string().regex(/^[a-z0-9-]+$/u)
-  }),
+const orgTeam = org.team.omit({ avatarId: true }),
   invite = object({ email: email(), isAdmin: boolean() }),
   joinRequest = object({ message: string().optional() }),
-  profileStep = object({
-    avatar: cvFile().nullable().optional(),
-    bio: string().max(500).optional(),
-    displayName: string().trim().min(1)
-  }),
+  profileStep = singleton.orgProfile.pick({ avatar: true, bio: true, displayName: true }),
   orgStep = object({
     name: string().min(1),
     slug: string()
@@ -21,17 +15,7 @@ const orgTeam = object({
   appearanceStep = object({
     orgAvatar: cvFile().nullable().optional()
   }),
-  wiki = object({
-    content: string().optional(),
-    slug: string()
-      .min(1)
-      .regex(/^[a-z0-9-]+$/u),
-    status: zEnum(['draft', 'published']),
-    title: string().min(1)
-  }),
-  preferencesStep = object({
-    notifications: boolean(),
-    theme: string().min(1)
-  })
+  wiki = orgScoped.wiki.omit({ content: true }).extend({ content: string().optional() }),
+  preferencesStep = singleton.orgProfile.pick({ notifications: true, theme: true })
 
 export { appearanceStep, invite, joinRequest, orgStep, orgTeam, preferencesStep, profileStep, wiki }
