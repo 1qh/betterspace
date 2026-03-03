@@ -1,9 +1,8 @@
 #!/usr/bin/env bun
-/* eslint-disable no-continue, no-console, max-depth, max-statements, complexity */
+/* eslint-disable no-console, max-depth, max-statements, complexity */
 /* oxlint-disable eslint/max-statements, eslint/complexity, max-depth */
 /** biome-ignore-all lint/style/noProcessEnv: cli */
 /** biome-ignore-all lint/performance/noAwaitInLoops: sequential */
-/** biome-ignore-all lint/nursery/noContinue: cli directory scanning */
 import { existsSync, readdirSync, readFileSync } from 'node:fs'
 import { basename, join } from 'node:path'
 
@@ -126,14 +125,19 @@ const schemaMarkers = ['schema(', 'table(', 't.'],
     const block = content.slice(startPos, pos - 1)
     for (const line of block.split('\n')) {
       const trimmed = line.trim()
-      if (trimmed.length === 0) continue
-      const m = fieldLinePat.exec(trimmed)
-      if (m?.groups) {
-        const name = m.groups.fname,
-          raw = m.groups.ftype
-        if (name && raw) {
-          const t = raw.replace(trailingCommaPat, '').trim().replace(parenContentPat, '()').replace(braceContentPat, '{}')
-          fields.push({ field: name, type: t })
+      if (trimmed.length > 0) {
+        const m = fieldLinePat.exec(trimmed)
+        if (m?.groups) {
+          const name = m.groups.fname,
+            raw = m.groups.ftype
+          if (name && raw) {
+            const t = raw
+              .replace(trailingCommaPat, '')
+              .trim()
+              .replace(parenContentPat, '()')
+              .replace(braceContentPat, '{}')
+            fields.push({ field: name, type: t })
+          }
         }
       }
     }
