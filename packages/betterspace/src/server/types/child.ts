@@ -1,28 +1,62 @@
-import type { ZodObject, ZodRawShape, z as _ } from 'zod/v4'
+import type { Identity, Timestamp } from 'spacetimedb'
+import type { TypeBuilder } from 'spacetimedb/server'
 
-import type { DocBase, Rec, RegisteredMutation, RegisteredQuery } from './common'
+import type {
+  CrudConfig,
+  CrudExports,
+  CrudFieldBuilders,
+  CrudFieldValues,
+  CrudPkLike,
+  CrudTableLike
+} from './crud'
 
-interface ChildConfig {
-  foreignKey: string
-  index?: string
-  parent: string
-  parentSchema?: ZodObject<ZodRawShape>
-  schema: ZodObject<ZodRawShape>
+type ChildConfig<
+  DB,
+  F extends CrudFieldBuilders,
+  Row extends { updatedAt: Timestamp; userId: Identity },
+  Id,
+  Tbl extends CrudTableLike<Row>,
+  Pk extends CrudPkLike<Row, Id>,
+  ParentRow,
+  ParentId,
+  ParentTbl,
+  ParentPk extends ChildParentPkLike<ParentRow, ParentId>
+> = ChildCrudConfig<DB, F, Row, Id, Tbl, Pk, ParentRow, ParentId, ParentTbl, ParentPk>
+
+interface ChildCrudConfig<
+  DB,
+  F extends CrudFieldBuilders,
+  Row extends { updatedAt: Timestamp; userId: Identity },
+  Id,
+  Tbl extends CrudTableLike<Row>,
+  Pk extends CrudPkLike<Row, Id>,
+  ParentRow,
+  ParentId,
+  ParentTbl,
+  ParentPk extends ChildParentPkLike<ParentRow, ParentId>
+> extends CrudConfig<DB, F, Row, Id, Tbl, Pk> {
+  foreignKeyField: TypeBuilder<ParentId, unknown>
+  foreignKeyName: string
+  parentPk: (table: ParentTbl) => ParentPk
+  parentTable: (db: DB) => ParentTbl
 }
 
-interface ChildCrudResult<S extends ZodRawShape> {
-  bulkCreate: RegisteredMutation<'public', Rec, (number | string)[]>
-  bulkRm: RegisteredMutation<'public', Rec, number>
-  bulkUpdate: RegisteredMutation<'public', Rec, DocBase<S>[]>
-  create: RegisteredMutation<'public', _.output<ZodObject<S>>, number | string>
-  get: RegisteredQuery<'public', Rec, DocBase<S> | null>
-  list: RegisteredQuery<'public', Rec, DocBase<S>[]>
-  pub?: {
-    get: RegisteredQuery<'public', Rec, DocBase<S> | null>
-    list: RegisteredQuery<'public', Rec, DocBase<S>[]>
-  }
-  rm: RegisteredMutation<'public', Rec, DocBase<S>>
-  update: RegisteredMutation<'public', Rec, DocBase<S> | null>
+type ChildCrudExports = CrudExports
+
+type ChildCrudResult = ChildCrudExports
+
+interface ChildParentPkLike<Row, Id> {
+  find: (id: Id) => null | Row
 }
 
-export type { ChildConfig, ChildCrudResult }
+export type {
+  ChildConfig,
+  ChildCrudConfig,
+  ChildCrudExports,
+  ChildCrudResult,
+  ChildParentPkLike,
+  CrudFieldBuilders,
+  CrudFieldValues,
+  CrudPkLike,
+  CrudTableLike
+}
