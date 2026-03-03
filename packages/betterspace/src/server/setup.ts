@@ -38,7 +38,12 @@ const isPromiseLike = (value: unknown): value is PromiseLike<unknown> => {
   ): GlobalHookCtx => ({ db, sender, table, timestamp }),
   hasGlobalHooks = (hooks: GlobalHooks): boolean =>
     Boolean(
-      hooks.beforeCreate ?? hooks.afterCreate ?? hooks.beforeUpdate ?? hooks.afterUpdate ?? hooks.beforeDelete ?? hooks.afterDelete
+      hooks.beforeCreate ??
+        hooks.afterCreate ??
+        hooks.beforeUpdate ??
+        hooks.afterUpdate ??
+        hooks.beforeDelete ??
+        hooks.afterDelete
     ),
   mergeGlobalBeforeCreate = (left: GlobalHooks, right: GlobalHooks): GlobalHooks['beforeCreate'] => {
     if (!(left.beforeCreate || right.beforeCreate)) return
@@ -107,7 +112,12 @@ const isPromiseLike = (value: unknown): value is PromiseLike<unknown> => {
     hooks: CrudHooks<DB, Row, CreateArgs, UpdatePatch>
   ): boolean =>
     Boolean(
-      hooks.beforeCreate ?? hooks.afterCreate ?? hooks.beforeUpdate ?? hooks.afterUpdate ?? hooks.beforeDelete ?? hooks.afterDelete
+      hooks.beforeCreate ??
+        hooks.afterCreate ??
+        hooks.beforeUpdate ??
+        hooks.afterUpdate ??
+        hooks.beforeDelete ??
+        hooks.afterDelete
     ),
   mergeCrudBeforeCreate = <DB, Row extends Rec, CreateArgs extends Rec, UpdatePatch extends Rec>(
     table: string,
@@ -118,7 +128,10 @@ const isPromiseLike = (value: unknown): value is PromiseLike<unknown> => {
     return (ctx, { data: initialData }) => {
       let data = initialData
       if (globalHooks?.beforeCreate)
-        data = requireSync(globalHooks.beforeCreate(toGlobalCtx(table, ctx), { data: data as Rec }), 'crud.beforeCreate:global') as CreateArgs
+        data = requireSync(
+          globalHooks.beforeCreate(toGlobalCtx(table, ctx), { data: data as Rec }),
+          'crud.beforeCreate:global'
+        ) as CreateArgs
       if (localHooks?.beforeCreate) data = requireSync(localHooks.beforeCreate(ctx, { data }), 'crud.beforeCreate:local')
       return data
     }
@@ -131,7 +144,10 @@ const isPromiseLike = (value: unknown): value is PromiseLike<unknown> => {
     if (!(globalHooks?.afterCreate || localHooks?.afterCreate)) return
     return (ctx, { data, row }) => {
       if (globalHooks?.afterCreate)
-        requireSync(globalHooks.afterCreate(toGlobalCtx(table, ctx), { data: data as Rec, row: row as Rec }), 'crud.afterCreate:global')
+        requireSync(
+          globalHooks.afterCreate(toGlobalCtx(table, ctx), { data: data as Rec, row: row as Rec }),
+          'crud.afterCreate:global'
+        )
       if (localHooks?.afterCreate) requireSync(localHooks.afterCreate(ctx, { data, row }), 'crud.afterCreate:local')
     }
   },
@@ -148,7 +164,8 @@ const isPromiseLike = (value: unknown): value is PromiseLike<unknown> => {
           globalHooks.beforeUpdate(toGlobalCtx(table, ctx), { patch: patch as Rec, prev: prev as Rec }),
           'crud.beforeUpdate:global'
         ) as UpdatePatch
-      if (localHooks?.beforeUpdate) patch = requireSync(localHooks.beforeUpdate(ctx, { patch, prev }), 'crud.beforeUpdate:local')
+      if (localHooks?.beforeUpdate)
+        patch = requireSync(localHooks.beforeUpdate(ctx, { patch, prev }), 'crud.beforeUpdate:local')
       return patch
     }
   },
@@ -168,7 +185,8 @@ const isPromiseLike = (value: unknown): value is PromiseLike<unknown> => {
           }),
           'crud.afterUpdate:global'
         )
-      if (localHooks?.afterUpdate) requireSync(localHooks.afterUpdate(ctx, { next, patch, prev }), 'crud.afterUpdate:local')
+      if (localHooks?.afterUpdate)
+        requireSync(localHooks.afterUpdate(ctx, { next, patch, prev }), 'crud.afterUpdate:local')
     }
   },
   mergeCrudBeforeDelete = <DB, Row extends Rec, CreateArgs extends Rec, UpdatePatch extends Rec>(
@@ -212,7 +230,9 @@ const isPromiseLike = (value: unknown): value is PromiseLike<unknown> => {
     if (!hasCrudHooks(merged)) return
     return merged
   },
-  hasSingletonHooks = <DB, Row extends Rec, UpdatePatch extends Rec>(hooks: SingletonHooks<DB, Row, UpdatePatch>): boolean =>
+  hasSingletonHooks = <DB, Row extends Rec, UpdatePatch extends Rec>(
+    hooks: SingletonHooks<DB, Row, UpdatePatch>
+  ): boolean =>
     Boolean(hooks.beforeCreate ?? hooks.afterCreate ?? hooks.beforeUpdate ?? hooks.afterUpdate ?? hooks.beforeRead),
   mergeSingletonBeforeCreate = <DB, Row extends Rec, UpdatePatch extends Rec>(
     table: string,
@@ -227,7 +247,8 @@ const isPromiseLike = (value: unknown): value is PromiseLike<unknown> => {
           globalHooks.beforeCreate(toGlobalCtx(table, ctx), { data: data as Rec }),
           'singleton.beforeCreate:global'
         ) as UpdatePatch
-      if (localHooks?.beforeCreate) data = requireSync(localHooks.beforeCreate(ctx, { data }), 'singleton.beforeCreate:local')
+      if (localHooks?.beforeCreate)
+        data = requireSync(localHooks.beforeCreate(ctx, { data }), 'singleton.beforeCreate:local')
       return data
     }
   },
@@ -259,7 +280,8 @@ const isPromiseLike = (value: unknown): value is PromiseLike<unknown> => {
           globalHooks.beforeUpdate(toGlobalCtx(table, ctx), { patch: patch as Rec, prev: prev as Rec }),
           'singleton.beforeUpdate:global'
         ) as UpdatePatch
-      if (localHooks?.beforeUpdate) patch = requireSync(localHooks.beforeUpdate(ctx, { patch, prev }), 'singleton.beforeUpdate:local')
+      if (localHooks?.beforeUpdate)
+        patch = requireSync(localHooks.beforeUpdate(ctx, { patch, prev }), 'singleton.beforeUpdate:local')
       return patch
     }
   },
