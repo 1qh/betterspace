@@ -1,0 +1,67 @@
+name: ' '
+
+on:
+  push:
+    branches: ['*']
+
+jobs:
+  changes:
+    runs-on: ubuntu-latest
+    permissions:
+      pull-requests: read
+    outputs:
+      ts: ${{ steps.filter.outputs.ts }}
+    steps:
+      - uses: actions/checkout@v5
+      - uses: dorny/paths-filter@v3
+        id: filter
+        with:
+          filters: |
+            ts:
+              - 'packages/**'
+              - 'apps/**'
+              - 'package.json'
+              - 'bun.lock'
+              - 'tsconfig*.json'
+              - 'turbo.json'
+              - 'biome.json'
+              - '.oxlintrc.json'
+              - '.eslintrc*'
+              - '.github/workflows/**'
+
+  tsc:
+    needs: changes
+    if: needs.changes.outputs.ts == 'true'
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v5
+      - uses: oven-sh/setup-bun@v2
+      - run: bun i && bun tsc
+
+  format:
+    needs: [changes, tsc]
+    if: needs.changes.outputs.ts == 'true'
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v5
+      - uses: biomejs/setup-biome@v2
+      - uses: oven-sh/setup-bun@v2
+      - run: bun i && bun format:check
+
+  lint-ts:
+    needs: [changes, format]
+    if: needs.changes.outputs.ts == 'true'
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v5
+      - uses: oven-sh/setup-bun@v2
+      - run: bun i && bun lint:ts
+
+  build-ts:
+    needs: [changes, lint-ts]
+    if: needs.changes.outputs.ts == 'true'
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v5
+      - uses: oven-sh/setup-bun@v2
+      - run: bun i && cp .env.example .env && bun build:ts
