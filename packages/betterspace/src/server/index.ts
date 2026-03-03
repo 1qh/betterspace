@@ -7,7 +7,7 @@ export {
   DEFAULT_MAX_FILE_SIZE,
   makeFileUpload
 } from './file'
-export type { ConvexErrorData, ErrorHandler, MutationFail, MutationOk, MutationResult } from './helpers'
+export type { ErrorData, ErrorHandler, MutationFail, MutationOk, MutationResult } from './helpers'
 export {
   checkRateLimit,
   err,
@@ -17,7 +17,7 @@ export {
   getErrorCode,
   getErrorDetail,
   getErrorMessage,
-  handleConvexError,
+  handleError,
   isErrorCode,
   isMutationError,
   isRecord,

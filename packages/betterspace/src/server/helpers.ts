@@ -74,7 +74,7 @@ const TOKEN_BYTES = 24,
     for (const k of keys) if (cvFileKindOf(s[k])) out.push(k)
     return out
   },
-  serializeError = (data: ConvexErrorData) => `${data.code}:${JSON.stringify(data)}`,
+  serializeError = (data: ErrorData) => `${data.code}:${JSON.stringify(data)}`,
   err = (code: ErrorCode, opts?: Record<string, unknown> | string | { message: string }): never => {
     if (!opts) throw new SenderError(serializeError({ code }))
     if (typeof opts !== 'string') throw new SenderError(serializeError({ code, ...opts }))
@@ -86,7 +86,6 @@ const TOKEN_BYTES = 24,
   time = (timestamp?: number) => ({ updatedAt: timestamp ?? Date.now() }),
   identityToHex = (identity: Identity): string => identity.toHexString(),
   identityFromHex = (hex: string): Identity => Identity.fromString(hex),
-
   idToWire = String as unknown as (id: number) => string,
   idFromWire = (str: string): number => {
     const id = Number(str)
@@ -375,7 +374,7 @@ const TOKEN_BYTES = 24,
     await db.patch(existing._id as string, { count: (existing.count as number) + 1 })
   }
 
-interface ConvexErrorData {
+interface ErrorData {
   code: ErrorCode
   debug?: string
   fieldErrors?: Record<string, string>
@@ -387,12 +386,12 @@ interface ConvexErrorData {
   table?: string
 }
 
-type ErrorHandler = Partial<Record<ErrorCode, (data: ConvexErrorData) => void>> & {
+type ErrorHandler = Partial<Record<ErrorCode, (data: ErrorData) => void>> & {
   default?: (error: unknown) => void
 }
 
 interface MutationFail {
-  error: ConvexErrorData
+  error: ErrorData
   ok: false
 }
 
@@ -403,13 +402,13 @@ interface MutationOk<T> {
 
 type MutationResult<T> = MutationFail | MutationOk<T>
 
-const parseSenderMessage = (message: string): ConvexErrorData | undefined => {
+const parseSenderMessage = (message: string): ErrorData | undefined => {
     const sep = message.indexOf(':')
     if (sep <= 0) return
     const code = message.slice(0, sep)
     if (!(code in ERROR_MESSAGES)) return
     const rest = message.slice(sep + 1).trim(),
-      data: ConvexErrorData = { code: code as ErrorCode }
+      data: ErrorData = { code: code as ErrorCode }
     if (rest.startsWith('{') && rest.endsWith('}')) {
       try {
         const parsed = JSON.parse(rest) as Record<string, unknown>
@@ -418,7 +417,7 @@ const parseSenderMessage = (message: string): ConvexErrorData | undefined => {
           debug: typeof parsed.debug === 'string' ? parsed.debug : undefined,
           fieldErrors: isRecord(parsed.fieldErrors) ? (parsed.fieldErrors as Record<string, string>) : undefined,
           fields: Array.isArray(parsed.fields) ? (parsed.fields as string[]) : undefined,
-          limit: isRecord(parsed.limit) ? (parsed.limit as ConvexErrorData['limit']) : undefined,
+          limit: isRecord(parsed.limit) ? (parsed.limit as ErrorData['limit']) : undefined,
           message: typeof parsed.message === 'string' ? parsed.message : undefined,
           op: typeof parsed.op === 'string' ? parsed.op : undefined,
           retryAfter: typeof parsed.retryAfter === 'number' ? parsed.retryAfter : undefined,
@@ -430,7 +429,7 @@ const parseSenderMessage = (message: string): ConvexErrorData | undefined => {
     }
     return { ...data, message: rest }
   },
-  extractErrorData = (e: unknown): ConvexErrorData | undefined => {
+  extractErrorData = (e: unknown): ErrorData | undefined => {
     if (isRecord(e)) {
       const { data } = e as { data?: unknown }
       if (isRecord(data)) {
@@ -441,7 +440,7 @@ const parseSenderMessage = (message: string): ConvexErrorData | undefined => {
             debug: typeof data.debug === 'string' ? data.debug : undefined,
             fieldErrors: isRecord(data.fieldErrors) ? (data.fieldErrors as Record<string, string>) : undefined,
             fields: Array.isArray(data.fields) ? (data.fields as string[]) : undefined,
-            limit: isRecord(data.limit) ? (data.limit as ConvexErrorData['limit']) : undefined,
+            limit: isRecord(data.limit) ? (data.limit as ErrorData['limit']) : undefined,
             message: typeof data.message === 'string' ? data.message : undefined,
             op: typeof data.op === 'string' ? data.op : undefined,
             retryAfter: typeof data.retryAfter === 'number' ? data.retryAfter : undefined,
@@ -467,7 +466,7 @@ const parseSenderMessage = (message: string): ConvexErrorData | undefined => {
     if (d.retryAfter !== undefined) detail += ` (retry after ${d.retryAfter}ms)`
     return detail
   },
-  handleConvexError = (e: unknown, handlers: ErrorHandler): void => {
+  handleError = (e: unknown, handlers: ErrorHandler): void => {
     const d = extractErrorData(e)
     if (d) {
       const handler = handlers[d.code]
@@ -479,18 +478,18 @@ const parseSenderMessage = (message: string): ConvexErrorData | undefined => {
     handlers.default?.(e)
   },
   ok = <T>(value: T): MutationResult<T> => ({ ok: true, value }),
-  fail = (code: ErrorCode, detail?: Omit<ConvexErrorData, 'code'>): MutationResult<never> => ({
+  fail = (code: ErrorCode, detail?: Omit<ErrorData, 'code'>): MutationResult<never> => ({
     error: { code, message: ERROR_MESSAGES[code], ...detail },
     ok: false
   }),
-  isMutationError = (e: unknown): e is ConvexErrorData => extractErrorData(e) !== undefined,
+  isMutationError = (e: unknown): e is ErrorData => extractErrorData(e) !== undefined,
   isErrorCode = (e: unknown, code: ErrorCode): boolean => {
     const d = extractErrorData(e)
     return d?.code === code
   },
   matchError = <R>(
     e: unknown,
-    handlers: Partial<Record<ErrorCode, (data: ConvexErrorData) => R>> & { _?: (error: unknown) => R }
+    handlers: Partial<Record<ErrorCode, (data: ErrorData) => R>> & { _?: (error: unknown) => R }
   ): R | undefined => {
     const d = extractErrorData(e)
     if (d) {
@@ -518,7 +517,7 @@ const parseSenderMessage = (message: string): ConvexErrorData | undefined => {
       })
     )
 
-export type { ConvexErrorData, ErrorHandler, MutationFail, MutationOk, MutationResult }
+export type { ErrorData, ErrorHandler, MutationFail, MutationOk, MutationResult }
 export {
   addUrls,
   checkRateLimit,
@@ -537,7 +536,7 @@ export {
   getErrorMessage,
   getUser,
   groupList,
-  handleConvexError,
+  handleError,
   idFromWire,
   idToWire,
   identityEquals,
