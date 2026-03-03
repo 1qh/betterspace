@@ -1,37 +1,45 @@
-import { readdirSync } from 'node:fs'
-import { dirname, join } from 'node:path'
-
-/** Scans a Convex directory for all `.ts` files (excluding tests) and returns a module map for `convex-test`. */
-const discoverModules = (
-  convexDir: string,
-  extras?: Record<string, () => Promise<unknown>>
-): Record<string, () => Promise<unknown>> => {
-  const modules: Record<string, () => Promise<unknown>> = {},
-    absConvex = join(process.cwd(), convexDir),
-    parentDir = dirname(absConvex),
-    scanDir = (dir: string, prefix: string) => {
-      for (const entry of readdirSync(dir, { withFileTypes: true }))
-        if (entry.isDirectory() && !entry.name.startsWith('_') && entry.name !== 'node_modules')
-          scanDir(join(dir, entry.name), `${prefix}${entry.name}/`)
-        else if (entry.name.endsWith('.ts') && !entry.name.includes('.test.')) {
-          const relKey = `./${prefix}${entry.name}`,
-            absPath = join(dir, entry.name)
-          modules[relKey] = async () => import(absPath)
-        }
-    }
-  scanDir(absConvex, '')
-  for (const entry of readdirSync(parentDir))
-    if (entry.endsWith('.ts') && !entry.endsWith('.test.ts') && !entry.endsWith('.config.ts')) {
-      const relKey = `../${entry}`,
-        absPath = join(parentDir, entry)
-      modules[relKey] = async () => import(absPath)
-    }
-  if (extras)
-    for (const k of Object.keys(extras)) {
-      const fn = extras[k]
-      if (fn) modules[k] = fn
-    }
-  return modules
+interface DiscoverModulesOptions {
+  httpUrl?: string
+  moduleName?: string
 }
+
+interface DiscoverModulesResult {
+  reducers: string[]
+  tables: string[]
+}
+
+interface SchemaResponse {
+  reducers?: { name?: string }[]
+  tables?: { name?: string }[]
+}
+
+const DEFAULT_HTTP_URL = 'http://localhost:3000',
+  DEFAULT_MODULE_NAME = 'betterspace',
+  parseSchemaResponse = async (response: Response): Promise<SchemaResponse> => {
+    const text = await response.text()
+    if (!response.ok) {
+      const message = text.trim().length > 0 ? text : response.statusText
+      throw new Error(`DISCOVER_MODULES_FAILED: ${message}`)
+    }
+    return JSON.parse(text) as SchemaResponse
+  },
+  pickNames = (rows?: { name?: string }[]): string[] => {
+    const names: string[] = []
+    for (const row of rows ?? []) {
+      const { name } = row
+      if (name) names.push(name)
+    }
+    return names
+  },
+  discoverModules = async (options?: DiscoverModulesOptions): Promise<DiscoverModulesResult> => {
+    const httpUrl = options?.httpUrl ?? DEFAULT_HTTP_URL,
+      moduleName = options?.moduleName ?? DEFAULT_MODULE_NAME,
+      response = await fetch(`${httpUrl}/v1/database/${moduleName}/schema?version=9`),
+      parsed = await parseSchemaResponse(response)
+    return {
+      reducers: pickNames(parsed.reducers),
+      tables: pickNames(parsed.tables)
+    }
+  }
 
 export { discoverModules }
