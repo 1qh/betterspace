@@ -3,24 +3,14 @@
 /** biome-ignore-all lint/style/noProcessEnv: cli */
 /** biome-ignore-all lint/performance/noAwaitInLoops: sequential */
 import { existsSync, readdirSync, readFileSync } from 'node:fs'
-import { dirname, join } from 'node:path'
+import { join } from 'node:path'
 
 const dim = (s: string) => `\u001B[2m${s}\u001B[0m`,
   bold = (s: string) => `\u001B[1m${s}\u001B[0m`,
   red = (s: string) => `\u001B[31m${s}\u001B[0m`,
-  schemaMarkers = ['makeOwned(', 'makeOrgScoped(', 'makeSingleton(', 'makeBase(', 'child('],
-  wrapperFactories = ['makeOwned', 'makeOrgScoped', 'makeSingleton', 'makeBase'] as const,
-  TYPE_LABELS: Record<string, string> = {
-    makeBase: 'cache',
-    makeOrgScoped: 'org-scoped',
-    makeOwned: 'owned',
-    makeSingleton: 'singleton'
-  },
-  ZID_PAT = /zid\(['"](?<zname>\w+)['"]\)/u,
-  FIELD_PAT = /^\s*(?<fname>\w+)\s*:/u,
-  FK_PAT = /foreignKey\s*:\s*['"](?<fk>\w+)['"]/u,
-  PARENT_PAT = /parent\s*:\s*['"](?<pn>\w+)['"]/u,
-  SCHEMA_OBJ_PAT = /schema\s*:\s*object\(\{/u
+  schemaMarkers = ['schema(', 'table(', 't.'],
+  tablePat = /(?<tname>\w+)\s*:\s*table\([^,]+,\s*\{/gu,
+  fieldLinePat = /^\s*(?<fname>\w+)\s*:\s*(?<ftype>.+?)\s*,?$/u
 
 interface ChildInfo extends TableInfo {
   foreignKey: string
@@ -37,134 +27,108 @@ const isSchemaFile = (content: string): boolean => {
     for (const marker of schemaMarkers) if (content.includes(marker)) return true
     return false
   },
-  hasGenerated = (dir: string): boolean => existsSync(join(dir, '_generated')),
-  findConvexDir = (root: string): string | undefined => {
-    const direct = join(root, 'convex')
-    if (hasGenerated(direct)) return direct
+  listTypeScriptFiles = (root: string): string[] => {
+    const out: string[] = [],
+      skip = new Set(['.git', '.next', '.turbo', 'build', 'dist', 'node_modules'])
+    const walk = (dir: string) => {
+      if (!existsSync(dir)) return
+      for (const entry of readdirSync(dir, { withFileTypes: true })) {
+        const full = join(dir, entry.name)
+        if (entry.isDirectory()) {
+          if (!(skip.has(entry.name) || entry.name.startsWith('.'))) walk(full)
+        } else if (entry.name.endsWith('.ts') && !entry.name.includes('.test.') && !entry.name.includes('.config.'))
+          out.push(full)
+      }
+    }
+    walk(root)
+    return out
+  },
+  findModuleDir = (root: string): string | undefined => {
+    const candidates = [join(root, 'module'), join(root, 'src', 'module')]
+    for (const candidate of candidates)
+      if (existsSync(candidate)) {
+        const files = listTypeScriptFiles(candidate)
+        for (const file of files) {
+          const content = readFileSync(file, 'utf8')
+          if (isSchemaFile(content)) return candidate
+        }
+      }
     if (!existsSync(root)) return
     for (const sub of readdirSync(root, { withFileTypes: true }))
       if (sub.isDirectory()) {
-        const nested = join(root, sub.name, 'convex')
-        if (hasGenerated(nested)) return nested
+        const nested = join(root, sub.name, 'module')
+        if (existsSync(nested)) {
+          const files = listTypeScriptFiles(nested)
+          for (const file of files) {
+            const content = readFileSync(file, 'utf8')
+            if (isSchemaFile(content)) return nested
+          }
+        }
       }
   },
-  findSchemaFile = (convexDir: string): undefined | { content: string; path: string } => {
-    const searchDir = dirname(convexDir)
-    if (!existsSync(searchDir)) return
-    for (const entry of readdirSync(searchDir))
-      if (entry.endsWith('.ts') && !entry.endsWith('.test.ts') && !entry.endsWith('.config.ts')) {
-        const full = join(searchDir, entry),
-          content = readFileSync(full, 'utf8')
-        if (isSchemaFile(content)) return { content, path: full }
-      }
+  findSchemaFile = (moduleDir: string): undefined | { content: string; path: string } => {
+    const files = listTypeScriptFiles(moduleDir)
+    for (const full of files) {
+      const content = readFileSync(full, 'utf8')
+      if (isSchemaFile(content) && content.includes('schema(') && content.includes('table('))
+        return { content, path: full }
+    }
   },
   extractFieldType = (raw: string): string => {
     const t = raw.trim()
-    if (t.includes('cvFile()')) return 'file'
-    if (t.includes('cvFiles()')) return 'file[]'
-    if (t.includes('zid(')) {
-      const m = ZID_PAT.exec(t)
-      return m ? `id<${m[1]}>` : 'id'
-    }
-    if (t.includes('array(')) return 'array'
-    if (t.includes('boolean()') || t.startsWith('boolean')) return 'boolean'
-    if (t.includes('number()') || t.startsWith('number')) return 'number'
-    if (t.includes('zenum(') || t.includes('enum(')) return 'enum'
-    if (t.includes('union(')) return 'union'
-    if (t.includes('object(')) return 'object'
-    return 'string'
+    if (t.includes('t.bool(')) return 'boolean'
+    if (t.includes('t.u') || t.includes('t.i') || t.includes('t.f')) return 'number'
+    if (t.includes('t.string(')) return 'string'
+    if (t.includes('t.bytes(')) return 'bytes'
+    if (t.includes('t.array(')) return 'array'
+    if (t.includes('t.map(')) return 'map'
+    return 'unknown'
   },
-  extractFieldsFromBlock = (block: string): { name: string; type: string }[] => {
-    const fields: { name: string; type: string }[] = [],
-      lines = block.split('\n')
-    for (const line of lines) {
-      const m = FIELD_PAT.exec(line)
-      if (m) {
-        const rest = line.slice(line.indexOf(':') + 1)
-        fields.push({ name: m.groups?.fname ?? m[1] ?? '', type: extractFieldType(rest) })
-      }
+  parseObjectFields = (content: string, startPos: number): { name: string; type: string }[] => {
+    const fields: { name: string; type: string }[] = []
+    let depth = 1,
+      pos = startPos
+    while (pos < content.length && depth > 0) {
+      const c = content[pos]
+      if (c === '(' || c === '{' || c === '[') depth += 1
+      else if (c === ')' || c === '}' || c === ']') depth -= 1
+      pos += 1
+    }
+    const block = content.slice(startPos, pos - 1)
+    for (const line of block.split('\n')) {
+      const m = fieldLinePat.exec(line.trim())
+      if (m?.groups?.fname && m.groups.ftype) fields.push({ name: m.groups.fname, type: extractFieldType(m.groups.ftype) })
     }
     return fields
   },
   extractWrapperTables = (content: string): TableInfo[] => {
     const tables: TableInfo[] = []
-    for (const factory of wrapperFactories) {
-      const pat = new RegExp(`${factory}\\(\\{`, 'gu')
-      let fm = pat.exec(content)
-      while (fm) {
-        let depth = 1,
-          pos = fm.index + fm[0].length
-        while (pos < content.length && depth > 0) {
-          if (content[pos] === '{') depth += 1
-          else if (content[pos] === '}') depth -= 1
-          pos += 1
-        }
-        const outerBlock = content.slice(fm.index + fm[0].length, pos - 1),
-          propPat = /(?<tname>\w+)\s*:\s*object\(\{/gu
-        let pm = propPat.exec(outerBlock)
-        while (pm) {
-          const start = pm.index + pm[0].length
-          let d = 1,
-            p = start
-          while (p < outerBlock.length && d > 0) {
-            if (outerBlock[p] === '{') d += 1
-            else if (outerBlock[p] === '}') d -= 1
-            p += 1
-          }
-          const fieldBlock = outerBlock.slice(start, p - 1)
-          tables.push({
-            fields: extractFieldsFromBlock(fieldBlock),
-            name: pm.groups?.tname ?? pm[1] ?? '',
-            tableType: TYPE_LABELS[factory] ?? factory
-          })
-          pm = propPat.exec(outerBlock)
-        }
-        fm = pat.exec(content)
-      }
+    let match = tablePat.exec(content)
+    while (match) {
+      const name = match.groups?.tname ?? '',
+        start = match.index + match[0].length,
+        fields = parseObjectFields(content, start)
+      if (name) tables.push({ fields, name, tableType: 'table' })
+      match = tablePat.exec(content)
     }
+    tablePat.lastIndex = 0
     return tables
   },
-  extractChildren = (content: string): ChildInfo[] => {
+  singularize = (s: string): string => (s.endsWith('s') ? s.slice(0, -1) : s),
+  buildRelationships = (tables: TableInfo[]): ChildInfo[] => {
     const children: ChildInfo[] = [],
-      pat = /(?<cname>\w+)\s*:\s*child\(\{/gu
-    let m = pat.exec(content)
-    while (m) {
-      const start = m.index + m[0].length
-      let depth = 1,
-        pos = start
-      while (pos < content.length && depth > 0) {
-        if (content[pos] === '{') depth += 1
-        else if (content[pos] === '}') depth -= 1
-        pos += 1
-      }
-      const block = content.slice(start, pos - 1),
-        fkMatch = FK_PAT.exec(block),
-        parentMatch = PARENT_PAT.exec(block),
-        schemaMatch = SCHEMA_OBJ_PAT.exec(block)
-      let fields: { name: string; type: string }[] = []
-      if (schemaMatch) {
-        const sStart = block.indexOf('{', schemaMatch.index + schemaMatch[0].length - 1) + 1
-        let d = 1,
-          p = sStart
-        while (p < block.length && d > 0) {
-          if (block[p] === '{') d += 1
-          else if (block[p] === '}') d -= 1
-          p += 1
+      names = new Set<string>()
+    for (const table of tables) names.add(table.name)
+    for (const table of tables)
+      for (const field of table.fields)
+        if (field.name.endsWith('Id')) {
+          const base = singularize(field.name.slice(0, -2))
+          if (names.has(base))
+            children.push({ fields: [], foreignKey: field.name, name: table.name, parent: base, tableType: 'relation' })
         }
-        fields = extractFieldsFromBlock(block.slice(sStart, p - 1))
-      }
-      children.push({
-        fields,
-        foreignKey: fkMatch?.[1] ?? '',
-        name: m.groups?.cname ?? m[1] ?? '',
-        parent: parentMatch?.[1] ?? '',
-        tableType: 'child'
-      })
-      m = pat.exec(content)
-    }
     return children
   },
-  escapeField = (name: string) => name.replaceAll('_', '_'),
+  escapeField = (name: string) => name,
   generateMermaid = (tables: TableInfo[], children: ChildInfo[]): string => {
     const lines: string[] = ['erDiagram']
     for (const t of tables) {
@@ -172,29 +136,21 @@ const isSchemaFile = (content: string): boolean => {
       for (const f of t.fields) lines.push(`        ${f.type} ${escapeField(f.name)}`)
       lines.push('    }')
     }
-    for (const c of children) {
-      lines.push(`    ${c.name} {`)
-      for (const f of c.fields) lines.push(`        ${f.type} ${escapeField(f.name)}`)
-      lines.push('    }')
-      if (c.parent) lines.push(`    ${c.parent} ||--o{ ${c.name} : "${c.foreignKey}"`)
-    }
-    for (const t of tables)
-      for (const f of t.fields)
-        if (f.type.startsWith('id<') && f.type !== 'id<_storage>') {
-          const target = f.type.slice(3, -1),
-            allNames = [...tables.map(x => x.name), ...children.map(x => x.name)]
-          if (allNames.includes(target)) lines.push(`    ${target} ||--o{ ${t.name} : "${f.name}"`)
-        }
-
+    for (const c of children) if (c.parent) lines.push(`    ${c.parent} ||--o{ ${c.name} : "${c.foreignKey}"`)
     return lines.join('\n')
   },
   printSummary = (tables: TableInfo[], children: ChildInfo[]) => {
-    const all = [...tables, ...children]
     console.log(bold('\nSchema Summary\n'))
-    for (const t of all) {
+    for (const t of tables) {
       const badge = dim(`[${t.tableType}]`)
       console.log(`  ${bold(t.name)} ${badge}`)
-      for (const f of t.fields) console.log(`    ${dim('\u2502')} ${f.name}: ${dim(f.type)}`)
+      for (const f of t.fields) console.log(`    ${dim('│')} ${f.name}: ${dim(f.type)}`)
+      console.log('')
+    }
+    if (children.length) {
+      console.log(bold('Relationships\n'))
+      for (const child of children)
+        console.log(`  ${bold(child.parent)} -> ${bold(child.name)} ${dim(`(${child.foreignKey})`)}`)
       console.log('')
     }
   },
@@ -204,24 +160,24 @@ const isSchemaFile = (content: string): boolean => {
 
     console.log(bold('\nbetterspace viz\n'))
 
-    const convexDir = findConvexDir(root)
-    if (!convexDir) {
-      console.log(red('\u2717 Could not find convex/ directory with _generated/'))
+    const moduleDir = findModuleDir(root)
+    if (!moduleDir) {
+      console.log(red('✗ Could not find module/ directory with SpacetimeDB schema'))
       process.exit(1)
     }
 
-    const schemaFile = findSchemaFile(convexDir)
+    const schemaFile = findSchemaFile(moduleDir)
     if (!schemaFile) {
-      console.log(red('\u2717 Could not find schema file with betterspace markers'))
+      console.log(red('✗ Could not find schema file with SpacetimeDB markers'))
       process.exit(1)
     }
     console.log(`${dim('schema:')} ${schemaFile.path}\n`)
 
     const tables = extractWrapperTables(schemaFile.content),
-      children = extractChildren(schemaFile.content)
+      children = buildRelationships(tables)
 
-    if (tables.length === 0 && children.length === 0) {
-      console.log(red('\u2717 No tables found in schema'))
+    if (tables.length === 0) {
+      console.log(red('✗ No tables found in schema'))
       process.exit(1)
     }
 
@@ -236,4 +192,6 @@ const isSchemaFile = (content: string): boolean => {
 
 if (import.meta.main) run()
 
-export { extractChildren, extractFieldsFromBlock, extractFieldType, extractWrapperTables, generateMermaid }
+const extractChildren = (content: string): ChildInfo[] => buildRelationships(extractWrapperTables(content))
+
+export { extractChildren, extractFieldType, extractWrapperTables, generateMermaid }

@@ -24,7 +24,6 @@ type MigrationAction =
   | { field: string; table: string; type: 'field_added_optional' }
   | { field: string; table: string; type: 'field_added_required' }
   | { field: string; table: string; type: 'field_removed' }
-  | { from: string; table: string; to: string; type: 'factory_changed' }
   | { table: string; type: 'table_added' }
   | { table: string; type: 'table_removed' }
 
@@ -33,121 +32,58 @@ interface SchemaSnapshot {
 }
 
 interface TableSnapshot {
-  factory: string
   fields: FieldInfo[]
   name: string
 }
 
-const WRAPPER_FACTORIES = ['makeOwned', 'makeOrgScoped', 'makeSingleton', 'makeBase'] as const,
-  FACTORY_MAP: Record<string, string> = {
-    makeBase: 'cacheCrud',
-    makeOrgScoped: 'orgCrud',
-    makeOwned: 'crud',
-    makeSingleton: 'singletonCrud'
-  },
-  SCHEMA_MARKERS = ['makeOwned(', 'makeOrgScoped(', 'makeSingleton(', 'makeBase(', 'child('],
-  FIELD_PAT = /^\s*(?<fname>\w+)\s*:/u,
-  CHILD_SCHEMA_PAT = /schema\s*:\s*object\(\{/u,
+const schemaMarkers = ['schema(', 'table(', 't.'],
+  tablePat = /(?<tname>\w+)\s*:\s*table\([^,]+,\s*\{/gu,
+  fieldLinePat = /^\s*(?<fname>\w+)\s*:\s*(?<ftype>.+?)\s*,?$/u,
   isSchemaFile = (content: string): boolean => {
-    for (const marker of SCHEMA_MARKERS) if (content.includes(marker)) return true
+    for (const marker of schemaMarkers) if (content.includes(marker)) return true
     return false
   },
   detectFieldType = (raw: string): string => {
     const t = raw.trim()
-    if (t.includes('cvFile()')) return 'file'
-    if (t.includes('cvFiles()')) return 'file[]'
-    if (t.includes('zid(')) return 'id'
-    if (t.includes('array(')) return 'array'
-    if (t.includes('boolean()') || t.startsWith('boolean')) return 'boolean'
-    if (t.includes('number()') || t.startsWith('number')) return 'number'
-    if (t.includes('zenum(') || t.includes('enum(')) return 'enum'
-    if (t.includes('union(')) return 'union'
-    if (t.includes('object(')) return 'object'
-    return 'string'
+    if (t.includes('t.bool(')) return 'boolean'
+    if (t.includes('t.u') || t.includes('t.i') || t.includes('t.f')) return 'number'
+    if (t.includes('t.string(')) return 'string'
+    if (t.includes('t.bytes(')) return 'bytes'
+    if (t.includes('t.array(')) return 'array'
+    if (t.includes('t.map(')) return 'map'
+    return 'unknown'
   },
-  isOptionalField = (raw: string): boolean => raw.includes('.optional()') || raw.includes('.nullable()'),
+  isOptionalField = (raw: string): boolean => raw.includes('t.option('),
   parseFieldsFromBlock = (block: string): FieldInfo[] => {
     const fields: FieldInfo[] = [],
       lines = block.split('\n')
     for (const line of lines) {
-      const m = FIELD_PAT.exec(line)
+      const m = fieldLinePat.exec(line)
       if (m) {
         const rest = line.slice(line.indexOf(':') + 1)
-        fields.push({
-          name: m.groups?.fname ?? '',
-          optional: isOptionalField(rest),
-          type: detectFieldType(rest)
-        })
+        fields.push({ name: m.groups?.fname ?? '', optional: isOptionalField(rest), type: detectFieldType(rest) })
       }
     }
     return fields
   },
   parseSchemaContent = (content: string): SchemaSnapshot => {
     const tables: TableSnapshot[] = []
-    for (const factory of WRAPPER_FACTORIES) {
-      const pat = new RegExp(`${factory}\\(\\{`, 'gu')
-      let fm = pat.exec(content)
-      while (fm) {
-        let depth = 1,
-          pos = fm.index + fm[0].length
-        while (pos < content.length && depth > 0) {
-          if (content[pos] === '{') depth += 1
-          else if (content[pos] === '}') depth -= 1
-          pos += 1
-        }
-        const outerBlock = content.slice(fm.index + fm[0].length, pos - 1),
-          propPat = /(?<tname>\w+)\s*:\s*object\(\{/gu
-        let pm = propPat.exec(outerBlock)
-        while (pm) {
-          const start = pm.index + pm[0].length
-          let d = 1,
-            p = start
-          while (p < outerBlock.length && d > 0) {
-            if (outerBlock[p] === '{') d += 1
-            else if (outerBlock[p] === '}') d -= 1
-            p += 1
-          }
-          const fieldBlock = outerBlock.slice(start, p - 1)
-          tables.push({
-            factory: FACTORY_MAP[factory] ?? factory,
-            fields: parseFieldsFromBlock(fieldBlock),
-            name: pm.groups?.tname ?? ''
-          })
-          pm = propPat.exec(outerBlock)
-        }
-        fm = pat.exec(content)
-      }
-    }
-    const childPat = /(?<cname>\w+)\s*:\s*child\(\{/gu
-    let cm = childPat.exec(content)
-    while (cm) {
+    let tm = tablePat.exec(content)
+    while (tm) {
+      const tableName = tm.groups?.tname ?? '',
+        start = tm.index + tm[0].length
       let depth = 1,
-        pos = cm.index + cm[0].length
+        pos = start
       while (pos < content.length && depth > 0) {
         if (content[pos] === '{') depth += 1
         else if (content[pos] === '}') depth -= 1
         pos += 1
       }
-      const childBlock = content.slice(cm.index + cm[0].length, pos - 1),
-        sm = CHILD_SCHEMA_PAT.exec(childBlock)
-      if (sm) {
-        const schemaStart = sm.index + sm[0].length
-        let d = 1,
-          sp = schemaStart
-        while (sp < childBlock.length && d > 0) {
-          if (childBlock[sp] === '{') d += 1
-          else if (childBlock[sp] === '}') d -= 1
-          sp += 1
-        }
-        const fieldBlock = childBlock.slice(schemaStart, sp - 1)
-        tables.push({
-          factory: 'childCrud',
-          fields: parseFieldsFromBlock(fieldBlock),
-          name: cm.groups?.cname ?? ''
-        })
-      }
-      cm = childPat.exec(content)
+      const fieldBlock = content.slice(start, pos - 1)
+      tables.push({ fields: parseFieldsFromBlock(fieldBlock), name: tableName })
+      tm = tablePat.exec(content)
     }
+    tablePat.lastIndex = 0
     return { tables: tables.toSorted((a, b) => a.name.localeCompare(b.name)) }
   },
   diffSnapshots = (before: SchemaSnapshot, after: SchemaSnapshot): MigrationAction[] => {
@@ -161,8 +97,6 @@ const WRAPPER_FACTORIES = ['makeOwned', 'makeOrgScoped', 'makeSingleton', 'makeB
     for (const t of after.tables) {
       const prev = beforeMap.get(t.name)
       if (prev) {
-        if (prev.factory !== t.factory)
-          actions.push({ from: prev.factory, table: t.name, to: t.factory, type: 'factory_changed' })
         const prevFields = new Map<string, FieldInfo>(),
           nextFields = new Map<string, FieldInfo>()
         for (const f of prev.fields) prevFields.set(f.name, f)
@@ -185,24 +119,38 @@ const WRAPPER_FACTORIES = ['makeOwned', 'makeOrgScoped', 'makeSingleton', 'makeB
     }
     return actions
   },
-  findSchemaFile = (root: string): undefined | { content: string; path: string } => {
-    const scanDir = (dir: string): undefined | { content: string; path: string } => {
-        if (!existsSync(dir)) return
-        for (const entry of readdirSync(dir))
-          if (entry.endsWith('.ts') && !entry.endsWith('.test.ts') && !entry.endsWith('.config.ts')) {
-            const full = join(dir, entry),
-              content = readFileSync(full, 'utf8')
-            if (isSchemaFile(content)) return { content, path: full }
-          }
-      },
-      direct = scanDir(root)
-    if (direct) return direct
-    if (!existsSync(root)) return
-    for (const entry of readdirSync(root, { withFileTypes: true }))
-      if (entry.isDirectory()) {
-        const sub = scanDir(join(root, entry.name))
-        if (sub) return sub
+  listTypeScriptFiles = (root: string): string[] => {
+    const out: string[] = [],
+      skip = new Set(['.git', '.next', '.turbo', 'build', 'dist', 'node_modules'])
+    const walk = (dir: string) => {
+      if (!existsSync(dir)) return
+      for (const entry of readdirSync(dir, { withFileTypes: true })) {
+        const full = join(dir, entry.name)
+        if (entry.isDirectory()) {
+          if (!(skip.has(entry.name) || entry.name.startsWith('.'))) walk(full)
+        } else if (entry.name.endsWith('.ts') && !entry.name.endsWith('.test.ts') && !entry.name.endsWith('.config.ts'))
+          out.push(full)
       }
+    }
+    walk(root)
+    return out
+  },
+  findSchemaFile = (root: string): undefined | { content: string; path: string } => {
+    const candidates = [join(root, 'module'), join(root, 'src', 'module')]
+    for (const dir of candidates)
+      if (existsSync(dir)) {
+        const files = listTypeScriptFiles(dir)
+        for (const full of files) {
+          const content = readFileSync(full, 'utf8')
+          if (isSchemaFile(content) && content.includes('schema(') && content.includes('table('))
+            return { content, path: full }
+        }
+      }
+    for (const full of listTypeScriptFiles(root)) {
+      const content = readFileSync(full, 'utf8')
+      if (isSchemaFile(content) && content.includes('schema(') && content.includes('table('))
+        return { content, path: full }
+    }
   },
   getSchemaFromGit = (ref: string, filePath: string): string | undefined => {
     try {
@@ -213,21 +161,20 @@ const WRAPPER_FACTORIES = ['makeOwned', 'makeOrgScoped', 'makeSingleton', 'makeB
   },
   printMigrationPlan = (actions: MigrationAction[]) => {
     if (actions.length === 0) {
-      console.log(green('\u2713 No schema changes detected\n'))
+      console.log(green('✓ No schema changes detected\n'))
       return
     }
     console.log(bold(`\n${actions.length} change(s) detected:\n`))
     const tableAdded = actions.filter(a => a.type === 'table_added'),
       tableRemoved = actions.filter(a => a.type === 'table_removed'),
-      factoryChanged = actions.filter(a => a.type === 'factory_changed'),
       fieldAddedReq = actions.filter(a => a.type === 'field_added_required'),
       fieldAddedOpt = actions.filter(a => a.type === 'field_added_optional'),
       fieldRemoved = actions.filter(a => a.type === 'field_removed'),
       fieldTypeChanged = actions.filter(a => a.type === 'field_type_changed'),
-      dangerous = [...tableRemoved, ...factoryChanged, ...fieldAddedReq, ...fieldRemoved, ...fieldTypeChanged],
+      dangerous = [...tableRemoved, ...fieldAddedReq, ...fieldRemoved, ...fieldTypeChanged],
       safe = [...tableAdded, ...fieldAddedOpt]
     if (safe.length > 0) {
-      console.log(green(bold('Safe changes (no migration needed):')))
+      console.log(green(bold('Likely safe with republish:')))
       for (const a of tableAdded) console.log(`  ${green('+')} Table ${cyan(a.table)} added`)
       for (const a of fieldAddedOpt) {
         const fa = a as MigrationAction & { field: string }
@@ -236,23 +183,21 @@ const WRAPPER_FACTORIES = ['makeOwned', 'makeOrgScoped', 'makeSingleton', 'makeB
       console.log()
     }
     if (dangerous.length > 0) {
-      console.log(yellow(bold('Requires migration:')))
+      console.log(yellow(bold('Requires staged publish plan:')))
       let step = 1
       for (const a of fieldAddedReq) {
         const fa = a as MigrationAction & { field: string }
         console.log(`\n  ${yellow(`Step ${step}:`)} Backfill ${cyan(fa.field)} on ${cyan(fa.table)}`)
-        console.log(dim('    1. Add field as optional first'))
-        console.log(dim('    2. Run backfill mutation to set default values'))
-        console.log(dim('    3. Make field required after all docs have the value'))
+        console.log(dim('    1. Publish with field optional first'))
+        console.log(dim('    2. Backfill existing rows with reducer/script'))
+        console.log(dim('    3. Publish again with field required'))
         step += 1
       }
       for (const a of fieldRemoved) {
         const fa = a as MigrationAction & { field: string }
         console.log(`\n  ${yellow(`Step ${step}:`)} Remove ${cyan(fa.field)} from ${cyan(fa.table)}`)
-        console.log(dim('    1. Remove field from schema'))
-        console.log(
-          dim(`    2. Run cleanup mutation: db.query("${fa.table}").collect() → patch each doc to unset ${fa.field}`)
-        )
+        console.log(dim('    1. Stop writing the field in reducers'))
+        console.log(dim('    2. Publish schema without the field'))
         step += 1
       }
       for (const a of fieldTypeChanged) {
@@ -260,30 +205,23 @@ const WRAPPER_FACTORIES = ['makeOwned', 'makeOrgScoped', 'makeSingleton', 'makeB
         console.log(
           `\n  ${yellow(`Step ${step}:`)} Migrate ${cyan(fa.field)} on ${cyan(fa.table)}: ${red(fa.from)} → ${green(fa.to)}`
         )
-        console.log(dim('    1. Add new field with target type (optional)'))
-        console.log(dim('    2. Run transform mutation to convert existing values'))
-        console.log(dim('    3. Remove old field, rename new field'))
-        step += 1
-      }
-      for (const a of factoryChanged) {
-        const fa = a as MigrationAction & { from: string; to: string }
-        console.log(
-          `\n  ${yellow(`Step ${step}:`)} Factory change on ${cyan(fa.table)}: ${red(fa.from)} → ${green(fa.to)}`
-        )
-        console.log(dim('    1. Update factory call and table helper'))
-        console.log(dim('    2. Backfill new required system fields (e.g. orgId for orgCrud, userId for crud)'))
-        console.log(dim('    3. Update all client-side API references'))
+        console.log(dim('    1. Add parallel field with target type'))
+        console.log(dim('    2. Backfill and swap reducer usage'))
+        console.log(dim('    3. Publish cleanup schema'))
         step += 1
       }
       for (const a of tableRemoved) {
         console.log(`\n  ${red(`Step ${step}:`)} Remove table ${cyan(a.table)}`)
-        console.log(dim('    1. Remove all references in client code'))
-        console.log(dim('    2. Run cleanup mutation to delete all documents'))
-        console.log(dim('    3. Remove table from schema'))
+        console.log(dim('    1. Remove reducer references in app code'))
+        console.log(dim('    2. Publish schema without the table'))
         step += 1
       }
       console.log()
     }
+    console.log(
+      dim('SpacetimeDB applies schema updates on publish. Use this plan to stage risky changes before final publish.')
+    )
+    console.log('')
   },
   run = () => {
     const root = process.cwd(),
@@ -295,7 +233,7 @@ const WRAPPER_FACTORIES = ['makeOwned', 'makeOrgScoped', 'makeSingleton', 'makeB
     if (flags.has('--help') || flags.has('-h')) {
       console.log(`Usage: betterspace migrate [options]
 
-Compare schema versions and generate migration plans.
+Compare SpacetimeDB schema versions and generate publish plans.
 
 Options:
   --from <ref>    Git ref for the "before" schema (default: HEAD)
@@ -313,8 +251,8 @@ Examples:
 
     const schemaFile = findSchemaFile(root)
     if (!schemaFile) {
-      console.log(red('\u2717 Could not find schema file with betterspace markers'))
-      console.log(dim('  Expected a .ts file using makeOwned/makeOrgScoped/etc.'))
+      console.log(red('✗ Could not find schema file with SpacetimeDB markers'))
+      console.log(dim('  Expected a .ts file using schema()/table().'))
       process.exit(1)
     }
     console.log(`${dim('schema:')} ${schemaFile.path}\n`)
@@ -323,10 +261,10 @@ Examples:
       const snapshot = parseSchemaContent(schemaFile.content)
       console.log(bold(`${snapshot.tables.length} table(s):\n`))
       for (const t of snapshot.tables) {
-        console.log(`  ${cyan(t.name)} ${dim(`(${t.factory})`)}`)
+        console.log(`  ${cyan(t.name)}`)
         for (const f of t.fields) console.log(`    ${f.name}: ${f.type}${f.optional ? dim(' (optional)') : ''}`)
       }
-      console.log()
+      console.log('')
       return
     }
 
@@ -343,7 +281,7 @@ Examples:
     const relativePath = schemaFile.path.startsWith(root) ? schemaFile.path.slice(root.length + 1) : schemaFile.path,
       oldContent = getSchemaFromGit(fromRef, relativePath)
     if (!oldContent) {
-      console.log(yellow(`\u26A0 Could not read schema from ${fromRef}`))
+      console.log(yellow(`⚠ Could not read schema from ${fromRef}`))
       console.log(dim('  File may not exist at that commit'))
       console.log(dim(`  Tried: git show ${fromRef}:${relativePath}\n`))
       return

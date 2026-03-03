@@ -7,9 +7,9 @@ import { join } from 'node:path'
 
 interface AddFlags {
   appDir: string
-  convexDir: string
   fields: ParsedField[]
   help: boolean
+  moduleDir: string
   name: string
   parent: string
   type: TableType
@@ -55,7 +55,7 @@ const TABLE_TYPES = new Set<TableType>(['cache', 'child', 'org', 'owned', 'singl
   },
   parseAddFlags = (args: string[]): AddFlags => {
     let type: TableType = 'owned',
-      convexDir = 'convex',
+      moduleDir = 'module',
       appDir = 'src/app',
       help = false,
       name = '',
@@ -71,7 +71,7 @@ const TABLE_TYPES = new Set<TableType>(['cache', 'child', 'org', 'owned', 'singl
           process.exit(1)
         }
       } else if (arg.startsWith('--fields=')) fieldsRaw = arg.slice('--fields='.length)
-      else if (arg.startsWith('--convex-dir=')) convexDir = arg.slice('--convex-dir='.length)
+      else if (arg.startsWith('--module-dir=')) moduleDir = arg.slice('--module-dir='.length)
       else if (arg.startsWith('--app-dir=')) appDir = arg.slice('--app-dir='.length)
       else if (arg.startsWith('--parent=')) parent = arg.slice('--parent='.length)
       else if (!(arg.startsWith('-') || name)) name = arg
@@ -84,10 +84,10 @@ const TABLE_TYPES = new Set<TableType>(['cache', 'child', 'org', 'owned', 'singl
         else console.log(`${yellow('warn')} Skipping invalid field: ${f}`)
       }
 
-    return { appDir, convexDir, fields, help, name, parent, type }
+    return { appDir, fields, help, moduleDir, name, parent, type }
   },
   printAddHelp = () => {
-    console.log(`${bold('betterspace add')} — add a new table/endpoint to your project\n`)
+    console.log(`${bold('betterspace add')} — add a new table/reducer to your project\n`)
     console.log(bold('Usage:'))
     console.log('  betterspace add <table-name> [options]\n')
     console.log(bold('Options:'))
@@ -96,7 +96,7 @@ const TABLE_TYPES = new Set<TableType>(['cache', 'child', 'org', 'owned', 'singl
       `  --fields=FIELDS       Field definitions ${dim('(e.g. "title:string,done:boolean,priority:enum(low,medium,high)")')}`
     )
     console.log(`  --parent=TABLE        Parent table name ${dim('(required for child type)')}`)
-    console.log(`  --convex-dir=DIR      Convex directory ${dim('(default: convex)')}`)
+    console.log(`  --module-dir=DIR      SpacetimeDB module directory ${dim('(default: module)')}`)
     console.log(`  --app-dir=DIR         App directory ${dim('(default: src/app)')}`)
     console.log('  --help, -h            Show this help\n')
     console.log(bold('Examples:'))
@@ -106,41 +106,21 @@ const TABLE_TYPES = new Set<TableType>(['cache', 'child', 'org', 'owned', 'singl
     )
     console.log(`  ${dim('$')} betterspace add message --type=child --parent=chat --fields="text:string"`)
     console.log(`  ${dim('$')} betterspace add profile --type=singleton --fields="displayName:string,bio:string?"`)
-    console.log(`  ${dim('$')} betterspace add movie --type=cache --fields="title:string,tmdb_id:number"\n`)
+    console.log(`  ${dim('$')} betterspace add movie --type=cache --fields="title:string,externalId:string"\n`)
   },
-  fieldToZod = (f: ParsedField): string => {
-    const base = typeof f.type === 'object' ? `zenum([${f.type.enum.map(v => `'${v}'`).join(', ')}])` : `${f.type}()`
-    return f.optional ? `${base}.optional()` : base
+  fieldToTypeExpr = (f: ParsedField): string => {
+    if (typeof f.type === 'object') return 't.string()'
+    if (f.type === 'boolean') return 't.bool()'
+    if (f.type === 'number') return 't.f64()'
+    return 't.string()'
   },
-  schemaImport = (type: TableType): string => {
-    const map: Record<TableType, string> = {
-      cache: 'makeBase',
-      child: 'child',
-      org: 'makeOrgScoped',
-      owned: 'makeOwned',
-      singleton: 'makeSingleton'
+  fieldToInputType = (f: ParsedField): string => {
+    if (typeof f.type === 'object') {
+      const vals = f.type.enum.map(v => `'${v}'`).join(' | ')
+      return f.optional ? `${vals} | undefined` : vals
     }
-    return map[type]
-  },
-  schemaWrapper = (type: TableType): string => {
-    const map: Record<TableType, string> = {
-      cache: 'base',
-      child: '',
-      org: 'orgScoped',
-      owned: 'owned',
-      singleton: 'singletons'
-    }
-    return map[type]
-  },
-  factoryFn = (type: TableType): string => {
-    const map: Record<TableType, string> = {
-      cache: 'cacheCrud',
-      child: 'childCrud',
-      org: 'orgCrud',
-      owned: 'crud',
-      singleton: 'singletonCrud'
-    }
-    return map[type]
+    const base = f.type === 'boolean' ? 'boolean' : f.type === 'number' ? 'number' : 'string'
+    return f.optional ? `${base} | undefined` : base
   },
   defaultFields = (type: TableType): ParsedField[] => {
     const base: ParsedField[] = [
@@ -160,152 +140,144 @@ const TABLE_TYPES = new Set<TableType>(['cache', 'child', 'org', 'owned', 'singl
       ]
     return base
   },
-  genSchemaContent = (name: string, type: TableType, fields: ParsedField[]): string => {
-    const wrapper = schemaWrapper(type),
-      fieldLines = fields.map(f => `    ${f.name}: ${fieldToZod(f)}`).join(',\n'),
-      zodImports = new Set<string>(['object'])
-    for (const f of fields)
-      if (typeof f.type === 'string') zodImports.add(f.type)
-      else zodImports.add('enum as zenum')
-    if (fields.some(f => f.optional)) zodImports.add('optional')
-    const sortedImports = [...zodImports].toSorted()
+  tableVisibility = (type: TableType): string => (type === 'cache' ? 'public: true' : 'public: false'),
+  genTableContent = (name: string, type: TableType, fields: ParsedField[]): string => {
+    const lines: string[] = []
+    for (const f of fields) lines.push(`  ${f.name}: ${fieldToTypeExpr(f)},`)
+    if (type === 'child') lines.unshift('  parentId: t.string(),')
+    if (type === 'org') lines.unshift('  orgId: t.string(),')
+    if (type === 'owned' || type === 'singleton') lines.unshift('  userId: t.string(),')
+    return `import { table, t } from 'spacetimedb'
 
-    if (type === 'child')
-      return `import { child } from 'betterspace/schema'
-import { ${sortedImports.join(', ')} } from 'zod/v4'
-
-const ${name}Child = child({
-  foreignKey: '${fields[0]?.name ?? 'parentId'}',
-  parent: '${name}',
-  schema: object({
-${fieldLines}
-  })
+const ${name}Table = table({ ${tableVisibility(type)} }, {
+${lines.join('\n')}
 })
 
-export { ${name}Child }
-`
-
-    const importFn = schemaImport(type)
-    return `import { ${importFn} } from 'betterspace/schema'
-import { ${sortedImports.join(', ')} } from 'zod/v4'
-
-const ${wrapper} = ${importFn}({
-  ${name}: object({
-${fieldLines}
-  })
-})
-
-export { ${wrapper} }
+export { ${name}Table }
 `
   },
-  genEndpointContent = (name: string, type: TableType, _parent: string): string => {
-    const factory = factoryFn(type),
-      wrapper = schemaWrapper(type)
+  pickFields = (fields: ParsedField[]): string => {
+    const lines: string[] = []
+    for (const f of fields) lines.push(`${f.name}: input.${f.name}`)
+    return lines.join(', ')
+  },
+  genReducerContent = (name: string, type: TableType, fields: ParsedField[], parent: string): string => {
+    const createFields: string[] = []
+    for (const f of fields) createFields.push(`  ${f.name}${f.optional ? '?' : ''}: ${fieldToInputType(f)}`)
+    if (type === 'child') createFields.unshift('  parentId: string')
+    if (type === 'org') createFields.unshift('  orgId: string')
+    if (type === 'owned' || type === 'singleton') createFields.unshift('  userId: string')
+    const updateFields: string[] = []
+    for (const f of fields) updateFields.push(`  ${f.name}?: ${fieldToInputType({ ...f, optional: true })}`)
+    const idType = type === 'singleton' ? 'userId: string' : 'id: number'
+    const parentLabel = type === 'child' ? `, parent: '${parent || name}'` : ''
+    return `import { reducer } from 'spacetimedb'
 
-    if (type === 'child')
-      return `import { ${factory} } from './lazy'
-import { ${name}Child } from './t'
+import { make${
+      type === 'cache'
+        ? 'CacheCrud'
+        : type === 'child'
+          ? 'ChildCrud'
+          : type === 'org'
+            ? 'Org'
+            : type === 'singleton'
+              ? 'Crud'
+              : 'Crud'
+    } } from 'betterspace/server'
 
-export const {
-  create, get, list, rm, update
-} = ${factory}('${name}', ${name}Child)
-`
+const model = make${
+      type === 'cache'
+        ? 'CacheCrud'
+        : type === 'child'
+          ? 'ChildCrud'
+          : type === 'org'
+            ? 'Org'
+            : type === 'singleton'
+              ? 'Crud'
+              : 'Crud'
+    }({ table: '${name}'${parentLabel} })
 
-    if (type === 'singleton')
-      return `import { ${factory} } from './lazy'
-import { ${wrapper} } from './t'
+const create${camelToTitle(name).replaceAll(/\s/gu, '')} = reducer(
+  '${name}.create',
+  (ctx, input: {
+${createFields.join('\n')}
+  }) => model.create(ctx, { ${pickFields(fields)} })
+)
 
-export const { get, upsert } = ${factory}('${name}', ${wrapper}.${name})
-`
+const update${camelToTitle(name).replaceAll(/\s/gu, '')} = reducer(
+  '${name}.update',
+  (ctx, input: {
+  ${idType}
+${updateFields.join('\n')}
+  }) => model.update(ctx, input)
+)
 
-    if (type === 'cache')
-      return `import { ${factory} } from './lazy'
-import { ${wrapper} } from './t'
+const remove${camelToTitle(name).replaceAll(/\s/gu, '')} = reducer('${name}.rm', (ctx, input: { ${idType} }) => model.rm(ctx, input))
 
-export const {
-  create, get, list, rm, update, invalidate, purge, load, refresh
-} = ${factory}({ key: '${name}', schema: ${wrapper}.${name}, table: '${name}' })
-`
-
-    if (type === 'org')
-      return `import { ${factory} } from './lazy'
-import { ${wrapper} } from './t'
-
-export const {
-  addEditor, bulkRm, create, editors, list, read,
-  removeEditor, rm, setEditors, update
-} = ${factory}('${name}', ${wrapper}.${name})
-`
-
-    return `import { ${factory} } from './lazy'
-import { ${wrapper} } from './t'
-
-export const {
-  bulkRm, bulkUpdate, create,
-  pub: { list, read },
-  rm, update
-} = ${factory}('${name}', ${wrapper}.${name})
+export { create${camelToTitle(name).replaceAll(/\s/gu, '')}, remove${camelToTitle(name).replaceAll(/\s/gu, '')}, update${camelToTitle(
+      name
+    ).replaceAll(/\s/gu, '')} }
 `
   },
   genPageContent = (name: string, type: TableType): string => {
-    const title = camelToTitle(name)
-
+    const title = camelToTitle(name),
+      component = title.replaceAll(/\s/gu, '')
     if (type === 'singleton')
       return `'use client'
-import { useMutation, useQuery } from 'convex/react'
+
 import { useState } from 'react'
 
-import { api } from '../../../guarded-api'
+import { useSpacetime } from '../../spacetime-client'
 
-const ${title.replaceAll(/\s/gu, '')}Page = () => {
-  const data = useQuery(api.${name}.get)
-  const upsert = useMutation(api.${name}.upsert)
-  const [editing, setEditing] = useState(false)
+const ${component}Page = () => {
+  const spacetime = useSpacetime()
+  const [loading, setLoading] = useState(false)
+
+  const refresh = async () => {
+    setLoading(true)
+    await spacetime.callReducer('${name}.get', {})
+    setLoading(false)
+  }
 
   return (
     <main className='mx-auto max-w-2xl p-8'>
       <h1 className='mb-6 text-2xl font-bold'>${title}</h1>
-      {data ? (
-        <pre className='rounded bg-zinc-100 p-4 text-sm'>{JSON.stringify(data, null, 2)}</pre>
-      ) : (
-        <p className='text-zinc-400'>No data yet.</p>
-      )}
+      <button className='rounded bg-zinc-900 px-4 py-2 text-white hover:bg-zinc-700' onClick={refresh} type='button'>
+        {loading ? 'Loading...' : 'Refresh'}
+      </button>
     </main>
   )
 }
 
-export default ${title.replaceAll(/\s/gu, '')}Page
+export default ${component}Page
 `
-
     return `'use client'
-import { useList } from 'betterspace/react'
 
-import { api } from '../../../guarded-api'
+import { useState } from 'react'
 
-const ${title.replaceAll(/\s/gu, '')}Page = () => {
-  const { items, loadMore, status } = useList(api.${name}.list)
+import { useSpacetime } from '../../spacetime-client'
+
+const ${component}Page = () => {
+  const spacetime = useSpacetime()
+  const [loading, setLoading] = useState(false)
+
+  const refresh = async () => {
+    setLoading(true)
+    await spacetime.callReducer('${name}.list', {})
+    setLoading(false)
+  }
 
   return (
     <main className='mx-auto max-w-2xl p-8'>
       <h1 className='mb-6 text-2xl font-bold'>${title}</h1>
-      <ul className='divide-y'>
-        {items.map(i => (
-          <li className='py-3' key={i._id}>
-            <span className='font-medium'>{JSON.stringify(i)}</span>
-          </li>
-        ))}
-      </ul>
-      {status === 'CanLoadMore' ? (
-        <button className='mt-4 text-sm text-zinc-500 hover:text-zinc-900' onClick={loadMore} type='button'>
-          Load more
-        </button>
-      ) : null}
-      {items.length === 0 ? <p className='text-zinc-400'>No items yet.</p> : null}
+      <button className='rounded bg-zinc-900 px-4 py-2 text-white hover:bg-zinc-700' onClick={refresh} type='button'>
+        {loading ? 'Loading...' : 'Load ${title}'}
+      </button>
     </main>
   )
 }
 
-export default ${title.replaceAll(/\s/gu, '')}Page
+export default ${component}Page
 `
   },
   writeIfNotExists = (path: string, content: string, label: string): boolean => {
@@ -336,7 +308,7 @@ export default ${title.replaceAll(/\s/gu, '')}Page
     }
 
     const fields = flags.fields.length > 0 ? flags.fields : defaultFields(flags.type),
-      convexPath = join(process.cwd(), flags.convexDir),
+      modulePath = join(process.cwd(), flags.moduleDir),
       appPath = join(process.cwd(), flags.appDir)
 
     console.log(`\n${bold(`Adding ${flags.type} table: ${flags.name}`)}\n`)
@@ -344,23 +316,23 @@ export default ${title.replaceAll(/\s/gu, '')}Page
     let created = 0,
       skipped = 0
 
-    const schemaFile = join(convexPath, `${flags.name}-schema.ts`)
+    const tableFile = join(modulePath, `tables/${flags.name}.ts`)
     if (
       writeIfNotExists(
-        schemaFile,
-        genSchemaContent(flags.name, flags.type, fields),
-        `${flags.convexDir}/${flags.name}-schema.ts`
+        tableFile,
+        genTableContent(flags.name, flags.type, fields),
+        `${flags.moduleDir}/tables/${flags.name}.ts`
       )
     )
       created += 1
     else skipped += 1
 
-    const endpointFile = join(convexPath, `${flags.name}.ts`)
+    const reducerFile = join(modulePath, `reducers/${flags.name}.ts`)
     if (
       writeIfNotExists(
-        endpointFile,
-        genEndpointContent(flags.name, flags.type, flags.parent),
-        `${flags.convexDir}/${flags.name}.ts`
+        reducerFile,
+        genReducerContent(flags.name, flags.type, fields, flags.parent),
+        `${flags.moduleDir}/reducers/${flags.name}.ts`
       )
     )
       created += 1
@@ -376,11 +348,9 @@ export default ${title.replaceAll(/\s/gu, '')}Page
     if (created > 0) console.log(`${green('✓')} Created ${created} file${created > 1 ? 's' : ''}.`)
     if (skipped > 0) console.log(`${yellow('⚠')} Skipped ${skipped} existing file${skipped > 1 ? 's' : ''}.`)
     console.log(`\n${bold('Next steps:')}`)
-    console.log(`  ${dim('1.')} Import and register in your schema.ts`)
-    console.log(
-      `  ${dim('2.')} Add ${flags.type === 'child' ? 'childCrud' : factoryFn(flags.type)} import to your lazy.ts`
-    )
-    console.log(`  ${dim('3.')} Update guarded-api.ts to include '${flags.name}'\n`)
+    console.log(`  ${dim('1.')} Register table in your module schema()`)
+    console.log(`  ${dim('2.')} Export reducer from your module entrypoint`)
+    console.log(`  ${dim('3.')} Run spacetime publish and spacetime generate\n`)
 
     return { created, skipped }
   }
@@ -390,10 +360,11 @@ if (process.argv[1]?.endsWith('add.ts')) add(process.argv.slice(2))
 export {
   add,
   defaultFields,
-  fieldToZod,
-  genEndpointContent,
+  fieldToInputType,
+  fieldToTypeExpr,
   genPageContent,
-  genSchemaContent,
+  genReducerContent,
+  genTableContent,
   parseAddFlags,
   parseFieldDef
 }

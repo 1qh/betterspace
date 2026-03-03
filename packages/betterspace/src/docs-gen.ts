@@ -7,153 +7,126 @@ import { dirname, join } from 'node:path'
 
 import type { FactoryCall } from './check'
 
-import { endpointsForFactory } from './check'
-import { extractChildren, extractWrapperTables } from './viz'
+import { endpointsForFactory, extractSchemaFields } from './check'
 
 const dim = (s: string) => `\u001B[2m${s}\u001B[0m`,
   bold = (s: string) => `\u001B[1m${s}\u001B[0m`,
   red = (s: string) => `\u001B[31m${s}\u001B[0m`,
   green = (s: string) => `\u001B[32m${s}\u001B[0m`,
-  schemaMarkers = ['makeOwned(', 'makeOrgScoped(', 'makeSingleton(', 'makeBase(', 'child('],
-  factoryPat = /(?<factory>crud|orgCrud|childCrud|cacheCrud|singletonCrud)\(\s*['"](?<table>\w+)['"]/gu,
+  schemaMarkers = ['schema(', 'table(', 't.'],
+  reducerPat = /reducer\(\s*['"](?<table>\w+)\.(?<endpoint>[\w.]+)['"]/gu,
   isSchemaFile = (content: string): boolean => {
     for (const marker of schemaMarkers) if (content.includes(marker)) return true
     return false
   },
-  hasGenerated = (dir: string): boolean => existsSync(join(dir, '_generated')),
-  findConvexDir = (root: string): string | undefined => {
-    const direct = join(root, 'convex')
-    if (hasGenerated(direct)) return direct
+  listTypeScriptFiles = (root: string): string[] => {
+    const out: string[] = [],
+      skip = new Set(['.git', '.next', '.turbo', 'build', 'dist', 'node_modules'])
+    const walk = (dir: string) => {
+      if (!existsSync(dir)) return
+      for (const entry of readdirSync(dir, { withFileTypes: true })) {
+        const full = join(dir, entry.name)
+        if (entry.isDirectory()) {
+          if (!(skip.has(entry.name) || entry.name.startsWith('.'))) walk(full)
+        } else if (entry.name.endsWith('.ts') && !entry.name.includes('.test.') && !entry.name.includes('.config.'))
+          out.push(full)
+      }
+    }
+    walk(root)
+    return out
+  },
+  findModuleDir = (root: string): string | undefined => {
+    const candidates = [join(root, 'module'), join(root, 'src', 'module')]
+    for (const candidate of candidates)
+      if (existsSync(candidate)) {
+        const files = listTypeScriptFiles(candidate)
+        for (const file of files) {
+          const content = readFileSync(file, 'utf8')
+          if (isSchemaFile(content)) return candidate
+        }
+      }
     if (!existsSync(root)) return
     for (const sub of readdirSync(root, { withFileTypes: true }))
       if (sub.isDirectory()) {
-        const nested = join(root, sub.name, 'convex')
-        if (hasGenerated(nested)) return nested
-      }
-  },
-  findSchemaFile = (convexDir: string): undefined | { content: string; path: string } => {
-    const searchDir = dirname(convexDir)
-    if (!existsSync(searchDir)) return
-    for (const entry of readdirSync(searchDir))
-      if (entry.endsWith('.ts') && !entry.endsWith('.test.ts') && !entry.endsWith('.config.ts')) {
-        const full = join(searchDir, entry),
-          content = readFileSync(full, 'utf8')
-        if (isSchemaFile(content)) return { content, path: full }
-      }
-  },
-  extractRemainingOptions = (content: string, startPos: number): string => {
-    let depth = 1,
-      pos = startPos
-    while (pos < content.length && depth > 0) {
-      if (content[pos] === '(') depth += 1
-      else if (content[pos] === ')') depth -= 1
-      pos += 1
-    }
-    return content.slice(startPos, pos - 1)
-  },
-  extractFactoryCalls = (convexDir: string): FactoryCall[] => {
-    const calls: FactoryCall[] = []
-    for (const entry of readdirSync(convexDir))
-      if (entry.endsWith('.ts') && !entry.startsWith('_') && !entry.includes('.test.') && !entry.includes('.config.')) {
-        const full = join(convexDir, entry),
-          content = readFileSync(full, 'utf8')
-        let m = factoryPat.exec(content)
-        while (m) {
-          if (m.groups?.factory && m.groups.table) {
-            const afterTable = content.indexOf(m.groups.table, m.index) + m.groups.table.length,
-              rest = extractRemainingOptions(content, afterTable)
-            calls.push({ factory: m.groups.factory, file: entry, options: rest, table: m.groups.table })
+        const nested = join(root, sub.name, 'module')
+        if (existsSync(nested)) {
+          const files = listTypeScriptFiles(nested)
+          for (const file of files) {
+            const content = readFileSync(file, 'utf8')
+            if (isSchemaFile(content)) return nested
           }
-          m = factoryPat.exec(content)
         }
-        factoryPat.lastIndex = 0
       }
+  },
+  findSchemaFile = (moduleDir: string): undefined | { content: string; path: string } => {
+    const files = listTypeScriptFiles(moduleDir)
+    for (const full of files) {
+      const content = readFileSync(full, 'utf8')
+      if (isSchemaFile(content) && content.includes('schema(') && content.includes('table('))
+        return { content, path: full }
+    }
+  },
+  extractFactoryCalls = (moduleDir: string): FactoryCall[] => {
+    const byTable = new Map<string, { endpoints: Set<string>; file: string }>(),
+      files = listTypeScriptFiles(moduleDir)
+    for (const full of files) {
+      const content = readFileSync(full, 'utf8'),
+        file = full.slice(moduleDir.length + 1)
+      let m = reducerPat.exec(content)
+      while (m) {
+        const table = m.groups?.table ?? '',
+          endpoint = m.groups?.endpoint ?? ''
+        if (table && endpoint) {
+          const entry = byTable.get(table) ?? { endpoints: new Set<string>(), file }
+          entry.endpoints.add(endpoint)
+          byTable.set(table, entry)
+        }
+        m = reducerPat.exec(content)
+      }
+      reducerPat.lastIndex = 0
+    }
+    const calls: FactoryCall[] = []
+    for (const [table, entry] of byTable)
+      calls.push({
+        factory: 'reducer',
+        file: entry.file,
+        options: `endpoints=${[...entry.endpoints].sort().join(',')}`,
+        table
+      })
     return calls
   },
   FACTORY_DESCRIPTIONS: Record<string, string> = {
-    cacheCrud: 'External API cache with TTL, auto-refresh, and invalidation',
-    childCrud: 'Nested child CRUD with parent ownership verification',
-    crud: 'User-owned CRUD with auth, pagination, where-clauses, and file handling',
-    orgCrud: 'Organization-scoped CRUD with role-based access and optional ACL',
-    singletonCrud: 'Single document per user (profile, settings)'
+    reducer: 'SpacetimeDB reducers for table operations'
   },
   ENDPOINT_ARGS: Record<string, string> = {
-    addEditor: '`{ orgId, [table]Id, editorId }`',
-    all: '`{}`',
-    bulkRm: '`{ ids }` or `{ orgId, ids }`',
-    bulkUpdate: '`{ ids, data }` or `{ orgId, ids, data }`',
-    create: 'Schema fields (validated by Zod)',
-    editors: '`{ orgId, [table]Id }`',
-    get: '`{ id }`',
-    invalidate: '`{ [key] }`',
-    list: '`{ paginationOpts, where? }` or `{ orgId, paginationOpts }`',
-    load: '`{ [key] }`',
-    'pub.get': '`{ id }`',
-    'pub.list': '`{ [foreignKey], limit? }`',
-    'pub.read': '`{ id, own?, where? }`',
-    'pub.search': '`{ query, where? }`',
-    purge: '`{}`',
-    read: '`{ id, own?, where? }` or `{ orgId, id }`',
-    refresh: '`{ [key] }`',
-    removeEditor: '`{ orgId, [table]Id, editorId }`',
-    restore: '`{ id }` or `{ orgId, id }`',
-    rm: '`{ id }` or `{ orgId, id }`',
+    create: 'Table field payload',
+    get: '`{ id }` or primary-key selector',
+    list: 'Optional pagination/filter payload',
+    read: '`{ id }`',
+    rm: '`{ id }`',
     search: '`{ query, where? }`',
-    setEditors: '`{ orgId, [table]Id, editorIds }`',
-    update: '`{ id, ...partialFields, expectedUpdatedAt? }`',
-    upsert: 'Schema fields (validated by Zod)'
+    update: '`{ id, ...partialFields }`',
+    upsert: 'Table field payload'
   },
   ENDPOINT_RETURNS: Record<string, string> = {
-    addEditor: 'Updated document',
-    all: 'All cached documents',
-    bulkRm: 'Count of deleted items',
-    bulkUpdate: 'Array of updated documents',
-    create: 'Document ID (string)',
-    editors: 'Array of `{ userId, name, email }`',
-    get: 'Document or null',
-    invalidate: 'Deleted cache entry or null',
-    list: '`{ page, isDone, continueCursor }`',
-    load: 'Fetched document (with `cacheHit` flag)',
-    'pub.get': 'Document or null',
-    'pub.list': 'Array of documents',
-    'pub.read': 'Enriched document or null',
-    'pub.search': 'Array of enriched documents',
-    purge: 'Count of purged entries',
-    read: 'Enriched document or null',
-    refresh: 'Refreshed document (with `cacheHit` flag)',
-    removeEditor: 'Updated document',
-    restore: 'Restored document',
-    rm: 'Deleted document',
-    search: 'Array of enriched documents',
-    setEditors: 'Updated document',
-    update: 'Updated document',
-    upsert: 'Upserted document'
+    create: 'Inserted row or row id',
+    get: 'Row or null',
+    list: 'Rows list',
+    read: 'Row or null',
+    rm: 'Deleted row metadata',
+    search: 'Rows list',
+    update: 'Updated row',
+    upsert: 'Upserted row'
   },
   ENDPOINT_TYPES: Record<string, string> = {
-    addEditor: 'mutation',
-    all: 'query',
-    bulkRm: 'mutation',
-    bulkUpdate: 'mutation',
-    create: 'mutation',
-    editors: 'query',
-    get: 'query',
-    invalidate: 'mutation',
-    list: 'query',
-    load: 'action',
-    'pub.get': 'query',
-    'pub.list': 'query',
-    'pub.read': 'query',
-    'pub.search': 'query',
-    purge: 'mutation',
-    read: 'query',
-    refresh: 'action',
-    removeEditor: 'mutation',
-    restore: 'mutation',
-    rm: 'mutation',
-    search: 'query',
-    setEditors: 'mutation',
-    update: 'mutation',
-    upsert: 'mutation'
+    create: 'reducer',
+    get: 'reducer',
+    list: 'reducer',
+    read: 'reducer',
+    rm: 'reducer',
+    search: 'reducer',
+    update: 'reducer',
+    upsert: 'reducer'
   },
   generateMarkdown = (calls: FactoryCall[], tableFields: Map<string, { name: string; type: string }[]>): string => {
     const lines: string[] = [
@@ -161,16 +134,16 @@ const dim = (s: string) => `\u001B[2m${s}\u001B[0m`,
       '',
       '*Auto-generated by `betterspace docs`*',
       '',
-      `**${calls.length} factory calls** generating endpoints across your project.`,
+      `**${calls.length} table reducer groups** registered across your project.`,
       '',
       '## Tables',
       '',
-      '| Table | Factory | File | Endpoints |',
-      '|-------|---------|------|-----------|'
+      '| Table | Source | Reducers |',
+      '|-------|--------|----------|'
     ]
     for (const call of calls) {
       const eps = endpointsForFactory(call)
-      lines.push(`| ${call.table} | \`${call.factory}\` | ${call.file} | ${eps.length} |`)
+      lines.push(`| ${call.table} | \`${call.file}\` | ${eps.length} |`)
     }
     lines.push('')
     for (const call of calls) {
@@ -178,7 +151,7 @@ const dim = (s: string) => `\u001B[2m${s}\u001B[0m`,
         desc = FACTORY_DESCRIPTIONS[call.factory] ?? '',
         fields = tableFields.get(call.table)
       lines.push(`## ${call.table}`, '')
-      lines.push(`**Factory:** \`${call.factory}\` · **File:** \`${call.file}\``)
+      lines.push(`**Source:** \`${call.file}\``)
       if (desc) lines.push('', desc)
       lines.push('')
       if (fields?.length) {
@@ -188,13 +161,14 @@ const dim = (s: string) => `\u001B[2m${s}\u001B[0m`,
         for (const f of fields) lines.push(`| ${f.name} | \`${f.type}\` |`)
         lines.push('')
       }
-      lines.push('### Endpoints', '')
-      lines.push('| Endpoint | Type | Args | Returns |')
-      lines.push('|----------|------|------|---------|')
+      lines.push('### Reducers', '')
+      lines.push('| Reducer | Type | Args | Returns |')
+      lines.push('|---------|------|------|---------|')
       for (const ep of eps) {
-        const epType = ENDPOINT_TYPES[ep] ?? 'query',
-          args = ENDPOINT_ARGS[ep] ?? '',
-          returns = ENDPOINT_RETURNS[ep] ?? ''
+        const rootName = ep.includes('.') ? ep.slice(ep.lastIndexOf('.') + 1) : ep,
+          epType = ENDPOINT_TYPES[rootName] ?? 'reducer',
+          args = ENDPOINT_ARGS[rootName] ?? 'Custom reducer payload',
+          returns = ENDPOINT_RETURNS[rootName] ?? 'Custom reducer return value'
         lines.push(`| \`${call.table}.${ep}\` | ${epType} | ${args} | ${returns} |`)
       }
       lines.push('')
@@ -309,12 +283,7 @@ const dim = (s: string) => `\u001B[2m${s}\u001B[0m`,
     return count
   },
   generateFullReference = (srcDir: string): string => {
-    const lines: string[] = [
-      '# betterspace \u2014 Full API Reference',
-      '',
-      '*Auto-generated by `betterspace docs --full`*',
-      ''
-    ]
+    const lines: string[] = ['# betterspace — Full API Reference', '', '*Auto-generated by `betterspace docs --full`*', '']
     let totalSymbols = 0
     for (const ep of ENTRY_POINTS) totalSymbols += processEntryPoint(ep, srcDir, lines)
     lines.push('---', '', `**${totalSymbols} exports** across ${ENTRY_POINTS.length} entry points.`)
@@ -329,33 +298,35 @@ const dim = (s: string) => `\u001B[2m${s}\u001B[0m`,
     if (flags.has('--full')) {
       const srcDir = join(root, 'src')
       if (!existsSync(srcDir)) {
-        console.log(red('\u2717 Could not find src/ directory'))
+        console.log(red('✗ Could not find src/ directory'))
         process.exit(1)
       }
       console.log(generateFullReference(srcDir))
       return
     }
 
-    const convexDir = findConvexDir(root)
-    if (!convexDir) {
-      console.log(red('\u2717 Could not find convex/ directory with _generated/'))
+    const moduleDir = findModuleDir(root)
+    if (!moduleDir) {
+      console.log(red('✗ Could not find module/ directory with SpacetimeDB schema'))
       process.exit(1)
     }
 
-    const schemaFile = findSchemaFile(convexDir)
+    const schemaFile = findSchemaFile(moduleDir)
     if (!schemaFile) {
-      console.log(red('\u2717 Could not find schema file with betterspace markers'))
+      console.log(red('✗ Could not find schema file with SpacetimeDB markers'))
       process.exit(1)
     }
     console.log(`${dim('schema:')} ${schemaFile.path}`)
-    console.log(`${dim('convex:')} ${convexDir}\n`)
+    console.log(`${dim('module:')} ${moduleDir}\n`)
 
-    const calls = extractFactoryCalls(convexDir),
-      tables = extractWrapperTables(schemaFile.content),
-      children = extractChildren(schemaFile.content),
+    const calls = extractFactoryCalls(moduleDir),
+      schemaTables = extractSchemaFields(schemaFile.content),
       tableFields = new Map<string, { name: string; type: string }[]>()
-    for (const t of tables) tableFields.set(t.name, t.fields)
-    for (const c of children) tableFields.set(c.name, c.fields)
+    for (const t of schemaTables)
+      tableFields.set(
+        t.table,
+        t.fields.map(f => ({ name: f.field, type: f.type }))
+      )
 
     if (flags.has('--markdown') || flags.has('--md')) {
       console.log(generateMarkdown(calls, tableFields))
@@ -367,13 +338,12 @@ const dim = (s: string) => `\u001B[2m${s}\u001B[0m`,
       const eps = endpointsForFactory(call),
         fields = tableFields.get(call.table)
       total += eps.length
-      console.log(`${bold(call.table)} ${dim(`(${call.factory})`)} ${dim(`\u2014 ${call.file}`)}`)
+      console.log(`${bold(call.table)} ${dim(`(${call.factory})`)} ${dim(`— ${call.file}`)}`)
       if (fields?.length) console.log(`  ${dim('fields:')} ${fields.map(f => `${f.name}: ${f.type}`).join(', ')}`)
-
-      console.log(`  ${dim('endpoints:')} ${eps.join(', ')}`)
+      console.log(`  ${dim('reducers:')} ${eps.join(', ')}`)
       console.log('')
     }
-    console.log(`${green('\u2713')} ${bold(String(total))} endpoints from ${bold(String(calls.length))} factories`)
+    console.log(`${green('✓')} ${bold(String(total))} reducers from ${bold(String(calls.length))} tables`)
     console.log(dim('\nRun with --markdown for full API reference output\n'))
   }
 

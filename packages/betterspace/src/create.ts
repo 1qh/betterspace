@@ -9,137 +9,104 @@ const green = (s: string) => `\u001B[32m${s}\u001B[0m`,
   yellow = (s: string) => `\u001B[33m${s}\u001B[0m`,
   dim = (s: string) => `\u001B[2m${s}\u001B[0m`,
   bold = (s: string) => `\u001B[1m${s}\u001B[0m`,
-  SCHEMA_TS = `import { authTables } from '@convex-dev/auth/server'
-import { defineSchema } from 'convex/server'
-import { ownedTable, rateLimitTable, uploadTables } from 'betterspace/server'
+  TABLES_TS = `import { t } from 'spacetimedb'
 
-import { owned } from './t'
+const blogTable = {
+  id: t.u32(),
+  title: t.string(),
+  content: t.string(),
+  category: t.string(),
+  published: t.bool()
+}
 
-export default defineSchema({
-  ...authTables,
-  ...uploadTables(),
-  ...rateLimitTable(),
-  blog: ownedTable(owned.blog)
-})
+export { blogTable }
 `,
-  T_TS = `import { cvFile, makeOwned } from 'betterspace/schema'
-import { boolean, object, string, enum as zenum } from 'zod/v4'
+  SCHEMA_TS = `import { schema, table } from 'spacetimedb'
 
-const owned = makeOwned({
-  blog: object({
-    title: string().min(1),
-    content: string().min(3),
-    category: zenum(['tech', 'life', 'tutorial']),
-    published: boolean(),
-    coverImage: cvFile().nullable().optional()
-  })
+import { blogTable } from './tables'
+
+const db = schema({
+  blog: table({ public: true }, blogTable)
 })
 
-export { owned }
+export { db }
 `,
-  LAZY_TS = `import { getAuthUserId } from '@convex-dev/auth/server'
-import { makeFileUpload, setup } from 'betterspace/server'
-// import { auditLog, inputSanitize, slowQueryWarn } from 'betterspace/server'
+  DB_TS = `import { makeCrud } from 'betterspace/server'
 
-import { action, internalMutation, internalQuery, mutation, query } from './_generated/server'
+import { db } from './schema'
 
-const { crud, pq, q, m } = setup({
-  action,
-  getAuthUserId: getAuthUserId as (ctx: unknown) => Promise<null | string>,
-  internalMutation,
-  internalQuery,
-  // middleware: [auditLog(), slowQueryWarn(), inputSanitize()],
-  mutation,
-  query
+const blog = makeCrud({
+  schema: db,
+  table: 'blog'
 })
 
-const file = makeFileUpload({
-  action,
-  getAuthUserId: getAuthUserId as (ctx: unknown) => Promise<null | string>,
-  internalMutation,
-  internalQuery,
-  mutation,
-  namespace: 'file',
-  query
-})
-
-export { crud, file, m, pq, q }
+export { blog }
 `,
-  BLOG_TS = `import { crud } from './lazy'
-import { owned } from './t'
+  BLOG_TS = `import { reducer } from 'spacetimedb'
 
-export const {
-  bulkRm, bulkUpdate, create,
-  pub: { list, read },
-  rm, update
-} = crud('blog', owned.blog, { search: 'content' })
-`,
-  FILE_TS = `import { file } from './lazy'
+import { blog } from '../db'
 
-export const { info, upload } = file
-`,
-  GUARDED_API_TS = `import { guardApi } from 'betterspace'
-
-import { api as rawApi } from './convex/_generated/api'
-
-const api = guardApi(rawApi, ['blog', 'file', 'user'])
-
-export { api }
-`,
-  PROVIDER_TSX = `'use client'
-import type { ReactNode } from 'react'
-
-import { ConvexAuthProvider } from '@convex-dev/auth/react'
-import { ConvexReactClient } from 'convex/react'
-import { ConvexErrorBoundary, FileApiProvider } from 'betterspace/components'
-
-import { api } from '../convex/_generated/api'
-
-const convex = new ConvexReactClient(process.env.NEXT_PUBLIC_CONVEX_URL ?? '')
-
-const FILE_API = { info: api.file.info, upload: api.file.upload }
-
-const ConvexProvider = ({ children }: { children: ReactNode }) => (
-  <ConvexErrorBoundary>
-    <ConvexAuthProvider client={convex}>
-      <FileApiProvider value={FILE_API}>{children}</FileApiProvider>
-    </ConvexAuthProvider>
-  </ConvexErrorBoundary>
+const createBlog = reducer('blog.create', (ctx, input: { category: string; content: string; published: boolean; title: string }) =>
+  blog.create(ctx, input)
 )
 
-export default ConvexProvider
+const updateBlog = reducer(
+  'blog.update',
+  (ctx, input: { content?: string; id: number; published?: boolean; title?: string }) => blog.update(ctx, input.id, input)
+)
+
+const removeBlog = reducer('blog.rm', (ctx, input: { id: number }) => blog.rm(ctx, input.id))
+
+export { createBlog, removeBlog, updateBlog }
+`,
+  CLIENT_TS = `'use client'
+
+import { createContext, useContext } from 'react'
+
+interface SpacetimeClient {
+  callReducer: (name: string, input: Record<string, unknown>) => Promise<void>
+}
+
+const clientContext = createContext<null | SpacetimeClient>(null)
+
+const useSpacetime = (): SpacetimeClient => {
+  const client = useContext(clientContext)
+  if (!client) throw new Error('Spacetime client not configured')
+  return client
+}
+
+export { clientContext, useSpacetime }
 `,
   LAYOUT_TSX = `import type { ReactNode } from 'react'
-
-import ConvexProvider from './convex-provider'
 
 import './globals.css'
 
 const RootLayout = ({ children }: { children: ReactNode }) => (
   <html lang='en'>
-    <body>
-      <ConvexProvider>{children}</ConvexProvider>
-    </body>
+    <body>{children}</body>
   </html>
 )
 
 export default RootLayout
 `,
   PAGE_TSX = `'use client'
-import { useMutation } from 'convex/react'
-import { useList } from 'betterspace/react'
+
 import { useState } from 'react'
 
-import { api } from '../../convex/_generated/api'
+import { useSpacetime } from '../spacetime-client'
 
 const BlogPage = () => {
-  const { items, loadMore, status } = useList(api.blog.list)
-  const createBlog = useMutation(api.blog.create)
+  const spacetime = useSpacetime()
   const [title, setTitle] = useState('')
 
   const handleCreate = async () => {
     if (!title.trim()) return
-    await createBlog({ title, content: '', category: 'tech', published: false })
+    await spacetime.callReducer('blog.create', {
+      category: 'tech',
+      content: '',
+      published: false,
+      title
+    })
     setTitle('')
   }
 
@@ -154,46 +121,27 @@ const BlogPage = () => {
           placeholder='New post title...'
           value={title}
         />
-        <button
-          className='rounded bg-zinc-900 px-4 py-2 text-white hover:bg-zinc-700'
-          onClick={handleCreate}
-          type='button'>
+        <button className='rounded bg-zinc-900 px-4 py-2 text-white hover:bg-zinc-700' onClick={handleCreate} type='button'>
           Create
         </button>
       </div>
-      <ul className='divide-y'>
-        {items.map(b => (
-          <li className='py-3' key={b._id}>
-            <span className='font-medium'>{b.title}</span>
-            <span className='ml-2 text-sm text-zinc-500'>{b.category}</span>
-          </li>
-        ))}
-      </ul>
-      {status === 'CanLoadMore' && (
-        <button className='mt-4 text-sm text-zinc-500 hover:text-zinc-900' onClick={loadMore} type='button'>
-          Load more
-        </button>
-      )}
-      {items.length === 0 && <p className='text-zinc-400'>No posts yet. Create one above.</p>}
     </main>
   )
 }
 
 export default BlogPage
 `,
-  ENV_LOCAL = `CONVEX_URL=
-NEXT_PUBLIC_CONVEX_URL=
+  ENV_LOCAL = `SPACETIME_SERVER_URL=http://localhost:3000
+NEXT_PUBLIC_SPACETIME_SERVER_URL=http://localhost:3000
 `,
   BACKEND_FILES: [string, string][] = [
+    ['tables.ts', TABLES_TS],
     ['schema.ts', SCHEMA_TS],
-    ['t.ts', T_TS],
-    ['lazy.ts', LAZY_TS],
-    ['file.ts', FILE_TS],
-    ['blog.ts', BLOG_TS]
+    ['db.ts', DB_TS],
+    ['reducers/blog.ts', BLOG_TS]
   ],
   FRONTEND_FILES: [string, string][] = [
-    ['guarded-api.ts', GUARDED_API_TS],
-    ['convex-provider.tsx', PROVIDER_TSX],
+    ['spacetime-client.ts', CLIENT_TS],
     ['layout.tsx', LAYOUT_TSX],
     ['page.tsx', PAGE_TSX]
   ],
@@ -213,6 +161,8 @@ NEXT_PUBLIC_CONVEX_URL=
       console.log(`  ${yellow('skip')} ${label}/${name} ${dim('(exists)')}`)
       return false
     }
+    const parent = path.slice(0, path.lastIndexOf('/'))
+    if (!existsSync(parent)) mkdirSync(parent, { recursive: true })
     writeFileSync(path, content)
     console.log(`  ${green('✓')} ${label}/${name}`)
     return true
@@ -227,22 +177,22 @@ NEXT_PUBLIC_CONVEX_URL=
     return { created, skipped }
   },
   parseFlags = (args: string[]) => {
-    let convexDir = 'convex',
+    let moduleDir = 'module',
       appDir = 'src/app',
       help = false
     for (const arg of args)
       if (arg === '--help' || arg === '-h') help = true
-      else if (arg.startsWith('--convex-dir=')) convexDir = arg.slice('--convex-dir='.length)
+      else if (arg.startsWith('--module-dir=')) moduleDir = arg.slice('--module-dir='.length)
       else if (arg.startsWith('--app-dir=')) appDir = arg.slice('--app-dir='.length)
 
-    return { appDir, convexDir, help }
+    return { appDir, help, moduleDir }
   },
   printHelp = () => {
-    console.log(`${bold('betterspace init')} — scaffold a betterspace project\n`)
+    console.log(`${bold('betterspace init')} — scaffold a betterspace SpacetimeDB project\n`)
     console.log(bold('Usage:'))
     console.log('  betterspace init [options]\n')
     console.log(bold('Options:'))
-    console.log(`  --convex-dir=DIR  Convex directory ${dim('(default: convex)')}`)
+    console.log(`  --module-dir=DIR  SpacetimeDB module directory ${dim('(default: module)')}`)
     console.log(`  --app-dir=DIR     Next.js app directory ${dim('(default: src/app)')}`)
     console.log('  --help, -h        Show this help\n')
   },
@@ -251,17 +201,17 @@ NEXT_PUBLIC_CONVEX_URL=
     if (created > 0) console.log(`${green('✓')} Created ${created} file${created > 1 ? 's' : ''}.`)
     if (skipped > 0) console.log(`${yellow('⚠')} Skipped ${skipped} existing file${skipped > 1 ? 's' : ''}.`)
     console.log(`\n${bold('Next steps:')}`)
-    console.log(`  ${dim('$')} bun add betterspace convex @convex-dev/auth zod`)
-    console.log(`  ${dim('$')} bunx convex dev & bun dev\n`)
+    console.log(`  ${dim('$')} bun add betterspace spacetimedb zod`)
+    console.log(`  ${dim('$')} spacetime publish && spacetime generate && bun dev\n`)
   },
   init = (args: string[] = []) => {
-    const { appDir, convexDir, help } = parseFlags(args)
+    const { appDir, help, moduleDir } = parseFlags(args)
     if (help) {
       printHelp()
       return
     }
     console.log(`\n${bold('Scaffolding betterspace project...')}\n`)
-    const b = writeFilesToDir(join(process.cwd(), convexDir), convexDir, BACKEND_FILES),
+    const b = writeFilesToDir(join(process.cwd(), moduleDir), moduleDir, BACKEND_FILES),
       f = writeFilesToDir(join(process.cwd(), appDir), appDir, FRONTEND_FILES),
       envPath = join(process.cwd(), '.env.local')
     if (existsSync(envPath)) console.log(`  ${yellow('skip')} .env.local ${dim('(exists)')}`)

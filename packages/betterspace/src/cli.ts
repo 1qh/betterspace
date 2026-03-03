@@ -8,12 +8,12 @@ const bold = (s: string) => `\u001B[1m${s}\u001B[0m`,
   dim = (s: string) => `\u001B[2m${s}\u001B[0m`,
   red = (s: string) => `\u001B[31m${s}\u001B[0m`,
   COMMANDS: Record<string, { description: string; script: string }> = {
-    add: { description: 'Add a new table/endpoint to your project', script: 'add.ts' },
-    check: { description: 'Validate schema/factory consistency', script: 'check.ts' },
+    add: { description: 'Add a new table/reducer to your project', script: 'add.ts' },
+    check: { description: 'Validate schema/reducer consistency', script: 'check.ts' },
     docs: { description: 'Generate API documentation', script: 'docs-gen.ts' },
     doctor: { description: 'Run project diagnostics', script: 'doctor.ts' },
     init: { description: 'Scaffold a new betterspace project', script: '' },
-    migrate: { description: 'Schema diff and migration plans', script: 'migrate.ts' },
+    migrate: { description: 'Schema diff and publish migration plans', script: 'migrate.ts' },
     viz: { description: 'Visualize schema relationships', script: 'viz.ts' }
   },
   printHelp = () => {
