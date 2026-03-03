@@ -1,41 +1,45 @@
 'use client'
 
-import { api } from '@a/be'
+import { reducers, tables } from '@a/be/spacetimedb'
+import type { Chat } from '@a/be/spacetimedb/types'
 import { Spinner } from '@a/ui/spinner'
-import { useList } from 'betterspace/react'
-import { useMutation } from 'convex/react'
 import { Check } from 'lucide-react'
-import { useEffect } from 'react'
-import { useInView } from 'react-intersection-observer'
+import { useReducer, useSpacetimeDB, useTable } from 'spacetimedb/react'
 
 import ChatSidebar from './chat-sidebar'
 
-const Sb = () => {
-  const { inView, ref } = useInView(),
-    { items, loadMore, status } = useList(api.chat.list, { where: { own: true } }),
-    deleteChat = useMutation(api.chat.rm),
-    handleDelete = async (chatId: string) => {
-      await deleteChat({ id: chatId })
-    }
+const toIdentityKey = (value: unknown) => {
+    if (!value || typeof value !== 'object' || !('toHexString' in value)) return String(value)
+    const candidate = value as { toHexString?: () => string }
+    if (typeof candidate.toHexString === 'function') return candidate.toHexString()
+    return String(value)
+  },
+  Sb = () => {
+    const { identity } = useSpacetimeDB(),
+      [allChats, isReady] = useTable(tables.chat),
+      deleteChat = useReducer(reducers.rmChat),
+      identityKey = toIdentityKey(identity),
+      chats: Chat[] = allChats
+        .filter(c => toIdentityKey(c.userId) === identityKey)
+        .toSorted((a, b) => (a.updatedAt > b.updatedAt ? -1 : a.updatedAt < b.updatedAt ? 1 : 0)),
+      handleDelete = async (chatId: number) => {
+        await deleteChat({ id: chatId })
+      }
 
-  useEffect(() => {
-    if (inView && status === 'CanLoadMore') loadMore()
-  }, [inView, loadMore, status])
-
-  return (
-    <>
-      <ChatSidebar basePath='' onDelete={handleDelete} threads={items} />
-      <div className='flex justify-center p-2'>
-        {status === 'LoadingMore' ? (
-          <Spinner />
-        ) : status === 'CanLoadMore' ? (
-          <p className='h-4' ref={ref} />
-        ) : status === 'Exhausted' && items.length > 20 ? (
-          <Check className='animate-[fadeOut_2s_forwards] text-green-500' />
-        ) : null}
-      </div>
-    </>
-  )
-}
+    return (
+      <>
+        <ChatSidebar basePath='' onDelete={handleDelete} threads={chats} />
+        <div className='flex justify-center p-2'>
+          {isReady ? (
+            chats.length > 20 ? (
+              <Check className='animate-[fadeOut_2s_forwards] text-green-500' />
+            ) : null
+          ) : (
+            <Spinner />
+          )}
+        </div>
+      </>
+    )
+  }
 
 export default Sb

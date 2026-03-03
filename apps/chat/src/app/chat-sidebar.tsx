@@ -18,12 +18,12 @@ import { useParams, useRouter } from 'next/navigation'
 interface ChatSidebarProps<T extends Thread> {
   basePath: string
   getTitle?: (thread: T) => string
-  onDelete: (threadId: string) => Promise<void>
+  onDelete: (threadId: number) => Promise<void>
   threads: T[]
 }
 
 interface Thread {
-  _id: string
+  id: number
   title?: string
 }
 
@@ -31,10 +31,10 @@ const ChatSidebar = <T extends Thread>({ basePath, getTitle, onDelete, threads }
   const router = useRouter(),
     params = useParams(),
     rootPath = basePath || '/',
-    handleDelete = async (e: React.KeyboardEvent | React.MouseEvent, threadId: string) => {
+    handleDelete = async (e: React.KeyboardEvent | React.MouseEvent, threadId: number) => {
       e.stopPropagation()
       await onDelete(threadId)
-      if (params.id === threadId) router.push(rootPath)
+      if (params.id === String(threadId)) router.push(rootPath)
     }
   return (
     <Sidebar side='left'>
@@ -57,20 +57,20 @@ const ChatSidebar = <T extends Thread>({ basePath, getTitle, onDelete, threads }
           <SidebarGroupLabel>Conversations</SidebarGroupLabel>
           <SidebarMenu data-testid='thread-list'>
             {threads.map(t => (
-              <SidebarMenuItem data-testid='thread-item' key={t._id}>
+              <SidebarMenuItem data-testid='thread-item' key={t.id}>
                 <SidebarMenuButton
                   className='group/item'
-                  isActive={params.id === t._id}
-                  onClick={() => router.push(`${basePath}/${t._id}`)}>
+                  isActive={params.id === String(t.id)}
+                  onClick={() => router.push(`${basePath}/${t.id}`)}>
                   <MessageSquareIcon className='size-4' />
                   <span className='flex-1 truncate'>{getTitle ? getTitle(t) : (t.title ?? 'Untitled')}</span>
                   <span
                     className='flex size-6 cursor-pointer items-center justify-center rounded-sm opacity-0 transition-opacity group-hover/item:opacity-100 hover:bg-accent'
                     data-testid='delete-thread-button'
                     // eslint-disable-next-line @typescript-eslint/strict-void-return
-                    onClick={async e => handleDelete(e, t._id)}
+                    onClick={async e => handleDelete(e, t.id)}
                     // eslint-disable-next-line @typescript-eslint/strict-void-return
-                    onKeyDown={async e => e.key === 'Enter' && handleDelete(e, t._id)}
+                    onKeyDown={async e => e.key === 'Enter' && handleDelete(e, t.id)}
                     role='button'
                     tabIndex={0}>
                     <Trash2Icon className='size-3' />

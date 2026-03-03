@@ -1,66 +1,49 @@
-import type { Id } from '@a/be/model'
+'use client'
+
 import type { UIMessage } from 'ai'
 
-import { api } from '@a/be'
-import { getToken, isAuthenticated } from 'betterspace/next'
-import { fetchQuery } from 'convex/nextjs'
-import { redirect } from 'next/navigation'
-import { connection } from 'next/server'
-import { Suspense } from 'react'
+import { tables } from '@a/be/spacetimedb'
+import type { Chat, Message } from '@a/be/spacetimedb/types'
+import { useParams, useRouter } from 'next/navigation'
+import { useEffect } from 'react'
+import { useSpacetimeDB, useTable } from 'spacetimedb/react'
 
 import Client from './client'
 
-const tryFetch = async <T,>(fn: () => Promise<T>): Promise<null | T> => {
-    try {
-      return await fn()
-    } catch {
-      return null
-    }
+const toIdentityKey = (value: unknown) => {
+    if (!value || typeof value !== 'object' || !('toHexString' in value)) return String(value)
+    const candidate = value as { toHexString?: () => string }
+    if (typeof candidate.toHexString === 'function') return candidate.toHexString()
+    return String(value)
   },
-  toUIMessages = (messages: { _id: string; parts: unknown; role: 'assistant' | 'system' | 'user' }[]): UIMessage[] =>
+  toUIMessages = (messages: Message[]): UIMessage[] =>
     messages.map(m => ({
-      id: m._id,
+      id: String(m.id),
       parts: m.parts as UIMessage['parts'],
-      role: m.role
+      role: m.role as UIMessage['role']
     })),
-  // eslint-disable-next-line max-statements
-  Page = async ({ params }: { params: Promise<{ id: string }> }) => {
-    await connection()
-    const { id } = await params,
-      chatId = id as Id<'chat'>,
-      token = await getToken(),
-      authed = await isAuthenticated(),
-      opts = token ? { token } : {}
+  Page = () => {
+    const router = useRouter(),
+      params = useParams<{ id: string }>(),
+      [allChats, isChatsReady] = useTable(tables.chat),
+      [allMessages, isMessagesReady] = useTable(tables.message),
+      { identity } = useSpacetimeDB(),
+      id = Number(params.id),
+      chat: Chat | undefined = Number.isNaN(id) ? undefined : allChats.find(c => c.id === id),
+      identityKey = toIdentityKey(identity),
+      isOwner = chat ? toIdentityKey(chat.userId) === identityKey : false,
+      hasAccess = chat ? chat.isPublic || isOwner : false,
+      messages: Message[] = hasAccess ? allMessages.filter(m => m.chatId === id) : []
 
-    if (authed) {
-      const chat = await tryFetch(async () => fetchQuery(api.chat.read, { id: chatId }, opts))
+    useEffect(() => {
+      if (!isChatsReady || Number.isNaN(id)) return
+      if (!hasAccess) router.replace('/')
+    }, [hasAccess, id, isChatsReady, router])
 
-      if (chat) {
-        const messages = await fetchQuery(api.message.list, { chatId }, opts)
-        return (
-          <Suspense fallback={null}>
-            <Client chatId={id} initialMessages={toUIMessages(messages)} />
-          </Suspense>
-        )
-      }
-    }
+    if (isChatsReady && isMessagesReady && chat && hasAccess)
+      return <Client chatId={String(chat.id)} initialMessages={toUIMessages(messages)} readOnly={!isOwner} />
 
-    const pubChat = await tryFetch(async () => fetchQuery(api.chat.pubRead, { id: chatId }))
-
-    if (pubChat) {
-      const messages = (await fetchQuery(api.message.pubList, { chatId })) as {
-        _id: string
-        parts: unknown
-        role: 'assistant' | 'system' | 'user'
-      }[]
-      return (
-        <Suspense fallback={null}>
-          <Client chatId={id} initialMessages={toUIMessages(messages)} readOnly />
-        </Suspense>
-      )
-    }
-
-    redirect('/')
+    return null
   }
 
 export default Page

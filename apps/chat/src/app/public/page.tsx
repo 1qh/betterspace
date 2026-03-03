@@ -1,11 +1,15 @@
 'use client'
 
-import { api } from '@a/be'
-import { useList } from 'betterspace/react'
+import { tables } from '@a/be/spacetimedb'
+import type { Chat } from '@a/be/spacetimedb/types'
 import Link from 'next/link'
+import { useTable } from 'spacetimedb/react'
 
 const Page = () => {
-  const { items: chats } = useList(api.chat.list, { where: { isPublic: true } })
+  const [allChats] = useTable(tables.chat),
+    chats: Chat[] = allChats
+      .filter(c => c.isPublic)
+      .toSorted((a, b) => (a.updatedAt > b.updatedAt ? -1 : a.updatedAt < b.updatedAt ? 1 : 0))
   return (
     <div className='mx-auto max-w-3xl p-4' data-testid='public-chats-page'>
       <h1 className='mb-4 text-xl font-semibold'>Public Chats</h1>
@@ -14,7 +18,7 @@ const Page = () => {
       ) : (
         <div className='divide-y'>
           {chats.map(c => (
-            <Link className='block py-3 hover:bg-muted/50' data-testid='public-chat-item' href={`/${c._id}`} key={c._id}>
+            <Link className='block py-3 hover:bg-muted/50' data-testid='public-chat-item' href={`/${c.id}`} key={c.id}>
               <p className='font-medium'>{c.title}</p>
             </Link>
           ))}
