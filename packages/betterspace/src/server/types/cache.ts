@@ -5,7 +5,14 @@ type CacheBuilder = ColumnBuilder<unknown, unknown, unknown> | TypeBuilder<unkno
 
 type CacheBuilders = never
 
-interface CacheConfig<DB, F extends CacheFieldBuilders, Row, Key, Tbl extends CacheTableLike<Row>, Pk extends CachePkLike<Row, Key>> {
+interface CacheConfig<
+  DB,
+  F extends CacheFieldBuilders,
+  Row,
+  Key,
+  Tbl extends CacheTableLike<Row>,
+  Pk extends CachePkLike<Row, Key>
+> {
   fields: F
   keyField: TypeBuilder<Key, unknown>
   keyName: string

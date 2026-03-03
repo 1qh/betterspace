@@ -1,14 +1,7 @@
 import type { Identity, Timestamp } from 'spacetimedb'
 import type { TypeBuilder } from 'spacetimedb/server'
 
-import type {
-  CrudConfig,
-  CrudExports,
-  CrudFieldBuilders,
-  CrudFieldValues,
-  CrudPkLike,
-  CrudTableLike
-} from './crud'
+import type { CrudConfig, CrudExports, CrudFieldBuilders, CrudFieldValues, CrudPkLike, CrudTableLike } from './crud'
 
 type ChildConfig<
   DB,
