@@ -14,8 +14,8 @@ import {
   streamText,
   tool
 } from 'ai'
-import { fetchMutation, fetchQuery } from 'convex/nextjs'
 import { getToken, isAuthenticated } from 'betterspace/next'
+import { fetchMutation, fetchQuery } from 'convex/nextjs'
 import { z } from 'zod/v4'
 export const maxDuration = 60
 

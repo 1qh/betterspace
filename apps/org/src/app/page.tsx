@@ -2,8 +2,8 @@
 import type { OrgRole } from 'betterspace'
 
 import { api } from '@a/be'
-import { fetchQuery } from 'convex/nextjs'
 import { getToken, isAuthenticated } from 'betterspace/next'
+import { fetchQuery } from 'convex/nextjs'
 import { redirect } from 'next/navigation'
 import { connection } from 'next/server'
 

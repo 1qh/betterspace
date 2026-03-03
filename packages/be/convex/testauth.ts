@@ -1,8 +1,8 @@
 /* eslint-disable no-await-in-loop, max-statements */
 /** biome-ignore-all lint/performance/noAwaitInLoops: sequential deletes */
 import { getAuthUserId } from '@convex-dev/auth/server'
-import { v } from 'convex/values'
 import { getOrgMembership, makeOrgTestCrud, makeTestAuth } from 'betterspace/test'
+import { v } from 'convex/values'
 
 import { mutation, query } from './_generated/server'
 

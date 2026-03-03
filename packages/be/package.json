@@ -23,9 +23,9 @@
   "dependencies": {
     "@ai-sdk/google-vertex": "latest",
     "@t3-oss/env-nextjs": "latest",
+    "betterspace": "*",
     "convex": "latest",
     "convex-test": "latest",
-    "ky": "latest",
-    "betterspace": "*"
+    "ky": "latest"
   }
 }

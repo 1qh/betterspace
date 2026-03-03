@@ -4,8 +4,8 @@ import type { ReactNode } from 'react'
 
 import { api } from '@a/be'
 import { ConvexAuthNextjsProvider as AuthProvider } from '@convex-dev/auth/nextjs'
-import { ConvexProvider as BaseProvider, ConvexReactClient as Client } from 'convex/react'
 import { FileApiProvider } from 'betterspace/components'
+import { ConvexProvider as BaseProvider, ConvexReactClient as Client } from 'convex/react'
 import { NavigationGuardProvider } from 'next-navigation-guard'
 
 import env from './env'
