@@ -553,7 +553,7 @@ Reducers throw `SenderError('CODE: message')`. The client receives the error wit
 Parse errors on the client:
 
 ```typescript
-import { extractErrorData, getErrorCode, getErrorMessage } from 'betterspace'
+import { extractErrorData, getErrorCode, getErrorMessage } from 'betterspace/server'
 
 try {
   await createPost(data)

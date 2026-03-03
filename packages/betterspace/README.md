@@ -60,9 +60,9 @@ const blogCrud = makeCrud(spacetimedb, {
 
 4 lines. 8 reducers. Auth, ownership, Zod validation, file upload with auto-cleanup, conflict detection, author enrichment — all included.
 
-## 445 Lines → 87 Reducers
+## 471 Lines → 93 Reducers
 
-The entire backend for 4 production apps — blog, chat, org collaboration, and movie search — is **445 lines of consumer code**. That's schemas, setup, and module files combined. Those 445 lines produce **87 fully typed, authenticated reducers**.
+The entire backend for 4 production apps — blog, chat, org collaboration, and movie search — is **471 lines of consumer code**. That's schemas, setup, and module files combined. Those 471 lines produce **93 fully typed, authenticated reducers**.
 
 Here's a full org-scoped CRUD with per-item editor permissions and soft delete:
 
@@ -355,7 +355,7 @@ bun spacetime:publish
 ### 4. Use in React
 
 ```tsx
-const { items: blogs, loadMore } = useList(api.blog.list, { where: { published: true } })
+const { data: blogs, loadMore } = useList(allBlogs, isReady, { where: { published: true } })
 ```
 
 ## Zero-Config Defaults
@@ -400,7 +400,7 @@ Everything works out of the box. Opt out only when needed.
 |----------|-----------|------:|
 | Web | Playwright E2E | 220 |
 | Backend | SpacetimeDB test utilities | 219 |
-| Library | bun:test | 923 |
+| Library | bun:test | 900 |
 
 ## Documentation
 
@@ -424,7 +424,7 @@ The library is independently testable without the demo apps:
 
 ```bash
 cd packages/betterspace
-bun test          # 923 library-only tests, no SpacetimeDB needed
+bun test          # 900 library-only tests, no SpacetimeDB needed
 bun lint          # library-scoped linting
 bun typecheck     # library-only type checking
 ```

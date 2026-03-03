@@ -372,7 +372,7 @@ try {
 throw new SenderError('NOT_FOUND: post:update')
 
 // On client:
-import { extractErrorData, getErrorCode } from 'betterspace'
+import { extractErrorData, getErrorCode } from 'betterspace/server'
 
 try {
   await createPost(data)

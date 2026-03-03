@@ -142,7 +142,7 @@ export default CreatePostForm
 Reducer errors use the `SenderError('CODE: message')` convention. Parse them to show field-level errors:
 
 ```typescript
-import { extractErrorData } from 'betterspace'
+import { extractErrorData } from 'betterspace/server'
 
 const form = useForm({
   onSubmit: async ({ value }) => {
