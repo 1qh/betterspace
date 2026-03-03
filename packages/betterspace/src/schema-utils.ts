@@ -1,5 +1,5 @@
-/* eslint-disable max-statements, max-depth */
-/* oxlint-disable eslint/max-statements, eslint/complexity, max-depth */
+/* eslint-disable max-statements, complexity */
+/* oxlint-disable eslint/max-statements, eslint/complexity */
 interface FactoryCall {
   factory: string
   file: string
@@ -18,17 +18,19 @@ interface SchemaTable {
   table: string
 }
 
-const wrapperFactories = ['makeOwned', 'makeOrgScoped', 'makeSingleton', 'makeBase'],
+const wrapperFactories = ['makeOwned', 'makeOrgScoped', 'makeSingleton', 'makeBase', 'defineTables'],
   childSchemaPat = /child\(\{[^}]*schema\s*:\s*object\(\{/gu,
   childNamePat = /(?<cname>\w+)\s*:\s*child\(/u,
   childValidPat = /child\(\{[^}]*foreignKey[^}]*parent[^}]*schema/u,
   objPropPat = /(?<pname>\w+)\s*:\s*object\(\{/gu,
+  tableCallPat = /(?<pname>\w+)\s*:\s*t\.table\(\{/gu,
   fieldLinePat = /^(?<fname>\w+)\s*:\s*(?<ftype>.+?)\s*,?$/u,
   trailingCommaPat = /,$/u,
   parenContentPat = /\([^)]*\)/gu,
   braceContentPat = /\{[^}]*\}/gu,
   schemaFactoryMap: Record<string, string> = {
     child: 'childCrud',
+    defineTables: 'spacetimeCrud',
     makeBase: 'cacheCrud',
     makeOrgScoped: 'orgCrud',
     makeOwned: 'crud',
@@ -47,14 +49,15 @@ const wrapperFactories = ['makeOwned', 'makeOrgScoped', 'makeSingleton', 'makeBa
     let depth = 1,
       pos = startPos
     while (pos < content.length && depth > 0) {
-      if (content[pos] === '(' || content[pos] === '{' || content[pos] === '[') depth += 1
-      else if (content[pos] === ')' || content[pos] === '}' || content[pos] === ']') depth -= 1
+      const c = content[pos]
+      if (c === '(' || c === '{' || c === '[') depth += 1
+      else if (c === ')' || c === '}' || c === ']') depth -= 1
       pos += 1
     }
     const block = content.slice(startPos, pos - 1)
     for (const line of block.split('\n')) {
       const trimmed = line.trim()
-      if (trimmed && !trimmed.startsWith('//')) {
+      if (!(trimmed.length === 0 || trimmed.startsWith('//'))) {
         const m = fieldLinePat.exec(trimmed)
         if (m?.groups) {
           const { fname: field, ftype: rawType } = m.groups
@@ -71,9 +74,22 @@ const wrapperFactories = ['makeOwned', 'makeOrgScoped', 'makeSingleton', 'makeBa
     }
     return fields
   },
+  extractSpacetimeTables = (content: string): SchemaTable[] => {
+    const tables: SchemaTable[] = []
+    const p = new RegExp(tableCallPat.source, 'gu')
+    let m = p.exec(content)
+    while (m) {
+      const tableName = m.groups?.pname ?? 'unknown',
+        startBlock = m.index + m[0].length,
+        fields = parseObjectFields(content, startBlock)
+      tables.push({ factory: 'spacetimeCrud', fields, table: tableName })
+      m = p.exec(content)
+    }
+    return tables
+  },
   extractSchemaFields = (content: string): SchemaTable[] => {
-    const tables: SchemaTable[] = [],
-      allFactories = [...wrapperFactories, 'child']
+    const tables = extractSpacetimeTables(content),
+      allFactories = ['makeOwned', 'makeOrgScoped', 'makeSingleton', 'makeBase', 'child']
     for (const factory of allFactories) {
       const pat = factory === 'child' ? new RegExp(childSchemaPat.source, 'gu') : new RegExp(`${factory}\\(\\{`, 'gu')
       let fm = pat.exec(content)

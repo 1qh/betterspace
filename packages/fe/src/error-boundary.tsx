@@ -1,5 +1,11 @@
 'use client'
 
-import { ConvexErrorBoundary } from 'betterspace/components'
+import type { ReactNode } from 'react'
 
-export default ConvexErrorBoundary
+interface ErrorBoundaryProps {
+  children: ReactNode
+}
+
+const ErrorBoundary = ({ children }: ErrorBoundaryProps) => children
+
+export default ErrorBoundary

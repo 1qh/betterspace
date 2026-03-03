@@ -2,44 +2,42 @@
 
 import { Button } from '@a/ui/button'
 import { Input } from '@a/ui/input'
-import { useAuthActions } from '@convex-dev/auth/react'
-import { ConvexError } from 'convex/values'
 import { useState } from 'react'
+import { useAuth } from 'react-oidc-context'
 import { toast } from 'sonner'
 
 const EmailLoginPage = () => {
-  const { signIn } = useAuthActions(),
+  const auth = useAuth(),
     [login, setLogin] = useState(true),
-    [pending, setPending] = useState(false)
+    [pending, setPending] = useState(false),
+    submitMagicLink = async (email: string) => {
+      await auth.signinRedirect({
+        extraQueryParams: {
+          login_hint: email,
+          provider: 'magic_link'
+        },
+        state: { flow: login ? 'signIn' : 'signUp' }
+      })
+    }
   return (
     <form
       className='m-auto max-w-60 space-y-2 *:w-full'
-      onSubmit={ev => {
+      onSubmit={async ev => {
         ev.preventDefault()
         setPending(true)
-        const fd = new FormData(ev.currentTarget)
-        // oxlint-disable-next-line promise/prefer-await-to-then, promise/prefer-await-to-callbacks
-        signIn('password', fd).catch((signInError: unknown) => {
-          console.error(signInError)
-          let m: string
-          if (signInError instanceof ConvexError && signInError.data === 'INVALID_PASSWORD')
-            m = 'Invalid password - check the requirements and try again.'
-          else m = login ? 'Could not sign in, did you mean to sign up?' : 'Could not sign up, did you mean to sign in?'
-          toast.error(m)
+        const fd = new FormData(ev.currentTarget),
+          emailVal = fd.get('email'),
+          email = typeof emailVal === 'string' ? emailVal.trim() : ''
+        try {
+          await submitMagicLink(email)
+        } catch (error) {
+          toast.error(error instanceof Error ? error.message : 'Could not continue with email')
           setPending(false)
-        })
+        }
       }}>
       <Input autoComplete='email' id='email' name='email' placeholder='Email' />
-      <Input
-        autoComplete={login ? 'current-password' : 'new-password'}
-        id='password'
-        name='password'
-        placeholder='Password'
-        type='password'
-      />
-      <input name='flow' type='hidden' value={login ? 'signIn' : 'signUp'} />
       <Button disabled={pending} type='submit'>
-        {login ? 'Sign in' : 'Sign up'}
+        {login ? 'Continue with email' : 'Create account with email'}
       </Button>
       <button
         className='text-sm text-muted-foreground hover:text-foreground'

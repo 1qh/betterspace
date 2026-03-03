@@ -1,5 +1,5 @@
 /* oxlint-disable promise/prefer-await-to-then */
-/* eslint-disable complexity, @typescript-eslint/no-unnecessary-condition */
+/* eslint-disable complexity */
 'use client'
 
 import { api } from '@a/be'
@@ -18,7 +18,7 @@ import { toast } from 'sonner'
 
 import { useOrg } from '~/hook/use-org'
 
-const wikiRestore = (api.wiki as typeof api.wiki & { restore: typeof api.wiki.rm }).restore,
+const wikiRestore = (api.wiki).restore,
   WikiPage = () => {
     const { isAdmin, org } = useOrg(),
       [showDeleted, setShowDeleted] = useState(false),

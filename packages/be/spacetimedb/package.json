@@ -1,0 +1,8 @@
+{
+  "name": "@a/spacetimedb",
+  "private": true,
+  "type": "module",
+  "dependencies": {
+    "spacetimedb": "latest"
+  }
+}

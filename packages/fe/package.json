@@ -23,12 +23,12 @@
   },
   "dependencies": {
     "@a/be": "*",
-    "@convex-dev/auth": "latest",
     "@t3-oss/env-nextjs": "latest",
     "betterspace": "*",
-    "convex": "latest",
     "next-navigation-guard": "latest",
     "next-themes": "latest",
-    "sonner": "latest"
+    "react-oidc-context": "latest",
+    "sonner": "latest",
+    "spacetimedb": "latest"
   }
 }

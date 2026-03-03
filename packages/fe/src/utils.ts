@@ -1,20 +1,28 @@
 import type { Id, TableNames } from '@a/be/model'
 
-import { getErrorMessage, handleConvexError } from 'betterspace/server'
 import { toast } from 'sonner'
 
-const fail = (error: unknown) => {
-    handleConvexError(error, {
-      default: () => {
-        toast.error(getErrorMessage(error))
-      },
-      NOT_AUTHENTICATED: () => {
-        toast.error('Please log in')
-      },
-      RATE_LIMITED: () => {
-        toast.error('Too many requests, try again later')
-      }
-    })
+const getCode = (error: unknown) => {
+    if (typeof error !== 'object' || error === null || !('code' in error)) return
+    const { code } = error
+    return code
+  },
+  getMessage = (error: unknown) => {
+    if (typeof error !== 'object' || error === null || !('message' in error)) return
+    const { message } = error
+    return typeof message === 'string' && message.length > 0 ? message : undefined
+  },
+  fail = (error: unknown) => {
+    const code = getCode(error)
+    if (code === 'NOT_AUTHENTICATED') {
+      toast.error('Please log in')
+      return
+    }
+    if (code === 'RATE_LIMITED') {
+      toast.error('Too many requests, try again later')
+      return
+    }
+    toast.error(getMessage(error) ?? 'Unknown error')
   },
   isId = <T extends TableNames>(val: unknown): val is Id<T> => typeof val === 'string' && val.length > 0,
   formatDate = (ts: number) => new Date(ts).toLocaleDateString(),

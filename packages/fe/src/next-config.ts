@@ -7,8 +7,22 @@ interface CreateNextConfigOptions {
 }
 
 const isDev = process.env.NODE_ENV === 'development',
-  BASE_IMG_SRC = "'self' data: blob: https://*.convex.cloud",
+  BASE_IMG_SRC = "'self' data: blob:",
   isPlaywright = process.env.PLAYWRIGHT === '1',
+  SPACETIMEDB_CONNECT_SRC = process.env.NEXT_PUBLIC_SPACETIMEDB_URI,
+  DEV_CONNECT_SRC = [
+    "'self'",
+    'https://auth.spacetimedb.com',
+    'http://localhost:3000',
+    'ws://localhost:3000',
+    'http://127.0.0.1:*',
+    'ws://127.0.0.1:*'
+  ],
+  PROD_CONNECT_SRC = [
+    "'self'",
+    'https://auth.spacetimedb.com',
+    ...(SPACETIMEDB_CONNECT_SRC ? [SPACETIMEDB_CONNECT_SRC] : [])
+  ],
   createNextConfig = ({ experimental, imageDomains, imgSrc }: CreateNextConfigOptions = {}): NextConfig => ({
     ...(isPlaywright && { devIndicators: false }),
     experimental: { ...experimental },
@@ -22,9 +36,7 @@ const isDev = process.env.NODE_ENV === 'development',
               "script-src 'self' 'unsafe-inline' 'unsafe-eval'",
               "style-src 'self' 'unsafe-inline'",
               `img-src ${[BASE_IMG_SRC, ...(imgSrc ?? [])].join(' ')}`,
-              isDev
-                ? "connect-src 'self' https://*.convex.cloud wss://*.convex.cloud http://127.0.0.1:* ws://127.0.0.1:*"
-                : "connect-src 'self' https://*.convex.cloud wss://*.convex.cloud",
+              `connect-src ${isDev ? DEV_CONNECT_SRC.join(' ') : PROD_CONNECT_SRC.join(' ')}`,
               "font-src 'self'",
               "frame-ancestors 'none'"
             ].join('; ')

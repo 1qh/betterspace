@@ -1,9 +1,6 @@
-import type { FilterLike, IndexLike, SearchLike } from './types'
-
-const idx = (fn: (ib: IndexLike) => IndexLike): never => fn as never,
-  flt = (fn: (fb: FilterLike) => unknown): never => fn as never,
-  sch = (fn: (sb: SearchLike) => unknown): never => fn as never,
-  // eslint-disable-next-line @typescript-eslint/no-unnecessary-type-parameters
+const idx = <T>(fn: (ib: T) => T): never => fn as never,
+  flt = <T>(fn: (fb: T) => unknown): never => fn as never,
+  sch = <T>(fn: (sb: T) => unknown): never => fn as never,
   typed = <T>(value: T): never => value as never,
   indexFields = (...fields: string[]): never => fields as never
 

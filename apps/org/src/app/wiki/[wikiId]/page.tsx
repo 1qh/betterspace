@@ -19,7 +19,7 @@ import { toast } from 'sonner'
 
 import { useOrg } from '~/hook/use-org'
 
-const wikiRestore = (api.wiki as typeof api.wiki & { restore: typeof api.wiki.rm }).restore,
+const wikiRestore = (api.wiki).restore,
   WikiDetailPage = ({ params }: { params: Promise<{ wikiId: Id<'wiki'> }> }) => {
     const { wikiId } = use(params),
       { isAdmin } = useOrg(),
@@ -33,7 +33,7 @@ const wikiRestore = (api.wiki as typeof api.wiki & { restore: typeof api.wiki.rm
 
     if (!(wiki && me && members && editorsList)) return <Skeleton className='h-40' />
 
-    // eslint-disable-next-line @typescript-eslint/no-unnecessary-condition
+     
     const isDeleted = wiki.deletedAt !== undefined && wiki.deletedAt !== null,
       canEditWiki = canEditResource({ editorsList, isAdmin, resource: wiki, userId: me._id }),
       handleAddEditor = (userId: string) => {
