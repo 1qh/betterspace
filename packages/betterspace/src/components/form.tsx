@@ -1,7 +1,6 @@
 // biome-ignore-all lint/suspicious/noExplicitAny: x
 // biome-ignore-all lint/correctness/useHookAtTopLevel: watch hook is called inside component render context
 'use client'
-import type { FunctionReference } from 'convex/server'
 import type { ComponentProps, ReactNode } from 'react'
 import type { infer as zinfer, ZodObject, ZodRawShape } from 'zod/v4'
 
@@ -15,7 +14,7 @@ import type { FormReturn as BaseFormReturn, ConflictData } from '../react/form'
 import type { Api } from './fields'
 
 import { DevtoolsAutoMount } from '../react/devtools-panel'
-import { useForm as useBaseForm, useFormMutation as useBaseFormMutation } from '../react/form'
+import { useForm as useBaseForm } from '../react/form'
 import { fields, FormContext } from './fields'
 import { FileApiContext } from './file-field'
 
@@ -130,7 +129,7 @@ const useWithGuard = <T extends Record<string, unknown>, S extends ZodObject<Zod
   }) => useWithGuard(useBaseForm(opts)),
   useFormMutation = <S extends ZodObject<ZodRawShape>>(opts: {
     autoSave?: { debounceMs: number; enabled: boolean }
-    mutation: FunctionReference<'mutation'>
+    mutate: (args: Record<string, unknown>) => Promise<unknown> | unknown
     onConflict?: (data: ConflictData) => void
     onError?: ((e: unknown) => void) | false
     onSuccess?: () => void
@@ -138,7 +137,23 @@ const useWithGuard = <T extends Record<string, unknown>, S extends ZodObject<Zod
     schema: S
     transform?: (d: zinfer<S>) => Record<string, unknown>
     values?: zinfer<S>
-  }) => useWithGuard(useBaseFormMutation(opts)),
+  }) =>
+    useWithGuard(
+      useBaseForm({
+        autoSave: opts.autoSave,
+        onConflict: opts.onConflict,
+        onError: opts.onError,
+        onSubmit: async d => {
+          const args = opts.transform ? opts.transform(d) : d
+          await opts.mutate(args)
+          return d
+        },
+        onSuccess: opts.onSuccess,
+        resetOnSuccess: opts.resetOnSuccess,
+        schema: opts.schema,
+        values: opts.values
+      })
+    ),
   hasFileFields = (meta: Record<string, { kind: string }>): boolean => {
     for (const k of Object.keys(meta)) {
       const entry = meta[k]

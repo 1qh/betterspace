@@ -1,40 +1,26 @@
-/* eslint-disable max-statements, @typescript-eslint/no-unsafe-return */
 'use client'
 
-import type { FunctionReference, FunctionReturnType, OptionalRestArgs } from 'convex/server'
-
-import { useMutation } from 'convex/react'
 import { useCallback, useRef, useState } from 'react'
 
-type Args<T extends MutationFn> = OptionalRestArgs<T>[0]
-type MutationFn = FunctionReference<'mutation'>
-
-interface OptimisticOptions<T extends MutationFn, R = FunctionReturnType<T>> {
-  mutation: T
-  onOptimistic?: (args: Args<T>) => void
-  onRollback?: (args: Args<T>, catchError: Error) => void
-  onSuccess?: (result: R, args: Args<T>) => void
+interface OptimisticOptions<A, R = void> {
+  mutate: (args: A) => Promise<R>
+  onOptimistic?: (args: A) => void
+  onRollback?: (args: A, catchError: Error) => void
+  onSuccess?: (result: R, args: A) => void
 }
 
-/** Wraps a Convex mutation with optimistic callback, automatic rollback on error, and pending state. */
-const useOptimisticMutation = <T extends MutationFn>({
-  mutation,
-  onOptimistic,
-  onRollback,
-  onSuccess
-}: OptimisticOptions<T>) => {
-  const mutate = useMutation(mutation),
-    [isPending, setIsPending] = useState(false),
+const useOptimisticMutation = <A, R = void>({ mutate, onOptimistic, onRollback, onSuccess }: OptimisticOptions<A, R>) => {
+  const [isPending, setIsPending] = useState(false),
     [mutationError, setMutationError] = useState<Error | null>(null),
     pendingCountRef = useRef(0),
     execute = useCallback(
-      async (args: Args<T>): Promise<FunctionReturnType<T> | null> => {
+      async (args: A): Promise<R | null> => {
         pendingCountRef.current += 1
         setIsPending(true)
         setMutationError(null)
         onOptimistic?.(args)
         try {
-          const result = await (mutate as (a: Args<T>) => Promise<FunctionReturnType<T>>)(args)
+          const result = await mutate(args)
           onSuccess?.(result, args)
           return result
         } catch (error) {
@@ -49,7 +35,9 @@ const useOptimisticMutation = <T extends MutationFn>({
       },
       [mutate, onOptimistic, onRollback, onSuccess]
     )
+
   return { error: mutationError, execute, isPending }
 }
 
+export type { OptimisticOptions }
 export { useOptimisticMutation }

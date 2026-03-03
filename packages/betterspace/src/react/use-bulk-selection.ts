@@ -1,7 +1,6 @@
-/* oxlint-disable promise/prefer-await-to-then, promise/no-nesting */
 'use client'
 
-import { useState } from 'react'
+import { useCallback, useState } from 'react'
 
 import type { ToastFn } from './use-soft-delete'
 
@@ -19,7 +18,6 @@ interface UseBulkSelectionOpts {
   undoMs?: number
 }
 
-/** Manages bulk item selection with select-all toggle and bulk delete with undo-via-restore support. */
 const useBulkSelection = ({
   bulkRm,
   items,
@@ -32,52 +30,61 @@ const useBulkSelection = ({
   undoMs = UNDO_MS
 }: UseBulkSelectionOpts) => {
   const [selected, setSelected] = useState<Set<string>>(() => new Set()),
-    clear = () => {
+    clear = useCallback(() => {
       setSelected(new Set<string>())
-    },
-    toggleSelect = (id: string) => {
+    }, []),
+    toggleSelect = useCallback((id: string) => {
       setSelected(prev => {
         const next = new Set(prev)
         if (next.has(id)) next.delete(id)
         else next.add(id)
         return next
       })
-    },
-    toggleSelectAll = () => {
-      if (selected.size === items.length) setSelected(new Set<string>())
-      else setSelected(new Set(items.map(i => i._id)))
-    },
-    handleBulkDelete = () => {
+    }, []),
+    toggleSelectAll = useCallback(() => {
+      if (selected.size === items.length) {
+        setSelected(new Set<string>())
+        return
+      }
+      const next = new Set<string>()
+      for (const i of items) next.add(i._id)
+      setSelected(next)
+    }, [items, selected.size]),
+    handleBulkDelete = useCallback(async () => {
       if (selected.size === 0) return
       const ids = [...selected],
         count = ids.length
-      bulkRm({ ids, orgId })
-        .then(() => {
-          setSelected(new Set<string>())
-          if (t && restore) {
-            const label = undoLabel ?? 'item'
-            t(`${count} ${label}${count === 1 ? '' : 's'} deleted`, {
-              action: {
-                label: 'Undo',
-                onClick: () => {
-                  const run = async () => {
-                    try {
-                      await Promise.all(ids.map(async id => restore({ id })))
-                      t(`${count} ${label}${count === 1 ? '' : 's'} restored`)
-                    } catch (restoreError: unknown) {
-                      if (onError) onError(restoreError)
-                    }
-                  }
-                  run()
+      try {
+        await bulkRm({ ids, orgId })
+        setSelected(new Set<string>())
+        if (!(t && restore)) {
+          onSuccess?.(count)
+          return
+        }
+        const label = undoLabel ?? 'item'
+        t(`${count} ${label}${count === 1 ? '' : 's'} deleted`, {
+          action: {
+            label: 'Undo',
+            onClick: () => {
+              const run = async () => {
+                try {
+                  const tasks: Promise<unknown>[] = []
+                  for (const id of ids) tasks.push(restore({ id }))
+                  await Promise.all(tasks)
+                  t(`${count} ${label}${count === 1 ? '' : 's'} restored`)
+                } catch (error) {
+                  onError?.(error)
                 }
-              },
-              duration: undoMs
-            })
-          } else onSuccess?.(count)
-          return null
+              }
+              run()
+            }
+          },
+          duration: undoMs
         })
-        .catch((bulkError: unknown) => onError?.(bulkError))
-    }
+      } catch (error) {
+        onError?.(error)
+      }
+    }, [bulkRm, onError, onSuccess, orgId, restore, selected, t, undoLabel, undoMs])
 
   return { clear, handleBulkDelete, selected, toggleSelect, toggleSelectAll }
 }
