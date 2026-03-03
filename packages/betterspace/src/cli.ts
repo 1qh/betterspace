@@ -12,8 +12,10 @@ const bold = (s: string) => `\u001B[1m${s}\u001B[0m`,
     check: { description: 'Validate schema/reducer consistency', script: 'check.ts' },
     docs: { description: 'Generate API documentation', script: 'docs-gen.ts' },
     doctor: { description: 'Run project diagnostics', script: 'doctor.ts' },
+    generate: { description: 'Generate project files (docker-compose, etc.)', script: '' },
     init: { description: 'Scaffold a new betterspace project', script: '' },
     migrate: { description: 'Schema diff and publish migration plans', script: 'migrate.ts' },
+    use: { description: 'Switch SpacetimeDB target (local / cloud)', script: '' },
     viz: { description: 'Visualize schema relationships', script: 'viz.ts' }
   },
   printHelp = () => {
@@ -37,6 +39,12 @@ else if (!(cmd in COMMANDS)) {
 } else if (cmd === 'add') {
   const { add } = await import('./add')
   add(rest)
+} else if (cmd === 'use') {
+  const { switchTarget } = await import('./use')
+  switchTarget(rest)
+} else if (cmd === 'generate') {
+  const { generate } = await import('./generate')
+  generate(rest)
 } else {
   const entry = COMMANDS[cmd]
   if (!entry) process.exit(1)
