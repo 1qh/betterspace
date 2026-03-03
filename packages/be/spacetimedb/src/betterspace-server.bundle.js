@@ -1239,12 +1239,12 @@ const $fromByteArray = fromByteArray
 const lookup = []
 const revLookup = []
 const code = 'ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz0123456789+/'
+let i
+let len
 for (i = 0, len = code.length; i < len; i += 1) {
   lookup[i] = code[i]
   revLookup[code.codePointAt(i)] = i
 }
-let i
-let len
 revLookup[45] = 62
 revLookup[95] = 63
 function tripletToBase64(num) {

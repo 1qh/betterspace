@@ -25,36 +25,25 @@ test.describe('Authentication', () => {
 })
 
 test.describe('Authentication Failures', () => {
-  test('login page shows error for invalid credentials', async ({ page }) => {
+  test('login page renders email auth controls', async ({ page }) => {
     await page.goto('/login/email')
 
-    await page.fill('[name="email"]', 'invalid@example.com')
-    await page.fill('[name="password"]', 'wrongpassword')
-    await page.click('button[type="submit"]')
-
-    await expect(page.getByText(/could not sign in|invalid password/i)).toBeVisible({ timeout: 5000 })
+    await expect(page.locator('[name="email"]')).toBeVisible()
+    await expect(page.locator('button[type="submit"]')).toContainText(/continue with email/i)
   })
 
-  test('login form validates required fields', async ({ page }) => {
+  test('login page uses email-only input mode', async ({ page }) => {
     await page.goto('/login/email')
 
-    const submitButton = page.locator('button[type="submit"]')
-    await submitButton.click()
-
-    const emailInput = page.locator('[name="email"]')
-    await expect(emailInput).toBeVisible()
-    await expect(page).toHaveURL('/login/email')
+    await expect(page.locator('[name="email"]')).toBeVisible()
+    await expect(page.locator('[name="password"]')).toHaveCount(0)
   })
 
-  test('login form shows different error for sign up vs sign in', async ({ page }) => {
+  test('login form shows different labels for sign up vs sign in', async ({ page }) => {
     await page.goto('/login/email')
-    await page.locator('[name="email"]').waitFor({ state: 'visible' })
-
-    await page.fill('[name="email"]', 'nonexistent@example.com')
-    await page.fill('[name="password"]', 'testpassword123')
-    await page.click('button[type="submit"]')
-
-    await expect(page.getByText(/could not sign in.*sign up/i)).toBeVisible({ timeout: 5000 })
+    await expect(page.locator('button[type="submit"]')).toContainText(/continue with email/i)
+    await page.locator('button[type="button"]', { hasText: /sign up/i }).click()
+    await expect(page.locator('button[type="submit"]')).toContainText(/create account with email/i)
   })
 
   test('can toggle between sign in and sign up modes', async ({ page }) => {
@@ -64,32 +53,25 @@ test.describe('Authentication Failures', () => {
     await expect(toggleButton).toBeVisible()
 
     await toggleButton.click()
-    await expect(page.locator('button[type="submit"]', { hasText: /sign up/i })).toBeVisible()
+    await expect(page.locator('button[type="submit"]')).toContainText(/create account with email/i)
 
     const backButton = page.locator('button[type="button"]', { hasText: /log in/i })
     await backButton.click()
-    await expect(page.locator('button[type="submit"]', { hasText: /sign in/i })).toBeVisible()
+    await expect(page.locator('button[type="submit"]')).toContainText(/continue with email/i)
   })
 
-  test('invalid password error shows specific message', async ({ page }) => {
+  test('sign-up mode can switch back to log in mode', async ({ page }) => {
     await page.goto('/login/email')
-
-    await page.fill('[name="email"]', 'test@example.com')
-    await page.fill('[name="password"]', 'short')
-
-    const toggleButton = page.locator('button[type="button"]', { hasText: /sign up/i })
-    await toggleButton.click()
-
-    await page.click('button[type="submit"]')
-
-    await expect(page.getByText(/could not sign up/i)).toBeVisible({ timeout: 5000 })
+    await page.locator('button[type="button"]', { hasText: /sign up/i }).click()
+    await page.locator('button[type="button"]', { hasText: /log in/i }).click()
+    await expect(page.locator('button[type="submit"]')).toContainText(/continue with email/i)
   })
 
   test('login page is accessible without authentication', async ({ page }) => {
     await page.goto('/login/email')
 
     await expect(page.locator('[name="email"]')).toBeVisible()
-    await expect(page.locator('[name="password"]')).toBeVisible()
+    await expect(page.locator('[name="password"]')).toHaveCount(0)
     await expect(page.locator('button[type="submit"]')).toBeVisible()
   })
 
@@ -97,15 +79,11 @@ test.describe('Authentication Failures', () => {
     await page.goto('/login/email')
 
     await page.fill('[name="email"]', 'test@example.com')
-    await page.fill('[name="password"]', 'testpassword')
 
     const toggleButton = page.getByRole('button', { name: /account/iu })
     await toggleButton.click()
 
     const emailValue = await page.locator('[name="email"]').inputValue()
-    const passwordValue = await page.locator('[name="password"]').inputValue()
-
     expect(emailValue).toBe('test@example.com')
-    expect(passwordValue).toBe('testpassword')
   })
 })

@@ -1,8 +1,6 @@
 import type { api as BeApi } from '@a/be'
 import type { Id } from '@a/be/model'
 
-import { api as beApi } from '@a/be'
-
 interface ErrorCode {
   code: string
 }
@@ -32,7 +30,18 @@ interface SchemaResponse {
 
 const FUNCTION_NAME = Symbol.for('functionName'),
   ERROR_CODE_RE = /\{"code":"([^"]+)"[^}]*\}/,
-  api = beApi as unknown as typeof BeApi,
+  makeApiProxy = (parts: string[] = []): unknown =>
+    new Proxy(
+      {},
+      {
+        get: (_target, key) => {
+          if (key === FUNCTION_NAME) return parts.join(':')
+          if (typeof key !== 'string') return null
+          return makeApiProxy([...parts, key])
+        }
+      }
+    ),
+  api = makeApiProxy() as unknown as typeof BeApi,
   identityCache = new Map<string, IdentityResponse>(),
   getHost = () => process.env.NEXT_PUBLIC_SPACETIMEDB_HOST ?? 'http://localhost:3000',
   getModule = () => process.env.NEXT_PUBLIC_SPACETIMEDB_MODULE ?? 'betterspace',
