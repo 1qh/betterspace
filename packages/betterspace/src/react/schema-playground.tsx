@@ -12,8 +12,8 @@ interface PlaygroundProps {
   className?: string
   /** Default schema text to display. */
   defaultValue?: string
-  /** Additional CSS class for the endpoint list section. */
   endpointClassName?: string
+  reducerClassName?: string
   /** Additional CSS class for the textarea editor. */
   inputClassName?: string
   /** Called when schema text changes. */
@@ -94,6 +94,7 @@ const orgScoped = makeOrgScoped({
     className,
     defaultValue = DEFAULT_SCHEMA,
     endpointClassName,
+    reducerClassName,
     inputClassName,
     onChange,
     placeholder = 'Paste your schema here...',
@@ -114,7 +115,7 @@ const orgScoped = makeOrgScoped({
         for (const t of tables) count += t.fields.length
         return count
       }, [tables]),
-      totalEndpoints = useMemo(() => {
+      totalReducers = useMemo(() => {
         let count = 0
         for (const t of tables)
           count += endpointsForFactory({ factory: t.factory, file: '', options: '', table: t.table }).length
@@ -141,17 +142,17 @@ const orgScoped = makeOrgScoped({
         </div>
         <div className={`flex min-w-0 flex-1 flex-col ${tableClassName ?? ''}`}>
           <div className='flex items-center justify-between pb-2'>
-            <span className='text-sm font-medium text-zinc-300'>Generated Preview</span>
-            <span className={`text-xs text-zinc-500 ${endpointClassName ?? ''}`}>
-              {totalEndpoints} endpoint{totalEndpoints === 1 ? '' : 's'}
+            <span className='text-sm font-medium text-zinc-300'>SpacetimeDB Preview</span>
+            <span className={`text-xs text-zinc-500 ${reducerClassName ?? endpointClassName ?? ''}`}>
+              {totalReducers} reducer{totalReducers === 1 ? '' : 's'}
             </span>
           </div>
           {tables.length === 0 ? (
             <div className='flex flex-1 items-center justify-center rounded-lg border border-dashed border-zinc-800 p-8'>
               <p className='text-sm text-zinc-500'>
                 {value.trim()
-                  ? 'No tables detected. Use makeOwned, makeOrgScoped, etc.'
-                  : 'Enter a schema to preview generated endpoints'}
+                  ? 'No tables detected. Use defineTables, makeOwned, makeOrgScoped, etc.'
+                  : 'Enter a schema to preview generated tables and reducers'}
               </p>
             </div>
           ) : (

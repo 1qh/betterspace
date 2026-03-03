@@ -1,31 +1,25 @@
 /* eslint-disable complexity, react-hooks/refs */
 /* oxlint-disable eslint/complexity */
 'use client'
+
 import { useEffect, useRef, useState } from 'react'
 import { createPortal } from 'react-dom'
 
-import type { DevCacheEntry, DevError, DevMutation, DevSubscription } from './devtools'
+import type { DevCacheEntry, DevConnection, DevError, DevMutation, DevSubscription } from './devtools'
 
 import { SLOW_THRESHOLD_MS, STALE_THRESHOLD_MS, useDevErrors } from './devtools'
 
-/** Props for customizing the LazyConvex DevTools panel. */
 interface DevtoolsProps {
-  /** Additional CSS class for the floating trigger button. */
   buttonClassName?: string
-  /** Additional CSS class for both the button and panel wrapper. */
   className?: string
-  /** Open the panel by default. @default false */
   defaultOpen?: boolean
-  /** Tab to show when panel is first opened. @default 'errors' */
   defaultTab?: TabId
-  /** Additional CSS class for the expanded panel. */
   panelClassName?: string
-  /** Corner position of the floating button and panel. @default 'bottom-right' */
   position?: Position
 }
-type Position = 'bottom-left' | 'bottom-right' | 'top-left' | 'top-right'
 
-type TabId = 'cache' | 'errors' | 'mutations' | 'subs'
+type Position = 'bottom-left' | 'bottom-right' | 'top-left' | 'top-right'
+type TabId = 'cache' | 'errors' | 'reducers' | 'subs'
 
 const POSITION_CLASSES: Record<Position, string> = {
     'bottom-left': 'left-4 bottom-4',
@@ -44,6 +38,21 @@ const POSITION_CLASSES: Record<Position, string> = {
   WATERFALL_MAX_MS = 10_000,
   isStale = (sub: DevSubscription) => sub.status === 'loaded' && Date.now() - sub.lastUpdate > STALE_THRESHOLD_MS,
   isSlow = (sub: DevSubscription) => sub.latencyMs > SLOW_THRESHOLD_MS,
+  ConnectionBadge = ({ connection }: { connection: DevConnection }) => {
+    const dotClass = connection.isActive ? 'bg-emerald-400' : 'bg-red-400',
+      status = connection.isActive ? 'connected' : 'disconnected'
+    return (
+      <div className='flex items-center gap-2 rounded-sm bg-zinc-900/80 px-2 py-1 text-xs'>
+        <span className={`size-1.5 rounded-full ${dotClass}`} />
+        <span className='font-mono text-zinc-300'>{status}</span>
+        {connection.connectionId ? (
+          <span className='max-w-20 truncate font-mono text-zinc-500' title={connection.connectionId}>
+            {connection.connectionId}
+          </span>
+        ) : null}
+      </div>
+    )
+  },
   ErrorRow = ({ error }: { error: DevError }) => {
     const [expanded, setExpanded] = useState(false),
       code = error.data?.code,
@@ -58,14 +67,14 @@ const POSITION_CLASSES: Record<Position, string> = {
           <span className='shrink-0 pt-px font-mono text-red-400/60'>{formatTime(error.timestamp)}</span>
           {code ? <span className='shrink-0 rounded-sm bg-red-900/50 px-1 font-mono text-red-300'>{code}</span> : null}
           <span className='min-w-0 flex-1 truncate text-red-200'>{error.message}</span>
-          <span className='shrink-0 text-red-400/40'>{expanded ? '\u25B2' : '\u25BC'}</span>
+          <span className='shrink-0 text-red-400/40'>{expanded ? '^' : 'v'}</span>
         </button>
         {expanded ? (
           <div className='space-y-1 bg-red-950/20 px-3 py-2 text-xs'>
             {table || op ? (
               <p className='font-mono text-red-400/80'>
                 {table ? `table: ${table}` : ''}
-                {table && op ? ' \u00B7 ' : ''}
+                {table && op ? ' . ' : ''}
                 {op ? `op: ${op}` : ''}
               </p>
             ) : null}
@@ -106,23 +115,13 @@ const POSITION_CLASSES: Record<Position, string> = {
           ) : null}
           <span className={`shrink-0 font-mono ${statusColor}`}>{statusLabel}</span>
           <span className='shrink-0 text-zinc-500 tabular-nums'>{sub.updateCount}x</span>
-          {sub.renderCount > 0 ? (
-            <span className='shrink-0 font-mono text-zinc-600' title='Render count'>
-              R{sub.renderCount}
-            </span>
-          ) : null}
-          {sub.resultCount > 0 ? (
-            <span className='shrink-0 font-mono text-zinc-600' title='Result count'>
-              {sub.resultCount} items
-            </span>
-          ) : null}
-          <span className='shrink-0 text-zinc-500/40'>{expanded ? '\u25B2' : '\u25BC'}</span>
+          <span className='shrink-0 text-zinc-500/40'>{expanded ? '^' : 'v'}</span>
         </button>
         {expanded ? (
           <div className='space-y-1 bg-zinc-900/50 px-3 py-2 text-xs'>
             <p className='font-mono text-zinc-500'>args: {sub.args}</p>
             {sub.dataPreview ? (
-              <p className='max-h-32 overflow-y-auto font-mono break-all whitespace-pre-wrap text-zinc-400'>
+              <p className='max-h-32 overflow-y-auto break-all whitespace-pre-wrap font-mono text-zinc-400'>
                 {sub.dataPreview}...
               </p>
             ) : (
@@ -133,7 +132,7 @@ const POSITION_CLASSES: Record<Position, string> = {
       </li>
     )
   },
-  MutationRow = ({ mutation }: { mutation: DevMutation }) => {
+  ReducerRow = ({ mutation }: { mutation: DevMutation }) => {
     const statusColor =
         mutation.status === 'success'
           ? 'text-emerald-400'
@@ -199,7 +198,7 @@ const POSITION_CLASSES: Record<Position, string> = {
             style={{ left: `${leftPct}%`, width: `${widthPct}%` }}
           />
         </span>
-        <span className='w-12 shrink-0 text-right font-mono text-zinc-500 tabular-nums'>
+        <span className='w-12 shrink-0 text-right font-mono tabular-nums text-zinc-500'>
           {sub.latencyMs > 0 ? `${sub.latencyMs}ms` : '...'}
         </span>
       </li>
@@ -213,8 +212,7 @@ const POSITION_CLASSES: Record<Position, string> = {
       {label}
     </button>
   ),
-  /** Development-only floating panel that displays errors, subscriptions, mutations, and cache stats. */
-  LazyConvexDevtools = ({
+  BetterspaceDevtools = ({
     buttonClassName,
     className,
     defaultOpen = false,
@@ -222,7 +220,7 @@ const POSITION_CLASSES: Record<Position, string> = {
     panelClassName,
     position = 'bottom-right'
   }: DevtoolsProps = {}) => {
-    const { cache, clear, clearMutations, errors, mutations, subscriptions } = useDevErrors(),
+    const { cache, clear, clearMutations, connection, errors, mutations, subscriptions } = useDevErrors(),
       posClass = POSITION_CLASSES[position],
       [open, setOpen] = useState(defaultOpen),
       [tab, setTab] = useState<TabId>(defaultTab),
@@ -232,19 +230,20 @@ const POSITION_CLASSES: Record<Position, string> = {
 
     const errorCount = errors.length,
       subCount = subscriptions.length,
-      mutCount = mutations.length,
+      reducerCount = mutations.length,
       cacheCount = cache.length,
       staleCount = subscriptions.filter(isStale).length,
       slowCount = subscriptions.filter(isSlow).length,
       pendingCount = mutations.filter(m => m.status === 'pending').length,
       count = errorCount,
-      minStart = subscriptions.length > 0 ? Math.min(...subscriptions.map(s => s.startedAt)) : 0
+      minStart = subscriptions.length > 0 ? Math.min(...subscriptions.map(s => s.startedAt)) : 0,
+      connWarnCount = connection.isActive ? 0 : 1
     if (!open)
       return (
         <button
-          className={`fixed ${posClass} z-9999 flex size-10 items-center justify-center rounded-full shadow-lg transition-colors ${count > 0 ? 'bg-red-600 text-white hover:bg-red-700' : staleCount > 0 || pendingCount > 0 ? 'bg-yellow-600 text-white hover:bg-yellow-700' : 'bg-zinc-800 text-zinc-400 hover:bg-zinc-700'} ${className ?? ''} ${buttonClassName ?? ''}`}
+          className={`fixed ${posClass} z-9999 flex size-10 items-center justify-center rounded-full shadow-lg transition-colors ${count > 0 || connWarnCount > 0 ? 'bg-red-600 text-white hover:bg-red-700' : staleCount > 0 || pendingCount > 0 ? 'bg-yellow-600 text-white hover:bg-yellow-700' : 'bg-zinc-800 text-zinc-400 hover:bg-zinc-700'} ${className ?? ''} ${buttonClassName ?? ''}`}
           onClick={() => setOpen(v => !v)}
-          title='LazyConvex DevTools'
+          title='Betterspace DevTools'
           type='button'>
           {count > 0 ? (
             <span className='text-sm font-bold'>{count > MAX_BADGE ? `${MAX_BADGE}+` : count}</span>
@@ -252,8 +251,10 @@ const POSITION_CLASSES: Record<Position, string> = {
             <span className='text-sm font-bold'>{pendingCount}</span>
           ) : staleCount > 0 ? (
             <span className='text-sm font-bold'>{staleCount}</span>
+          ) : connWarnCount > 0 ? (
+            <span className='text-sm font-bold'>!</span>
           ) : (
-            <span className='text-base'>⚡</span>
+            <span className='text-base'>S</span>
           )}
         </button>
       )
@@ -270,13 +271,13 @@ const POSITION_CLASSES: Record<Position, string> = {
             />
             <TabBtn
               active={tab === 'subs'}
-              label={`Subs${subCount > 0 ? ` (${subCount})` : ''}${staleCount > 0 ? ` \u00B7 ${staleCount}\u26A0` : ''}${slowCount > 0 ? ` \u00B7 ${slowCount}\u{1F422}` : ''}`}
+              label={`Subs${subCount > 0 ? ` (${subCount})` : ''}${staleCount > 0 ? ` . ${staleCount}!` : ''}${slowCount > 0 ? ` . ${slowCount}~` : ''}`}
               onClick={() => setTab('subs')}
             />
             <TabBtn
-              active={tab === 'mutations'}
-              label={`Mut${mutCount > 0 ? ` (${mutCount})` : ''}${pendingCount > 0 ? ` \u00B7 ${pendingCount}\u23F3` : ''}`}
-              onClick={() => setTab('mutations')}
+              active={tab === 'reducers'}
+              label={`Reducers${reducerCount > 0 ? ` (${reducerCount})` : ''}${pendingCount > 0 ? ` . ${pendingCount}` : ''}`}
+              onClick={() => setTab('reducers')}
             />
             <TabBtn
               active={tab === 'cache'}
@@ -293,7 +294,7 @@ const POSITION_CLASSES: Record<Position, string> = {
                 Clear
               </button>
             ) : null}
-            {tab === 'mutations' && mutCount > 0 ? (
+            {tab === 'reducers' && reducerCount > 0 ? (
               <button
                 className='rounded-sm px-2 py-0.5 text-xs text-zinc-400 hover:bg-zinc-800 hover:text-zinc-200'
                 onClick={clearMutations}
@@ -313,9 +314,17 @@ const POSITION_CLASSES: Record<Position, string> = {
               className='rounded-sm px-2 py-0.5 text-xs text-zinc-400 hover:bg-zinc-800 hover:text-zinc-200'
               onClick={() => setOpen(v => !v)}
               type='button'>
-              ✕
+              x
             </button>
           </div>
+        </div>
+        <div className='border-b border-zinc-900 bg-zinc-950/80 px-3 py-2'>
+          <ConnectionBadge connection={connection} />
+          {connection.connectionError ? (
+            <p className='mt-1 line-clamp-2 text-xs text-red-300' title={connection.connectionError}>
+              {connection.connectionError}
+            </p>
+          ) : null}
         </div>
         <div className='max-h-80 overflow-y-auto'>
           {tab === 'errors' ? (
@@ -344,13 +353,13 @@ const POSITION_CLASSES: Record<Position, string> = {
                 ))}
               </ul>
             )
-          ) : tab === 'mutations' ? (
-            mutCount === 0 ? (
-              <p className='px-3 py-6 text-center text-xs text-zinc-500'>No mutations tracked</p>
+          ) : tab === 'reducers' ? (
+            reducerCount === 0 ? (
+              <p className='px-3 py-6 text-center text-xs text-zinc-500'>No reducer calls tracked</p>
             ) : (
               <ul>
                 {mutations.map(m => (
-                  <MutationRow key={m.id} mutation={m} />
+                  <ReducerRow key={m.id} mutation={m} />
                 ))}
               </ul>
             )
@@ -391,9 +400,9 @@ const DevtoolsAutoMount = (props: DevtoolsProps) => {
   }, [])
 
   if (!(mounted && containerRef.current)) return null
-  return createPortal(<LazyConvexDevtools {...props} />, containerRef.current)
+  return createPortal(<BetterspaceDevtools {...props} />, containerRef.current)
 }
 
-export default LazyConvexDevtools
+export default BetterspaceDevtools
 export { DevtoolsAutoMount }
 export type { DevtoolsProps }

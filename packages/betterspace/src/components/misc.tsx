@@ -5,10 +5,9 @@ import type { ComponentProps } from 'react'
 import { cn } from '@a/ui'
 import { Avatar, AvatarFallback, AvatarImage } from '@a/ui/avatar'
 import { Badge } from '@a/ui/badge'
+import { useSpacetimeDB } from 'spacetimedb/react'
 
 import type { OrgRole } from '../server/types'
-
-import useOnlineStatus from '../react/use-online-status'
 
 const OrgAvatar = ({ name, src, ...props }: ComponentProps<typeof Avatar> & { name: string; src?: string }) => (
     <Avatar {...props}>
@@ -27,8 +26,8 @@ const OrgAvatar = ({ name, src, ...props }: ComponentProps<typeof Avatar> & { na
     </Badge>
   ),
   OfflineIndicator = ({ className, ...props }: ComponentProps<'p'>) => {
-    const online = useOnlineStatus()
-    if (online) return null
+    const { isActive } = useSpacetimeDB()
+    if (isActive) return null
     return (
       <p
         className={cn(
@@ -41,5 +40,4 @@ const OrgAvatar = ({ name, src, ...props }: ComponentProps<typeof Avatar> & { na
     )
   }
 
-/** Exports OrgAvatar, RoleBadge, and OfflineIndicator components. */
 export { OfflineIndicator, OrgAvatar, RoleBadge }

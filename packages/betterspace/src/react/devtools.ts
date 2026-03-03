@@ -1,11 +1,12 @@
 'use client'
-import { useEffect, useMemo, useState } from 'react'
 
-import type { ConvexErrorData } from '../server/helpers'
+import { useEffect, useMemo, useState } from 'react'
+import { useSpacetimeDB } from 'spacetimedb/react'
+
+import type { ErrorData } from '../server/helpers'
 
 import { extractErrorData, getErrorDetail, getErrorMessage } from '../server/helpers'
 
-/** Tracks cache entry access statistics for the devtools panel. */
 interface DevCacheEntry {
   hitCount: number
   id: number
@@ -16,16 +17,23 @@ interface DevCacheEntry {
   table: string
 }
 
-/** Represents a captured error in the devtools error log. */
+interface DevConnection {
+  connectionError: string
+  connectionId: string
+  hasConnection: boolean
+  identity: string
+  isActive: boolean
+  token: string
+}
+
 interface DevError {
-  data?: ConvexErrorData
+  data?: ErrorData
   detail: string
   id: number
   message: string
   timestamp: number
 }
 
-/** Tracks a mutation's lifecycle (pending → success/error) in devtools. */
 interface DevMutation {
   args: string
   durationMs: number
@@ -36,7 +44,6 @@ interface DevMutation {
   status: 'error' | 'pending' | 'success'
 }
 
-/** Tracks a real-time subscription's lifecycle and latency in devtools. */
 interface DevSubscription {
   args: string
   dataPreview: string
@@ -54,22 +61,49 @@ interface DevSubscription {
 
 const MAX_ERRORS = 50,
   MAX_MUTATIONS = 100,
-  /** Threshold in ms above which a subscription is considered slow. */
   SLOW_THRESHOLD_MS = 5000,
-  /** Threshold in ms above which a loaded subscription without updates is considered stale. */
   STALE_THRESHOLD_MS = 30_000,
   errorStore: DevError[] = [],
   mutationStore: DevMutation[] = [],
   cacheStore = new Map<string, DevCacheEntry>(),
   subStore = new Map<number, DevSubscription>()
 
-let nextId = 1,
-  listeners: (() => void)[] = []
+let nextId = 1
+const listeners: (() => void)[] = []
+
+const connectionStore: DevConnection = {
+  connectionError: '',
+  connectionId: '',
+  hasConnection: false,
+  identity: '',
+  isActive: false,
+  token: ''
+}
 
 const notify = () => {
     for (const fn of listeners) fn()
   },
-  /** Records an error in the devtools error store. */
+  toDisplay = (value: unknown): string => {
+    if (value === null || value === undefined) return ''
+    if (typeof value === 'string') return value
+    if (typeof value === 'object' && 'toHexString' in value) {
+      const obj = value as { toHexString?: () => string }
+      if (typeof obj.toHexString === 'function') return obj.toHexString()
+    }
+    return String(value)
+  },
+  setConnectionState = (nextState: Partial<DevConnection>) => {
+    let changed = false
+    const keys = Object.keys(nextState) as (keyof DevConnection)[]
+    for (const k of keys) {
+      const val = nextState[k]
+      if (val !== undefined && connectionStore[k] !== val) {
+        connectionStore[k] = val
+        changed = true
+      }
+    }
+    if (changed) notify()
+  },
   pushError = (e: unknown) => {
     const data = extractErrorData(e),
       entry: DevError = {
@@ -84,12 +118,10 @@ const notify = () => {
     if (errorStore.length > MAX_ERRORS) errorStore.length = MAX_ERRORS
     notify()
   },
-  /** Clears all errors from the devtools error store. */
   clearErrors = () => {
     errorStore.length = 0
     notify()
   },
-  /** Begins tracking a subscription in devtools, returns its tracking ID. */
   trackSubscription = (query: string, args?: Record<string, unknown>): number => {
     const id = nextId
     nextId += 1
@@ -110,7 +142,6 @@ const notify = () => {
     notify()
     return id
   },
-  /** Updates the status of a tracked subscription. */
   updateSubscription = (id: number, status: 'error' | 'loaded' | 'loading') => {
     const sub = subStore.get(id)
     if (!sub) return
@@ -124,12 +155,10 @@ const notify = () => {
     sub.updateCount += 1
     notify()
   },
-  /** Removes a subscription from devtools tracking. */
   untrackSubscription = (id: number) => {
     subStore.delete(id)
     notify()
   },
-  /** Updates the data preview for a tracked subscription. */
   updateSubscriptionData = (id: number, data: unknown[], preview: string) => {
     const sub = subStore.get(id)
     if (!sub) return
@@ -138,7 +167,6 @@ const notify = () => {
     sub.renderCount += 1
     notify()
   },
-  /** Begins tracking a mutation in devtools, returns its tracking ID. */
   trackMutation = (name: string, args?: Record<string, unknown>): number => {
     const id = nextId
     nextId += 1
@@ -155,7 +183,7 @@ const notify = () => {
     notify()
     return id
   },
-  /** Marks a tracked mutation as completed with the given status. */
+  trackReducerCall = (name: string, args?: Record<string, unknown>): number => trackMutation(name, args),
   completeMutation = (id: number, status: 'error' | 'success') => {
     const entry = mutationStore.find(m => m.id === id)
     if (!entry) return
@@ -164,6 +192,7 @@ const notify = () => {
     entry.durationMs = entry.endedAt - entry.startedAt
     notify()
   },
+  completeReducerCall = (id: number, status: 'error' | 'success') => completeMutation(id, status),
   getOrCreateCacheEntry = (table: string, key: string) => {
     const cacheKey = `${table}:${key}`
     let entry = cacheStore.get(cacheKey)
@@ -175,7 +204,6 @@ const notify = () => {
     }
     return entry
   },
-  /** Records a cache hit or miss for a table/key pair in devtools. */
   trackCacheAccess = (opts: { hit: boolean; key: string; stale?: boolean; table: string }) => {
     const entry = getOrCreateCacheEntry(opts.table, opts.key)
     entry.lastAccess = Date.now()
@@ -184,46 +212,58 @@ const notify = () => {
     if (opts.stale !== undefined) entry.stale = opts.stale
     notify()
   },
-  /** Clears all tracked mutations from the devtools store. */
   clearMutations = () => {
     mutationStore.length = 0
     notify()
   },
-  /** Subscribes to devtools state and returns current errors, mutations, subscriptions, and cache entries. */
   useDevErrors = () => {
-    const [, setTick] = useState(0)
+    const [, setTick] = useState(0),
+      { connectionError, connectionId, getConnection, identity, isActive, token } = useSpacetimeDB()
     useEffect(() => {
       const fn = () => setTick(t => t + 1)
       listeners.push(fn)
       return () => {
-        listeners = listeners.filter(l => l !== fn)
+        const idx = listeners.indexOf(fn)
+        if (idx !== -1) listeners.splice(idx, 1)
       }
     }, [])
+    useEffect(() => {
+      setConnectionState({
+        connectionError: connectionError ? getErrorMessage(connectionError) : '',
+        connectionId: toDisplay(connectionId),
+        hasConnection: Boolean(getConnection()),
+        identity: toDisplay(identity),
+        isActive,
+        token: token ?? ''
+      })
+    }, [connectionError, connectionId, getConnection, identity, isActive, token])
     return useMemo(
       () => ({
         cache: [...cacheStore.values()],
         clear: clearErrors,
         clearMutations,
+        connection: { ...connectionStore },
         errors: [...errorStore],
         mutations: [...mutationStore],
         push: pushError,
         subscriptions: [...subStore.values()]
       }),
-      // eslint-disable-next-line react-hooks/exhaustive-deps
-      [errorStore.length, mutationStore.length, subStore.size, cacheStore.size]
+      [errorStore.length, mutationStore.length, subStore.size, cacheStore.size, connectionStore]
     )
   }
 
-export type { DevCacheEntry, DevError, DevMutation, DevSubscription }
+export type { DevCacheEntry, DevConnection, DevError, DevMutation, DevSubscription }
 export {
   clearErrors,
   clearMutations,
   completeMutation,
+  completeReducerCall,
   pushError,
   SLOW_THRESHOLD_MS,
   STALE_THRESHOLD_MS,
   trackCacheAccess,
   trackMutation,
+  trackReducerCall,
   trackSubscription,
   untrackSubscription,
   updateSubscription,

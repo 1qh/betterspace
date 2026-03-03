@@ -8,22 +8,31 @@ import { Badge } from '@a/ui/badge'
 import { Button } from '@a/ui/button'
 import Link from 'next/link'
 
+import type { OrgRole } from '../server/types'
+
 const PermissionGuard = ({
+  allowedRoles,
   backHref,
   backLabel,
   canAccess,
   children,
   className,
+  role,
   resource,
   ...props
 }: ComponentProps<'div'> & {
+  allowedRoles?: OrgRole[]
   backHref: string
   backLabel: string
-  canAccess: boolean
+  canAccess?: boolean
   children: ReactNode
+  role?: OrgRole
   resource: string
 }) => {
-  if (!canAccess)
+  const effectiveRole = role,
+    roleAllowed = allowedRoles && effectiveRole ? allowedRoles.includes(effectiveRole) : allowedRoles ? false : undefined,
+    canRender = canAccess ?? roleAllowed ?? true
+  if (!canRender)
     return (
       <div className={cn('flex flex-col items-center gap-4 py-12', className)} {...props}>
         <Badge variant='secondary'>View only</Badge>
@@ -36,5 +45,4 @@ const PermissionGuard = ({
   return children
 }
 
-/** Exports PermissionGuard component. */
 export default PermissionGuard

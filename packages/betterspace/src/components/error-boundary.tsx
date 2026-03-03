@@ -6,36 +6,52 @@ import type { ErrorInfo, ReactNode } from 'react'
 
 import { Component } from 'react'
 
-import { extractErrorData, getErrorMessage } from '../server/helpers'
-
-interface ConvexErrorBoundaryProps {
+interface ErrorBoundaryProps {
   children: ReactNode
   fallback?: (props: { error: Error; resetErrorBoundary: () => void }) => ReactNode
   onError?: (error: Error, errorInfo: ErrorInfo) => void
 }
 
-interface ConvexErrorBoundaryState {
+interface ErrorBoundaryState {
   error: Error | null
 }
 
-class ConvexErrorBoundary extends Component<ConvexErrorBoundaryProps, ConvexErrorBoundaryState> {
-  constructor(props: ConvexErrorBoundaryProps) {
+const asRecord = (value: unknown): Record<string, unknown> | null => {
+    if (typeof value === 'object' && value !== null) return value as Record<string, unknown>
+    return null
+  },
+  readErrorCode = (error: Error): string | undefined => {
+    const errorRecord = asRecord(error)
+    if (!errorRecord) return
+    const directCode = errorRecord.code
+    if (typeof directCode === 'string' && directCode.length > 0) return directCode
+    const dataRecord = asRecord(errorRecord.data)
+    if (!dataRecord) return
+    const nestedCode = dataRecord.code
+    if (typeof nestedCode === 'string' && nestedCode.length > 0) return nestedCode
+  },
+  readErrorMessage = (error: Error): string => {
+    const message = error.message.trim()
+    if (message.length > 0) return message
+    return 'Unknown error'
+  }
+
+class BetterspaceErrorBoundary extends Component<ErrorBoundaryProps, ErrorBoundaryState> {
+  constructor(props: ErrorBoundaryProps) {
     super(props)
     this.state = { error: null }
   }
 
-  static getDerivedStateFromError(error: Error): ConvexErrorBoundaryState {
+  static getDerivedStateFromError(error: Error): ErrorBoundaryState {
     return { error }
   }
-
-  // oxlint-disable-next-line class-methods-use-this
 
   componentDidCatch(error: Error, errorInfo: ErrorInfo) {
     const { onError } = this.props
     if (onError) onError(error, errorInfo)
   }
 
-  async render() {
+  render() {
     const { error } = this.state,
       { children, fallback } = this.props
 
@@ -43,9 +59,8 @@ class ConvexErrorBoundary extends Component<ConvexErrorBoundaryProps, ConvexErro
 
     if (fallback) return fallback({ error, resetErrorBoundary: () => this.setState({ error: null }) })
 
-    const data = extractErrorData(error),
-      code = data?.code,
-      message = getErrorMessage(error)
+    const code = readErrorCode(error),
+      message = readErrorMessage(error)
 
     return (
       <div className='flex min-h-[200px] items-center justify-center p-6'>
@@ -65,5 +80,4 @@ class ConvexErrorBoundary extends Component<ConvexErrorBoundaryProps, ConvexErro
   }
 }
 
-/** Exports ConvexErrorBoundary component. */
-export default ConvexErrorBoundary
+export default BetterspaceErrorBoundary

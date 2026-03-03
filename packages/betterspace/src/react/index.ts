@@ -2,10 +2,12 @@ export {
   clearErrors,
   clearMutations,
   completeMutation,
+  completeReducerCall,
   pushError,
   SLOW_THRESHOLD_MS,
   STALE_THRESHOLD_MS,
   trackCacheAccess,
+  trackReducerCall,
   trackMutation,
   trackSubscription,
   untrackSubscription,
@@ -14,7 +16,7 @@ export {
   useDevErrors
 } from './devtools'
 export { DevtoolsAutoMount } from './devtools-panel'
-export { default as LazyConvexDevtools } from './devtools-panel'
+export { default as BetterspaceDevtools } from './devtools-panel'
 export type { DevtoolsProps } from './devtools-panel'
 export type { ErrorToastOptions, ToastFn } from './error-toast'
 export { makeErrorHandler, useErrorToast } from './error-toast'

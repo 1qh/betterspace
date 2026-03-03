@@ -1,27 +1,30 @@
 'use server'
-import type { FunctionReference } from 'convex/server'
+
 import type { NextRequest } from 'next/server'
 import type { Sharp } from 'sharp'
 
-import { ConvexHttpClient } from 'convex/browser'
 import { NextResponse } from 'next/server'
 import sharp from 'sharp'
 
 type Format = 'jpeg' | 'png' | 'webp'
+
 interface FormatOpts {
   contentType: string
   format: Format | undefined
   quality: number
 }
+
 interface ImageRouteConfig {
-  convexUrl: string
-  fileInfoQuery?: string
+  fileInfoEndpoint?: string
+  storageBaseUrl?: string
 }
+
 interface ProcessOptions {
   compress?: { quality?: number }
   format?: Format
   resize?: { fit?: 'contain' | 'cover' | 'fill' | 'inside' | 'outside'; height?: number; width?: number }
 }
+
 interface TransformOpts {
   contentType: string
   options: ProcessOptions | undefined
@@ -30,11 +33,28 @@ interface TransformOpts {
 }
 
 const IMAGE_TYPES = new Set(['image/gif', 'image/jpeg', 'image/png', 'image/svg+xml', 'image/webp']),
-  isImageType = (contentType: string): boolean => IMAGE_TYPES.has(contentType),
   formatToMime: Record<Format, string> = {
     jpeg: 'image/jpeg',
     png: 'image/png',
     webp: 'image/webp'
+  },
+  isImageType = (contentType: string): boolean => IMAGE_TYPES.has(contentType),
+  isHttpUrl = (value: string) => value.startsWith('http://') || value.startsWith('https://'),
+  buildStorageUrl = ({ storageBaseUrl, storageId }: { storageBaseUrl: string; storageId: string }) => {
+    const base = storageBaseUrl.endsWith('/') ? storageBaseUrl.slice(0, -1) : storageBaseUrl,
+      key = storageId.startsWith('/') ? storageId.slice(1) : storageId
+    return `${base}/${key}`
+  },
+  resolveUrlByEndpoint = async ({ fileInfoEndpoint, storageId }: { fileInfoEndpoint: string; storageId: string }) => {
+    const response = await fetch(fileInfoEndpoint, {
+        body: JSON.stringify({ id: storageId }),
+        headers: { 'Content-Type': 'application/json' },
+        method: 'POST'
+      }),
+      body = (await response.json().catch(() => ({}))) as { url?: string }
+    if (!response.ok) return { error: 'File not found', status: 404 } as const
+    if (!body.url) return { error: 'File not found', status: 404 } as const
+    return body.url
   },
   applyFormat = ({ contentType, format, pipeline, quality }: FormatOpts & { pipeline: Sharp }): Sharp => {
     if (format === 'jpeg') return pipeline.jpeg({ quality })
@@ -50,46 +70,66 @@ const IMAGE_TYPES = new Set(['image/gif', 'image/jpeg', 'image/png', 'image/svg+
     const DEFAULT_QUALITY = 80,
       THUMB_SIZE = 200,
       quality = options?.compress?.quality ?? DEFAULT_QUALITY
-    if (thumbnail)
+    if (thumbnail) {
       return pipeline.resize({ fit: 'cover', height: THUMB_SIZE, width: THUMB_SIZE }).webp({ quality: DEFAULT_QUALITY })
+    }
     let result = pipeline
-    if (options?.resize)
+    if (options?.resize) {
       result = result.resize({
         fit: options.resize.fit ?? 'cover',
         height: options.resize.height,
         width: options.resize.width
       })
-    if (options?.format || options?.compress)
+    }
+    if (options?.format || options?.compress) {
       result = applyFormat({ contentType, format: options.format, pipeline: result, quality })
+    }
     return result
   },
-  fetchImage = async ({
-    client,
-    queryRef,
+  fetchSourceUrl = async ({
+    fileInfoEndpoint,
+    sourceUrl,
+    storageBaseUrl,
     storageId
   }: {
-    client: ConvexHttpClient
-    queryRef: string
-    storageId: string
+    fileInfoEndpoint?: string
+    sourceUrl?: string
+    storageBaseUrl?: string
+    storageId?: string
+  }): Promise<string | { error: string; status: number }> => {
+    if (sourceUrl && isHttpUrl(sourceUrl)) return sourceUrl
+    if (storageId && isHttpUrl(storageId)) return storageId
+    if (sourceUrl) return { error: 'sourceUrl must be an http(s) url', status: 400 }
+    if (storageId && storageBaseUrl) return buildStorageUrl({ storageBaseUrl, storageId })
+    if (storageId && fileInfoEndpoint) return resolveUrlByEndpoint({ fileInfoEndpoint, storageId })
+    return { error: 'sourceUrl or storageId is required', status: 400 }
+  },
+  fetchImage = async ({
+    fileInfoEndpoint,
+    sourceUrl,
+    storageBaseUrl,
+    storageId
+  }: {
+    fileInfoEndpoint?: string
+    sourceUrl?: string
+    storageBaseUrl?: string
+    storageId?: string
   }): Promise<{ buffer: Buffer; contentType: string } | { error: string; status: number }> => {
-    const info = (await client.query(queryRef as unknown as FunctionReference<'query'>, { id: storageId })) as null | {
-        url: string
-      },
-      url = info?.url
-    if (!url) return { error: 'File not found', status: 404 }
-    const response = await fetch(url)
+    const resolved = await fetchSourceUrl({ fileInfoEndpoint, sourceUrl, storageBaseUrl, storageId })
+    if (typeof resolved !== 'string') return resolved
+    const response = await fetch(resolved)
     if (!response.ok) return { error: 'Failed to fetch image', status: 500 }
     const contentType = response.headers.get('content-type') ?? ''
     if (!isImageType(contentType)) return { error: 'Not an image file', status: 400 }
     return { buffer: Buffer.from(await response.arrayBuffer()), contentType }
   },
   makeGet =
-    ({ getClient, queryRef }: { getClient: () => ConvexHttpClient; queryRef: string }) =>
+    ({ fileInfoEndpoint, storageBaseUrl }: ImageRouteConfig) =>
     async (req: NextRequest): Promise<NextResponse> => {
       try {
-        const storageId = req.nextUrl.searchParams.get('id')
-        if (!storageId) return NextResponse.json({ error: 'id is required' }, { status: 400 })
-        const result = await fetchImage({ client: getClient(), queryRef, storageId })
+        const sourceUrl = req.nextUrl.searchParams.get('url') ?? undefined,
+          storageId = req.nextUrl.searchParams.get('id') ?? undefined,
+          result = await fetchImage({ fileInfoEndpoint, sourceUrl, storageBaseUrl, storageId })
         if ('error' in result) return NextResponse.json({ error: result.error }, { status: result.status })
         return new NextResponse(new Uint8Array(result.buffer), {
           headers: { 'Cache-Control': 'public, max-age=31536000, immutable', 'Content-Type': result.contentType }
@@ -102,23 +142,34 @@ const IMAGE_TYPES = new Set(['image/gif', 'image/jpeg', 'image/png', 'image/svg+
       }
     },
   makePost =
-    ({ getClient, queryRef }: { getClient: () => ConvexHttpClient; queryRef: string }) =>
+    ({ fileInfoEndpoint, storageBaseUrl }: ImageRouteConfig) =>
     async (req: NextRequest): Promise<NextResponse> => {
       try {
-        const body = (await req.json()) as { options?: ProcessOptions; storageId: string; thumbnail?: boolean },
-          { options, storageId, thumbnail } = body
-        if (!storageId) return NextResponse.json({ error: 'storageId is required' }, { status: 400 })
-        const result = await fetchImage({ client: getClient(), queryRef, storageId })
+        const body = (await req.json()) as {
+            options?: ProcessOptions
+            sourceUrl?: string
+            storageId?: string
+            storageUrl?: string
+            thumbnail?: boolean
+          },
+          sourceUrl = body.sourceUrl ?? body.storageUrl,
+          result = await fetchImage({
+            fileInfoEndpoint,
+            sourceUrl,
+            storageBaseUrl,
+            storageId: body.storageId
+          })
         if ('error' in result) return NextResponse.json({ error: result.error }, { status: result.status })
         const { buffer, contentType } = result,
+          thumbnail = body.thumbnail ?? false,
           pipeline = applyTransforms({
             contentType,
-            options,
+            options: body.options,
             pipeline: sharp(buffer),
-            thumbnail: thumbnail ?? false
+            thumbnail
           }),
           outputBuffer = await pipeline.toBuffer(),
-          outputMime = thumbnail ? 'image/webp' : options?.format ? formatToMime[options.format] : contentType
+          outputMime = thumbnail ? 'image/webp' : body.options?.format ? formatToMime[body.options.format] : contentType
         return new NextResponse(new Uint8Array(outputBuffer), {
           headers: { 'Cache-Control': 'public, max-age=31536000, immutable', 'Content-Type': outputMime }
         })
@@ -126,13 +177,9 @@ const IMAGE_TYPES = new Set(['image/gif', 'image/jpeg', 'image/png', 'image/svg+
         return NextResponse.json({ error: error instanceof Error ? error.message : 'Processing failed' }, { status: 500 })
       }
     },
-  /* eslint-disable @typescript-eslint/require-await */
-  makeImageRoute = async ({ convexUrl, fileInfoQuery = 'file:info' }: ImageRouteConfig) => {
-    const getClient = () => new ConvexHttpClient(convexUrl),
-      opts = { getClient, queryRef: fileInfoQuery }
-    return { GET: makeGet(opts), POST: makePost(opts) }
-  }
-/* eslint-enable @typescript-eslint/require-await */
+  makeImageRoute = async ({ fileInfoEndpoint, storageBaseUrl }: ImageRouteConfig) => ({
+    GET: makeGet({ fileInfoEndpoint, storageBaseUrl }),
+    POST: makePost({ fileInfoEndpoint, storageBaseUrl })
+  })
 
-/** Creates a Next.js route handler for image processing with GET and POST methods. */
 export { makeImageRoute }
