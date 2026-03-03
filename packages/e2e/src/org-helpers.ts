@@ -46,6 +46,23 @@ const FUNCTION_NAME = Symbol.for('functionName'),
   getHost = () => process.env.NEXT_PUBLIC_SPACETIMEDB_HOST ?? 'http://localhost:3000',
   getModule = () => process.env.NEXT_PUBLIC_SPACETIMEDB_MODULE ?? 'betterspace',
   makeCodeError = (code: string): Error => new Error(JSON.stringify({ code })),
+  ORG_LIFECYCLE_ACTIONS = new Set([
+    'create',
+    'update',
+    'remove',
+    'set_admin',
+    'remove_member',
+    'leave',
+    'transfer_ownership',
+    'send_invite',
+    'accept_invite',
+    'revoke_invite',
+    'request_join',
+    'approve_join',
+    'reject_join',
+    'cancel_join'
+  ]),
+  toSnake = (s: string): string => s.replaceAll(/[A-Z]/g, m => `_${m.toLowerCase()}`),
   toReducerName = (name: string): string => {
     if (name.includes('_')) return name
     const parts = name.split(':'),
@@ -53,7 +70,9 @@ const FUNCTION_NAME = Symbol.for('functionName'),
       fn = parts[1] ?? ''
     const hasParts = mod.length > 0 && fn.length > 0
     if (!hasParts) return name
-    return `${fn}_${mod}`
+    const snakeFn = toSnake(fn)
+    if (mod === 'org' && ORG_LIFECYCLE_ACTIONS.has(snakeFn)) return `org_${snakeFn}`
+    return `${snakeFn}_${mod}`
   },
   parseJson = async <T>(response: Response): Promise<T> => {
     const text = await response.text()
