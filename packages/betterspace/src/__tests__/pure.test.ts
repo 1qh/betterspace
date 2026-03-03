@@ -2164,35 +2164,35 @@ describe('isRecord', () => {
 })
 
 describe('extractErrorData', () => {
-  test('extracts code from ConvexError', () => {
+  test('extracts code from SenderError', () => {
     const e = makeSenderError({ code: 'NOT_FOUND' }),
       d = extractErrorData(e)
     expect(d).toBeDefined()
     expect(d?.code).toBe('NOT_FOUND')
   })
 
-  test('extracts code, debug from ConvexError', () => {
+  test('extracts code, debug from SenderError', () => {
     const e = makeSenderError({ code: 'NOT_AUTHENTICATED', debug: 'session-expired' }),
       d = extractErrorData(e)
     expect(d?.code).toBe('NOT_AUTHENTICATED')
     expect(d?.debug).toBe('session-expired')
   })
 
-  test('extracts code, message from ConvexError', () => {
+  test('extracts code, message from SenderError', () => {
     const e = makeSenderError({ code: 'RATE_LIMITED', message: 'Too fast' }),
       d = extractErrorData(e)
     expect(d?.code).toBe('RATE_LIMITED')
     expect(d?.message).toBe('Too fast')
   })
 
-  test('extracts code, fields from ConvexError', () => {
+  test('extracts code, fields from SenderError', () => {
     const e = makeSenderError({ code: 'NOT_FOUND', fields: ['title', 'content'] }),
       d = extractErrorData(e)
     expect(d?.code).toBe('NOT_FOUND')
     expect(d?.fields).toEqual(['title', 'content'])
   })
 
-  test('returns undefined for non-ConvexError', () => {
+  test('returns undefined for non-SenderError', () => {
     expect(extractErrorData(new Error('plain'))).toBeUndefined()
   })
 
@@ -2204,17 +2204,17 @@ describe('extractErrorData', () => {
     expect(extractErrorData(null)).toBeUndefined()
   })
 
-  test('returns undefined for ConvexError without valid code', () => {
+  test('returns undefined for SenderError without valid code', () => {
     const e = makeSenderError({ code: 'INVALID_CODE_THAT_DOES_NOT_EXIST' })
     expect(extractErrorData(e)).toBeUndefined()
   })
 
-  test('returns undefined for ConvexError with non-string code', () => {
+  test('returns undefined for SenderError with non-string code', () => {
     const e = makeSenderError({ code: 42 })
     expect(extractErrorData(e)).toBeUndefined()
   })
 
-  test('returns undefined for ConvexError with non-record data', () => {
+  test('returns undefined for SenderError with non-record data', () => {
     const e = makeSenderError('just a string')
     expect(extractErrorData(e)).toBeUndefined()
   })
@@ -2239,7 +2239,7 @@ describe('extractErrorData', () => {
 })
 
 describe('getErrorCode', () => {
-  test('returns code from ConvexError', () => {
+  test('returns code from SenderError', () => {
     expect(getErrorCode(makeSenderError({ code: 'CONFLICT' }))).toBe('CONFLICT')
   })
 
@@ -2257,7 +2257,7 @@ describe('getErrorCode', () => {
 })
 
 describe('getErrorMessage', () => {
-  test('returns message from ConvexError with message field', () => {
+  test('returns message from SenderError with message field', () => {
     expect(getErrorMessage(makeSenderError({ code: 'NOT_FOUND', message: 'Blog not found' }))).toBe('Blog not found')
   })
 
@@ -2279,7 +2279,7 @@ describe('getErrorMessage', () => {
   })
 })
 
-describe('handleConvexError', () => {
+describe('handleError', () => {
   test('calls specific handler for matching code', () => {
     let called = false
     handleError(makeSenderError({ code: 'NOT_FOUND' }), {
@@ -2342,7 +2342,7 @@ describe('handleConvexError', () => {
     expect(which).toBe('specific')
   })
 
-  test('default receives original error for non-ConvexError', () => {
+  test('default receives original error for non-SenderError', () => {
     const original = new Error('oops')
     handleError(original, {
       default: e => {
@@ -2862,7 +2862,7 @@ describe('Fix #9: useList accepts optional pageSize', () => {
 })
 
 describe('Fix #10: isTestMode production safety', () => {
-  test('isTestMode returns true when CONVEX_TEST_MODE=true and NODE_ENV=test', () => {
+  test('isTestMode returns true when SPACETIMEDB_TEST_MODE=true and NODE_ENV=test', () => {
     const origTest = process.env.SPACETIMEDB_TEST_MODE,
       origNode = process.env.NODE_ENV
     process.env.SPACETIMEDB_TEST_MODE = 'true'
@@ -2872,7 +2872,7 @@ describe('Fix #10: isTestMode production safety', () => {
     process.env.NODE_ENV = origNode
   })
 
-  test('isTestMode returns true when CONVEX_TEST_MODE=true regardless of NODE_ENV', () => {
+  test('isTestMode returns true when SPACETIMEDB_TEST_MODE=true regardless of NODE_ENV', () => {
     const origTest = process.env.SPACETIMEDB_TEST_MODE,
       origNode = process.env.NODE_ENV
     process.env.SPACETIMEDB_TEST_MODE = 'true'
@@ -2882,7 +2882,7 @@ describe('Fix #10: isTestMode production safety', () => {
     process.env.NODE_ENV = origNode
   })
 
-  test('isTestMode returns false when CONVEX_TEST_MODE is false', () => {
+  test('isTestMode returns false when SPACETIMEDB_TEST_MODE is false', () => {
     const origTest = process.env.SPACETIMEDB_TEST_MODE,
       origNode = process.env.NODE_ENV
     process.env.SPACETIMEDB_TEST_MODE = 'false'
@@ -2892,7 +2892,7 @@ describe('Fix #10: isTestMode production safety', () => {
     process.env.NODE_ENV = origNode
   })
 
-  test('isTestMode returns false when CONVEX_TEST_MODE is undefined', () => {
+  test('isTestMode returns false when SPACETIMEDB_TEST_MODE is undefined', () => {
     const origTest = process.env.SPACETIMEDB_TEST_MODE,
       origNode = process.env.NODE_ENV
     /** biome-ignore lint/performance/noDelete: process.env requires delete to truly unset */
@@ -2915,7 +2915,7 @@ describe('Fix #10: isTestMode production safety', () => {
     process.env.NODE_ENV = origNode
   })
 
-  test('isTestMode returns true when CONVEX_TEST_MODE=true and NODE_ENV=development', () => {
+  test('isTestMode returns true when SPACETIMEDB_TEST_MODE=true and NODE_ENV=development', () => {
     const origTest = process.env.SPACETIMEDB_TEST_MODE,
       origNode = process.env.NODE_ENV
     process.env.SPACETIMEDB_TEST_MODE = 'true'
@@ -2925,7 +2925,7 @@ describe('Fix #10: isTestMode production safety', () => {
     process.env.NODE_ENV = origNode
   })
 
-  test('isTestMode returns true when CONVEX_TEST_MODE=true and NODE_ENV is empty', () => {
+  test('isTestMode returns true when SPACETIMEDB_TEST_MODE=true and NODE_ENV is empty', () => {
     const origTest = process.env.SPACETIMEDB_TEST_MODE,
       origNode = process.env.NODE_ENV
     process.env.SPACETIMEDB_TEST_MODE = 'true'
@@ -2980,7 +2980,7 @@ describe('VALIDATION_FAILED error code', () => {
     expect(msg).toBe('Validation failed')
   })
 
-  test('handleConvexError routes VALIDATION_FAILED', () => {
+  test('handleError routes VALIDATION_FAILED', () => {
     let called = false
     handleError(makeSenderError({ code: 'VALIDATION_FAILED' }), {
       VALIDATION_FAILED: () => {
@@ -2998,7 +2998,7 @@ describe('VALIDATION_FAILED error code', () => {
 })
 
 describe('errValidation with VALIDATION_FAILED', () => {
-  test('errValidation throws ConvexError with code and fields', () => {
+  test('errValidation throws SenderError with code and fields', () => {
     const zodError = {
       flatten: () => ({ fieldErrors: { content: ['Too short'], title: ['Required'] } })
     }
@@ -3069,7 +3069,7 @@ describe('field-level error routing (R9.3)', () => {
     }
   })
 
-  test('extractErrorData returns fieldErrors from ConvexError', () => {
+  test('extractErrorData returns fieldErrors from SenderError', () => {
     const e = makeSenderError({
         code: 'VALIDATION_FAILED',
         fieldErrors: { content: 'Too short', title: 'Required' },
@@ -3425,7 +3425,7 @@ describe('makeErrorHandler', () => {
     expect(messages).toEqual(['something broke'])
   })
 
-  test('calls toast with ConvexError message', () => {
+  test('calls toast with SenderError message', () => {
     const messages: string[] = [],
       handler = makeErrorHandler((m: string) => {
         messages.push(m)
@@ -6262,13 +6262,13 @@ describe('health check', () => {
     test('returns empty issues for consistent schema', async () => {
       const { mkdirSync, writeFileSync } = await import('node:fs'),
         tmpDir = `/tmp/betterspace-test-health-${Date.now()}`
-      mkdirSync(`${tmpDir}/convex/_generated`, { recursive: true })
-      writeFileSync(`${tmpDir}/convex/blog.ts`, "crud('blog', owned.blog)")
+      mkdirSync(`${tmpDir}/spacetimedb/_generated`, { recursive: true })
+      writeFileSync(`${tmpDir}/spacetimedb/blog.ts`, "crud('blog', owned.blog)")
       const schemaFile = {
           content: 'const owned = makeOwned({ blog: object({ title: string() }) })',
           path: `${tmpDir}/schema.ts`
         },
-        issues = checkSchemaConsistency(`${tmpDir}/convex`, schemaFile),
+        issues = checkSchemaConsistency(`${tmpDir}/spacetimedb`, schemaFile),
         schemaErrors = issues.filter(i => i.level === 'error')
       expect(schemaErrors).toHaveLength(0)
     })
@@ -6279,9 +6279,9 @@ describe('health check', () => {
       const { mkdirSync, writeFileSync } = await import('node:fs'),
         calls: FactoryCall[] = [{ factory: 'crud', file: 'blog.ts', options: '', table: 'blog' }],
         tmpDir = `/tmp/betterspace-test-idx-${Date.now()}`
-      mkdirSync(`${tmpDir}/convex/_generated`, { recursive: true })
-      writeFileSync(`${tmpDir}/convex/schema.ts`, 'export default defineSchema({})')
-      const issues = checkIndexCoverage(`${tmpDir}/convex`, calls)
+      mkdirSync(`${tmpDir}/spacetimedb/_generated`, { recursive: true })
+      writeFileSync(`${tmpDir}/spacetimedb/schema.ts`, 'export default defineSchema({})')
+      const issues = checkIndexCoverage(`${tmpDir}/spacetimedb`, calls)
       expect(issues).toHaveLength(0)
     })
   })
@@ -6495,11 +6495,11 @@ describe('typed error handling (R10.5)', () => {
   })
 
   describe('isMutationError()', () => {
-    test('returns true for ConvexError with valid code', () => {
+    test('returns true for SenderError with valid code', () => {
       expect(isMutationError(makeSenderError({ code: 'NOT_FOUND' }))).toBe(true)
     })
 
-    test('returns true for ConvexError with code and data', () => {
+    test('returns true for SenderError with code and data', () => {
       expect(isMutationError(makeSenderError({ code: 'CONFLICT', message: 'stale' }))).toBe(true)
     })
 
@@ -6519,15 +6519,15 @@ describe('typed error handling (R10.5)', () => {
       expect(isMutationError(42)).toBe(false)
     })
 
-    test('returns false for ConvexError with invalid code', () => {
+    test('returns false for SenderError with invalid code', () => {
       expect(isMutationError(makeSenderError({ code: 'INVALID_NOPE' }))).toBe(false)
     })
 
-    test('returns false for ConvexError with non-string code', () => {
+    test('returns false for SenderError with non-string code', () => {
       expect(isMutationError(makeSenderError({ code: 123 }))).toBe(false)
     })
 
-    test('returns false for ConvexError with string data', () => {
+    test('returns false for SenderError with string data', () => {
       expect(isMutationError(makeSenderError('just text'))).toBe(false)
     })
 
@@ -6560,7 +6560,7 @@ describe('typed error handling (R10.5)', () => {
       expect(isErrorCode('error', 'NOT_FOUND')).toBe(false)
     })
 
-    test('returns false for ConvexError with different code', () => {
+    test('returns false for SenderError with different code', () => {
       const e = makeSenderError({ code: 'RATE_LIMITED' })
       expect(isErrorCode(e, 'CONFLICT')).toBe(false)
     })
@@ -6681,7 +6681,7 @@ describe('typed error handling (R10.5)', () => {
       expect(result).toBe(42)
     })
 
-    test('_ receives original error for non-ConvexError', () => {
+    test('_ receives original error for non-SenderError', () => {
       const original = new Error('boom'),
         result = matchError(original, {
           _: e => (e as Error).message
@@ -6689,7 +6689,7 @@ describe('typed error handling (R10.5)', () => {
       expect(result).toBe('boom')
     })
 
-    test('_ receives original error for ConvexError without matching handler', () => {
+    test('_ receives original error for SenderError without matching handler', () => {
       const original = makeSenderError({ code: 'FORBIDDEN' }),
         result = matchError(original, {
           _: () => 'fallback',
@@ -6717,7 +6717,7 @@ describe('typed error handling (R10.5)', () => {
       expect(result.ok).toBe(true)
     })
 
-    test('fail result can be used with isMutationError on ConvexError', () => {
+    test('fail result can be used with isMutationError on SenderError', () => {
       const result = fail('CONFLICT', { message: 'Stale' })
       expect(result.ok).toBe(false)
       const errorData = (result as MutationFail).error,
@@ -6802,7 +6802,7 @@ describe('rich error metadata (R11.2)', () => {
   })
 
   describe('extractErrorData with retryAfter and limit', () => {
-    test('extracts retryAfter from ConvexError', () => {
+    test('extracts retryAfter from SenderError', () => {
       const e = makeSenderError({ code: 'RATE_LIMITED', retryAfter: 30_000 }),
         d = extractErrorData(e)
       expect(d?.retryAfter).toBe(30_000)
@@ -6814,7 +6814,7 @@ describe('rich error metadata (R11.2)', () => {
       expect(d?.retryAfter).toBeUndefined()
     })
 
-    test('extracts limit object from ConvexError', () => {
+    test('extracts limit object from SenderError', () => {
       const limit = { max: 10, remaining: 0, window: 60_000 },
         e = makeSenderError({ code: 'RATE_LIMITED', limit }),
         d = extractErrorData(e)
@@ -6918,7 +6918,7 @@ describe('rich error metadata (R11.2)', () => {
       })
     })
 
-    test('handleConvexError passes rich metadata to handler', () => {
+    test('handleError passes rich metadata to handler', () => {
       const e = makeSenderError({
         code: 'RATE_LIMITED',
         limit: { max: 5, remaining: 0, window: 30_000 },
@@ -7381,7 +7381,7 @@ describe('betterspace add command', () => {
       expect(flags.type).toBe('child')
     })
 
-    test('parses --convex-dir flag', () => {
+    test('parses --module-dir flag', () => {
       const flags = parseAddFlags(['todo', '--module-dir=my-module'])
       expect(flags.moduleDir).toBe('my-module')
     })
@@ -7401,7 +7401,7 @@ describe('betterspace add command', () => {
       expect(flags.type).toBe('owned')
     })
 
-    test('default convexDir is convex', () => {
+    test('default moduleDir is module', () => {
       const flags = parseAddFlags(['todo'])
       expect(flags.moduleDir).toBe('module')
     })
@@ -7640,10 +7640,10 @@ describe('docs-gen', () => {
     })
 
     test('parses default as re-exports', () => {
-      const content = `export { default as LazyConvexDevtools } from './devtools-panel'`,
+      const content = `export { default as BetterspaceDevtools } from './devtools-panel'`,
         result = resolveReExports(content)
       expect(result).toHaveLength(1)
-      expect(result[0]?.symbol).toBe('LazyConvexDevtools')
+      expect(result[0]?.symbol).toBe('BetterspaceDevtools')
       expect(result[0]?.isDefault).toBe(true)
     })
 
@@ -7658,7 +7658,7 @@ describe('docs-gen', () => {
     test('parses multiple re-exports', () => {
       const content = [
           `export { useBulkSelection } from './use-bulk-selection'`,
-          `export { default as LazyConvexDevtools } from './devtools-panel'`,
+          `export { default as BetterspaceDevtools } from './devtools-panel'`,
           `export type { DevtoolsProps } from './devtools-panel'`
         ].join('\n'),
         result = resolveReExports(content)

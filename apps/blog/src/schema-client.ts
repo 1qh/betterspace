@@ -1,5 +1,5 @@
 import { cvFile, cvFiles } from 'betterspace/schema'
-import { boolean, object, string } from 'zod/v4'
+import { boolean, enum as zenum, object, string } from 'zod/v4'
 
 const createBlog = object({
     attachments: cvFiles().optional(),
@@ -23,7 +23,7 @@ const createBlog = object({
     bio: string().optional(),
     displayName: string().min(1),
     notifications: boolean(),
-    theme: string().min(1)
+    theme: zenum(['light', 'dark', 'system'])
   })
 
 export { createBlog, editBlog, profileSchema }
