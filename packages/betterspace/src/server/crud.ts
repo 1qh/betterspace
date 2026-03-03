@@ -31,8 +31,7 @@ const makeError = (code: string, message: string): Error => new Error(`${code}: 
     const left = a as unknown as { isEqual?: (v: unknown) => boolean; toJSON?: () => string }
     if (typeof left.isEqual === 'function') return left.isEqual(b)
     const right = b as unknown as { toJSON?: () => string }
-    if (typeof left.toJSON === 'function' && typeof right.toJSON === 'function')
-      return left.toJSON() === right.toJSON()
+    if (typeof left.toJSON === 'function' && typeof right.toJSON === 'function') return left.toJSON() === right.toJSON()
     return Object.is(a, b)
   },
   makeOptionalFields = (fields: CrudFieldBuilders) => {
@@ -110,8 +109,7 @@ const makeError = (code: string, message: string): Error => new Error(`${code}: 
       updateParams: Record<string, TypeBuilder<unknown, unknown>> = {
         id: idField
       },
-
-     optionalFields = makeOptionalFields(fields),
+      optionalFields = makeOptionalFields(fields),
       optionalKeys = Object.keys(optionalFields)
     for (const key of optionalKeys) {
       const field = optionalFields[key]

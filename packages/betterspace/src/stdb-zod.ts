@@ -138,9 +138,8 @@ const NUMBER_TAGS = new Set([
     if (!isRecord(variants)) return unknown()
     const names = toVariantNames(variants)
     if (names.length === 0) return unknown()
-    for (const k of names) 
-      if (!isUnitVariant(variants[k])) return unknown()
-    
+    for (const k of names) if (!isUnitVariant(variants[k])) return unknown()
+
     return object({ tag: zenum(names as [string, ...string[]]) })
   },
   scalarSchemaFromTag = (tag: string): undefined | ZodType => {
@@ -186,10 +185,7 @@ const NUMBER_TAGS = new Set([
     if (m.isAutoIncrement === true || m.isPrimaryKey === true) return true
     return false
   },
-  zodFromTable = (
-    columns: Record<string, unknown>,
-    options: ZodFromTableOptions = {}
-  ): ZodObject<ZodRawShape> => {
+  zodFromTable = (columns: Record<string, unknown>, options: ZodFromTableOptions = {}): ZodObject<ZodRawShape> => {
     const includeSet = new Set(options.include),
       excludeSet = new Set(options.exclude),
       optionalSet = new Set(options.optional),

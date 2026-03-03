@@ -6,6 +6,6 @@ interface ErrorBoundaryProps {
   children: ReactNode
 }
 
-const ErrorBoundary = ({ children }: ErrorBoundaryProps) => children
+const ErrorBoundary = async ({ children }: ErrorBoundaryProps) => children
 
 export default ErrorBoundary

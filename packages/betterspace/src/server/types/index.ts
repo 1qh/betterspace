@@ -1,5 +1,15 @@
 export type { CacheBuilders, CacheCrudResult, CacheHookCtx, CacheHooks, CacheOptions } from './cache'
-export type { ChildConfig, ChildCrudResult } from './child'
+export type {
+  ChildConfig,
+  ChildCrudConfig,
+  ChildCrudExports,
+  CrudFieldBuilders as ChildCrudFieldBuilders,
+  CrudFieldValues as ChildCrudFieldValues,
+  CrudPkLike as ChildCrudPkLike,
+  ChildCrudResult,
+  CrudTableLike as ChildCrudTableLike,
+  ChildParentPkLike
+} from './child'
 export type {
   Ab,
   ActionCtxLike,

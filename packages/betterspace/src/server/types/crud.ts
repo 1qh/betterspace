@@ -39,7 +39,12 @@ type CrudFieldValues<F extends CrudFieldBuilders> = {
       : never
 }
 
-interface CrudHooks<DB = unknown, Row = Record<string, unknown>, CreateArgs = Record<string, unknown>, UpdatePatch = Record<string, unknown>> {
+interface CrudHooks<
+  DB = unknown,
+  Row = Record<string, unknown>,
+  CreateArgs = Record<string, unknown>,
+  UpdatePatch = Record<string, unknown>
+> {
   afterCreate?: (ctx: HookCtx<DB>, args: { data: CreateArgs; row: Row }) => Promise<void> | void
   afterDelete?: (ctx: HookCtx<DB>, args: { row: Row }) => Promise<void> | void
   afterUpdate?: (ctx: HookCtx<DB>, args: { next: Row; patch: UpdatePatch; prev: Row }) => Promise<void> | void
