@@ -1,84 +1,122 @@
-import type { ZodObject, ZodRawShape, z as _ } from 'zod/v4'
-
-import type {
-  BaseBuilders,
-  DbLike,
-  EnrichedDoc,
-  HookCtx,
-  PaginatedResult,
-  Qb,
-  RateLimitConfig,
-  Rec,
-  RegisteredMutation,
-  RegisteredQuery,
-  Visibility,
-  WhereOf
-} from './common'
+import type { Identity, Timestamp } from 'spacetimedb'
+import type { ColumnBuilder, ReducerExport, TypeBuilder } from 'spacetimedb/server'
 
 interface CascadeOption {
   foreignKey: string
   table: string
 }
 
-interface CrudBuilders extends BaseBuilders {
-  cm: BaseBuilders['m']
-  cq: Qb
-  pq: Qb
+type CrudBuilder = ColumnBuilder<unknown, unknown, unknown> | TypeBuilder<unknown, unknown>
+
+type CrudBuilders = never
+interface CrudConfig<
+  DB,
+  F extends CrudFieldBuilders,
+  Row extends { updatedAt: Timestamp; userId: Identity },
+  Id,
+  Tbl extends CrudTableLike<Row>,
+  Pk extends CrudPkLike<Row, Id>
+> {
+  expectedUpdatedAtField?: TypeBuilder<Timestamp, unknown>
+  fields: F
+  idField: TypeBuilder<Id, unknown>
+  options?: CrudOptions<DB, Row, CrudFieldValues<F>, Partial<CrudFieldValues<F>>>
+  pk: (table: Tbl) => Pk
+  table: (db: DB) => Tbl
+  tableName: string
+}
+interface CrudExports {
+  exports: Record<string, ReducerExportLike>
 }
 
-interface CrudHooks {
-  afterCreate?: (ctx: HookCtx, args: { data: Rec; id: number | string }) => Promise<void> | void
-  afterDelete?: (ctx: HookCtx, args: { doc: Rec; id: number | string }) => Promise<void> | void
-  afterUpdate?: (ctx: HookCtx, args: { id: number | string; patch: Rec; prev: Rec }) => Promise<void> | void
-  beforeCreate?: (ctx: HookCtx, args: { data: Rec }) => Promise<Rec> | Rec
-  beforeDelete?: (ctx: HookCtx, args: { doc: Rec; id: number | string }) => Promise<void> | void
-  beforeUpdate?: (ctx: HookCtx, args: { id: number | string; patch: Rec; prev: Rec }) => Promise<Rec> | Rec
+type CrudFieldBuilders = Record<string, CrudBuilder>
+
+type CrudFieldValues<F extends CrudFieldBuilders> = {
+  [K in keyof F]: F[K] extends ColumnBuilder<infer T, unknown, unknown>
+    ? T
+    : F[K] extends TypeBuilder<infer T, unknown>
+      ? T
+      : never
 }
 
-interface CrudOptions<S extends ZodRawShape> {
-  auth?: { where?: WhereOf<S> }
-  cascade?: CascadeOption[] | false
-  hooks?: CrudHooks
-  pub?: { where?: WhereOf<S> }
-  rateLimit?: RateLimitConfig
-  search?: (keyof S & string) | true | { field?: keyof S & string; index?: string }
+interface CrudHooks<DB = unknown, Row = Record<string, unknown>, CreateArgs = Record<string, unknown>, UpdatePatch = Record<string, unknown>> {
+  afterCreate?: (ctx: HookCtx<DB>, args: { data: CreateArgs; row: Row }) => Promise<void> | void
+  afterDelete?: (ctx: HookCtx<DB>, args: { row: Row }) => Promise<void> | void
+  afterUpdate?: (ctx: HookCtx<DB>, args: { next: Row; patch: UpdatePatch; prev: Row }) => Promise<void> | void
+  beforeCreate?: (ctx: HookCtx<DB>, args: { data: CreateArgs }) => CreateArgs | Promise<CreateArgs>
+  beforeDelete?: (ctx: HookCtx<DB>, args: { row: Row }) => Promise<void> | void
+  beforeUpdate?: (ctx: HookCtx<DB>, args: { patch: UpdatePatch; prev: Row }) => Promise<UpdatePatch> | UpdatePatch
+}
+
+type CrudMakeFn = <
+  DB,
+  F extends CrudFieldBuilders,
+  Row extends { updatedAt: Timestamp; userId: Identity },
+  Id,
+  Tbl extends CrudTableLike<Row>,
+  Pk extends CrudPkLike<Row, Id>
+>(
+  spacetimedb: {
+    reducer: (
+      opts: { name: string },
+      params: CrudFieldBuilders,
+      fn: (ctx: HookCtx<DB>, args: Record<string, unknown>) => void
+    ) => ReducerExportLike
+  },
+  config: CrudConfig<DB, F, Row, Id, Tbl, Pk>
+) => CrudExports
+
+interface CrudOptions<
+  DB = unknown,
+  Row = Record<string, unknown>,
+  CreateArgs = Record<string, unknown>,
+  UpdatePatch = Record<string, unknown>
+> {
+  cascade?: CascadeOption[]
+  hooks?: CrudHooks<DB, Row, CreateArgs, UpdatePatch>
+  rateLimit?: { max: number; window: number }
   softDelete?: boolean
 }
 
-interface CrudReadApi<S extends ZodRawShape, V extends Visibility = 'public'> {
-  list: RegisteredQuery<V, { paginationOpts?: Rec; where?: WhereOf<S> }, PaginatedResult<EnrichedDoc<S>>>
-  read: RegisteredQuery<V, { id: number | string; own?: boolean; where?: WhereOf<S> }, EnrichedDoc<S> | null>
-  search?: RegisteredQuery<V, { query: string; where?: WhereOf<S> }, EnrichedDoc<S>[]>
+interface CrudPkLike<Row, Id> {
+  delete: (id: Id) => boolean
+  find: (id: Id) => null | Row
+  update: (row: Row) => Row
 }
 
-interface CrudResult<S extends ZodRawShape> {
-  auth: CrudReadApi<S>
-  authIndexed: RegisteredQuery<
-    'public',
-    { index: string; key: string; value: string; where?: WhereOf<S> },
-    EnrichedDoc<S>[]
-  >
-  bulkCreate: RegisteredMutation<'public', { items: _.output<ZodObject<S>>[] }, (number | string)[]>
-  bulkRm: RegisteredMutation<'public', { ids: (number | string)[] }, number>
-  bulkUpdate: RegisteredMutation<'public', { data: Partial<_.output<ZodObject<S>>>; ids: (number | string)[] }, unknown[]>
-  create: RegisteredMutation<'public', _.output<ZodObject<S>>, number | string>
-  pub: CrudReadApi<S>
-  pubIndexed: RegisteredQuery<
-    'public',
-    { index: string; key: string; value: string; where?: WhereOf<S> },
-    EnrichedDoc<S>[]
-  >
-  restore?: RegisteredMutation<'public', { id: number | string }, _.output<ZodObject<S>>>
-  rm: RegisteredMutation<'public', { id: number | string }, _.output<ZodObject<S>>>
-  update: RegisteredMutation<
-    'public',
-    Partial<_.output<ZodObject<S>>> & { expectedUpdatedAt?: number; id: number | string },
-    _.output<ZodObject<S>>
-  >
-}
+type CrudReadApi = never
 
+type CrudResult = CrudExports
+
+interface CrudTableLike<Row> {
+  delete: (row: Row) => boolean
+  insert: (row: Row) => Row
+}
 interface DbCtx {
-  db: DbLike
+  db: unknown
+}
+interface HookCtx<DB = unknown> {
+  db: DB
+  sender: Identity
+  timestamp: Timestamp
 }
 
-export type { CascadeOption, CrudBuilders, CrudHooks, CrudOptions, CrudReadApi, CrudResult, DbCtx }
+type ReducerExportLike = ReducerExport<never, never>
+
+export type {
+  CascadeOption,
+  CrudBuilders,
+  CrudConfig,
+  CrudExports,
+  CrudFieldBuilders,
+  CrudFieldValues,
+  CrudHooks,
+  CrudMakeFn,
+  CrudOptions,
+  CrudPkLike,
+  CrudReadApi,
+  CrudResult,
+  CrudTableLike,
+  DbCtx,
+  HookCtx
+}
