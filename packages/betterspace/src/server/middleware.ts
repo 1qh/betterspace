@@ -6,12 +6,6 @@ import { log } from './helpers'
 
 const withOp = (ctx: GlobalHookCtx, op: MiddlewareCtx['operation']): MiddlewareCtx => ({ ...ctx, operation: op }),
   // oxlint-disable-next-line max-statements
-
-  /**
-   * Composes multiple middleware instances into a single GlobalHooks object that chains their lifecycle callbacks.
-   * @param middlewares - Middleware instances to compose
-   * @returns Combined GlobalHooks with all middleware callbacks chained in order
-   */
   composeMiddleware = (...middlewares: Middleware[]): GlobalHooks => {
     const hooks: GlobalHooks = {},
       hasBeforeCreate = middlewares.some(mw => mw.beforeCreate),

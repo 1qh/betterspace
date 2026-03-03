@@ -9,7 +9,6 @@ export default defineConfig({
   rules: {
     ...nextPlugin.configs.recommended.rules,
     ...nextPlugin.configs['core-web-vitals'].rules,
-    // TypeError: context.getAncestors is not a function
     '@next/next/no-duplicate-head': 'off'
   }
 })
