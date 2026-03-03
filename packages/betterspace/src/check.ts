@@ -1,5 +1,5 @@
 #!/usr/bin/env bun
-/* eslint-disable no-continue, no-console, max-statements, complexity */
+/* eslint-disable no-continue, no-console, max-depth, max-statements, complexity */
 /* oxlint-disable eslint/max-statements, eslint/complexity, max-depth */
 /** biome-ignore-all lint/style/noProcessEnv: cli */
 /** biome-ignore-all lint/performance/noAwaitInLoops: sequential */

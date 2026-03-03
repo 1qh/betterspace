@@ -1,4 +1,5 @@
 'use client'
+/* eslint-disable @typescript-eslint/max-params */
 
 import { useRef, useState } from 'react'
 
@@ -28,6 +29,8 @@ interface UploadConfig {
     storageKey: string
   }) => Promise<RegisteredFile>
 }
+
+type UploadErrorCode = Exclude<UploadResult, { ok: true }>['code']
 
 type UploadOptions = UploadConfig
 
@@ -83,7 +86,7 @@ const DEFAULT_API_ENDPOINT = '/api/upload/presign',
         headers: { 'content-type': 'application/json' },
         method: 'POST'
       }),
-      payload = await response.json()
+      payload = (await response.json().catch(() => null)) as unknown
     if (!response.ok) throw new Error('Failed to create upload URL')
     return parsePresignedPayload(payload)
   },
@@ -127,7 +130,7 @@ const DEFAULT_API_ENDPOINT = '/api/upload/presign',
     }
   }),
   addProgressListener = (xhr: XMLHttpRequest, onProgress: (progress: number) => void) => {
-    const handleProgress = (event: ProgressEvent<EventTarget>) => {
+    const handleProgress = (event: ProgressEvent) => {
       if (!event.lengthComputable) return
       onProgress(Math.round((event.loaded / event.total) * 100))
     }
@@ -140,7 +143,7 @@ const DEFAULT_API_ENDPOINT = '/api/upload/presign',
     applyHeaders(xhr, headers)
     return registerAbortListener(xhr, signal)
   },
-  uploadWithXhr = (
+  uploadWithXhr = async (
     file: File,
     presigned: PresignedUpload,
     onProgress: (progress: number) => void,
@@ -188,7 +191,7 @@ const DEFAULT_API_ENDPOINT = '/api/upload/presign',
       setUploadProgress = (uploadId: number, value: number) => {
         if (uploadId === latestUploadId.current) setProgress(value)
       },
-      onUploadError = (code: UploadResult['code']) => {
+      onUploadError = (code: UploadErrorCode) => {
         setError(code)
       },
       completeUpload = (uploadId: number, storageId: string, nextUrl?: string): UploadResult => {

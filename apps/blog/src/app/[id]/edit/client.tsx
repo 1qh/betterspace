@@ -150,6 +150,7 @@ const Publish = ({
   },
   Client = ({ blog }: { blog: Blog | null }) => {
     const { identity } = useSpacetimeDB(),
+      // eslint-disable-next-line no-restricted-properties
       isPlaywrightTest = process.env.NEXT_PUBLIC_PLAYWRIGHT === '1'
     if (!(blog && (isPlaywrightTest || (identity && blog.userId.isEqual(identity)))))
       return (

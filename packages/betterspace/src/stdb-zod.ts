@@ -7,6 +7,8 @@ interface RuntimeBuilder {
   columnMetadata?: unknown
   element?: unknown
   elements?: unknown
+  name?: string
+  tag?: string
   typeBuilder?: unknown
   value?: unknown
   variants?: unknown
@@ -161,7 +163,7 @@ const NUMBER_TAGS = new Set([
     const b = toTypeBuilder(v),
       { elements: elementsObj } = toBuilder(b)
     if (!isRecord(elementsObj)) return unknown()
-    const shape: ZodRawShape = {}
+    const shape = {} as unknown as Record<string, ZodType>
     for (const k of Object.keys(elementsObj)) shape[k] = visit(elementsObj[k])
     return object(shape)
   },
@@ -190,7 +192,7 @@ const NUMBER_TAGS = new Set([
       excludeSet = new Set(options.exclude),
       optionalSet = new Set(options.optional),
       hasInclude = includeSet.size > 0,
-      shape: ZodRawShape = {}
+      shape = {} as unknown as Record<string, ZodType>
     for (const key of Object.keys(columns)) {
       const inInclude = includeSet.has(key),
         explicitlyExcluded = excludeSet.has(key),

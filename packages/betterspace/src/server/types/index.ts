@@ -75,9 +75,9 @@ export type {
   FileUploadPkLike,
   FileUploadTableLike,
   S3PresignDownloadOptions,
-  S3PresignUploadOptions,
-  S3PresignedUrl
+  S3PresignedUrl,
+  S3PresignUploadOptions
 } from './file'
 export type { Middleware, MiddlewareCtx } from './middleware'
-export type { CanEditOpts, OrgCascadeTableConfig, OrgCrudResult } from './org-crud'
-export type { SingletonCrudResult, SingletonDoc, SingletonOptions } from './singleton'
+export type { CanEditOpts, OrgCascadeTableConfig, OrgCrudOptions, OrgCrudResult } from './org-crud'
+export type { SingletonOptions } from './singleton'

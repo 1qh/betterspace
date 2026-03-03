@@ -13,6 +13,7 @@ import { profileSchema } from '~/schema'
 const Page = () => {
   const [profiles, isReady] = useTable(tables.blogProfile),
     { identity } = useSpacetimeDB(),
+    // eslint-disable-next-line no-restricted-properties
     isPlaywright = process.env.NEXT_PUBLIC_PLAYWRIGHT === '1',
     profile = profiles.find(p => identity && p.userId.isEqual(identity)) ?? null,
     upsert = useReducer(reducers.upsertBlogProfile),

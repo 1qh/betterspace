@@ -1,5 +1,3 @@
-import type { UntypedRemoteModule } from 'spacetimedb/sdk'
-
 import { DbConnectionBuilder, DbConnectionImpl } from 'spacetimedb/sdk'
 
 import { isTestMode } from './env'
@@ -41,7 +39,7 @@ interface TestContext {
 }
 
 interface TestUser {
-  connection: DbConnectionImpl<UntypedRemoteModule>
+  connection: DbConnectionImpl<typeof REMOTE_MODULE>
   identity: string
   token: string
 }
@@ -51,7 +49,7 @@ const DEFAULT_HTTP_URL = 'http://localhost:3000',
   DEFAULT_WS_URL = 'ws://localhost:3000',
   CONNECT_TIMEOUT_MS = 10_000,
   IDENTIFIER_RE = /^[A-Za-z_][A-Za-z0-9_]*$/u,
-  REMOTE_MODULE: UntypedRemoteModule = {
+  REMOTE_MODULE = {
     procedures: [],
     reducers: [],
     tables: {},
@@ -110,6 +108,7 @@ const DEFAULT_HTTP_URL = 'http://localhost:3000',
           finished = true
           clearTimeout(timeout)
           resolve({
+            // eslint-disable-next-line @typescript-eslint/no-unsafe-assignment
             connection,
             identity: identity.toHexString(),
             token

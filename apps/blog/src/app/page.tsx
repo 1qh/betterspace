@@ -4,8 +4,8 @@ import { tables } from '@a/be/spacetimedb'
 import { Input } from '@a/ui/input'
 import { useList } from 'betterspace/react'
 import { Search } from 'lucide-react'
-import { useTable, useSpacetimeDB } from 'spacetimedb/react'
 import { useCallback, useDeferredValue, useMemo, useState } from 'react'
+import { useSpacetimeDB, useTable } from 'spacetimedb/react'
 
 import { Create, List } from './common'
 

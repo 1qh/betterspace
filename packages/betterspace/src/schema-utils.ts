@@ -1,4 +1,4 @@
-/* eslint-disable max-statements, complexity */
+/* eslint-disable max-depth, max-statements */
 /* oxlint-disable eslint/max-statements, eslint/complexity */
 interface FactoryCall {
   factory: string
@@ -75,8 +75,8 @@ const wrapperFactories = ['makeOwned', 'makeOrgScoped', 'makeSingleton', 'makeBa
     return fields
   },
   extractSpacetimeTables = (content: string): SchemaTable[] => {
-    const tables: SchemaTable[] = []
-    const p = new RegExp(tableCallPat.source, 'gu')
+    const tables: SchemaTable[] = [],
+      p = new RegExp(tableCallPat.source, 'gu')
     let m = p.exec(content)
     while (m) {
       const tableName = m.groups?.pname ?? 'unknown',

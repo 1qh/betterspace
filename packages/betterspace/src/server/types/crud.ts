@@ -1,12 +1,14 @@
 import type { Identity, Timestamp } from 'spacetimedb'
-import type { ColumnBuilder, ReducerExport, TypeBuilder } from 'spacetimedb/server'
+import type { AlgebraicTypeType, ColumnBuilder, ColumnMetadata, ReducerExport, TypeBuilder } from 'spacetimedb/server'
 
 interface CascadeOption {
   foreignKey: string
   table: string
 }
 
-type CrudBuilder = ColumnBuilder<unknown, unknown, unknown> | TypeBuilder<unknown, unknown>
+type CrudBuilder =
+  | ColumnBuilder<unknown, AlgebraicTypeType, ColumnMetadata<unknown>>
+  | TypeBuilder<unknown, AlgebraicTypeType>
 
 type CrudBuilders = never
 interface CrudConfig<
@@ -17,9 +19,9 @@ interface CrudConfig<
   Tbl extends CrudTableLike<Row>,
   Pk extends CrudPkLike<Row, Id>
 > {
-  expectedUpdatedAtField?: TypeBuilder<Timestamp, unknown>
+  expectedUpdatedAtField?: TypeBuilder<Timestamp, AlgebraicTypeType>
   fields: F
-  idField: TypeBuilder<Id, unknown>
+  idField: TypeBuilder<Id, AlgebraicTypeType>
   options?: CrudOptions<DB, Row, CrudFieldValues<F>, Partial<CrudFieldValues<F>>>
   pk: (table: Tbl) => Pk
   table: (db: DB) => Tbl
@@ -32,9 +34,10 @@ interface CrudExports {
 type CrudFieldBuilders = Record<string, CrudBuilder>
 
 type CrudFieldValues<F extends CrudFieldBuilders> = {
-  [K in keyof F]: F[K] extends ColumnBuilder<infer T, unknown, unknown>
+  // eslint-disable-next-line @typescript-eslint/no-unused-vars
+  [K in keyof F]: F[K] extends ColumnBuilder<infer T, infer _S, infer _M>
     ? T
-    : F[K] extends TypeBuilder<infer T, unknown>
+    : F[K] extends TypeBuilder<infer T, infer _S> // eslint-disable-line @typescript-eslint/no-unused-vars
       ? T
       : never
 }

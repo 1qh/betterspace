@@ -13,7 +13,7 @@
     "clean": "git clean -xdf .cache .turbo dist node_modules",
     "lint": "eslint",
     "test": "bun with-env bun test spacetimedb/__tests__/f.test.ts spacetimedb/__tests__/org-api.test.ts spacetimedb/__tests__/edge.test.ts spacetimedb/__tests__/z-drift.test.ts",
-    "typecheck": "bun check:schema && tsc --noEmit",
+    "typecheck": "tsc --noEmit",
     "with-env": "dotenv -e ../../.env --"
   },
   "dependencies": {

@@ -5,8 +5,8 @@ import { Card, CardContent, CardHeader, CardTitle } from '@a/ui/card'
 import { FieldGroup } from '@a/ui/field'
 import { Form, useForm } from 'betterspace/components'
 import { useRouter } from 'next/navigation'
-import { useReducer } from 'spacetimedb/react'
 import { toast } from 'sonner'
+import { useReducer } from 'spacetimedb/react'
 
 import { useOrg } from '~/hook/use-org'
 import { wiki } from '~/schema'
@@ -17,7 +17,15 @@ const NewWikiPage = () => {
     createWiki = useReducer(reducers.createWiki),
     form = useForm({
       onSubmit: async d => {
-        await createWiki({ ...d, orgId: Number(org._id) })
+        await createWiki({
+          content: d.content,
+          deletedAt: undefined,
+          editors: undefined,
+          orgId: Number(org._id),
+          slug: d.slug,
+          status: d.status,
+          title: d.title
+        })
         toast.success('Wiki page created')
         router.push('/wiki')
         return d

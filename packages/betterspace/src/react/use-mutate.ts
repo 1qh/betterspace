@@ -56,7 +56,7 @@ const isDev = typeof process !== 'undefined' && process.env.NODE_ENV !== 'produc
           type = options?.type ?? detectMutationType(name),
           devId = isDev ? trackMutation(name, args) : 0
 
-        if (!(store && isOptimistic)) {
+        if (!(store && isOptimistic))
           try {
             const result = await mutate(args)
             if (isDev && devId) completeMutation(devId, 'success')
@@ -69,7 +69,6 @@ const isDev = typeof process !== 'undefined' && process.env.NODE_ENV !== 'produc
             if (errorHandler) errorHandler(error)
             throw error
           }
-        }
 
         const tempId = makeTempId(),
           id = options?.resolveId?.(args) ?? (typeof args.id === 'string' ? args.id : tempId)

@@ -121,7 +121,7 @@ const POSITION_CLASSES: Record<Position, string> = {
           <div className='space-y-1 bg-zinc-900/50 px-3 py-2 text-xs'>
             <p className='font-mono text-zinc-500'>args: {sub.args}</p>
             {sub.dataPreview ? (
-              <p className='max-h-32 overflow-y-auto break-all whitespace-pre-wrap font-mono text-zinc-400'>
+              <p className='max-h-32 overflow-y-auto font-mono break-all whitespace-pre-wrap text-zinc-400'>
                 {sub.dataPreview}...
               </p>
             ) : (
@@ -198,7 +198,7 @@ const POSITION_CLASSES: Record<Position, string> = {
             style={{ left: `${leftPct}%`, width: `${widthPct}%` }}
           />
         </span>
-        <span className='w-12 shrink-0 text-right font-mono tabular-nums text-zinc-500'>
+        <span className='w-12 shrink-0 text-right font-mono text-zinc-500 tabular-nums'>
           {sub.latencyMs > 0 ? `${sub.latencyMs}ms` : '...'}
         </span>
       </li>

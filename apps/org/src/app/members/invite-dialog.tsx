@@ -6,9 +6,8 @@ import { Dialog, DialogContent, DialogDescription, DialogHeader, DialogTitle, Di
 import { Form, useForm } from 'betterspace/components'
 import { Plus } from 'lucide-react'
 import { useState } from 'react'
-import { useReducer } from 'spacetimedb/react'
-
 import { toast } from 'sonner'
+import { useReducer } from 'spacetimedb/react'
 
 import { invite } from '~/schema'
 

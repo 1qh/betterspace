@@ -7,9 +7,9 @@ import type { ReactNode } from 'react'
 import { tables } from '@a/be/spacetimedb'
 import AuthLayout from '@a/fe/auth-layout'
 import SpacetimeProvider from '@a/fe/spacetimedb-provider'
-import { useSpacetimeDB, useTable } from 'spacetimedb/react'
 import { usePathname, useRouter } from 'next/navigation'
 import { useEffect, useState } from 'react'
+import { useSpacetimeDB, useTable } from 'spacetimedb/react'
 
 import OrgLayoutClient from './layout-client'
 import OrgRedirect from './org-redirect'
@@ -31,12 +31,14 @@ const ORG_PATHS = ['/dashboard', '/members', '/projects', '/wiki', '/settings'],
     return null
   },
   toLegacyOrg = (org: Org) => ({ ...org, _id: toOrgId(org.id) }),
+  // eslint-disable-next-line max-statements, @typescript-eslint/promise-function-async
   OrgLayoutInner = ({ children }: { children: ReactNode }) => {
     const pathname = usePathname(),
       router = useRouter(),
       { identity } = useSpacetimeDB(),
       [orgs, orgsReady] = useTable(tables.org),
       [members, membersReady] = useTable(tables.orgMember),
+      // eslint-disable-next-line no-restricted-properties
       isPlaywright = process.env.NEXT_PUBLIC_PLAYWRIGHT === '1',
       activeOrgId = readActiveOrgId(),
       [playwrightWaitExpired, setPlaywrightWaitExpired] = useState(false)
@@ -48,9 +50,9 @@ const ORG_PATHS = ['/dashboard', '/members', '/projects', '/wiki', '/settings'],
       return () => window.clearTimeout(timer)
     }, [activeOrgId, isPlaywright, pathname])
 
-    if (!pathname) return <>{children}</>
+    if (!pathname) return children
 
-    if (!needsOrgLayout(pathname)) return <>{children}</>
+    if (!needsOrgLayout(pathname)) return children
 
     if (!(identity || isPlaywright)) return null
 

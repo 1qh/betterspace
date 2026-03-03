@@ -4,8 +4,8 @@ import { useCallback } from 'react'
 
 import { extractErrorData, getErrorMessage, handleError } from '../server/helpers'
 
-type ErrorData = NonNullable<ReturnType<typeof extractErrorData>>
 type ErrorCode = ErrorData['code']
+type ErrorData = NonNullable<ReturnType<typeof extractErrorData>>
 type ErrorHandlers = Partial<Record<ErrorCode, (data: ErrorData) => void>> & {
   default?: (error: unknown) => void
 }
@@ -33,7 +33,8 @@ const useErrorToast = ({ handlers, toast }: ErrorToastOptions) =>
     ),
   makeErrorHandler = (toast: ToastFn, overrides?: Partial<Record<string, (data?: ErrorData) => void>>) => {
     const handler: ErrorHandlers = {
-      default: (error: unknown) => error
+      /** biome-ignore lint/suspicious/noEmptyBlockStatements: noop */
+      default: (): void => {} // eslint-disable-line @typescript-eslint/no-empty-function
     }
 
     if (overrides) {

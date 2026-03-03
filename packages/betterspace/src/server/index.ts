@@ -44,7 +44,8 @@ export {
   singletonTable,
   uploadTables
 } from './schema-helpers'
-export { makeSingletonCrud } from './singleton'
 export { setup } from './setup'
+export { makeSingletonCrud } from './singleton'
+export type { TestContext, TestUser } from './test'
 export { asUser, callReducer, cleanup, createTestContext, createTestUser, isTestMode, queryTable } from './test'
 export { discoverModules } from './test-discover'

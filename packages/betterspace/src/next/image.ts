@@ -70,20 +70,20 @@ const IMAGE_TYPES = new Set(['image/gif', 'image/jpeg', 'image/png', 'image/svg+
     const DEFAULT_QUALITY = 80,
       THUMB_SIZE = 200,
       quality = options?.compress?.quality ?? DEFAULT_QUALITY
-    if (thumbnail) {
+    if (thumbnail)
       return pipeline.resize({ fit: 'cover', height: THUMB_SIZE, width: THUMB_SIZE }).webp({ quality: DEFAULT_QUALITY })
-    }
+
     let result = pipeline
-    if (options?.resize) {
+    if (options?.resize)
       result = result.resize({
         fit: options.resize.fit ?? 'cover',
         height: options.resize.height,
         width: options.resize.width
       })
-    }
-    if (options?.format || options?.compress) {
+
+    if (options?.format || options?.compress)
       result = applyFormat({ contentType, format: options.format, pipeline: result, quality })
-    }
+
     return result
   },
   fetchSourceUrl = async ({
@@ -177,6 +177,7 @@ const IMAGE_TYPES = new Set(['image/gif', 'image/jpeg', 'image/png', 'image/svg+
         return NextResponse.json({ error: error instanceof Error ? error.message : 'Processing failed' }, { status: 500 })
       }
     },
+  // eslint-disable-next-line @typescript-eslint/require-await
   makeImageRoute = async ({ fileInfoEndpoint, storageBaseUrl }: ImageRouteConfig) => ({
     GET: makeGet({ fileInfoEndpoint, storageBaseUrl }),
     POST: makePost({ fileInfoEndpoint, storageBaseUrl })

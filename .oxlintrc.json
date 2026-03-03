@@ -62,6 +62,7 @@
     "jsx-a11y/aria-proptypes": "off",
     "jsx-a11y/no-autofocus": "off",
     "jsx-a11y/prefer-tag-over-role": "off",
+    "complexity": "warn",
     "max-depth": "off",
     "max-lines": "off",
     "max-lines-per-function": "off",

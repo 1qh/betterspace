@@ -1,5 +1,5 @@
 import type { Identity, Timestamp } from 'spacetimedb'
-import type { ReducerExport, TypeBuilder } from 'spacetimedb/server'
+import type { AlgebraicTypeType, ReducerExport, TypeBuilder } from 'spacetimedb/server'
 
 import { identityEquals, makeError } from './reducer-utils'
 
@@ -22,11 +22,11 @@ interface OrgInviteReducersConfig<
   JoinRequestRow extends OrgJoinRequestRowLike<RequestId, OrgId>
 > {
   builders: {
-    email: TypeBuilder<string, unknown>
-    inviteId: TypeBuilder<InviteId, unknown>
-    isAdmin: TypeBuilder<boolean, unknown>
-    orgId: TypeBuilder<OrgId, unknown>
-    token: TypeBuilder<string, unknown>
+    email: TypeBuilder<string, AlgebraicTypeType>
+    inviteId: TypeBuilder<InviteId, AlgebraicTypeType>
+    isAdmin: TypeBuilder<boolean, AlgebraicTypeType>
+    orgId: TypeBuilder<OrgId, AlgebraicTypeType>
+    token: TypeBuilder<string, AlgebraicTypeType>
   }
   orgInviteByTokenIndex: (table: OrgInviteTableLike<InviteRow>) => OrgInviteByTokenIndexLike<InviteRow>
   orgInvitePk: (table: OrgInviteTableLike<InviteRow>) => OrgInvitePkLike<InviteRow, InviteId>
@@ -283,7 +283,7 @@ const DAY_HOURS = 24,
     spacetimedb: {
       reducer: (
         opts: { name: string },
-        params: Record<string, TypeBuilder<unknown, unknown>>,
+        params: Record<string, TypeBuilder<unknown, AlgebraicTypeType>>,
         fn: (ctx: { db: DB; sender: Identity; timestamp: Timestamp }, args: Record<string, unknown>) => void
       ) => ReducerExport<never, never>
     },
@@ -296,8 +296,9 @@ const DAY_HOURS = 24,
           isAdmin: config.builders.isAdmin,
           orgId: config.builders.orgId
         },
-        (ctx, args: { email: string; isAdmin: boolean; orgId: OrgId }) => {
-          const orgTable = config.orgTable(ctx.db),
+        (ctx, _args: Record<string, unknown>) => {
+          const args = _args as { email: string; isAdmin: boolean; orgId: OrgId },
+            orgTable = config.orgTable(ctx.db),
             orgPk = config.orgPk(orgTable),
             orgMemberTable = config.orgMemberTable(ctx.db),
             orgInviteTable = config.orgInviteTable(ctx.db),
@@ -319,8 +320,9 @@ const DAY_HOURS = 24,
       acceptInviteReducer = spacetimedb.reducer(
         { name: 'org_accept_invite' },
         { token: config.builders.token },
-        (ctx, args: { token: string }) => {
-          const orgTable = config.orgTable(ctx.db),
+        (ctx, _args: Record<string, unknown>) => {
+          const args = _args as { token: string },
+            orgTable = config.orgTable(ctx.db),
             orgInviteTable = config.orgInviteTable(ctx.db),
             orgJoinRequestTable = config.orgJoinRequestTable(ctx.db)
           acceptInvite({
@@ -338,8 +340,9 @@ const DAY_HOURS = 24,
       revokeInviteReducer = spacetimedb.reducer(
         { name: 'org_revoke_invite' },
         { inviteId: config.builders.inviteId },
-        (ctx, args: { inviteId: InviteId }) => {
-          const orgTable = config.orgTable(ctx.db),
+        (ctx, _args: Record<string, unknown>) => {
+          const args = _args as { inviteId: InviteId },
+            orgTable = config.orgTable(ctx.db),
             orgPk = config.orgPk(orgTable),
             orgMemberTable = config.orgMemberTable(ctx.db),
             orgInviteTable = config.orgInviteTable(ctx.db),
@@ -359,8 +362,8 @@ const DAY_HOURS = 24,
     return {
       exports: {
         org_accept_invite: acceptInviteReducer,
-        org_send_invite: inviteReducer,
-        org_revoke_invite: revokeInviteReducer
+        org_revoke_invite: revokeInviteReducer,
+        org_send_invite: inviteReducer
       }
     }
   }

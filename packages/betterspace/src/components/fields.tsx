@@ -37,7 +37,6 @@ const CAMEL_RE = /(?<lower>[a-z\d])(?<upper>[A-Z])/gu,
     loading: () => <div className='h-64 w-full animate-pulse rounded-md bg-muted' />,
     ssr: false
   }),
-  // eslint-disable-next-line require-unicode-regexp
   HEX_COLOR_REGEX = /^#[\dA-Fa-f]{6}$/u,
   DynamicFileField = dynamic(async () => import('./file-field'), {
     loading: () => <div className='h-32 w-full animate-pulse rounded-lg bg-muted' />,

@@ -8,15 +8,12 @@ import type { OrgRole } from '../server/types'
 
 import { ACTIVE_ORG_COOKIE, ACTIVE_ORG_SLUG_COOKIE, ONE_YEAR_SECONDS } from '../constants'
 
-interface OrgDoc {
-  [key: string]: unknown
-  _id: string
-  slug: string
-}
-
-interface OrgMembership<O extends OrgDoc = OrgDoc> {
-  org: O
-  role: OrgRole
+interface ActiveOrgState<O extends OrgDoc = OrgDoc> {
+  activeOrg: null | O
+  activeOrgId: null | string
+  clearActiveOrg: () => void
+  isLoading: boolean
+  setActiveOrg: (org: O) => void
 }
 
 interface OrgContextValue<O extends OrgDoc = OrgDoc, M = unknown> {
@@ -33,6 +30,17 @@ interface OrgContextValue<O extends OrgDoc = OrgDoc, M = unknown> {
   role: OrgRole
 }
 
+interface OrgDoc {
+  [key: string]: unknown
+  _id: string
+  slug: string
+}
+
+interface OrgMembership<O extends OrgDoc = OrgDoc> {
+  org: O
+  role: OrgRole
+}
+
 interface OrgProviderProps<O extends OrgDoc, M> {
   children: ReactNode
   membership: M | null
@@ -41,16 +49,9 @@ interface OrgProviderProps<O extends OrgDoc, M> {
   role: OrgRole
 }
 
-interface ActiveOrgState<O extends OrgDoc = OrgDoc> {
-  activeOrg: null | O
-  activeOrgId: null | string
-  clearActiveOrg: () => void
-  isLoading: boolean
-  setActiveOrg: (org: O) => void
-}
-
-const OrgContext = createContext<null | OrgContextValue>(null),
-  ActiveOrgContext = createContext<null | ActiveOrgState>(null),
+const EMPTY_ORGS: OrgMembership[] = [],
+  OrgContext = createContext<null | OrgContextValue>(null),
+  ActiveOrgContext = createContext<ActiveOrgState | null>(null),
   COOKIE_PREFIX = `${ACTIVE_ORG_COOKIE}=`,
   getActiveOrgIdFromCookie = (): null | string => {
     if (typeof document === 'undefined') return null
@@ -71,9 +72,8 @@ const OrgContext = createContext<null | OrgContextValue>(null),
   useResolveActiveOrg = <O extends OrgDoc>(orgs: OrgMembership<O>[], currentOrg: O): ActiveOrgState<O> => {
     const [activeOrgId, setActiveOrgId] = useState<null | string>(getActiveOrgIdFromCookie),
       activeOrg = useMemo(() => {
-        if (activeOrgId) {
-          for (const m of orgs) if (m.org._id === activeOrgId) return m.org
-        }
+        if (activeOrgId) for (const m of orgs) if (m.org._id === activeOrgId) return m.org
+
         return currentOrg
       }, [activeOrgId, currentOrg, orgs]),
       setActiveOrg = useCallback(
@@ -89,7 +89,13 @@ const OrgContext = createContext<null | OrgContextValue>(null),
       }, [setActiveOrgId])
     return { activeOrg, activeOrgId, clearActiveOrg, isLoading: false, setActiveOrg }
   },
-  OrgProvider = <O extends OrgDoc, M>({ children, membership, org, orgs = [], role }: OrgProviderProps<O, M>) => {
+  OrgProvider = <O extends OrgDoc, M>({
+    children,
+    membership,
+    org,
+    orgs = EMPTY_ORGS as OrgMembership<O>[],
+    role
+  }: OrgProviderProps<O, M>) => {
     const activeState = useResolveActiveOrg(orgs, org),
       value = useMemo<OrgContextValue<O, M>>(() => {
         const isOwner = role === 'owner',
@@ -159,7 +165,7 @@ const OrgContext = createContext<null | OrgContextValue>(null),
     for (const editor of editorsList) if (editor.userId === userId) return true
     return false
   },
-  createOrgHooks = <O extends OrgDoc = OrgDoc, M = unknown>(_orgApi?: unknown) => ({
+  createOrgHooks = <O extends OrgDoc = OrgDoc, M = unknown>() => ({
     useActiveOrg: () => useActiveOrg<O>(),
     useMyOrgs: () => useMyOrgs<O>(),
     useOrg: () => useOrg<O, M>()

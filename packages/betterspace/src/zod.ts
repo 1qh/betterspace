@@ -96,21 +96,21 @@ const WRAPPERS: ReadonlySet<DefType> = new Set<DefType>([
     if (inner) return defaultValue(inner)
   },
   defaultValues = <S extends ZodObject<ZodRawShape>>(schema: S): output<S> => {
-    const result: Record<string, unknown> = {}
-    const keys = Object.keys(schema.shape)
+    const result: Record<string, unknown> = {},
+      keys = Object.keys(schema.shape)
     for (const k of keys) result[k] = defaultValue(schema.shape[k])
     return result as output<S>
   },
   pickValues = <S extends ZodObject<ZodRawShape>>(schema: S, doc: object): output<S> => {
     const d = doc as Record<string, unknown>,
-      result: Record<string, unknown> = {}
-    const keys = Object.keys(schema.shape)
+      result: Record<string, unknown> = {},
+      keys = Object.keys(schema.shape)
     for (const k of keys) result[k] = d[k] ?? defaultValue(schema.shape[k])
     return result as output<S>
   },
   coerceOptionals = <S extends ZodObject<ZodRawShape>>(schema: S, data: output<S>): output<S> => {
     const result: Record<string, unknown> = { ...data }
-    for (const k of Object.keys(result)) {
+    for (const k of Object.keys(result))
       if (isOptionalField(schema.shape[k]) && isStringType(unwrapZod(schema.shape[k]).type)) {
         const v = result[k]
         if (typeof v === 'string') {
@@ -118,7 +118,7 @@ const WRAPPERS: ReadonlySet<DefType> = new Set<DefType>([
           result[k] = trimmed.length > 0 ? trimmed : undefined
         }
       }
-    }
+
     return result as output<S>
   }
 

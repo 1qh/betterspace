@@ -1,5 +1,5 @@
 #!/usr/bin/env bun
-/* eslint-disable no-console, max-statements */
+/* eslint-disable no-console, max-depth, max-statements */
 /** biome-ignore-all lint/style/noProcessEnv: cli */
 /** biome-ignore-all lint/performance/noAwaitInLoops: sequential */
 import { existsSync, readdirSync, readFileSync } from 'node:fs'
@@ -29,17 +29,17 @@ const isSchemaFile = (content: string): boolean => {
   },
   listTypeScriptFiles = (root: string): string[] => {
     const out: string[] = [],
-      skip = new Set(['.git', '.next', '.turbo', 'build', 'dist', 'node_modules'])
-    const walk = (dir: string) => {
-      if (!existsSync(dir)) return
-      for (const entry of readdirSync(dir, { withFileTypes: true })) {
-        const full = join(dir, entry.name)
-        if (entry.isDirectory()) {
-          if (!(skip.has(entry.name) || entry.name.startsWith('.'))) walk(full)
-        } else if (entry.name.endsWith('.ts') && !entry.name.includes('.test.') && !entry.name.includes('.config.'))
-          out.push(full)
+      skip = new Set(['.git', '.next', '.turbo', 'build', 'dist', 'node_modules']),
+      walk = (dir: string) => {
+        if (!existsSync(dir)) return
+        for (const entry of readdirSync(dir, { withFileTypes: true })) {
+          const full = join(dir, entry.name)
+          if (entry.isDirectory()) {
+            if (!(skip.has(entry.name) || entry.name.startsWith('.'))) walk(full)
+          } else if (entry.name.endsWith('.ts') && !entry.name.includes('.test.') && !entry.name.includes('.config.'))
+            out.push(full)
+        }
       }
-    }
     walk(root)
     return out
   },

@@ -5,6 +5,16 @@ import { createContext, use, useRef, useSyncExternalStore } from 'react'
 
 type MutationType = 'create' | 'delete' | 'update'
 
+interface OptimisticStore {
+  add: (entry: PendingMutation) => void
+  getSnapshot: () => PendingMutation[]
+  overlay: <T extends Record<string, unknown> & { _id: string }>(rows: T[]) => T[]
+  reconcileIds: (ids: string[]) => void
+  reconcileRows: (rows: { _id: string }[]) => void
+  remove: (tempId: string) => void
+  subscribe: (cb: () => void) => () => void
+}
+
 interface PendingMutation {
   args: Record<string, unknown>
   id: string
@@ -13,34 +23,25 @@ interface PendingMutation {
   type: MutationType
 }
 
-interface OptimisticStore {
-  add: (entry: PendingMutation) => void
-  getSnapshot: () => PendingMutation[]
-  overlay: <T extends { _id: string } & Record<string, unknown>>(rows: T[]) => T[]
-  reconcileIds: (ids: string[]) => void
-  reconcileRows: (rows: { _id: string }[]) => void
-  remove: (tempId: string) => void
-  subscribe: (cb: () => void) => () => void
-}
-
 let counter = 0
 
 const makeTempId = () => {
     counter += 1
     return `__optimistic_${counter}_${Date.now()}`
   },
-  noop = () => false,
+  /** biome-ignore lint/suspicious/noEmptyBlockStatements: noop */
+  noopUnsubscribe = (): void => {}, // eslint-disable-line @typescript-eslint/no-empty-function
+  emptySubscribe = () => noopUnsubscribe,
   classifyPending = (pending: PendingMutation[]) => {
     const deleteIds = new Set<string>(),
       updates = new Map<string, Record<string, unknown>>(),
       creates: Record<string, unknown>[] = []
-    for (const p of pending) {
-      if (p.type === 'delete') {
-        deleteIds.add(p.id)
-      } else if (p.type === 'update') {
+    for (const p of pending)
+      if (p.type === 'delete') deleteIds.add(p.id)
+      else if (p.type === 'update') {
         const prev = updates.get(p.id)
         updates.set(p.id, prev ? { ...prev, ...p.args } : p.args)
-      } else {
+      } else
         creates.push({
           ...p.args,
           __optimistic: true,
@@ -48,8 +49,7 @@ const makeTempId = () => {
           _id: p.tempId,
           updatedAt: p.timestamp
         })
-      }
-    }
+
     return { creates, deleteIds, updates }
   },
   createOptimisticStore = (): OptimisticStore => {
@@ -75,7 +75,7 @@ const makeTempId = () => {
         notify()
       },
       getSnapshot,
-      overlay: <T extends { _id: string } & Record<string, unknown>>(rows: T[]): T[] => {
+      overlay: <T extends Record<string, unknown> & { _id: string }>(rows: T[]): T[] => {
         const pending = getSnapshot()
         if (pending.length === 0) return rows
         const { creates, deleteIds, updates } = classifyPending(pending)
@@ -101,12 +101,14 @@ const makeTempId = () => {
         const idSet = new Set(ids)
         let changed = false
         for (let i = order.length - 1; i >= 0; i -= 1) {
-          const tempId = order[i],
-            entry = entries.get(tempId)
-          if (entry && idSet.has(entry.id)) {
-            entries.delete(tempId)
-            order.splice(i, 1)
-            changed = true
+          const tempId = order[i]
+          if (tempId) {
+            const entry = entries.get(tempId)
+            if (entry && idSet.has(entry.id)) {
+              entries.delete(tempId)
+              order.splice(i, 1)
+              changed = true
+            }
           }
         }
         if (changed) notify()
@@ -118,12 +120,14 @@ const makeTempId = () => {
           const idSet = new Set(ids)
           let changed = false
           for (let i = order.length - 1; i >= 0; i -= 1) {
-            const tempId = order[i],
-              entry = entries.get(tempId)
-            if (entry && idSet.has(entry.id)) {
-              entries.delete(tempId)
-              order.splice(i, 1)
-              changed = true
+            const tempId = order[i]
+            if (tempId) {
+              const entry = entries.get(tempId)
+              if (entry && idSet.has(entry.id)) {
+                entries.delete(tempId)
+                order.splice(i, 1)
+                changed = true
+              }
             }
           }
           if (changed) notify()
@@ -153,7 +157,7 @@ const makeTempId = () => {
     const store = useOptimisticStore(),
       emptyRef = useRef<PendingMutation[]>([])
     return useSyncExternalStore(
-      store ? store.subscribe : () => noop,
+      store ? store.subscribe : emptySubscribe,
       store ? store.getSnapshot : () => emptyRef.current,
       store ? store.getSnapshot : () => emptyRef.current
     )

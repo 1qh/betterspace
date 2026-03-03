@@ -8,12 +8,11 @@ import { fail } from '@a/fe/utils'
 import { Button } from '@a/ui/button'
 import { Card, CardContent, CardHeader, CardTitle } from '@a/ui/card'
 import { Checkbox } from '@a/ui/checkbox'
-import { Skeleton } from '@a/ui/skeleton'
 import { useBulkSelection } from 'betterspace/react'
-import { useReducer, useTable } from 'spacetimedb/react'
 import { FolderOpen, Plus } from 'lucide-react'
 import Link from 'next/link'
 import { toast } from 'sonner'
+import { useReducer, useTable } from 'spacetimedb/react'
 
 import { useOrg } from '~/hook/use-org'
 
@@ -41,8 +40,6 @@ const ProjectsPage = () => {
       orgId: org._id
     })
 
-  if (!projects) return <Skeleton className='h-40' />
-
   return (
     <div className='space-y-6'>
       <div className='flex items-center justify-between'>
@@ -51,7 +48,12 @@ const ProjectsPage = () => {
           {isAdmin && selected.size > 0 ? (
             <div className='flex items-center gap-2'>
               <span className='text-sm text-muted-foreground'>{selected.size} selected</span>
-              <Button onClick={handleBulkDelete} size='sm' variant='destructive'>
+              <Button
+                onClick={() => {
+                  handleBulkDelete().catch(fail)
+                }}
+                size='sm'
+                variant='destructive'>
                 Delete
               </Button>
               <Button onClick={clear} size='sm' variant='ghost'>

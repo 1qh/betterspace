@@ -1,7 +1,7 @@
 /* oxlint-disable promise/prefer-await-to-then */
 'use client'
 
-import type { Wiki } from '@a/be/spacetimedb/types'
+import type { OrgProfile, Wiki } from '@a/be/spacetimedb/types'
 
 import { reducers, tables } from '@a/be/spacetimedb'
 import { fail } from '@a/fe/utils'
@@ -12,29 +12,49 @@ import { EditorsSection } from 'betterspace/components'
 import { Pencil, RotateCcw, Trash2 } from 'lucide-react'
 import Link from 'next/link'
 import { use } from 'react'
-import { useReducer, useSpacetimeDB, useTable } from 'spacetimedb/react'
 import { toast } from 'sonner'
+import { useReducer, useSpacetimeDB, useTable } from 'spacetimedb/react'
 
 import { useOrg } from '~/hook/use-org'
 
 const sameIdentity = (a: { toHexString: () => string }, b: { toHexString: () => string }) =>
     a.toHexString() === b.toHexString(),
-  /** biome-ignore lint/suspicious/noEmptyBlockStatements: intentional noop */
-  noop: () => void = () => {},
+  /** biome-ignore lint/suspicious/noEmptyBlockStatements: noop */
+  noop: () => void = (): void => {}, // eslint-disable-line @typescript-eslint/no-empty-function
   WikiDetailPage = ({ params }: { params: Promise<{ wikiId: string }> }) => {
     const { wikiId } = use(params),
       id = Number(wikiId),
       { isAdmin, org } = useOrg(),
       { identity } = useSpacetimeDB(),
       [allWikis] = useTable(tables.wiki),
+      [allProfiles] = useTable(tables.orgProfile),
       wiki = allWikis.find((w: Wiki) => w.id === id && w.orgId === Number(org._id)),
       updateWiki = useReducer(reducers.updateWiki),
-      restoreMut = async (args: { id: number }) => updateWiki({ deletedAt: null, id: args.id })
+      profileByUserId = new Map<string, OrgProfile>(),
+      restoreMut = async (args: { id: number }) => {
+        if (!wiki) return
+        await updateWiki({
+          content: wiki.content,
+          deletedAt: undefined,
+          editors: wiki.editors,
+          expectedUpdatedAt: wiki.updatedAt,
+          id: args.id,
+          slug: wiki.slug,
+          status: wiki.status,
+          title: wiki.title
+        })
+      }
+
+    for (const p of allProfiles) profileByUserId.set(p.userId.toHexString(), p)
 
     if (!(wiki && identity)) return <Skeleton className='h-40' />
 
-    const isDeleted = wiki.deletedAt !== undefined && wiki.deletedAt !== null,
-      editorsList = (wiki.editors ?? []).map(e => ({ userId: e.toHexString() })),
+    const isDeleted = wiki.deletedAt !== undefined,
+      editorsList = (wiki.editors ?? []).map(e => {
+        const userId = e.toHexString(),
+          profile = profileByUserId.get(userId)
+        return { email: '', name: profile?.displayName ?? userId.slice(0, 8), userId }
+      }),
       canEditWiki =
         isAdmin || sameIdentity(wiki.userId, identity) || editorsList.some(e => e.userId === identity.toHexString()),
       handleRestore = () => {

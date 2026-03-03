@@ -42,13 +42,10 @@ const PRESENCE_TTL_FALLBACK_MS = HEARTBEAT_INTERVAL_MS * 2,
   },
   toMillis = (value: PresenceRow['lastSeen']): number => {
     if (typeof value === 'number') return value
-    if (typeof value === 'object' && value !== null) {
-      if (typeof value.toMillis === 'function') return Number(value.toMillis())
-      if (typeof value.microsSinceUnixEpoch === 'bigint')
-        return Number(value.microsSinceUnixEpoch / MICROS_PER_MILLISECOND)
-      if (typeof value.__timestamp_micros_since_unix_epoch__ === 'bigint')
-        return Number(value.__timestamp_micros_since_unix_epoch__ / MICROS_PER_MILLISECOND)
-    }
+    if (typeof value.toMillis === 'function') return Number(value.toMillis())
+    if (typeof value.microsSinceUnixEpoch === 'bigint') return Number(value.microsSinceUnixEpoch / MICROS_PER_MILLISECOND)
+    if (typeof value.__timestamp_micros_since_unix_epoch__ === 'bigint')
+      return Number(value.__timestamp_micros_since_unix_epoch__ / MICROS_PER_MILLISECOND)
     return 0
   },
   usePresence = (data: PresenceRow[], heartbeat: () => Promise<void>, options?: UsePresenceOptions): UsePresenceResult => {
@@ -73,26 +70,28 @@ const PRESENCE_TTL_FALLBACK_MS = HEARTBEAT_INTERVAL_MS * 2,
     }, [enabled, heartbeatIntervalMs, localData])
 
     const users = useMemo(() => {
-      if (!enabled) return []
-      const now = Date.now(),
-        cutoff = now - ttlMs,
-        filtered: PresenceRow[] = []
-      for (const row of data)
-        if (toMillis(row.lastSeen) >= cutoff)
-          filtered.push({
-            ...row,
-            data: typeof row.data === 'string' ? (JSON.parse(row.data) as unknown) : row.data
-          })
-      return filtered
-    }, [data, enabled, ttlMs])
-
-    const updatePresence = useCallback((nextData: Record<string, unknown>) => {
-      setLocalData(nextData)
-      runHeartbeat(heartbeatRef.current)
-    }, [])
+        if (!enabled) return []
+        // eslint-disable-next-line react-hooks/purity
+        const now = Date.now(),
+          cutoff = now - ttlMs,
+          filtered: PresenceRow[] = []
+        for (const row of data)
+          if (toMillis(row.lastSeen) >= cutoff)
+            filtered.push({
+              ...row,
+              data: typeof row.data === 'string' ? (JSON.parse(row.data) as unknown) : row.data
+            })
+        return filtered
+      }, [data, enabled, ttlMs]),
+      updatePresence = useCallback((nextData: Record<string, unknown>) => {
+        setLocalData(nextData)
+        runHeartbeat(heartbeatRef.current)
+      }, [])
 
     return { updatePresence, users }
   }
 
-export type { PresenceRefs, PresenceRow, UsePresenceOptions, UsePresenceResult }
+type PresenceUser = PresenceRow
+
+export type { PresenceRefs, PresenceRow, PresenceUser, UsePresenceOptions, UsePresenceResult }
 export { usePresence }

@@ -1,7 +1,8 @@
 'use client'
 
-import { tables } from '@a/be/spacetimedb'
 import type { Chat } from '@a/be/spacetimedb/types'
+
+import { tables } from '@a/be/spacetimedb'
 import Link from 'next/link'
 import { useTable } from 'spacetimedb/react'
 

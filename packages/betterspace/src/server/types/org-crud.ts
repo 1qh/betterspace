@@ -1,5 +1,5 @@
 import type { Identity, Timestamp } from 'spacetimedb'
-import type { ColumnBuilder, ReducerExport, TypeBuilder } from 'spacetimedb/server'
+import type { AlgebraicTypeType, ColumnBuilder, ColumnMetadata, ReducerExport, TypeBuilder } from 'spacetimedb/server'
 
 import type { CrudHooks, HookCtx } from './crud'
 
@@ -11,7 +11,9 @@ interface CanEditOpts {
 
 type OrgCascadeTableConfig = string | { fileFields?: string[]; table: string }
 
-type OrgCrudBuilder = ColumnBuilder<unknown, unknown, unknown> | TypeBuilder<unknown, unknown>
+type OrgCrudBuilder =
+  | ColumnBuilder<unknown, AlgebraicTypeType, ColumnMetadata<unknown>>
+  | TypeBuilder<unknown, AlgebraicTypeType>
 
 interface OrgCrudConfig<
   DB,
@@ -24,11 +26,11 @@ interface OrgCrudConfig<
   Member extends OrgCrudMemberLike<OrgId>,
   OrgMemberTbl extends Iterable<Member>
 > {
-  expectedUpdatedAtField?: TypeBuilder<Timestamp, unknown>
+  expectedUpdatedAtField?: TypeBuilder<Timestamp, AlgebraicTypeType>
   fields: F
-  idField: TypeBuilder<Id, unknown>
+  idField: TypeBuilder<Id, AlgebraicTypeType>
   options?: OrgCrudOptions<DB, Row, OrgCrudFieldValues<F> & { orgId: OrgId }, Partial<OrgCrudFieldValues<F>>>
-  orgIdField: TypeBuilder<OrgId, unknown>
+  orgIdField: TypeBuilder<OrgId, AlgebraicTypeType>
   orgMemberTable: (db: DB) => OrgMemberTbl
   pk: (table: Tbl) => Pk
   table: (db: DB) => Tbl
@@ -42,9 +44,10 @@ interface OrgCrudExports {
 type OrgCrudFieldBuilders = Record<string, OrgCrudBuilder>
 
 type OrgCrudFieldValues<F extends OrgCrudFieldBuilders> = {
-  [K in keyof F]: F[K] extends ColumnBuilder<infer T, unknown, unknown>
+  // eslint-disable-next-line @typescript-eslint/no-unused-vars
+  [K in keyof F]: F[K] extends ColumnBuilder<infer T, infer _S, infer _M>
     ? T
-    : F[K] extends TypeBuilder<infer T, unknown>
+    : F[K] extends TypeBuilder<infer T, infer _S> // eslint-disable-line @typescript-eslint/no-unused-vars
       ? T
       : never
 }

@@ -1,7 +1,9 @@
 import type { Timestamp } from 'spacetimedb'
-import type { ColumnBuilder, ReducerExport, TypeBuilder } from 'spacetimedb/server'
+import type { AlgebraicTypeType, ColumnBuilder, ColumnMetadata, ReducerExport, TypeBuilder } from 'spacetimedb/server'
 
-type CacheBuilder = ColumnBuilder<unknown, unknown, unknown> | TypeBuilder<unknown, unknown>
+type CacheBuilder =
+  | ColumnBuilder<unknown, AlgebraicTypeType, ColumnMetadata<unknown>>
+  | TypeBuilder<unknown, AlgebraicTypeType>
 
 type CacheBuilders = never
 
@@ -14,7 +16,7 @@ interface CacheConfig<
   Pk extends CachePkLike<Row, Key>
 > {
   fields: F
-  keyField: TypeBuilder<Key, unknown>
+  keyField: TypeBuilder<Key, AlgebraicTypeType>
   keyName: string
   options?: CacheOptions
   pk: (table: Tbl) => Pk
@@ -31,9 +33,10 @@ interface CacheExports {
 type CacheFieldBuilders = Record<string, CacheBuilder>
 
 type CacheFieldValues<F extends CacheFieldBuilders> = {
-  [K in keyof F]: F[K] extends ColumnBuilder<infer T, unknown, unknown>
+  // eslint-disable-next-line @typescript-eslint/no-unused-vars
+  [K in keyof F]: F[K] extends ColumnBuilder<infer T, infer _S, infer _M>
     ? T
-    : F[K] extends TypeBuilder<infer T, unknown>
+    : F[K] extends TypeBuilder<infer T, infer _S> // eslint-disable-line @typescript-eslint/no-unused-vars
       ? T
       : never
 }

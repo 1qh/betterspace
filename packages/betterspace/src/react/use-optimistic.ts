@@ -15,7 +15,7 @@ const useOptimisticMutation = <A, R = void>({ mutate, onOptimistic, onRollback, 
     [mutationError, setMutationError] = useState<Error | null>(null),
     pendingCountRef = useRef(0),
     execute = useCallback(
-      async (args: A): Promise<R | null> => {
+      async (args: A): Promise<null | R> => {
         pendingCountRef.current += 1
         setIsPending(true)
         setMutationError(null)

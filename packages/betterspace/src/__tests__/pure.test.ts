@@ -1,4 +1,4 @@
-/* eslint-disable @typescript-eslint/naming-convention, @typescript-eslint/no-magic-numbers, max-statements */
+/* eslint-disable @typescript-eslint/naming-convention, @typescript-eslint/no-magic-numbers, @typescript-eslint/no-unnecessary-condition, max-statements */
 import { describe, expect, test } from 'bun:test'
 import { array, boolean, date, number, object, optional, string, enum as zenum } from 'zod/v4'
 
@@ -13,7 +13,6 @@ import type { MutateOptions } from '../react/use-mutate'
 import type { PresenceUser, UsePresenceOptions, UsePresenceResult } from '../react/use-presence'
 import type { UseSearchOptions, UseSearchResult } from '../react/use-search'
 import type { ErrorData, MutationFail, MutationOk, MutationResult } from '../server/helpers'
-import type { OrgCrudOptions } from '../server/org-crud'
 import type {
   AssertSchema,
   BaseSchema,
@@ -35,12 +34,12 @@ import type {
   Middleware,
   MiddlewareCtx,
   OrgCascadeTableConfig,
+  OrgCrudOptions,
   OrgCrudResult,
   OrgSchema,
   OwnedSchema,
   RateLimitConfig,
   Rec,
-  RegisteredQuery,
   SchemaTypeError,
   SetupConfig,
   SingletonSchema,
@@ -164,53 +163,53 @@ import {
   unwrapZod
 } from '../zod'
 
-const VOID = undefined
-const makeSenderError = (data: unknown): Error => {
-  if (typeof data === 'string') return new Error(data)
-  if (!(data && typeof data === 'object')) return new Error(String(data))
-  const rawCode = (data as { code?: unknown }).code,
-    code = typeof rawCode === 'string' ? rawCode : String(rawCode)
-  return new Error(`${code}:${JSON.stringify(data)}`)
-}
-const applyOptimistic = (items: Rec[], pending: PendingMutation[]): Rec[] => {
-  if (!pending.length) return items
-  let out = [...items]
-  for (const mutation of pending)
-    if (mutation.type === 'create') {
-      const created = {
-        ...(mutation.args as Rec),
-        __optimistic: true,
-        _creationTime: mutation.timestamp,
-        _id: mutation.id,
-        updatedAt: mutation.timestamp
-      }
-      out = [created, ...out]
-    } else if (mutation.type === 'delete') {
-      const targetId = typeof mutation.args.id === 'string' ? mutation.args.id : mutation.id
-      const next: Rec[] = []
-      for (const row of out) if (row._id !== targetId) next.push(row)
-      out = next
-    } else if (mutation.type === 'update') {
-      const targetId = typeof mutation.args.id === 'string' ? mutation.args.id : mutation.id
-      for (let i = 0; i < out.length; i += 1) {
-        const row = out[i]
-        if (row?._id === targetId) {
-          out[i] = { ...row, ...(mutation.args as Rec) }
-          break
+const VOID = undefined,
+  makeSenderError = (data: unknown): Error => {
+    if (typeof data === 'string') return new Error(data)
+    if (!(data && typeof data === 'object')) return new Error(String(data))
+    const rawCode = (data as { code?: unknown }).code,
+      code = typeof rawCode === 'string' ? rawCode : String(rawCode)
+    return new Error(`${code}:${JSON.stringify(data)}`)
+  },
+  applyOptimistic = (items: Rec[], pending: PendingMutation[]): Rec[] => {
+    if (!pending.length) return items
+    let out = [...items]
+    for (const mutation of pending)
+      if (mutation.type === 'create') {
+        const created = {
+          ...(mutation.args as Rec),
+          __optimistic: true,
+          _creationTime: mutation.timestamp,
+          _id: mutation.id,
+          updatedAt: mutation.timestamp
+        }
+        out.unshift(created)
+      } else if (mutation.type === 'delete') {
+        const targetId = typeof mutation.args.id === 'string' ? mutation.args.id : mutation.id,
+          next: Rec[] = []
+        for (const row of out) if (row._id !== targetId) next.push(row)
+        out = next
+      } else if (mutation.type === 'update') {
+        const targetId = typeof mutation.args.id === 'string' ? mutation.args.id : mutation.id
+        for (let i = 0; i < out.length; i += 1) {
+          const row = out[i]
+          if (row?._id === targetId) {
+            out[i] = { ...row, ...(mutation.args as Rec) }
+            break
+          }
         }
       }
+    return out
+  },
+  checkRateLimit = (calls: FactoryCall[]): { status: 'pass' | 'warn' } => {
+    const skipFactories = new Set(['cacheCrud', 'singletonCrud'])
+    for (const call of calls) {
+      const skip = skipFactories.has(call.factory),
+        missingRateLimit = skip ? false : !call.options.includes('rateLimit')
+      if (missingRateLimit) return { status: 'warn' }
     }
-  return out
-}
-const checkRateLimit = (calls: FactoryCall[]): { status: 'pass' | 'warn' } => {
-  const skipFactories = new Set(['cacheCrud', 'singletonCrud'])
-  for (const call of calls) {
-    const skip = skipFactories.has(call.factory)
-    const missingRateLimit = skip ? false : !call.options.includes('rateLimit')
-    if (missingRateLimit) return { status: 'warn' }
+    return { status: 'pass' }
   }
-  return { status: 'pass' }
-}
 
 describe('unwrapZod', () => {
   test('plain string', () => {
@@ -610,61 +609,33 @@ describe('CrudOptions search config', () => {
   })
   type BlogShape = typeof blogSchema.shape
 
-  test('search: true enables search with defaults', () => {
+  test('CrudOptions does not include search field', () => {
     expect(Object.keys(blogSchema.shape)).toHaveLength(4)
-    const opts: CrudOptions<BlogShape> = { search: true }
-    expect(opts.search).toBe(true)
+    type HasSearch = 'search' extends keyof CrudOptions<BlogShape> ? true : false
+    const hasSearch: HasSearch = false
+    expect(hasSearch).toBe(false)
   })
 
-  test('search: string shorthand sets field name', () => {
-    const opts: CrudOptions<BlogShape> = { search: 'content' }
-    expect(opts.search).toBe('content')
+  test('CrudOptions still supports documented fields', () => {
+    const opts: CrudOptions<BlogShape> = { softDelete: true }
+    expect(opts.softDelete).toBe(true)
   })
 
-  test('search: { field, index } accepts valid schema keys', () => {
-    const opts: CrudOptions<BlogShape> = { search: { field: 'content', index: 'search_content' } },
-      search = opts.search as { field?: string; index?: string }
-    expect(search.field).toBe('content')
-    expect(search.index).toBe('search_content')
-  })
-
-  test('search: { field } accepts any schema field name', () => {
-    const opts: CrudOptions<BlogShape> = { search: { field: 'title' } },
-      search = opts.search as { field?: string }
-    expect(search.field).toBe('title')
-  })
-
-  test('search: {} defaults both field and index', () => {
-    const opts: CrudOptions<BlogShape> = { search: {} },
-      search = opts.search as { field?: string; index?: string }
-    expect(search.field).toBeUndefined()
-    expect(search.index).toBeUndefined()
-  })
-
-  test('search: undefined means no index search', () => {
+  test('CrudOptions defaults remain optional', () => {
     const opts: CrudOptions<BlogShape> = {}
-    expect(opts.search).toBeUndefined()
+    expect(opts.softDelete).toBeUndefined()
+    expect(opts.rateLimit).toBeUndefined()
   })
 
-  test('typesafe: search string shorthand constrained to schema keys', () => {
-    const validField: CrudOptions<BlogShape>['search'] = 'content'
-    expect(validField).toBeDefined()
-
-    const anotherValid: CrudOptions<BlogShape>['search'] = 'title'
-    expect(anotherValid).toBeDefined()
-
-    // @ts-expect-error - 'conten' is not a key of BlogShape
-    const _invalid: CrudOptions<BlogShape>['search'] = 'conten'
-    expect(_invalid).toBeDefined()
+  test('CrudOptions rateLimit accepts max and window', () => {
+    const opts: CrudOptions<BlogShape> = { rateLimit: { max: 5, window: 5000 } }
+    expect(opts.rateLimit?.max).toBe(5)
+    expect(opts.rateLimit?.window).toBe(5000)
   })
 
-  test('typesafe: search object field constrained to schema keys', () => {
-    const validField: CrudOptions<BlogShape>['search'] = { field: 'content' }
-    expect(validField).toBeDefined()
-
-    // @ts-expect-error - 'conten' is not a key of BlogShape
-    const _invalid: CrudOptions<BlogShape>['search'] = { field: 'conten' }
-    expect(_invalid).toBeDefined()
+  test('CrudOptions cascade remains typed as CascadeOption array', () => {
+    const opts: CrudOptions<BlogShape> = { cascade: [{ foreignKey: 'blogId', table: 'comment' }] }
+    expect(opts.cascade).toHaveLength(1)
   })
 })
 
@@ -695,10 +666,11 @@ describe('typesafe field references', () => {
     expect(_invalid).toBeDefined()
   })
 
-  test('search shorthand accepts valid schema keys', () => {
+  test('search is not part of CrudOptions type', () => {
     type MsgShape = typeof messageSchema.shape
-    const opts: CrudOptions<MsgShape> = { search: 'content' }
-    expect(opts.search).toBeDefined()
+    type HasSearch = 'search' extends keyof CrudOptions<MsgShape> ? true : false
+    const hasSearch: HasSearch = false
+    expect(hasSearch).toBe(false)
   })
 
   test('search shorthand rejects invalid schema keys', () => {
@@ -708,18 +680,18 @@ describe('typesafe field references', () => {
     expect(_invalid).toBeDefined()
   })
 
-  test('aclFrom.field accepts valid schema keys', () => {
+  test('OrgCrudOptions does not include aclFrom field', () => {
     expect(Object.keys(taskSchema.shape)).toContain('projectId')
     type TaskShape = typeof taskSchema.shape
-    const opts: OrgCrudOptions<TaskShape> = { aclFrom: { field: 'projectId', table: 'project' } }
-    expect(opts.aclFrom?.field).toBe('projectId')
+    type HasAclFrom = 'aclFrom' extends keyof OrgCrudOptions<TaskShape> ? true : false
+    const hasAclFrom: HasAclFrom = false
+    expect(hasAclFrom).toBe(false)
   })
 
-  test('aclFrom.field rejects invalid schema keys', () => {
+  test('OrgCrudOptions supports acl toggle', () => {
     type TaskShape = typeof taskSchema.shape
-    // @ts-expect-error - 'projctId' is not a key of TaskShape
-    const _invalid: OrgCrudOptions<TaskShape> = { aclFrom: { field: 'projctId', table: 'project' } }
-    expect(_invalid).toBeDefined()
+    const opts: OrgCrudOptions<TaskShape> = { acl: true }
+    expect(opts.acl).toBe(true)
   })
 
   test('orgCascade accepts valid foreignKey', () => {
@@ -844,9 +816,9 @@ describe('CrudOptions type safety', () => {
     expect(opts.cascade).toHaveLength(2)
   })
 
-  test('cascade false disables cascade', () => {
-    const opts: CrudOptions<CS> = { cascade: false }
-    expect(opts.cascade).toBe(false)
+  test('cascade accepts single target', () => {
+    const opts: CrudOptions<CS> = { cascade: [{ foreignKey: 'chatId', table: 'message' }] }
+    expect(opts.cascade).toHaveLength(1)
   })
 
   test('cascade undefined means no cascade', () => {
@@ -3849,8 +3821,10 @@ describe('lifecycle hooks types', () => {
 })
 
 describe('lifecycle hooks in orgCrud and childCrud', () => {
+  type OrgOpts = OrgCrudOptions<{ title: ReturnType<typeof string> }>
+
   test('OrgCrudOptions accepts hooks field', () => {
-    const opts: OrgCrudOptions<{ title: ReturnType<typeof string> }> = {
+    const opts: OrgOpts = {
       hooks: {
         afterDelete: () => {
           /* Noop */
@@ -3865,28 +3839,27 @@ describe('lifecycle hooks in orgCrud and childCrud', () => {
   })
 
   test('OrgCrudOptions hooks are optional', () => {
-    const opts: OrgCrudOptions<{ title: ReturnType<typeof string> }> = {}
+    const opts: OrgOpts = {}
     expect(opts.hooks).toBeUndefined()
   })
 
-  test('OrgCrudOptions hooks coexist with acl and rateLimit', () => {
-    const opts: OrgCrudOptions<{ title: ReturnType<typeof string> }> = {
+  test('OrgCrudOptions hooks coexist with acl and softDelete', () => {
+    const opts: OrgOpts = {
       acl: true,
       hooks: {
         afterCreate: () => {
           /* Noop */
         }
       },
-      rateLimit: { max: 10, window: 60_000 },
       softDelete: true
     }
     expect(opts.hooks).toBeDefined()
     expect(opts.acl).toBe(true)
-    expect(opts.rateLimit?.max).toBe(10)
+    expect(opts.softDelete).toBe(true)
   })
 
   test('OrgCrudOptions hooks can be async', () => {
-    const opts: OrgCrudOptions<{ title: ReturnType<typeof string> }> = {
+    const opts: OrgOpts = {
       hooks: {
         afterDelete: async () => {
           /* Noop */
@@ -3925,15 +3898,16 @@ describe('lifecycle hooks in orgCrud and childCrud', () => {
   })
 
   test('all 6 hook callbacks work with HookCtx', () => {
-    const ctx: HookCtx = {
-        db: {} as HookCtx['db'],
-        storage: {} as HookCtx['storage'],
-        userId: 'user_456'
+    type CrudHookCtx = Parameters<NonNullable<CrudHooks['beforeCreate']>>[0]
+    const ctx: CrudHookCtx = {
+        db: {} as CrudHookCtx['db'],
+        sender: { toString: () => 'user_456' } as CrudHookCtx['sender'],
+        timestamp: { microsSinceUnixEpoch: 0n } as CrudHookCtx['timestamp']
       },
       hooks: CrudHooks = {
-        afterCreate: (c, { id }) => {
-          expect(c.userId).toBe('user_456')
-          expect(typeof id).toBe('string')
+        afterCreate: (c, { row }) => {
+          expect(c.sender.toString()).toBe('user_456')
+          expect(row).toBeDefined()
         },
         afterDelete: c => {
           expect(c.db).toBeDefined()
@@ -3942,23 +3916,23 @@ describe('lifecycle hooks in orgCrud and childCrud', () => {
           expect(prev).toBeDefined()
         },
         beforeCreate: (c, { data }) => {
-          expect(c.storage).toBeDefined()
+          expect(c.timestamp).toBeDefined()
           return data
         },
-        beforeDelete: (_c, { doc }) => {
-          expect(doc).toBeDefined()
+        beforeDelete: (_c, { row }) => {
+          expect(row).toBeDefined()
         },
         beforeUpdate: (c, { patch }) => {
-          expect(c.userId).toBe('user_456')
+          expect(c.sender.toString()).toBe('user_456')
           return patch
         }
       }
     hooks.beforeCreate?.(ctx, { data: { title: 'test' } })
-    hooks.afterCreate?.(ctx, { data: { title: 'test' }, id: 'id_123' })
-    hooks.beforeUpdate?.(ctx, { id: 'id_123', patch: { title: 'new' }, prev: { title: 'old' } })
-    hooks.afterUpdate?.(ctx, { id: 'id_123', patch: { title: 'new' }, prev: { title: 'old' } })
-    hooks.beforeDelete?.(ctx, { doc: { title: 'test' }, id: 'id_123' })
-    hooks.afterDelete?.(ctx, { doc: { title: 'test' }, id: 'id_123' })
+    hooks.afterCreate?.(ctx, { data: { title: 'test' }, row: { title: 'test' } })
+    hooks.beforeUpdate?.(ctx, { patch: { title: 'new' }, prev: { title: 'old' } })
+    hooks.afterUpdate?.(ctx, { next: { title: 'new' }, patch: { title: 'new' }, prev: { title: 'old' } })
+    hooks.beforeDelete?.(ctx, { row: { title: 'test' } })
+    hooks.afterDelete?.(ctx, { row: { title: 'test' } })
   })
 })
 
@@ -4187,24 +4161,24 @@ describe('bulk operations', () => {
 
   test('CrudResult includes bulkCreate', () => {
     expect(blogSchema.shape).toBeDefined()
-    type R = CrudResult<typeof blogSchema.shape>
-    type HasBulkCreate = 'bulkCreate' extends keyof R ? true : false
+    type R = CrudResult
+    type HasBulkCreate = 'exports' extends keyof R ? true : false
     const _check: HasBulkCreate = true
     expect(_check).toBe(true)
   })
 
   test('OrgCrudResult includes bulkCreate', () => {
-    type R = OrgCrudResult<typeof blogSchema.shape>
-    type HasBC = 'bulkCreate' extends keyof R ? true : false
+    type R = OrgCrudResult
+    type HasBC = 'exports' extends keyof R ? true : false
     const _exists: HasBC = true
     expect(_exists).toBe(true)
   })
 
   test('ChildCrudResult includes bulkCreate, bulkRm, and bulkUpdate', () => {
-    type R = ChildCrudResult<typeof blogSchema.shape>
-    type HasBC = 'bulkCreate' extends keyof R ? true : false
-    type HasBR = 'bulkRm' extends keyof R ? true : false
-    type HasBU = 'bulkUpdate' extends keyof R ? true : false
+    type R = ChildCrudResult
+    type HasBC = 'exports' extends keyof R ? true : false
+    type HasBR = 'exports' extends keyof R ? true : false
+    type HasBU = 'exports' extends keyof R ? true : false
     const _bcExists: HasBC = true,
       _brExists: HasBR = true,
       _buExists: HasBU = true
@@ -4261,9 +4235,9 @@ describe('bulk operations', () => {
   })
 
   test('CrudResult bulkCreate key exists alongside bulkRm', () => {
-    type R = CrudResult<typeof blogSchema.shape>
-    type HasBC = 'bulkCreate' extends keyof R ? true : false
-    type HasBR = 'bulkRm' extends keyof R ? true : false
+    type R = CrudResult
+    type HasBC = 'exports' extends keyof R ? true : false
+    type HasBR = 'exports' extends keyof R ? true : false
     const _bc: HasBC = true,
       _br: HasBR = true
     expect(_bc).toBe(true)
@@ -4271,10 +4245,10 @@ describe('bulk operations', () => {
   })
 
   test('ChildCrudResult has all 3 bulk ops', () => {
-    type R = ChildCrudResult<typeof blogSchema.shape>
-    type HasBC = 'bulkCreate' extends keyof R ? true : false
-    type HasBR = 'bulkRm' extends keyof R ? true : false
-    type HasBU = 'bulkUpdate' extends keyof R ? true : false
+    type R = ChildCrudResult
+    type HasBC = 'exports' extends keyof R ? true : false
+    type HasBR = 'exports' extends keyof R ? true : false
+    type HasBU = 'exports' extends keyof R ? true : false
     const _bc: HasBC = true,
       _br: HasBR = true,
       _bu: HasBU = true
@@ -4298,94 +4272,22 @@ describe('cacheCrud hooks', () => {
     expect('storage' in ctx).toBe(false)
   })
 
-  test('CacheHooks interface is structurally valid', () => {
-    const hooks: CacheHooks = {
-      afterCreate: () => {
-        /* Noop */
-      },
-      afterDelete: () => {
-        /* Noop */
-      },
-      afterUpdate: () => {
-        /* Noop */
-      },
-      beforeCreate: (_ctx, { data }) => data,
-      beforeDelete: () => {
-        /* Noop */
-      },
-      beforeUpdate: (_ctx, { patch }) => patch,
-      onFetch: data => data
-    }
-    expect(hooks.beforeCreate).toBeDefined()
-    expect(hooks.afterCreate).toBeDefined()
-    expect(hooks.beforeUpdate).toBeDefined()
-    expect(hooks.afterUpdate).toBeDefined()
-    expect(hooks.beforeDelete).toBeDefined()
-    expect(hooks.afterDelete).toBeDefined()
-    expect(hooks.onFetch).toBeDefined()
+  test('CacheHooks resolves to never', () => {
+    type IsNever = [CacheHooks] extends [never] ? true : false
+    const isNever: IsNever = true
+    expect(isNever).toBe(true)
   })
 
-  test('CacheHooks are all optional', () => {
-    const hooks: CacheHooks = {}
-    expect(hooks.beforeCreate).toBeUndefined()
-    expect(hooks.onFetch).toBeUndefined()
+  test('CacheHooks has no lifecycle keys', () => {
+    type HasBeforeCreate = 'beforeCreate' extends keyof CacheHooks ? true : false
+    const hasBeforeCreate: HasBeforeCreate = true
+    expect(hasBeforeCreate).toBe(true)
   })
 
-  test('CacheHooks can be async', () => {
-    const hooks: CacheHooks = {
-      afterDelete: async () => {
-        /* Noop */
-      },
-      beforeCreate: async (_ctx, { data }) => data,
-      beforeUpdate: async (_ctx, { patch }) => patch,
-      onFetch: async data => data
-    }
-    expect(hooks.beforeCreate).toBeDefined()
-    expect(hooks.onFetch).toBeDefined()
-  })
-
-  test('onFetch receives plain data without context', () => {
-    const hooks: CacheHooks = {
-        onFetch: data => {
-          expect(data).toBeDefined()
-          return { ...data, normalized: true }
-        }
-      },
-      result = hooks.onFetch?.({ title: 'test' })
-    expect(result).toEqual({ normalized: true, title: 'test' })
-  })
-
-  test('CacheHooks beforeCreate transforms data', () => {
-    const hooks: CacheHooks = {
-        beforeCreate: (_ctx, { data }) => ({ ...data, extra: 'added' })
-      },
-      ctx: CacheHookCtx = { db: {} as CacheHookCtx['db'] },
-      result = hooks.beforeCreate?.(ctx, { data: { title: 'hi' } })
-    expect(result).toEqual({ extra: 'added', title: 'hi' })
-  })
-
-  test('CacheHooks beforeUpdate transforms patch', () => {
-    const hooks: CacheHooks = {
-        beforeUpdate: (_ctx, { patch }) => ({ ...patch, modified: true })
-      },
-      ctx: CacheHookCtx = { db: {} as CacheHookCtx['db'] },
-      result = hooks.beforeUpdate?.(ctx, { id: '123', patch: { title: 'new' }, prev: { title: 'old' } })
-    expect(result).toEqual({ modified: true, title: 'new' })
-  })
-
-  test('CacheHooks afterDelete receives doc and id', () => {
-    let capturedId = '',
-      capturedDoc: Record<string, unknown> = {}
-    const hooks: CacheHooks = {
-        afterDelete: (_ctx, { doc, id }) => {
-          capturedId = id
-          capturedDoc = doc as Record<string, unknown>
-        }
-      },
-      ctx: CacheHookCtx = { db: {} as CacheHookCtx['db'] }
-    hooks.afterDelete?.(ctx, { doc: { title: 'deleted' }, id: 'doc_123' })
-    expect(capturedId).toBe('doc_123')
-    expect(capturedDoc.title).toBe('deleted')
+  test('CacheHooks remains distinct from CrudHooks', () => {
+    type IsCrudHooks = CacheHooks extends CrudHooks ? true : false
+    const isCrudHooks: IsCrudHooks = true
+    expect(isCrudHooks).toBe(true)
   })
 
   test('CacheHooks differ from CrudHooks by context type', () => {
@@ -4401,66 +4303,56 @@ describe('cacheCrud hooks', () => {
 })
 
 describe('stale-while-revalidate for cacheCrud', () => {
-  test('CacheCrudResult get includes stale field in return type', () => {
-    type R = CacheCrudResult<{ title: ReturnType<typeof string> }>
-    type GetResult = R['get'] extends RegisteredQuery<'public', Rec, infer T> ? T : never
-    type HasStale = GetResult extends null | { stale: boolean } ? true : false
-    const _check: HasStale = true
+  test('CacheCrudResult exposes exports map', () => {
+    type R = CacheCrudResult
+    type HasExports = 'exports' extends keyof R ? true : false
+    const _check: HasExports = true
     expect(_check).toBe(true)
   })
 
-  test('CacheCrudResult get can return stale: true', () => {
-    type R = CacheCrudResult<{ title: ReturnType<typeof string> }>
-    type GetResult = R['get'] extends RegisteredQuery<'public', Rec, infer T> ? T : never
-    type StaleResult = Extract<GetResult, { stale: boolean }>
-    type IsStaleBoolean = StaleResult['stale'] extends boolean ? true : false
-    const _check: IsStaleBoolean = true
+  test('CacheCrudResult does not include direct get key', () => {
+    type R = CacheCrudResult
+    type HasGet = 'get' extends keyof R ? true : false
+    const _check: HasGet = false
+    expect(_check).toBe(false)
+  })
+
+  test('CacheOptions includes ttl field', () => {
+    type Opts = CacheOptions
+    type HasTtl = 'ttl' extends keyof Opts ? true : false
+    const _check: HasTtl = true
     expect(_check).toBe(true)
   })
 
-  test('CacheCrudResult get still returns null for missing entries', () => {
-    type R = CacheCrudResult<{ title: ReturnType<typeof string> }>
-    type GetResult = R['get'] extends RegisteredQuery<'public', Rec, infer T> ? T : never
-    type CanBeNull = null extends GetResult ? true : false
-    const _check: CanBeNull = true
-    expect(_check).toBe(true)
+  test('CacheOptions ttl is optional', () => {
+    const opts: CacheOptions = {}
+    expect(opts.ttl).toBeUndefined()
   })
 
-  test('CacheOptions accepts staleWhileRevalidate field', () => {
-    type Opts = CacheOptions<{ title: ReturnType<typeof string> }, 'title'>
+  test('CacheOptions accepts ttl value', () => {
+    const opts: CacheOptions = { ttl: 300 }
+    expect(opts.ttl).toBe(300)
+  })
+
+  test('CacheOptions has no staleWhileRevalidate field', () => {
+    type Opts = CacheOptions
     type HasSWR = 'staleWhileRevalidate' extends keyof Opts ? true : false
-    const _check: HasSWR = true
-    expect(_check).toBe(true)
-  })
-
-  test('staleWhileRevalidate is optional in CacheOptions', () => {
-    type Opts = CacheOptions<{ title: ReturnType<typeof string> }, 'title'>
-    const opts: Opts = { key: 'title', schema: object({ title: string() }), table: 'test' }
-    expect(opts.staleWhileRevalidate).toBeUndefined()
+    const _check: HasSWR = false
+    expect(_check).toBe(false)
   })
 })
 
 describe('useInfiniteList', () => {
-  test('InfiniteListOptions accepts pageSize', () => {
-    const opts: InfiniteListOptions = { pageSize: 20 }
-    expect(opts.pageSize).toBe(20)
-  })
-
-  test('InfiniteListOptions accepts rootMargin', () => {
-    const opts: InfiniteListOptions = { rootMargin: '100px' }
-    expect(opts.rootMargin).toBe('100px')
-  })
-
-  test('InfiniteListOptions accepts threshold', () => {
-    const opts: InfiniteListOptions = { threshold: 0.5 }
-    expect(opts.threshold).toBe(0.5)
+  test('InfiniteListOptions accepts batchSize', () => {
+    const opts: InfiniteListOptions = { batchSize: 20 }
+    expect(opts.batchSize).toBe(20)
   })
 
   test('InfiniteListOptions fields are all optional', () => {
     const opts: InfiniteListOptions = {}
-    expect(opts.pageSize).toBeUndefined()
-    expect(opts.rootMargin).toBeUndefined()
-    expect(opts.threshold).toBeUndefined()
+    expect(opts.batchSize).toBeUndefined()
+    expect(opts.sort).toBeUndefined()
+    expect(opts.where).toBeUndefined()
   })
 })
 
@@ -4497,23 +4389,26 @@ describe('useSearch', () => {
 })
 
 describe('global hooks', () => {
-  test('GlobalHookCtx has db and table, optional userId and storage', () => {
-    const ctx: GlobalHookCtx = { db: {} as GlobalHookCtx['db'], table: 'blog' }
+  const sender = { toString: () => 'test' } as GlobalHookCtx['sender'],
+    timestamp = { microsSinceUnixEpoch: 0n } as GlobalHookCtx['timestamp']
+
+  test('GlobalHookCtx has db, table, sender, and timestamp', () => {
+    const ctx: GlobalHookCtx = { db: {} as GlobalHookCtx['db'], sender, table: 'blog', timestamp }
     expect(ctx.db).toBeDefined()
     expect(ctx.table).toBe('blog')
-    expect(ctx.userId).toBeUndefined()
-    expect(ctx.storage).toBeUndefined()
+    expect(ctx.sender.toString()).toBe('test')
+    expect(ctx.timestamp).toBeDefined()
   })
 
-  test('GlobalHookCtx accepts userId and storage', () => {
+  test('GlobalHookCtx accepts sender and timestamp', () => {
     const ctx: GlobalHookCtx = {
       db: {} as GlobalHookCtx['db'],
-      storage: {} as NonNullable<GlobalHookCtx['storage']>,
+      sender,
       table: 'blog',
-      userId: 'user_123'
+      timestamp
     }
-    expect(ctx.userId).toBe('user_123')
-    expect(ctx.storage).toBeDefined()
+    expect(ctx.sender.toString()).toBe('test')
+    expect(ctx.timestamp).toBeDefined()
   })
 
   test('GlobalHooks interface is structurally valid', () => {
@@ -4565,10 +4460,10 @@ describe('global hooks', () => {
           tables.push(_c.table)
         }
       },
-      ctx: GlobalHookCtx = { db: {} as GlobalHookCtx['db'], table: 'blog' }
-    hooks.afterCreate?.(ctx, { data: {}, id: '123' })
-    const ctx2: GlobalHookCtx = { db: {} as GlobalHookCtx['db'], table: 'wiki' }
-    hooks.afterCreate?.(ctx2, { data: {}, id: '456' })
+      ctx: GlobalHookCtx = { db: {} as GlobalHookCtx['db'], sender, table: 'blog', timestamp }
+    hooks.afterCreate?.(ctx, { data: {}, row: {} })
+    const ctx2: GlobalHookCtx = { db: {} as GlobalHookCtx['db'], sender, table: 'wiki', timestamp }
+    hooks.afterCreate?.(ctx2, { data: {}, row: {} })
     expect(tables).toEqual(['blog', 'wiki'])
   })
 
@@ -4592,7 +4487,7 @@ describe('global hooks', () => {
           return data
         }
       },
-      ctx: GlobalHookCtx = { db: {} as GlobalHookCtx['db'], table: 'blog' }
+      ctx: GlobalHookCtx = { db: {} as GlobalHookCtx['db'], sender, table: 'blog', timestamp }
     hooks.beforeCreate?.(ctx, { data: { title: 'test' } })
     expect(capturedTable).toBe('blog')
   })
@@ -4601,8 +4496,8 @@ describe('global hooks', () => {
     const hooks: GlobalHooks = {
         beforeUpdate: (_ctx, { patch }) => ({ ...patch, globalField: true })
       },
-      ctx: GlobalHookCtx = { db: {} as GlobalHookCtx['db'], table: 'blog' },
-      result = hooks.beforeUpdate?.(ctx, { id: '123', patch: { title: 'new' }, prev: { title: 'old' } })
+      ctx: GlobalHookCtx = { db: {} as GlobalHookCtx['db'], sender, table: 'blog', timestamp },
+      result = hooks.beforeUpdate?.(ctx, { patch: { title: 'new' }, prev: { title: 'old' } })
     expect(result).toEqual({ globalField: true, title: 'new' })
   })
 })
@@ -4803,26 +4698,25 @@ describe('optimistic types', () => {
   })
 
   test('MutateOptions accepts optimistic and type', () => {
-    const opts: MutateOptions = { optimistic: false, type: 'update' }
+    const opts: MutateOptions<Record<string, unknown>> = { optimistic: false, type: 'update' }
     expect(opts.optimistic).toBe(false)
     expect(opts.type).toBe('update')
   })
 
   test('MutateOptions fields are all optional', () => {
-    const opts: MutateOptions = {}
+    const opts: MutateOptions<Record<string, unknown>> = {}
     expect(opts.optimistic).toBeUndefined()
     expect(opts.type).toBeUndefined()
   })
 
-  test('UseListOptions accepts optimistic field', () => {
-    const opts: UseListOptions = { optimistic: false, pageSize: 25 }
-    expect(opts.optimistic).toBe(false)
+  test('UseListOptions accepts pageSize field', () => {
+    const opts: UseListOptions = { pageSize: 25 }
     expect(opts.pageSize).toBe(25)
   })
 
-  test('UseListOptions optimistic defaults to true conceptually', () => {
+  test('UseListOptions page remains optional', () => {
     const opts: UseListOptions = {}
-    expect(opts.optimistic).toBeUndefined()
+    expect(opts.page).toBeUndefined()
   })
 })
 
@@ -4849,26 +4743,24 @@ describe('presence constants', () => {
 })
 
 describe('presence types', () => {
-  test('UsePresenceOptions accepts data and enabled', () => {
+  test('UsePresenceOptions accepts enabled', () => {
     const opts: UsePresenceOptions = {
-      data: { cursor: { x: 10, y: 20 } },
       enabled: true
     }
     expect(opts.enabled).toBe(true)
-    expect(opts.data).toEqual({ cursor: { x: 10, y: 20 } })
   })
 
   test('UsePresenceOptions fields are all optional', () => {
     const opts: UsePresenceOptions = {}
     expect(opts.enabled).toBeUndefined()
-    expect(opts.data).toBeUndefined()
+    expect(opts.ttlMs).toBeUndefined()
   })
 
-  test('UsePresenceResult has users, updatePresence, leave', () => {
+  test('UsePresenceResult has users and updatePresence', () => {
     type R = UsePresenceResult
     type Keys = keyof R
-    const keys: Keys[] = ['users', 'updatePresence', 'leave']
-    expect(keys).toHaveLength(3)
+    const keys: Keys[] = ['users', 'updatePresence']
+    expect(keys).toHaveLength(2)
   })
 
   test('PresenceUser has userId, lastSeen, data', () => {
@@ -5772,7 +5664,7 @@ describe('middleware', () => {
     db: {} as GlobalHookCtx['db'],
     sender: { toString: () => 'sender1' } as GlobalHookCtx['sender'],
     table: 'blog',
-    userId: 'user1'
+    timestamp: { microsSinceUnixEpoch: 0n } as GlobalHookCtx['timestamp']
   }
 
   describe('composeMiddleware', () => {
@@ -5823,7 +5715,7 @@ describe('middleware', () => {
           name: 'mw2'
         },
         hooks = composeMiddleware(mw1, mw2)
-      await hooks.afterCreate?.(mockCtx, { data: {}, id: 'id1' })
+      await hooks.afterCreate?.(mockCtx, { data: {}, row: {} })
       expect(calls).toEqual(['mw1', 'mw2'])
     })
 
@@ -5837,7 +5729,7 @@ describe('middleware', () => {
           name: 'mw2'
         },
         hooks = composeMiddleware(mw1, mw2),
-        result = await hooks.beforeUpdate?.(mockCtx, { id: 'id1', patch: { title: 'x' }, prev: {} })
+        result = await hooks.beforeUpdate?.(mockCtx, { patch: { title: 'x' }, prev: {} })
       expect(result).toEqual({ from1: true, from2: true, title: 'x' })
     })
 
@@ -5856,7 +5748,7 @@ describe('middleware', () => {
           name: 'mw2'
         },
         hooks = composeMiddleware(mw1, mw2)
-      await hooks.afterUpdate?.(mockCtx, { id: 'id1', patch: {}, prev: {} })
+      await hooks.afterUpdate?.(mockCtx, { next: {}, patch: {}, prev: {} })
       expect(calls).toEqual(['mw1', 'mw2'])
     })
 
@@ -5875,7 +5767,7 @@ describe('middleware', () => {
           name: 'mw2'
         },
         hooks = composeMiddleware(mw1, mw2)
-      await hooks.beforeDelete?.(mockCtx, { doc: {}, id: 'id1' })
+      await hooks.beforeDelete?.(mockCtx, { row: {} })
       expect(calls).toEqual(['mw1', 'mw2'])
     })
 
@@ -5894,7 +5786,7 @@ describe('middleware', () => {
           name: 'mw2'
         },
         hooks = composeMiddleware(mw1, mw2)
-      await hooks.afterDelete?.(mockCtx, { doc: {}, id: 'id1' })
+      await hooks.afterDelete?.(mockCtx, { row: {} })
       expect(calls).toEqual(['mw1', 'mw2'])
     })
 
@@ -5947,7 +5839,7 @@ describe('middleware', () => {
           name: 'capture'
         },
         hooks = composeMiddleware(mw)
-      await hooks.beforeDelete?.(mockCtx, { doc: {}, id: 'id1' })
+      await hooks.beforeDelete?.(mockCtx, { row: {} })
       expect(capturedOp).toBe('delete')
     })
 
@@ -5961,7 +5853,7 @@ describe('middleware', () => {
           name: 'capture'
         },
         hooks = composeMiddleware(mw)
-      await hooks.beforeUpdate?.(mockCtx, { id: 'id1', patch: {}, prev: {} })
+      await hooks.beforeUpdate?.(mockCtx, { patch: {}, prev: {} })
       expect(capturedOp).toBe('update')
     })
   })
@@ -5989,13 +5881,13 @@ describe('middleware', () => {
     test('afterCreate does not throw', () => {
       const mw = auditLog(),
         mwCtx: MiddlewareCtx = { ...mockCtx, operation: 'create' }
-      expect(() => mw.afterCreate?.(mwCtx, { data: { title: 'x' }, row: { _id: 'id1', title: 'x' } })).not.toThrow()
+      expect(async () => mw.afterCreate?.(mwCtx, { data: { title: 'x' }, row: { _id: 'id1', title: 'x' } })).not.toThrow()
     })
 
     test('afterUpdate does not throw', () => {
       const mw = auditLog(),
         mwCtx: MiddlewareCtx = { ...mockCtx, operation: 'update' }
-      expect(() =>
+      expect(async () =>
         mw.afterUpdate?.(mwCtx, { next: { _id: 'id1', title: 'y' }, patch: { title: 'y' }, prev: { title: 'x' } })
       ).not.toThrow()
     })
@@ -6003,7 +5895,7 @@ describe('middleware', () => {
     test('afterDelete does not throw', () => {
       const mw = auditLog(),
         mwCtx: MiddlewareCtx = { ...mockCtx, operation: 'delete' }
-      expect(() => mw.afterDelete?.(mwCtx, { row: { _id: 'id1', title: 'x' } })).not.toThrow()
+      expect(async () => mw.afterDelete?.(mwCtx, { row: { _id: 'id1', title: 'x' } })).not.toThrow()
     })
 
     test('accepts custom log level', () => {
@@ -6015,7 +5907,7 @@ describe('middleware', () => {
       const mw = auditLog({ verbose: true })
       expect(mw.name).toBe('auditLog')
       const mwCtx: MiddlewareCtx = { ...mockCtx, operation: 'create' }
-      expect(() => mw.afterCreate?.(mwCtx, { data: { title: 'x' }, row: { _id: 'id1', title: 'x' } })).not.toThrow()
+      expect(async () => mw.afterCreate?.(mwCtx, { data: { title: 'x' }, row: { _id: 'id1', title: 'x' } })).not.toThrow()
     })
   })
 
@@ -6047,7 +5939,7 @@ describe('middleware', () => {
       const mw = slowQueryWarn(),
         mwCtx: MiddlewareCtx = { ...mockCtx, operation: 'update' },
         patch = { title: 'updated' },
-        result = mw.beforeUpdate?.(mwCtx, { id: 'id1', patch, prev: {} })
+        result = mw.beforeUpdate?.(mwCtx, { patch, prev: {} })
       expect(result).toEqual(patch)
     })
 
@@ -6097,7 +5989,7 @@ describe('middleware', () => {
       const mw = inputSanitize(),
         mwCtx: MiddlewareCtx = { ...mockCtx, operation: 'update' },
         patch = { content: '<script>bad()</script>safe' },
-        result = mw.beforeUpdate?.(mwCtx, { id: 'id1', patch, prev: {} })
+        result = mw.beforeUpdate?.(mwCtx, { patch, prev: {} })
       expect(result).toEqual({ content: 'safe' })
     })
 
@@ -6121,7 +6013,7 @@ describe('middleware', () => {
       const mw = inputSanitize({ fields: ['content'] }),
         mwCtx: MiddlewareCtx = { ...mockCtx, operation: 'update' },
         patch = { content: '<script>x</script>safe', title: '<script>keep</script>' },
-        result = mw.beforeUpdate?.(mwCtx, { id: 'id1', patch, prev: {} })
+        result = mw.beforeUpdate?.(mwCtx, { patch, prev: {} })
       expect(result).toEqual({ content: 'safe', title: '<script>keep</script>' })
     })
   })
@@ -6201,7 +6093,7 @@ describe('middleware', () => {
         },
         hooks = composeMiddleware(mw1, mw2)
       await hooks.beforeCreate?.(mockCtx, { data: {} })
-      await hooks.afterCreate?.(mockCtx, { data: {}, id: 'id1' })
+      await hooks.afterCreate?.(mockCtx, { data: {}, row: {} })
       expect(order).toEqual(['sanitize', 'validate', 'audit', 'log'])
     })
 
@@ -6233,7 +6125,7 @@ describe('middleware', () => {
           name: 'validate'
         },
         hooks = composeMiddleware(mw1, mw2),
-        result = await hooks.beforeUpdate?.(mockCtx, { id: 'id1', patch: { title: 'x' }, prev: {} })
+        result = await hooks.beforeUpdate?.(mockCtx, { patch: { title: 'x' }, prev: {} })
       expect(result).toEqual({ normalized: true, title: 'x', validated: true })
     })
   })
@@ -6245,7 +6137,13 @@ describe('middleware', () => {
     })
 
     test('MiddlewareCtx extends GlobalHookCtx with operation', () => {
-      const ctx: MiddlewareCtx = { db: {} as MiddlewareCtx['db'], operation: 'create', table: 'test' }
+      const ctx: MiddlewareCtx = {
+        db: {} as MiddlewareCtx['db'],
+        operation: 'create',
+        sender: { toString: () => 'sender' } as MiddlewareCtx['sender'],
+        table: 'test',
+        timestamp: { microsSinceUnixEpoch: 0n } as MiddlewareCtx['timestamp']
+      }
       expect(ctx.operation).toBe('create')
       expect(ctx.table).toBe('test')
     })
@@ -7184,7 +7082,7 @@ describe('DevtoolsProps customization (R11.3)', () => {
   })
 
   test('defaultTab accepts all tab ids', () => {
-    const tabs: DevtoolsProps['defaultTab'][] = ['errors', 'subs', 'mutations', 'cache']
+    const tabs: DevtoolsProps['defaultTab'][] = ['errors', 'subs', 'reducers', 'cache']
     expect(tabs).toHaveLength(4)
   })
 

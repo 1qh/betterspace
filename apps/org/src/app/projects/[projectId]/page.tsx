@@ -1,12 +1,13 @@
 /* oxlint-disable promise/prefer-await-to-then */
+
 'use client'
 
-import type { OrgMember, Project, Task } from '@a/be/spacetimedb/types'
-import type { output } from 'zod/v4'
+import type { OrgMember, OrgProfile, Project, Task } from '@a/be/spacetimedb/types'
 import type { SyntheticEvent } from 'react'
+import type { output } from 'zod/v4'
 
 import { reducers, tables } from '@a/be/spacetimedb'
-import { orgScoped } from '@a/be/t'
+import { orgScoped } from '@a/be/z'
 import { fail } from '@a/fe/utils'
 import { Avatar, AvatarFallback, AvatarImage } from '@a/ui/avatar'
 import { Badge } from '@a/ui/badge'
@@ -20,10 +21,9 @@ import { EditorsSection } from 'betterspace/components'
 import { enumToOptions } from 'betterspace/zod'
 import { Check, Pencil, Plus, Trash, X } from 'lucide-react'
 import Link from 'next/link'
-import { use } from 'react'
-import { useReducer, useSpacetimeDB, useTable } from 'spacetimedb/react'
-import { useState } from 'react'
+import { use, useState } from 'react'
 import { toast } from 'sonner'
+import { useReducer, useSpacetimeDB, useTable } from 'spacetimedb/react'
 
 import { useOrg } from '~/hook/use-org'
 
@@ -32,8 +32,10 @@ type Priority = NonNullable<output<typeof orgScoped.task>['priority']>
 const priorityOptions = enumToOptions(orgScoped.task.shape.priority.unwrap()),
   sameIdentity = (a: { toHexString: () => string }, b: { toHexString: () => string }) =>
     a.toHexString() === b.toHexString(),
-  /** biome-ignore lint/suspicious/noEmptyBlockStatements: intentional noop */
-  noop: () => void = () => {},
+  asPriority = (value: string | undefined): Priority =>
+    value === 'high' || value === 'low' || value === 'medium' ? value : 'medium',
+  /** biome-ignore lint/suspicious/noEmptyBlockStatements: noop */
+  noop: () => void = (): void => {}, // eslint-disable-line @typescript-eslint/no-empty-function
   PrioritySelect = ({ onValueChange, value }: { onValueChange: (v: Priority) => void; value: Priority }) => (
     <Select onValueChange={v => onValueChange(v as Priority)} value={value}>
       <SelectTrigger className='w-28'>
@@ -63,7 +65,7 @@ interface TaskRowProps {
 const TaskRow = ({ canAssign, canEdit, members, onAssign, onDelete, onToggle, onUpdate, task: t }: TaskRowProps) => {
     const [editing, setEditing] = useState(false),
       [editTitle, setEditTitle] = useState(t.title),
-      [editPriority, setEditPriority] = useState<Priority>(t.priority ?? 'medium'),
+      [editPriority, setEditPriority] = useState<Priority>(asPriority(t.priority)),
       handleSave = () => {
         if (!editTitle.trim()) return
 
@@ -77,7 +79,7 @@ const TaskRow = ({ canAssign, canEdit, members, onAssign, onDelete, onToggle, on
       },
       handleCancel = () => {
         setEditTitle(t.title)
-        setEditPriority(t.priority ?? 'medium')
+        setEditPriority(asPriority(t.priority))
         setEditing(false)
       },
       { assigneeId } = t,
@@ -148,9 +150,11 @@ const TaskRow = ({ canAssign, canEdit, members, onAssign, onDelete, onToggle, on
       [allProjects] = useTable(tables.project),
       [allTasks] = useTable(tables.task),
       [allMembers] = useTable(tables.orgMember),
+      [allProfiles] = useTable(tables.orgProfile),
       project = allProjects.find((p: Project) => p.id === pid && p.orgId === Number(org._id)),
       tasks = allTasks.filter((t: Task) => t.projectId === pid && t.orgId === Number(org._id)),
       members = allMembers.filter((m: OrgMember) => m.orgId === Number(org._id)),
+      profileByUserId = new Map<string, OrgProfile>(),
       createTask = useReducer(reducers.createTask),
       updateTask = useReducer(reducers.updateTask),
       removeTask = useReducer(reducers.rmTask),
@@ -158,15 +162,33 @@ const TaskRow = ({ canAssign, canEdit, members, onAssign, onDelete, onToggle, on
       [priority, setPriority] = useState<Priority>('medium'),
       [selected, setSelected] = useState<Set<number>>(new Set())
 
+    for (const p of allProfiles) profileByUserId.set(p.userId.toHexString(), p)
+
     if (!(project && identity)) return <Skeleton className='h-40' />
 
     const canEditProject =
         isAdmin || sameIdentity(project.userId, identity) || (project.editors ?? []).some(e => sameIdentity(e, identity)),
-      editorsList = (project.editors ?? []).map(e => ({ userId: e.toHexString() })),
+      editorsList = (project.editors ?? []).map(e => {
+        const userId = e.toHexString(),
+          profile = profileByUserId.get(userId)
+        return { email: '', name: profile?.displayName ?? userId.slice(0, 8), userId }
+      }),
+      membersForEditors = members.map(m => {
+        const userId = m.userId.toHexString(),
+          profile = profileByUserId.get(userId)
+        return { user: { email: undefined, name: profile?.displayName }, userId }
+      }),
       doAddTask = async () => {
         if (!title.trim()) return
         try {
-          await createTask({ completed: false, orgId: Number(org._id), priority, projectId: pid, title })
+          await createTask({
+            assigneeId: undefined,
+            completed: false,
+            orgId: Number(org._id),
+            priority,
+            projectId: pid,
+            title
+          })
           setTitle('')
           toast.success('Task added')
         } catch (error) {
@@ -180,7 +202,15 @@ const TaskRow = ({ canAssign, canEdit, members, onAssign, onDelete, onToggle, on
       handleToggle = (id: number) => {
         const current = tasks.find(t => t.id === id)
         if (!current) return
-        updateTask({ completed: !current.completed, id }).catch(fail)
+        updateTask({
+          assigneeId: current.assigneeId,
+          completed: !current.completed,
+          expectedUpdatedAt: current.updatedAt,
+          id,
+          priority: current.priority,
+          projectId: current.projectId,
+          title: current.title
+        }).catch(fail)
       },
       handleDeleteTask = (id: number) => {
         removeTask({ id })
@@ -218,7 +248,21 @@ const TaskRow = ({ canAssign, canEdit, members, onAssign, onDelete, onToggle, on
         if (selected.size === 0) return
         const run = async () => {
           const jobs: Promise<void>[] = []
-          for (const id of selected) jobs.push(updateTask({ completed, id }))
+          for (const id of selected) {
+            const current = tasks.find(t => t.id === id)
+            if (current)
+              jobs.push(
+                updateTask({
+                  assigneeId: current.assigneeId,
+                  completed,
+                  expectedUpdatedAt: current.updatedAt,
+                  id,
+                  priority: current.priority,
+                  projectId: current.projectId,
+                  title: current.title
+                })
+              )
+          }
           await Promise.all(jobs)
         }
         run()
@@ -307,12 +351,28 @@ const TaskRow = ({ canAssign, canEdit, members, onAssign, onDelete, onToggle, on
                           const assignee = userId
                             ? members.find(m => m.userId.toHexString() === userId)?.userId
                             : undefined
-                          updateTask({ assigneeId: assignee, id: t.id }).catch(fail)
+                          updateTask({
+                            assigneeId: assignee,
+                            completed: t.completed,
+                            expectedUpdatedAt: t.updatedAt,
+                            id: t.id,
+                            priority: t.priority,
+                            projectId: t.projectId,
+                            title: t.title
+                          }).catch(fail)
                         }}
                         onDelete={() => handleDeleteTask(t.id)}
                         onToggle={() => handleToggle(t.id)}
                         onUpdate={async (newTitle, newPriority) => {
-                          await updateTask({ id: t.id, priority: newPriority, title: newTitle })
+                          await updateTask({
+                            assigneeId: t.assigneeId,
+                            completed: t.completed,
+                            expectedUpdatedAt: t.updatedAt,
+                            id: t.id,
+                            priority: newPriority,
+                            projectId: t.projectId,
+                            title: newTitle
+                          })
                         }}
                         task={t}
                       />
@@ -325,7 +385,9 @@ const TaskRow = ({ canAssign, canEdit, members, onAssign, onDelete, onToggle, on
           </CardContent>
         </Card>
 
-        {isAdmin ? <EditorsSection editorsList={editorsList} members={[]} onAdd={noop} onRemove={noop} /> : null}
+        {isAdmin ? (
+          <EditorsSection editorsList={editorsList} members={membersForEditors} onAdd={noop} onRemove={noop} />
+        ) : null}
       </div>
     )
   }

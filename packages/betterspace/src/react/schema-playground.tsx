@@ -13,7 +13,6 @@ interface PlaygroundProps {
   /** Default schema text to display. */
   defaultValue?: string
   endpointClassName?: string
-  reducerClassName?: string
   /** Additional CSS class for the textarea editor. */
   inputClassName?: string
   /** Called when schema text changes. */
@@ -22,6 +21,7 @@ interface PlaygroundProps {
   placeholder?: string
   /** If true, the editor is read-only — useful for embedding in docs. */
   readOnly?: boolean
+  reducerClassName?: string
   /** Additional CSS class for the table list section. */
   tableClassName?: string
 }
@@ -94,11 +94,11 @@ const orgScoped = makeOrgScoped({
     className,
     defaultValue = DEFAULT_SCHEMA,
     endpointClassName,
-    reducerClassName,
     inputClassName,
     onChange,
     placeholder = 'Paste your schema here...',
     readOnly = false,
+    reducerClassName,
     tableClassName
   }: PlaygroundProps) => {
     const [value, setValue] = useState(defaultValue),

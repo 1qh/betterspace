@@ -27,13 +27,11 @@ interface UseCacheEntryResult<T> {
 
 const isDev = typeof process !== 'undefined' && process.env.NODE_ENV !== 'production',
   fireLoad = async <A extends Record<string, unknown>>({ args, load, loadingRef, setIsLoading }: FireLoadCtx<A>) => {
-    let hasError = false
     try {
       await load(args)
     } catch (error) {
-      hasError = Boolean(error)
+      String(error)
     } finally {
-      if (hasError) hasError = false
       loadingRef.current = false
       setIsLoading(false)
     }
@@ -64,7 +62,7 @@ const isDev = typeof process !== 'undefined' && process.env.NODE_ENV !== 'produc
     useEffect(() => {
       if (!(isDev && data !== undefined)) return
       const stale = data === null || data.stale === true
-      trackCacheAccess({ hit: !stale, key: JSON.stringify(args ?? {}), stale, table })
+      trackCacheAccess({ hit: !stale, key: JSON.stringify(args), stale, table })
     }, [args, data, table])
 
     const refresh = useCallback(() => {

@@ -1,5 +1,5 @@
 #!/usr/bin/env bun
-/* eslint-disable no-console, max-statements, complexity */
+/* eslint-disable no-console, max-statements */
 /* oxlint-disable eslint/max-statements, eslint/complexity */
 /** biome-ignore-all lint/style/noProcessEnv: cli */
 import { execSync } from 'node:child_process'
@@ -121,17 +121,17 @@ const schemaMarkers = ['schema(', 'table(', 't.'],
   },
   listTypeScriptFiles = (root: string): string[] => {
     const out: string[] = [],
-      skip = new Set(['.git', '.next', '.turbo', 'build', 'dist', 'node_modules'])
-    const walk = (dir: string) => {
-      if (!existsSync(dir)) return
-      for (const entry of readdirSync(dir, { withFileTypes: true })) {
-        const full = join(dir, entry.name)
-        if (entry.isDirectory()) {
-          if (!(skip.has(entry.name) || entry.name.startsWith('.'))) walk(full)
-        } else if (entry.name.endsWith('.ts') && !entry.name.endsWith('.test.ts') && !entry.name.endsWith('.config.ts'))
-          out.push(full)
+      skip = new Set(['.git', '.next', '.turbo', 'build', 'dist', 'node_modules']),
+      walk = (dir: string) => {
+        if (!existsSync(dir)) return
+        for (const entry of readdirSync(dir, { withFileTypes: true })) {
+          const full = join(dir, entry.name)
+          if (entry.isDirectory()) {
+            if (!(skip.has(entry.name) || entry.name.startsWith('.'))) walk(full)
+          } else if (entry.name.endsWith('.ts') && !entry.name.endsWith('.test.ts') && !entry.name.endsWith('.config.ts'))
+            out.push(full)
+        }
       }
-    }
     walk(root)
     return out
   },

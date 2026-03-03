@@ -1,5 +1,5 @@
 /* oxlint-disable promise/prefer-await-to-then */
-/* eslint-disable complexity */
+
 'use client'
 
 import type { Wiki } from '@a/be/spacetimedb/types'
@@ -10,13 +10,12 @@ import { Badge } from '@a/ui/badge'
 import { Button } from '@a/ui/button'
 import { Card, CardContent, CardHeader, CardTitle } from '@a/ui/card'
 import { Checkbox } from '@a/ui/checkbox'
-import { Skeleton } from '@a/ui/skeleton'
 import { useBulkSelection } from 'betterspace/react'
-import { useReducer, useTable } from 'spacetimedb/react'
 import { FileText, Plus, RotateCcw, Trash2 } from 'lucide-react'
 import Link from 'next/link'
 import { useState } from 'react'
 import { toast } from 'sonner'
+import { useReducer, useTable } from 'spacetimedb/react'
 
 import { useOrg } from '~/hook/use-org'
 
@@ -25,13 +24,28 @@ const WikiPage = () => {
     [showDeleted, setShowDeleted] = useState(false),
     [allWikis] = useTable(tables.wiki),
     wikis = allWikis
-      .filter((w: Wiki) => w.orgId === Number(org._id) && (w.deletedAt === null || w.deletedAt === undefined))
+
+      .filter((w: Wiki) => w.orgId === Number(org._id) && w.deletedAt === undefined)
       .map((w: Wiki) => ({ ...w, _id: `${w.id}` })),
     deletedWikis = allWikis
-      .filter((w: Wiki) => w.orgId === Number(org._id) && w.deletedAt !== null && w.deletedAt !== undefined)
+
+      .filter((w: Wiki) => w.orgId === Number(org._id) && w.deletedAt !== undefined)
       .map((w: Wiki) => ({ ...w, _id: `${w.id}` })),
     updateWiki = useReducer(reducers.updateWiki),
-    restoreMut = async (args: { id: number }) => updateWiki({ deletedAt: null, id: args.id }),
+    restoreMut = async (args: { id: string }) => {
+      const wiki = allWikis.find(w => w.id === Number(args.id))
+      if (!wiki) return
+      await updateWiki({
+        content: wiki.content,
+        deletedAt: undefined,
+        editors: wiki.editors,
+        expectedUpdatedAt: wiki.updatedAt,
+        id: wiki.id,
+        slug: wiki.slug,
+        status: wiki.status,
+        title: wiki.title
+      })
+    },
     rmWiki = useReducer(reducers.rmWiki),
     bulkRm = async ({ ids }: { ids: string[]; orgId: string }) => {
       const tasks: Promise<void>[] = []
@@ -50,13 +64,9 @@ const WikiPage = () => {
         toast(msg, opts)
       },
       undoLabel: 'wiki page'
-    })
-
-  if (showDeleted && !deletedWikis) return <Skeleton className='h-40' />
-  if (!(showDeleted || wikis)) return <Skeleton className='h-40' />
-
-  const activeItems = showDeleted ? [] : wikis,
-    deletedItems = deletedWikis ?? [],
+    }),
+    activeItems = showDeleted ? [] : wikis,
+    deletedItems = deletedWikis,
     visibleCount = showDeleted ? deletedItems.length : activeItems.length
 
   return (
@@ -64,12 +74,17 @@ const WikiPage = () => {
       <div className='flex items-center justify-between'>
         <div className='flex items-center gap-4'>
           <h1 className='text-2xl font-bold'>
-            Wiki <span className='text-base font-normal text-muted-foreground'>({visibleCount ?? 0})</span>
+            Wiki <span className='text-base font-normal text-muted-foreground'>({visibleCount})</span>
           </h1>
           {isAdmin && !showDeleted && selected.size > 0 ? (
             <div className='flex items-center gap-2'>
               <span className='text-sm text-muted-foreground'>{selected.size} selected</span>
-              <Button onClick={handleBulkDelete} size='sm' variant='destructive'>
+              <Button
+                onClick={() => {
+                  handleBulkDelete().catch(fail)
+                }}
+                size='sm'
+                variant='destructive'>
                 Delete
               </Button>
               <Button onClick={clear} size='sm' variant='ghost'>

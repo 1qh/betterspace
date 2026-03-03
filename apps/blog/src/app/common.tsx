@@ -2,6 +2,7 @@
 'use client'
 
 import type { Blog } from '@a/be/spacetimedb/types'
+
 import { reducers } from '@a/be/spacetimedb'
 import { cn } from '@a/ui'
 import {
@@ -31,6 +32,7 @@ import { createBlog } from '~/schema'
 
 import { Publish } from './[id]/edit/client'
 
+// eslint-disable-next-line no-restricted-properties
 const isPlaywrightTest = process.env.NEXT_PUBLIC_PLAYWRIGHT === '1',
   Delete = ({ id, onOptimisticRemove }: { id: number; onOptimisticRemove?: () => void }) => {
     const rmBlog = useReducer(reducers.rmBlog),
@@ -193,14 +195,14 @@ const isPlaywrightTest = process.env.NEXT_PUBLIC_PLAYWRIGHT === '1',
       </div>
     )
   },
-  Card = ({ id, content, coverImage, onOptimisticRemove, title, ...rest }: Blog & { onOptimisticRemove?: () => void }) => (
+  Card = ({ content, coverImage, id, onOptimisticRemove, title, ...rest }: Blog & { onOptimisticRemove?: () => void }) => (
     <div
       className='group -mt-0.5 w-full rounded-xs border-2 border-transparent px-2.5 pt-2 transition-all duration-300 hover:rounded-3xl hover:border-border'
       data-testid='blog-card'>
       <Author
-        id={id}
         content={content}
         coverImage={coverImage}
+        id={id}
         onOptimisticRemove={onOptimisticRemove}
         title={title}
         {...rest}

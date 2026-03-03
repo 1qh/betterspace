@@ -17,8 +17,8 @@ const PermissionGuard = ({
   canAccess,
   children,
   className,
-  role,
   resource,
+  role,
   ...props
 }: ComponentProps<'div'> & {
   allowedRoles?: OrgRole[]
@@ -26,8 +26,8 @@ const PermissionGuard = ({
   backLabel: string
   canAccess?: boolean
   children: ReactNode
-  role?: OrgRole
   resource: string
+  role?: OrgRole
 }) => {
   const effectiveRole = role,
     roleAllowed = allowedRoles && effectiveRole ? allowedRoles.includes(effectiveRole) : allowedRoles ? false : undefined,

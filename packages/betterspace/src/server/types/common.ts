@@ -324,6 +324,7 @@ const ERROR_MESSAGES = {
 
 type ErrorCode = keyof typeof ERROR_MESSAGES
 
+// eslint-disable-next-line @typescript-eslint/naming-convention
 declare const __brand: unique symbol
 
 type AssertSchema<T, Expected extends keyof BrandLabelMap> =

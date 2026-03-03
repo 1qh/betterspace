@@ -95,88 +95,76 @@ const DAYS_PER_WEEK = 7,
       if (field) updateParams[key] = field
     }
 
-    const createReducer = spacetimedb.reducer(
-        { name: createName },
-        createParams,
-        (ctx, args: CacheFieldValues<F> & Record<string, unknown>) => {
-          const table = tableAccessor(ctx.db),
-            argsRecord = args as Record<string, unknown>,
-            keyValue = argsRecord[keyName] as Key,
-            payload = {
-              ...argsRecord,
-              cachedAt: ctx.timestamp,
-              id: 0,
-              invalidatedAt: null,
-              [keyName]: keyValue,
-              updatedAt: ctx.timestamp
-            } as Row
-          table.insert(payload)
-        }
-      ),
-      updateReducer = spacetimedb.reducer(
-        { name: updateName },
-        updateParams,
-        (ctx, args: Record<string, unknown> & UpdateArgs<F>) => {
-          const table = tableAccessor(ctx.db),
-            argsRecord = args as Record<string, unknown>,
-            keyValue = argsRecord[keyName] as Key,
-            pk = pkAccessor(table),
-            row = pk.find(keyValue)
-
-          if (!row) throw makeError('NOT_FOUND', `${tableName}:update`)
-
-          const patch = pickPatch(args, fieldNames),
-            nextRecord = {
-              ...(row as unknown as Record<string, unknown>),
-              invalidatedAt: null,
-              updatedAt: ctx.timestamp
-            },
-            patchKeys = Object.keys(patch as Record<string, unknown>)
-
-          for (const key of patchKeys) {
-            const value = (patch as Record<string, unknown>)[key]
-            if (value !== undefined) nextRecord[key] = value
-          }
-
-          pk.update(nextRecord as Row)
-        }
-      ),
-      rmReducer = spacetimedb.reducer(
-        { name: rmName },
-        { [keyName]: keyField },
-        (ctx, args: Record<string, unknown> & { key: Key }) => {
-          const table = tableAccessor(ctx.db),
-            argsRecord = args as Record<string, unknown>,
-            keyValue = argsRecord[keyName] as Key,
-            pk = pkAccessor(table),
-            row = pk.find(keyValue)
-
-          if (!row) throw makeError('NOT_FOUND', `${tableName}:rm`)
-          const removed = pk.delete(keyValue)
-          if (!removed) throw makeError('NOT_FOUND', `${tableName}:rm`)
-        }
-      ),
-      invalidateReducer = spacetimedb.reducer(
-        { name: invalidateName },
-        { [keyName]: keyField },
-        (ctx, args: Record<string, unknown> & { key: Key }) => {
-          const table = tableAccessor(ctx.db),
-            argsRecord = args as Record<string, unknown>,
-            keyValue = argsRecord[keyName] as Key,
-            pk = pkAccessor(table),
-            row = pk.find(keyValue)
-
-          if (!row) throw makeError('NOT_FOUND', `${tableName}:invalidate`)
-
-          const nextRecord = {
-            ...(row as unknown as Record<string, unknown>),
-            invalidatedAt: ctx.timestamp,
+    const createReducer = spacetimedb.reducer({ name: createName }, createParams, (ctx, args) => {
+        const typedArgs = args as CacheFieldValues<F> & Record<string, unknown>,
+          table = tableAccessor(ctx.db),
+          argsRecord = typedArgs as Record<string, unknown>,
+          keyValue = argsRecord[keyName] as Key,
+          payload = {
+            ...argsRecord,
+            cachedAt: ctx.timestamp,
+            id: 0,
+            invalidatedAt: null,
+            [keyName]: keyValue,
             updatedAt: ctx.timestamp
           } as Row
+        table.insert(payload)
+      }),
+      updateReducer = spacetimedb.reducer({ name: updateName }, updateParams, (ctx, args) => {
+        const typedArgs = args as Record<string, unknown> & UpdateArgs<F>,
+          table = tableAccessor(ctx.db),
+          argsRecord = typedArgs as Record<string, unknown>,
+          keyValue = argsRecord[keyName] as Key,
+          pk = pkAccessor(table),
+          row = pk.find(keyValue)
 
-          pk.update(nextRecord)
+        if (!row) throw makeError('NOT_FOUND', `${tableName}:update`)
+
+        const patch = pickPatch(typedArgs, fieldNames),
+          nextRecord = {
+            ...(row as unknown as Record<string, unknown>),
+            invalidatedAt: null,
+            updatedAt: ctx.timestamp
+          } as Record<string, unknown>,
+          patchKeys = Object.keys(patch)
+
+        for (const key of patchKeys) {
+          const value = patch[key]
+          if (value !== undefined) nextRecord[key] = value
         }
-      ),
+
+        pk.update(nextRecord as Row)
+      }),
+      rmReducer = spacetimedb.reducer({ name: rmName }, { [keyName]: keyField }, (ctx, args) => {
+        const typedArgs = args as Record<string, unknown>,
+          table = tableAccessor(ctx.db),
+          argsRecord = typedArgs,
+          keyValue = argsRecord[keyName] as Key,
+          pk = pkAccessor(table),
+          row = pk.find(keyValue)
+
+        if (!row) throw makeError('NOT_FOUND', `${tableName}:rm`)
+        const removed = pk.delete(keyValue)
+        if (!removed) throw makeError('NOT_FOUND', `${tableName}:rm`)
+      }),
+      invalidateReducer = spacetimedb.reducer({ name: invalidateName }, { [keyName]: keyField }, (ctx, args) => {
+        const typedArgs = args as Record<string, unknown>,
+          table = tableAccessor(ctx.db),
+          argsRecord = typedArgs,
+          keyValue = argsRecord[keyName] as Key,
+          pk = pkAccessor(table),
+          row = pk.find(keyValue)
+
+        if (!row) throw makeError('NOT_FOUND', `${tableName}:invalidate`)
+
+        const nextRecord = {
+          ...(row as unknown as Record<string, unknown>),
+          invalidatedAt: ctx.timestamp,
+          updatedAt: ctx.timestamp
+        } as Row
+
+        pk.update(nextRecord)
+      }),
       purgeReducer = spacetimedb.reducer({ name: purgeName }, {}, ctx => {
         const table = tableAccessor(ctx.db),
           pk = pkAccessor(table),
@@ -192,16 +180,17 @@ const DAYS_PER_WEEK = 7,
         }
 
         for (const key of keysToDelete) pk.delete(key)
-      })
-
-    return {
-      exports: {
+      }),
+      exportsRecord = {
         [createName]: createReducer,
         [invalidateName]: invalidateReducer,
         [purgeName]: purgeReducer,
         [rmName]: rmReducer,
         [updateName]: updateReducer
-      }
+      } as unknown as CacheExports['exports']
+
+    return {
+      exports: exportsRecord
     }
   }
 

@@ -1,5 +1,5 @@
 #!/usr/bin/env bun
-/* eslint-disable no-console, max-statements, complexity */
+/* eslint-disable no-console, max-depth, max-statements, complexity */
 /* oxlint-disable eslint/max-statements, eslint/complexity */
 /** biome-ignore-all lint/style/noProcessEnv: cli */
 import { spawnSync } from 'node:child_process'
@@ -39,17 +39,17 @@ const bold = (s: string) => `\u001B[1m${s}\u001B[0m`,
   },
   listTypeScriptFiles = (root: string): string[] => {
     const out: string[] = [],
-      skip = new Set(['.git', '.next', '.turbo', 'build', 'dist', 'node_modules'])
-    const walk = (dir: string) => {
-      if (!existsSync(dir)) return
-      for (const entry of readdirSync(dir, { withFileTypes: true })) {
-        const full = join(dir, entry.name)
-        if (entry.isDirectory()) {
-          if (!(skip.has(entry.name) || entry.name.startsWith('.'))) walk(full)
-        } else if (entry.name.endsWith('.ts') && !entry.name.includes('.test.') && !entry.name.includes('.config.'))
-          out.push(full)
+      skip = new Set(['.git', '.next', '.turbo', 'build', 'dist', 'node_modules']),
+      walk = (dir: string) => {
+        if (!existsSync(dir)) return
+        for (const entry of readdirSync(dir, { withFileTypes: true })) {
+          const full = join(dir, entry.name)
+          if (entry.isDirectory()) {
+            if (!(skip.has(entry.name) || entry.name.startsWith('.'))) walk(full)
+          } else if (entry.name.endsWith('.ts') && !entry.name.includes('.test.') && !entry.name.includes('.config.'))
+            out.push(full)
+        }
       }
-    }
     walk(root)
     return out
   },
@@ -267,5 +267,5 @@ const bold = (s: string) => `\u001B[1m${s}\u001B[0m`,
 
 if (import.meta.main) doctor()
 
-export { calcHealthScore, checkDeps, checkEslintContent, checkDocker, checkSpacetimeCli, doctor }
+export { calcHealthScore, checkDeps, checkDocker, checkEslintContent, checkSpacetimeCli, doctor }
 export type { CheckResult }

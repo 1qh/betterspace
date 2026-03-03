@@ -12,8 +12,8 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@
 import { clearActiveOrgCookie } from 'betterspace/next'
 import { useRouter } from 'next/navigation'
 import { useState } from 'react'
-import { useReducer, useTable } from 'spacetimedb/react'
 import { toast } from 'sonner'
+import { useReducer, useTable } from 'spacetimedb/react'
 
 import { useOrg } from '~/hook/use-org'
 
@@ -32,7 +32,7 @@ const OrgSettingsPage = () => {
   if (!isAdmin)
     return <div className='text-center text-muted-foreground'>You do not have permission to access settings.</div>
 
-  const adminMembers = members.filter(m => m.isAdmin).map(m => ({ user: null, userId: m.userId.toHexString() })),
+  const adminMembers = members.filter(m => m.isAdmin),
     handleLeave = () => {
       /** biome-ignore lint/suspicious/noAlert: demo page uses native confirm */
       if (!confirm('Are you sure you want to leave this organization?')) return
@@ -45,7 +45,7 @@ const OrgSettingsPage = () => {
         .catch(fail)
     },
     handleTransfer = () => {
-      const target = adminMembers.find(m => m.userId === transferTarget)
+      const target = adminMembers.find(m => m.userId.toHexString() === transferTarget)
       if (!target) return
       /** biome-ignore lint/suspicious/noAlert: demo page uses native confirm */
       if (!confirm('Are you sure? You will become an admin and lose owner privileges.')) return
@@ -87,8 +87,8 @@ const OrgSettingsPage = () => {
               </SelectTrigger>
               <SelectContent>
                 {adminMembers.map(m => (
-                  <SelectItem key={m.userId} value={m.userId}>
-                    {m.user?.name ?? m.user?.email ?? 'Unknown'}
+                  <SelectItem key={m.id} value={m.userId.toHexString()}>
+                    {m.userId.toHexString()}
                   </SelectItem>
                 ))}
               </SelectContent>

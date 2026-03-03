@@ -1,5 +1,5 @@
 import type { Identity, Timestamp } from 'spacetimedb'
-import type { TypeBuilder } from 'spacetimedb/server'
+import type { AlgebraicTypeType, TypeBuilder } from 'spacetimedb/server'
 
 import type {
   FileUploadConfig,
@@ -68,7 +68,10 @@ const DEFAULT_ALLOWED_TYPES = new Set([
     return false
   },
   encodeUriSegment = (value: string): string =>
-    encodeURIComponent(value).replace(URI_EXTRA_REGEX, c => `%${c.codePointAt(0).toString(HEX_RADIX).toUpperCase()}`),
+    encodeURIComponent(value).replace(URI_EXTRA_REGEX, c => {
+      const code = c.codePointAt(0)
+      return `%${(code ?? 0).toString(HEX_RADIX).toUpperCase()}`
+    }),
   encodeCanonicalPath = (value: string): string => {
     const segments = value.split('/'),
       out: string[] = []
@@ -208,7 +211,7 @@ const DEFAULT_ALLOWED_TYPES = new Set([
     spacetimedb: {
       reducer: (
         opts: { name: string },
-        params: Record<string, TypeBuilder<unknown, unknown>>,
+        params: Record<string, TypeBuilder<unknown, AlgebraicTypeType>>,
         fn: (ctx: { db: DB; sender: Identity; timestamp: Timestamp }, args: unknown) => void
       ) => unknown
     },
@@ -228,33 +231,31 @@ const DEFAULT_ALLOWED_TYPES = new Set([
       registerReducer = spacetimedb.reducer(
         { name: registerName },
         {
-          contentType: fields.contentType as TypeBuilder<unknown, unknown>,
-          filename: fields.filename as TypeBuilder<unknown, unknown>,
-          size: fields.size as TypeBuilder<unknown, unknown>,
-          storageKey: fields.storageKey as TypeBuilder<unknown, unknown>
+          contentType: fields.contentType as TypeBuilder<unknown, AlgebraicTypeType>,
+          filename: fields.filename as TypeBuilder<unknown, AlgebraicTypeType>,
+          size: fields.size as TypeBuilder<unknown, AlgebraicTypeType>,
+          storageKey: fields.storageKey as TypeBuilder<unknown, AlgebraicTypeType>
         },
-        (
-          ctx,
-          args: {
+        (ctx, args) => {
+          const typedArgs = args as {
             contentType: string
             filename: string
             size: number
             storageKey: string
           }
-        ) => {
           if (!isAuthenticatedSender(ctx.sender)) throw makeError('NOT_AUTHENTICATED', `${namespace}:register`)
-          if (!allowedTypes.has(args.contentType))
-            throw makeError('INVALID_FILE_TYPE', `File type ${args.contentType} not allowed`)
-          if (args.size > maxFileSize)
-            throw makeError('FILE_TOO_LARGE', `File size ${args.size} exceeds ${maxFileSize} bytes`)
+          if (!allowedTypes.has(typedArgs.contentType))
+            throw makeError('INVALID_FILE_TYPE', `File type ${typedArgs.contentType} not allowed`)
+          if (typedArgs.size > maxFileSize)
+            throw makeError('FILE_TOO_LARGE', `File size ${typedArgs.size} exceeds ${maxFileSize} bytes`)
 
           const table = tableAccessor(ctx.db)
           table.insert({
-            contentType: args.contentType,
-            filename: args.filename,
+            contentType: typedArgs.contentType,
+            filename: typedArgs.filename,
             id: 0 as Id,
-            size: args.size,
-            storageKey: args.storageKey,
+            size: typedArgs.size,
+            storageKey: typedArgs.storageKey,
             uploadedAt: ctx.timestamp,
             userId: ctx.sender
           } as Row)
@@ -263,9 +264,10 @@ const DEFAULT_ALLOWED_TYPES = new Set([
       deleteReducer = spacetimedb.reducer(
         { name: deleteName },
         {
-          fileId: idField as TypeBuilder<unknown, unknown>
+          fileId: idField as TypeBuilder<unknown, AlgebraicTypeType>
         },
-        (ctx, { fileId }: { fileId: Id }) => {
+        (ctx, args) => {
+          const { fileId } = args as { fileId: Id }
           if (!isAuthenticatedSender(ctx.sender)) throw makeError('NOT_AUTHENTICATED', `${namespace}:delete`)
           const table = tableAccessor(ctx.db),
             pk = pkAccessor(table),
@@ -275,13 +277,14 @@ const DEFAULT_ALLOWED_TYPES = new Set([
           const removed = pk.delete(fileId)
           if (!removed) throw makeError('NOT_FOUND', `${namespace}:delete`)
         }
-      )
-
-    return {
-      exports: {
+      ),
+      exportsRecord = {
         [deleteName]: deleteReducer,
         [registerName]: registerReducer
-      }
+      } as unknown as FileUploadExports['exports']
+
+    return {
+      exports: exportsRecord
     }
   }
 

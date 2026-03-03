@@ -1,12 +1,12 @@
 'use client'
 
-import type { OrgRole } from 'betterspace'
 import type { Org, OrgMember } from '@a/be/spacetimedb/types'
+import type { OrgRole } from 'betterspace'
 
 import { tables } from '@a/be/spacetimedb'
-import { useSpacetimeDB, useTable } from 'spacetimedb/react'
 import { useRouter } from 'next/navigation'
 import { useEffect } from 'react'
+import { useSpacetimeDB, useTable } from 'spacetimedb/react'
 
 import OrgList from './org-list'
 import OrgRedirect from './org-redirect'
@@ -24,9 +24,7 @@ const sameIdentity = (a: Org['userId'], b: Org['userId']) => a.toHexString() ===
       [members] = useTable(tables.orgMember)
 
     useEffect(() => {
-      if (!identity) {
-        router.replace('/login')
-      }
+      if (!identity) router.replace('/login')
     }, [identity, router])
 
     const myMemberships = identity
@@ -43,18 +41,12 @@ const sameIdentity = (a: Org['userId'], b: Org['userId']) => a.toHexString() ===
         .filter(item => item !== null)
 
     useEffect(() => {
-      if (myOrgs.length === 0) {
-        router.replace('/onboarding')
-      }
+      if (myOrgs.length === 0) router.replace('/onboarding')
     }, [myOrgs.length, router])
 
-    if (!identity) {
-      return null
-    }
+    if (!identity) return null
 
-    if (myOrgs.length === 0) {
-      return null
-    }
+    if (myOrgs.length === 0) return null
 
     if (myOrgs.length === 1) {
       const [first] = myOrgs

@@ -4,8 +4,8 @@ import { reducers, tables } from '@a/be/spacetimedb'
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@a/ui/card'
 import { FieldGroup } from '@a/ui/field'
 import { defineSteps } from 'betterspace/components'
-import { useReducer, useSpacetimeDB, useTable } from 'spacetimedb/react'
 import { toast } from 'sonner'
+import { useReducer, useSpacetimeDB, useTable } from 'spacetimedb/react'
 
 import { appearanceStep, orgStep, preferencesStep, profileStep } from '~/schema'
 
@@ -27,21 +27,27 @@ const { StepForm, useStepper } = defineSteps(
       initialValues = {
         preferences: {
           notifications: profile?.notifications ?? false,
-          theme: profile?.theme ?? 'system'
+          theme: (profile?.theme as 'dark' | 'light' | 'system' | undefined) ?? 'system'
         },
         profile: {
           avatar: profile?.avatar ?? null,
           bio: profile?.bio,
-          displayName: profile?.displayName
+          displayName: profile?.displayName ?? ''
         }
       },
       upsert = useReducer(reducers.upsertOrgProfile),
       create = useReducer(reducers.orgCreate),
       stepper = useStepper({
         onSubmit: async d => {
-          await upsert({ ...d.profile, ...d.preferences })
+          await upsert({
+            avatar: d.profile.avatar ?? undefined,
+            bio: d.profile.bio ?? undefined,
+            displayName: d.profile.displayName,
+            notifications: d.preferences.notifications,
+            theme: d.preferences.theme
+          })
           await create({
-            avatarId: d.appearance.orgAvatar,
+            avatarId: d.appearance.orgAvatar ?? undefined,
             name: d.org.name,
             slug: d.org.slug
           })

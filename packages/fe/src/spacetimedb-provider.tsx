@@ -23,6 +23,7 @@ const TOKEN_KEY = 'spacetimedb.token',
   HTTP_OK = 200,
   HTTP_REDIRECT = 300,
   OCTET_STREAM = 'application/octet-stream',
+  /* eslint-disable max-statements */
   uploadFile = async (file: File, options?: UploadOptions): Promise<UploadResponse> => {
     const contentType = file.type || OCTET_STREAM,
       presignRes = await fetch(PRESIGN_ENDPOINT, {
@@ -71,6 +72,7 @@ const TOKEN_KEY = 'spacetimedb.token',
       xhr.send(file)
     })
   },
+  /* eslint-enable max-statements */
   FILE_API = { upload: uploadFile },
   clients = new Map<string, ReturnType<typeof DbConnection.builder>>(),
   getToken = () => {

@@ -16,8 +16,9 @@ const metadata: Metadata = { description: 'betterspace chat demo', title: 'Chat'
     return false
   },
   Layout = async ({ children }: { children: ReactNode }) => {
-    const pathname = (await headers()).get('x-pathname') ?? '/'
-    const token = (await cookies()).get('spacetimedb_token')?.value,
+    const pathname = (await headers()).get('x-pathname') ?? '/',
+      token = (await cookies()).get('spacetimedb_token')?.value,
+      // eslint-disable-next-line no-restricted-properties
       isPlaywright = process.env.PLAYWRIGHT === '1' || process.env.NEXT_PUBLIC_PLAYWRIGHT === '1'
 
     if (!(isPublicPath(pathname) || isPlaywright || (typeof token === 'string' && token.length > 0))) redirect('/login')

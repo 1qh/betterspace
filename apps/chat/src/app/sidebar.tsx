@@ -1,7 +1,8 @@
 'use client'
 
-import { reducers, tables } from '@a/be/spacetimedb'
 import type { Chat } from '@a/be/spacetimedb/types'
+
+import { reducers, tables } from '@a/be/spacetimedb'
 import { Spinner } from '@a/ui/spinner'
 import { Check } from 'lucide-react'
 import { useReducer, useSpacetimeDB, useTable } from 'spacetimedb/react'
@@ -9,10 +10,13 @@ import { useReducer, useSpacetimeDB, useTable } from 'spacetimedb/react'
 import ChatSidebar from './chat-sidebar'
 
 const toIdentityKey = (value: unknown) => {
-    if (!value || typeof value !== 'object' || !('toHexString' in value)) return String(value)
+    if (value === null || value === undefined) return ''
+    if (typeof value === 'string') return value
+    if (typeof value === 'number' || typeof value === 'boolean' || typeof value === 'bigint') return `${value}`
+    if (typeof value !== 'object' || !('toHexString' in value)) return ''
     const candidate = value as { toHexString?: () => string }
     if (typeof candidate.toHexString === 'function') return candidate.toHexString()
-    return String(value)
+    return ''
   },
   Sb = () => {
     const { identity } = useSpacetimeDB(),

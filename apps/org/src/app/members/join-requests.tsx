@@ -5,14 +5,14 @@ import type { OrgJoinRequest } from '@a/be/spacetimedb/types'
 
 import { reducers, tables } from '@a/be/spacetimedb'
 import { fail } from '@a/fe/utils'
-import { Avatar, AvatarFallback, AvatarImage } from '@a/ui/avatar'
+import { Avatar, AvatarFallback } from '@a/ui/avatar'
 import { Button } from '@a/ui/button'
 import { Switch } from '@a/ui/switch'
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@a/ui/table'
-import { useReducer, useTable } from 'spacetimedb/react'
 import { Check, X } from 'lucide-react'
 import { useState } from 'react'
 import { toast } from 'sonner'
+import { useReducer, useTable } from 'spacetimedb/react'
 
 import { useOrg } from '~/hook/use-org'
 
@@ -21,7 +21,7 @@ const JoinRequests = () => {
     [allRequests] = useTable(tables.orgJoinRequest),
     requests = allRequests
       .filter((r: OrgJoinRequest) => r.orgId === Number(org._id) && r.status === 'pending')
-      .map((r: OrgJoinRequest) => ({ request: r, user: null })),
+      .map((r: OrgJoinRequest) => ({ request: r })),
     approveRequest = useReducer(reducers.orgApproveJoin),
     rejectRequest = useReducer(reducers.orgRejectJoin),
     [asAdmin, setAsAdmin] = useState<Record<string, boolean>>({})
@@ -55,14 +55,13 @@ const JoinRequests = () => {
           </TableRow>
         </TableHeader>
         <TableBody>
-          {requests.map(({ request: r, user: u }) => (
+          {requests.map(({ request: r }) => (
             <TableRow key={r.id}>
               <TableCell className='flex items-center gap-2'>
                 <Avatar className='size-6'>
-                  {u?.image ? <AvatarImage src={u.image} /> : null}
-                  <AvatarFallback className='text-xs'>{u?.name?.[0] ?? '?'}</AvatarFallback>
+                  <AvatarFallback className='text-xs'>?</AvatarFallback>
                 </Avatar>
-                <span>{u?.name ?? 'Unknown'}</span>
+                <span>Unknown</span>
               </TableCell>
               <TableCell className='max-w-48 truncate text-sm text-muted-foreground'>{r.message ?? '-'}</TableCell>
               <TableCell className='text-sm text-muted-foreground'>-</TableCell>

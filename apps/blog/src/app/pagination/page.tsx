@@ -4,9 +4,9 @@ import { tables } from '@a/be/spacetimedb'
 import { Spinner } from '@a/ui/spinner'
 import { useList } from 'betterspace/react'
 import { Check } from 'lucide-react'
-import { useTable, useSpacetimeDB } from 'spacetimedb/react'
 import { useEffect, useMemo } from 'react'
 import { useInView } from 'react-intersection-observer'
+import { useSpacetimeDB, useTable } from 'spacetimedb/react'
 
 import { Create, List } from '../common'
 

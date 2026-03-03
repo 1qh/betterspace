@@ -1,20 +1,10 @@
-/* eslint-disable max-statements, complexity */
+/* eslint-disable max-statements */
 'use client'
 import type { StandardSchemaV1 } from '@tanstack/form-core'
 import type { FormValidateOrFn, ReactFormExtendedApi } from '@tanstack/react-form'
 import type { output, ZodObject, ZodRawShape } from 'zod/v4'
 
-type Widen<T> = T extends string
-  ? string
-  : T extends number
-    ? number
-    : T extends boolean
-      ? boolean
-      : T extends (infer U)[]
-        ? Widen<U>[]
-        : T extends Record<string, unknown>
-          ? { [K in keyof T]: Widen<T[K]> }
-          : T
+type FieldKind = 'boolean' | 'date' | 'file' | 'files' | 'number' | 'string' | 'stringArray' | 'unknown'
 
 import { useForm as useTanStackForm } from '@tanstack/react-form'
 import { useStore } from '@tanstack/react-store'
@@ -37,12 +27,22 @@ import {
 } from '../zod'
 import { defaultOnError } from './use-mutate'
 
-type FieldKind = 'boolean' | 'date' | 'file' | 'files' | 'number' | 'string' | 'stringArray' | 'unknown'
 interface FieldMeta {
   kind: FieldKind
   max?: number
 }
 type FieldMetaMap = Record<string, FieldMeta>
+type Widen<T> = T extends string
+  ? string
+  : T extends number
+    ? number
+    : T extends boolean
+      ? boolean
+      : T extends (infer U)[]
+        ? Widen<U>[]
+        : T extends Record<string, unknown>
+          ? { [K in keyof T]: Widen<T[K]> }
+          : T
 
 const getMax = (schema: undefined | ZodSchema): number | undefined => {
     const checks = schema?.def.checks as (undefined | { _zod: { def: { check: string; maximum?: number } } })[] | undefined
@@ -66,8 +66,8 @@ const getMax = (schema: undefined | ZodSchema): number | undefined => {
     return { kind: 'unknown' }
   },
   buildMeta = (schema: ZodObject<ZodRawShape>): FieldMetaMap => {
-    const meta: FieldMetaMap = {}
-    const keys = Object.keys(schema.shape)
+    const meta: FieldMetaMap = {},
+      keys = Object.keys(schema.shape)
     for (const key of keys) meta[key] = getMeta(schema.shape[key])
     return meta
   }
@@ -115,8 +115,8 @@ const submitError = (error: unknown): Error => new Error(getErrorMessage(error),
     const data = isRecord(error.data) ? error.data : undefined
     return {
       code: 'CONFLICT',
-      current: data?.current as unknown,
-      incoming: data?.incoming as unknown
+      current: data?.current,
+      incoming: data?.incoming
     }
   },
   useForm = <S extends ZodObject<ZodRawShape>>({
@@ -157,13 +157,14 @@ const submitError = (error: unknown): Error => new Error(getErrorMessage(error),
           setEr(null)
           setFieldErrors({})
           try {
-            const coerced = coerceOptionals(schema, value),
+            const coerced = coerceOptionals(schema, value as output<S>),
               result = await onSubmit(coerced, forceSubmit),
               returned = isRecord(result) ? result : coerced,
               newValues = resetOnSuccess ? returned : value
-            instance.reset(newValues)
-            if (resetOnSuccess && isRecord(returned)) vRef.current = returned
+            instance.reset(newValues as unknown as output<S>)
+            if (resetOnSuccess && isRecord(returned)) vRef.current = returned as unknown as Widen<output<S>>
             setForceSubmit(false)
+            // eslint-disable-next-line react-hooks/purity
             setLastSaved(Date.now())
             onSuccess?.()
           } catch (error) {
@@ -184,7 +185,7 @@ const submitError = (error: unknown): Error => new Error(getErrorMessage(error),
       }) as unknown as Api<output<S>>,
       storeState = useStore(instance.store, s => ({ isDirty: s.isDirty, isSubmitting: s.isSubmitting, values: s.values })),
       { isDirty, isSubmitting } = storeState,
-      watchedValues = storeState.values as output<S>
+      watchedValues = storeState.values
 
     useEffect(() => {
       if (!(autoSave?.enabled && isDirty)) return
@@ -206,9 +207,9 @@ const submitError = (error: unknown): Error => new Error(getErrorMessage(error),
       lastSaved,
       meta,
       reset: (vals?: output<S>) => {
-        const resetVals = vals ?? vRef.current
-        instance.reset(resetVals)
-        if (vals) vRef.current = vals
+        const resetVals = vals ?? (vRef.current as unknown as output<S>)
+        instance.reset(resetVals as unknown as output<S>)
+        if (vals) vRef.current = vals as unknown as Widen<output<S>>
         setEr(null)
         setFieldErrors({})
         setLastSaved(null)
@@ -220,7 +221,7 @@ const submitError = (error: unknown): Error => new Error(getErrorMessage(error),
           instance.handleSubmit()
         } else if (action === 'reload') {
           setConflict(null)
-          instance.reset(vRef.current)
+          instance.reset(vRef.current as unknown as output<S>)
         } else setConflict(null)
       },
       schema,

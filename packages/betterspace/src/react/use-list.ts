@@ -4,20 +4,18 @@ import { useCallback, useEffect, useMemo, useState } from 'react'
 
 import { matchW } from '../server/helpers'
 
+type ListSort<T extends Rec> = SortMap<T> | SortObject<T>
+type ListWhere = WhereGroup & { or?: WhereGroup[] }
+
 type Rec = Record<string, unknown>
+
 type SortDirection = 'asc' | 'desc'
+type SortMap<T extends Rec> = Partial<Record<keyof T & string, SortDirection>>
 
 interface SortObject<T extends Rec> {
   direction?: SortDirection
   field: keyof T & string
 }
-
-type SortMap<T extends Rec> = Partial<Record<keyof T & string, SortDirection>>
-type ListSort<T extends Rec> = SortMap<T> | SortObject<T>
-
-type WhereGroup = Rec & { own?: boolean }
-type ListWhere = WhereGroup & { or?: WhereGroup[] }
-
 interface UseListOptions {
   page?: number
   pageSize?: number
@@ -25,14 +23,32 @@ interface UseListOptions {
   where?: ListWhere
 }
 
+type WhereGroup = Rec & { own?: boolean }
+
 const DEFAULT_PAGE_SIZE = 50,
+  toSortableString = (value: unknown): string => {
+    if (typeof value === 'string') return value
+    if (typeof value === 'number' || typeof value === 'boolean' || typeof value === 'bigint') return String(value)
+    if (typeof value === 'object' && value !== null)
+      try {
+        return JSON.stringify(value)
+      } catch {
+        return Object.prototype.toString.call(value)
+      }
+
+    return ''
+  },
   getSortConfig = <T extends Rec>(sort?: ListSort<T>): null | { direction: SortDirection; field: keyof T & string } => {
     if (!sort) return null
-    if ('field' in sort) return { direction: sort.direction ?? 'desc', field: sort.field }
+    if ('field' in sort)
+      return {
+        direction: (sort as SortObject<T>).direction ?? 'desc',
+        field: (sort as SortObject<T>).field
+      }
     const keys = Object.keys(sort)
     if (!keys.length) return null
     const key = keys[0] as keyof T & string,
-      direction = (sort[key] ?? 'desc') as SortDirection
+      direction = (sort as Record<string, SortDirection>)[key] ?? 'desc'
     return { direction, field: key }
   },
   compareValues = (left: unknown, right: unknown): number => {
@@ -42,7 +58,7 @@ const DEFAULT_PAGE_SIZE = 50,
     if (typeof left === 'number' && typeof right === 'number') return left - right
     if (typeof left === 'boolean' && typeof right === 'boolean') return Number(left) - Number(right)
     if (left instanceof Date && right instanceof Date) return left.getTime() - right.getTime()
-    return String(left).localeCompare(String(right))
+    return toSortableString(left).localeCompare(toSortableString(right))
   },
   sortData = <T extends Rec>(rows: T[], sort?: ListSort<T>): T[] => {
     const config = getSortConfig(sort)

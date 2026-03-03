@@ -1,10 +1,7 @@
 'use client'
 
-import type { OrgRole } from 'betterspace'
-import type { OrgDocLike } from 'betterspace/server'
+import type { OrgDoc, OrgRole } from 'betterspace'
 import type { ReactNode } from 'react'
-
-import type { OrgMembership } from 'betterspace/react'
 
 import { OrgProvider } from 'betterspace/react'
 import Link from 'next/link'
@@ -50,8 +47,8 @@ const OrgNav = () => {
   }: {
     children: ReactNode
     membership: null
-    org: OrgDocLike
-    orgs?: OrgMembership<OrgDocLike>[]
+    org: OrgDoc & { name: string }
+    orgs?: { org: OrgDoc & { name: string }; role: OrgRole }[]
     role: OrgRole
   }) => (
     <OrgProvider membership={membership} org={org} orgs={orgs} role={role}>

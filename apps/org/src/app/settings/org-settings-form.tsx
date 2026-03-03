@@ -9,8 +9,8 @@ import { Form, useForm } from 'betterspace/components'
 import { setActiveOrgCookieClient } from 'betterspace/react'
 import { pickValues } from 'betterspace/zod'
 import { useRouter } from 'next/navigation'
-import { useReducer } from 'spacetimedb/react'
 import { toast } from 'sonner'
+import { useReducer } from 'spacetimedb/react'
 
 import { orgTeam } from '~/schema'
 
@@ -23,7 +23,7 @@ const OrgSettingsForm = ({ org: o }: OrgSettingsFormProps) => {
     update = useReducer(reducers.orgUpdate),
     form = useForm({
       onSubmit: async d => {
-        await update({ ...d, orgId: Number(o._id) })
+        await update({ ...d, avatarId: undefined, orgId: Number(o._id) })
         toast.success('Settings updated')
         if (d.slug !== o.slug) setActiveOrgCookieClient({ orgId: o._id, slug: d.slug })
 

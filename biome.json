@@ -34,8 +34,7 @@
       "!!**/Darwin",
       "!!**/*.xcassets",
       "!!**/maestro",
-      "!!**/module_bindings",
-      "!!**/betterspace-server.bundle.js"
+      "!!**/module_bindings"
     ]
   },
   "formatter": {

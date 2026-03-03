@@ -1,5 +1,5 @@
 import type { Identity, Timestamp } from 'spacetimedb'
-import type { ReducerExport, TypeBuilder } from 'spacetimedb/server'
+import type { AlgebraicTypeType, ReducerExport, TypeBuilder } from 'spacetimedb/server'
 
 import type { OrgInviteByTokenIndexLike, OrgInvitePkLike, OrgInviteRowLike, OrgInviteTableLike } from './org-invites'
 import type {
@@ -35,7 +35,7 @@ interface JoinRequestItem {
 }
 
 interface OptionalBuilder {
-  optional: () => TypeBuilder<unknown, unknown>
+  optional: () => TypeBuilder<unknown, AlgebraicTypeType>
 }
 
 type OrgByUserIndexLike<Row> = Iterable<Row>
@@ -53,15 +53,15 @@ interface OrgConfig<
   JoinRequestRow extends OrgJoinRequestRowLike<RequestId, OrgId>
 > {
   builders: {
-    email: TypeBuilder<string, unknown>
-    inviteId: TypeBuilder<InviteId, unknown>
-    isAdmin: TypeBuilder<boolean, unknown>
-    memberId: TypeBuilder<MemberId, unknown>
+    email: TypeBuilder<string, AlgebraicTypeType>
+    inviteId: TypeBuilder<InviteId, AlgebraicTypeType>
+    isAdmin: TypeBuilder<boolean, AlgebraicTypeType>
+    memberId: TypeBuilder<MemberId, AlgebraicTypeType>
     message: OptionalBuilder
-    newOwnerId: TypeBuilder<UserId, unknown>
-    orgId: TypeBuilder<OrgId, unknown>
-    requestId: TypeBuilder<RequestId, unknown>
-    token: TypeBuilder<string, unknown>
+    newOwnerId: TypeBuilder<UserId, AlgebraicTypeType>
+    orgId: TypeBuilder<OrgId, AlgebraicTypeType>
+    requestId: TypeBuilder<RequestId, AlgebraicTypeType>
+    token: TypeBuilder<string, AlgebraicTypeType>
   }
   cascadeTables?: CascadeTableConfig<DB, OrgId>[]
   fields: OrgFieldBuilders
@@ -100,9 +100,9 @@ interface OrgExports {
 }
 
 interface OrgFieldBuilders {
-  [key: string]: OptionalBuilder | TypeBuilder<unknown, unknown>
-  name: TypeBuilder<string, unknown>
-  slug: TypeBuilder<string, unknown>
+  [key: string]: OptionalBuilder | TypeBuilder<unknown, AlgebraicTypeType>
+  name: TypeBuilder<string, AlgebraicTypeType>
+  slug: TypeBuilder<string, AlgebraicTypeType>
 }
 
 interface OrgInviteByOrgIndexLike<Row, OrgId> extends Iterable<Row> {
@@ -137,7 +137,7 @@ interface OrgUserLike {
 }
 
 const makeOptionalFields = (fields: OrgFieldBuilders) => {
-    const optionalFields: Record<string, TypeBuilder<unknown, unknown>> = {},
+    const optionalFields: Record<string, TypeBuilder<unknown, AlgebraicTypeType>> = {},
       keys = Object.keys(fields)
     for (const key of keys) {
       const field = fields[key] as OptionalBuilder
@@ -208,14 +208,17 @@ const makeOptionalFields = (fields: OrgFieldBuilders) => {
       const existing = findOrgBySlug(opts.orgSlugIndex, nextSlugValue)
       if (existing && !Object.is(existing.id, opts.org.id)) throw makeError('ORG_SLUG_TAKEN', 'org:update')
     }
-    const nextRecord = { ...(opts.org as unknown as Record<string, unknown>), updatedAt: opts.timestamp },
+    const nextRecord = { ...(opts.org as unknown as Record<string, unknown>), updatedAt: opts.timestamp } as Record<
+        string,
+        unknown
+      >,
       argKeys = Object.keys(opts.args)
     for (const key of argKeys)
       if (key !== 'orgId') {
         const value = opts.args[key]
         if (value !== undefined) nextRecord[key] = value
       }
-    opts.orgPk.update(nextRecord as OrgRow)
+    opts.orgPk.update(nextRecord as unknown as OrgRow)
   },
   removeByPk = <Id>(rows: Iterable<{ id: Id }>, pk: { delete: (id: Id) => boolean }, message: string) => {
     for (const row of rows) {
@@ -267,7 +270,7 @@ const makeOptionalFields = (fields: OrgFieldBuilders) => {
     spacetimedb: {
       reducer: (
         opts: { name: string },
-        params: Record<string, TypeBuilder<unknown, unknown>>,
+        params: Record<string, TypeBuilder<unknown, AlgebraicTypeType>>,
         fn: (ctx: { db: DB; sender: Identity; timestamp: Timestamp }, args: Record<string, unknown>) => void
       ) => ReducerExport<never, never>
     },
@@ -275,7 +278,7 @@ const makeOptionalFields = (fields: OrgFieldBuilders) => {
   ): OrgExports => {
     const orgFields = config.fields,
       optionalOrgFields = makeOptionalFields(orgFields),
-      updateParams: Record<string, TypeBuilder<unknown, unknown>> = {
+      updateParams: Record<string, TypeBuilder<unknown, AlgebraicTypeType>> = {
         orgId: config.builders.orgId
       },
       optionalKeys = Object.keys(optionalOrgFields)
@@ -287,7 +290,7 @@ const makeOptionalFields = (fields: OrgFieldBuilders) => {
 
     const createReducer = spacetimedb.reducer(
         { name: 'org_create' },
-        orgFields as Record<string, TypeBuilder<unknown, unknown>>,
+        orgFields as Record<string, TypeBuilder<unknown, AlgebraicTypeType>>,
         (ctx, args: Record<string, unknown>) => {
           const orgTable = config.orgTable(ctx.db),
             orgSlugIndex = config.orgSlugIndex(orgTable),
@@ -306,49 +309,50 @@ const makeOptionalFields = (fields: OrgFieldBuilders) => {
           orgTable.insert(payload)
         }
       ),
-      updateReducer = spacetimedb.reducer(
-        { name: 'org_update' },
-        updateParams,
-        (ctx, args: Record<string, unknown> & { orgId: OrgId }) => {
-          const orgTable = config.orgTable(ctx.db),
-            orgPk: OrgPkLike<OrgRow, OrgId> = config.orgPk(orgTable),
-            orgMemberTable = config.orgMemberTable(ctx.db),
-            orgSlugIndex: OrgSlugIndexLike<OrgRow> = config.orgSlugIndex(orgTable),
-            org = orgPk.find(args.orgId)
+      updateReducer = spacetimedb.reducer({ name: 'org_update' }, updateParams, (ctx, args) => {
+        const typedArgs = args as Record<string, unknown> & { orgId: OrgId },
+          orgTable = config.orgTable(ctx.db),
+          orgPk: OrgPkLike<OrgRow, OrgId> = config.orgPk(orgTable),
+          orgMemberTable = config.orgMemberTable(ctx.db),
+          orgSlugIndex: OrgSlugIndexLike<OrgRow> = config.orgSlugIndex(orgTable),
+          org = orgPk.find(typedArgs.orgId)
 
-          if (!org) throw makeError('NOT_FOUND', 'org:update')
-          applyOrgUpdate({ args, org, orgMemberTable, orgPk, orgSlugIndex, sender: ctx.sender, timestamp: ctx.timestamp })
-        }
-      ),
-      removeReducer = spacetimedb.reducer(
-        { name: 'org_remove' },
-        { orgId: config.builders.orgId },
-        (ctx, args: { orgId: OrgId }) => {
-          const orgTable = config.orgTable(ctx.db),
-            orgPk: OrgPkLike<OrgRow, OrgId> = config.orgPk(orgTable),
-            orgMemberTable = config.orgMemberTable(ctx.db),
-            orgInviteTable = config.orgInviteTable(ctx.db),
-            orgInvitePk: OrgInvitePkLike<InviteRow, InviteId> = config.orgInvitePk(orgInviteTable),
-            orgJoinRequestTable = config.orgJoinRequestTable(ctx.db),
-            orgJoinRequestPk: OrgJoinRequestPkLike<JoinRequestRow, RequestId> =
-              config.orgJoinRequestPk(orgJoinRequestTable),
-            org = orgPk.find(args.orgId)
+        if (!org) throw makeError('NOT_FOUND', 'org:update')
+        applyOrgUpdate({
+          args: typedArgs,
+          org,
+          orgMemberTable,
+          orgPk,
+          orgSlugIndex,
+          sender: ctx.sender,
+          timestamp: ctx.timestamp
+        })
+      }),
+      removeReducer = spacetimedb.reducer({ name: 'org_remove' }, { orgId: config.builders.orgId }, (ctx, args) => {
+        const typedArgs = args as { orgId: OrgId },
+          orgTable = config.orgTable(ctx.db),
+          orgPk: OrgPkLike<OrgRow, OrgId> = config.orgPk(orgTable),
+          orgMemberTable = config.orgMemberTable(ctx.db),
+          orgInviteTable = config.orgInviteTable(ctx.db),
+          orgInvitePk: OrgInvitePkLike<InviteRow, InviteId> = config.orgInvitePk(orgInviteTable),
+          orgJoinRequestTable = config.orgJoinRequestTable(ctx.db),
+          orgJoinRequestPk: OrgJoinRequestPkLike<JoinRequestRow, RequestId> = config.orgJoinRequestPk(orgJoinRequestTable),
+          org = orgPk.find(typedArgs.orgId)
 
-          if (!org) throw makeError('NOT_FOUND', 'org:remove')
-          requireRole({ minRole: 'owner', operation: 'remove', org, orgMemberTable, sender: ctx.sender })
-          removeCascadeRows(config.cascadeTables, ctx.db, args.orgId)
+        if (!org) throw makeError('NOT_FOUND', 'org:remove')
+        requireRole({ minRole: 'owner', operation: 'remove', org, orgMemberTable, sender: ctx.sender })
+        removeCascadeRows(config.cascadeTables, ctx.db, typedArgs.orgId)
 
-          const joinByOrg = config.orgJoinRequestByOrgIndex(orgJoinRequestTable),
-            inviteByOrg = config.orgInviteByOrgIndex(orgInviteTable),
-            memberByOrg = config.orgMemberByOrgIndex(orgMemberTable)
+        const joinByOrg = config.orgJoinRequestByOrgIndex(orgJoinRequestTable),
+          inviteByOrg = config.orgInviteByOrgIndex(orgInviteTable),
+          memberByOrg = config.orgMemberByOrgIndex(orgMemberTable)
 
-          removeByPk(joinByOrg.filterByOrg(args.orgId), orgJoinRequestPk, 'org:remove_join_request')
-          removeByPk(inviteByOrg.filterByOrg(args.orgId), orgInvitePk, 'org:remove_invite')
-          removeMembersByOrg(memberByOrg, args.orgId, orgMemberTable)
+        removeByPk(joinByOrg.filterByOrg(typedArgs.orgId), orgJoinRequestPk, 'org:remove_join_request')
+        removeByPk(inviteByOrg.filterByOrg(typedArgs.orgId), orgInvitePk, 'org:remove_invite')
+        removeMembersByOrg(memberByOrg, typedArgs.orgId, orgMemberTable)
 
-          if (!orgPk.delete(args.orgId)) throw makeError('NOT_FOUND', 'org:remove')
-        }
-      ),
+        if (!orgPk.delete(typedArgs.orgId)) throw makeError('NOT_FOUND', 'org:remove')
+      }),
       memberReducers = makeMemberReducers(spacetimedb, {
         builders: {
           isAdmin: config.builders.isAdmin,
@@ -372,9 +376,15 @@ const makeOptionalFields = (fields: OrgFieldBuilders) => {
         orgInviteByTokenIndex: config.orgInviteByTokenIndex,
         orgInvitePk: config.orgInvitePk,
         orgInviteTable: config.orgInviteTable,
-        orgJoinRequestByOrgStatusIndex: config.orgJoinRequestByOrgStatusIndex,
-        orgJoinRequestPk: config.orgJoinRequestPk,
-        orgJoinRequestTable: config.orgJoinRequestTable,
+        orgJoinRequestByOrgStatusIndex: config.orgJoinRequestByOrgStatusIndex as unknown as (
+          table: Iterable<JoinRequestRow>
+        ) => Iterable<JoinRequestRow> & {
+          filterByOrgStatus: (orgId: OrgId, status: 'approved' | 'pending' | 'rejected') => Iterable<JoinRequestRow>
+        },
+        orgJoinRequestPk: config.orgJoinRequestPk as unknown as (table: Iterable<JoinRequestRow>) => {
+          update: (row: JoinRequestRow) => JoinRequestRow
+        },
+        orgJoinRequestTable: config.orgJoinRequestTable as unknown as (db: DB) => Iterable<JoinRequestRow>,
         orgMemberTable: config.orgMemberTable,
         orgPk: config.orgPk,
         orgTable: config.orgTable

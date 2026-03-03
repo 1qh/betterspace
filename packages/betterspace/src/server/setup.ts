@@ -347,7 +347,7 @@ const isPromiseLike = (value: unknown): value is PromiseLike<unknown> => {
                 }
               }
             : factoryConfig,
-          result = makeCrud(spacetimedb, nextConfig)
+          result = makeCrud(spacetimedb, nextConfig as Parameters<typeof makeCrud>[1])
         registerExports(accumulatedExports, result.exports)
         return result
       },
@@ -366,7 +366,7 @@ const isPromiseLike = (value: unknown): value is PromiseLike<unknown> => {
                 }
               }
             : factoryConfig,
-          result = makeOrgCrud(spacetimedb, nextConfig)
+          result = makeOrgCrud(spacetimedb, nextConfig as Parameters<typeof makeOrgCrud>[1])
         registerExports(accumulatedExports, result.exports)
         return result
       },
@@ -385,7 +385,7 @@ const isPromiseLike = (value: unknown): value is PromiseLike<unknown> => {
                 }
               }
             : factoryConfig,
-          result = makeChildCrud(spacetimedb, nextConfig)
+          result = makeChildCrud(spacetimedb, nextConfig as Parameters<typeof makeChildCrud>[1])
         registerExports(accumulatedExports, result.exports)
         return result
       },
@@ -404,7 +404,7 @@ const isPromiseLike = (value: unknown): value is PromiseLike<unknown> => {
                 }
               }
             : factoryConfig,
-          result = makeSingletonCrud(spacetimedb, nextConfig)
+          result = makeSingletonCrud(spacetimedb, nextConfig as Parameters<typeof makeSingletonCrud>[1])
         registerExports(accumulatedExports, result.exports)
         return result
       },
@@ -414,7 +414,7 @@ const isPromiseLike = (value: unknown): value is PromiseLike<unknown> => {
         return result
       },
       org = (factoryConfig: Parameters<typeof makeOrg>[1]) => {
-        const result = makeOrg(spacetimedb, factoryConfig)
+        const result = makeOrg(spacetimedb as unknown as Parameters<typeof makeOrg>[0], factoryConfig)
         registerExports(accumulatedExports, result.exports)
         return result
       },

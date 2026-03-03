@@ -9,8 +9,8 @@ import { Form, OrgAvatar, useForm } from 'betterspace/components'
 import { setActiveOrgCookieClient } from 'betterspace/react'
 import { useRouter } from 'next/navigation'
 import { use } from 'react'
-import { useReducer, useSpacetimeDB, useTable } from 'spacetimedb/react'
 import { toast } from 'sonner'
+import { useReducer, useSpacetimeDB, useTable } from 'spacetimedb/react'
 
 import { joinRequest } from '~/schema'
 
@@ -52,6 +52,7 @@ const JoinPage = ({ params }: { params: Promise<{ slug: string }> }) => {
       }
     }
 
+  // eslint-disable-next-line @typescript-eslint/no-unnecessary-condition
   if (!orgs) return <Skeleton className='mx-auto h-64 max-w-md' />
   if (!org) return <div className='text-center text-muted-foreground'>Organization not found</div>
 

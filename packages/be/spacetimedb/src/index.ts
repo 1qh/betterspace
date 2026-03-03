@@ -6,7 +6,7 @@ import {
   makeOrg,
   makeOrgCrud,
   makeSingletonCrud
-} from './betterspace-server.js'
+} from 'betterspace/server'
 import { schema, t, table } from 'spacetimedb/server'
 
 const messagePart = t.object('MessagePart', {
@@ -434,8 +434,8 @@ const messagePart = t.object('MessagePart', {
       title: t.string()
     },
     idField: t.u32(),
-    orgIdField: t.u32(),
     options: { softDelete: true },
+    orgIdField: t.u32(),
     orgMemberTable: db => db.orgMember,
     pk: tbl => tbl.id,
     table: db => db.wiki,

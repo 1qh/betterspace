@@ -2,19 +2,15 @@
 
 import { cookies } from 'next/headers'
 
+import type { ActiveOrgQuery } from './active-org-types'
+
 import { ACTIVE_ORG_COOKIE, ACTIVE_ORG_SLUG_COOKIE, ONE_YEAR_SECONDS } from '../constants'
-
-interface SqlQueryConfig {
-  sql: string
-}
-
-type ActiveOrgQuery<T> = ((args: { orgId: string }) => Promise<null | T>) | SqlQueryConfig
 
 const isTestMode = () =>
     Boolean(
-      process.env.PLAYWRIGHT ||
-        process.env.NEXT_PUBLIC_PLAYWRIGHT ||
-        process.env.TEST_MODE ||
+      process.env.PLAYWRIGHT || // eslint-disable-line @typescript-eslint/prefer-nullish-coalescing
+        process.env.NEXT_PUBLIC_PLAYWRIGHT || // eslint-disable-line @typescript-eslint/prefer-nullish-coalescing
+        process.env.TEST_MODE || // eslint-disable-line @typescript-eslint/prefer-nullish-coalescing
         process.env.SPACETIMEDB_TEST_MODE
     ),
   toHttpUri = (uri: string) => {
@@ -44,16 +40,16 @@ const isTestMode = () =>
     cookieStore.delete(ACTIVE_ORG_COOKIE)
     cookieStore.delete(ACTIVE_ORG_SLUG_COOKIE)
   },
-  firstRow = <T>(payload: unknown): null | T => {
+  firstRow = (payload: unknown): null | Record<string, unknown> => {
     if (Array.isArray(payload) && payload.length > 0) {
-      const [first] = payload
-      if (typeof first === 'object' && first !== null) return first as T
+      const [first] = payload as unknown[]
+      if (typeof first === 'object' && first !== null) return first as Record<string, unknown>
     }
     if (typeof payload === 'object' && payload !== null) {
       const { rows } = payload as { rows?: unknown }
       if (Array.isArray(rows) && rows.length > 0) {
-        const [first] = rows
-        if (typeof first === 'object' && first !== null) return first as T
+        const [first] = rows as unknown[]
+        if (typeof first === 'object' && first !== null) return first as Record<string, unknown>
       }
     }
     return null
@@ -82,7 +78,7 @@ const isTestMode = () =>
       })
     if (!response.ok) return null
     const body = (await response.json().catch(() => null)) as unknown
-    return firstRow<T>(body)
+    return firstRow(body) as null | T
   },
   resolveActiveOrg = async <T>({
     orgId,
@@ -114,4 +110,3 @@ const isTestMode = () =>
   }
 
 export { clearActiveOrgCookie, getActiveOrg, getToken, isAuthenticated, setActiveOrgCookie }
-export type { ActiveOrgQuery, SqlQueryConfig }

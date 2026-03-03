@@ -1,4 +1,4 @@
-/* eslint-disable max-statements */
+/* eslint-disable max-depth, max-statements, @typescript-eslint/max-params */
 import type { ZodRawShape } from 'zod/v4'
 
 import { Identity } from 'spacetimedb'
@@ -24,7 +24,8 @@ import { identityEquals } from './reducer-utils'
 import { ERROR_MESSAGES } from './types'
 
 class SenderError extends Error {
-  constructor(message: string) {
+  /** biome-ignore lint/style/useConsistentMemberAccessibility: biome+eslint conflict */
+  public constructor(message: string) {
     super(message)
     this.name = 'SenderError'
   }
@@ -67,9 +68,9 @@ const TOKEN_BYTES = 24,
     limit: number().optional(),
     numItems: number().optional(),
     offset: number().optional()
-  } satisfies Partial<PaginationOptsShape>),
-  detectFiles = <S extends ZodRawShape>(s: S) => {
-    const keys = Object.keys(s) as (keyof S & string)[],
+  } as unknown as Partial<PaginationOptsShape>),
+  detectFiles = (s: ZodRawShape) => {
+    const keys = Object.keys(s),
       out: string[] = []
     for (const k of keys) if (cvFileKindOf(s[k])) out.push(k)
     return out
@@ -151,20 +152,22 @@ const TOKEN_BYTES = 24,
     if (typeof ext.getUploadUrl === 'function') return ext.getUploadUrl(id)
     return storage.getUrl(id)
   },
-  setArrayUrls = async (
-    output: Record<string, unknown>,
-    key: string,
-    values: unknown[],
+  setArrayUrls = async (opts: {
     getUrl: (x: unknown) => Promise<null | string>
-  ) => {
+    key: string
+    output: Record<string, unknown>
+    values: unknown[]
+  }) => {
+    const { getUrl, key, output, values } = opts
     output[`${key}Urls`] = await Promise.all(values.map(getUrl))
   },
-  setSingleUrl = async (
-    output: Record<string, unknown>,
-    key: string,
-    value: unknown,
+  setSingleUrl = async (opts: {
     getUrl: (x: unknown) => Promise<null | string>
-  ) => {
+    key: string
+    output: Record<string, unknown>
+    value: unknown
+  }) => {
+    const { getUrl, key, output, value } = opts
     output[`${key}Url`] = await getUrl(value)
   },
   cleanFiles = async (opts: {
@@ -180,20 +183,19 @@ const TOKEN_BYTES = 24,
       const prev = doc[f]
       if (prev !== null) {
         const pArr = Array.isArray(prev) ? prev : [prev]
-        if (!next) {
+        if (!next)
           for (const p of pArr) {
             const id = toId(p)
             if (id) del.add(id)
           }
-        } else if (Object.hasOwn(next, f)) {
+        else if (Object.hasOwn(next, f)) {
           const nv = next[f],
             keep = new Set(Array.isArray(nv) ? nv : nv ? [nv] : [])
-          for (const p of pArr) {
+          for (const p of pArr)
             if (!keep.has(p as FID)) {
               const id = toId(p)
               if (id) del.add(id)
             }
-          }
         }
       }
     }
@@ -224,13 +226,9 @@ const TOKEN_BYTES = 24,
       tasks: Promise<void>[] = []
     for (const f of fileFields) {
       const fv = doc[f]
-      if (fv !== null) {
-        if (Array.isArray(fv)) {
-          tasks.push(setArrayUrls(o, f, fv, getUrl))
-        } else {
-          tasks.push(setSingleUrl(o, f, fv, getUrl))
-        }
-      }
+      if (fv !== null)
+        if (Array.isArray(fv)) tasks.push(setArrayUrls({ getUrl, key: f, output: o, values: fv }))
+        else tasks.push(setSingleUrl({ getUrl, key: f, output: o, value: fv }))
     }
     await Promise.all(tasks)
     return o as WithUrls<D>
@@ -254,7 +252,7 @@ const TOKEN_BYTES = 24,
     if (!w) return []
     const groups: WG[] = [{ ...w, or: undefined } as WG, ...(w.or ?? [])],
       out: WG[] = []
-    for (const g of groups) {
+    for (const g of groups)
       if (g.own) out.push(g)
       else {
         const keys = Object.keys(g)
@@ -262,7 +260,7 @@ const TOKEN_BYTES = 24,
         for (const k of keys) if (k !== 'own' && g[k] !== undefined) hasField = true
         if (hasField) out.push(g)
       }
-    }
+
     return out
   },
   matchW = <WG extends Record<string, unknown> & { own?: boolean }>(
@@ -275,9 +273,8 @@ const TOKEN_BYTES = 24,
     for (const g of gs) {
       const entries = Object.entries(g)
       let ok = true
-      for (const [k, vl] of entries) {
-        if (!(k === 'own' || vl === undefined || matchField(doc[k], vl))) ok = false
-      }
+      for (const [k, vl] of entries) if (!(k === 'own' || vl === undefined || matchField(doc[k], vl))) ok = false
+
       if (ok && (!g.own || vid === (doc as { userId?: string }).userId)) return true
     }
     return false
@@ -311,17 +308,18 @@ const TOKEN_BYTES = 24,
     )
   },
   dbInsert = async (db: DbLike, table: string, data: Record<string, unknown>) => {
-    const d = db as DbLike & Record<string, unknown>
-    const tableApi = d[table] as undefined | { insert?: (row: Record<string, unknown>) => Promise<unknown> }
+    const d = db as DbLike & Record<string, unknown>,
+      tableApi = d[table] as undefined | { insert?: (row: Record<string, unknown>) => Promise<unknown> }
     if (tableApi && typeof tableApi.insert === 'function') {
-      const inserted = await tableApi.insert(data)
-      return typeof inserted === 'number' || typeof inserted === 'string' ? String(inserted) : String(data.id ?? '')
+      const inserted = await tableApi.insert(data),
+        fallbackId = typeof data.id === 'number' || typeof data.id === 'string' ? String(data.id) : ''
+      return typeof inserted === 'number' || typeof inserted === 'string' ? String(inserted) : fallbackId
     }
     return db.insert(table, data)
   },
   dbPatch = async (db: DbLike, id: string, data: Record<string, unknown>) => {
-    const d = db as DbLike & Record<string, unknown>
-    const table = data._table
+    const d = db as DbLike & Record<string, unknown>,
+      table = data._table
     if (typeof table === 'string') {
       const tableApi = d[table] as
         | undefined
@@ -348,7 +346,12 @@ const TOKEN_BYTES = 24,
         .query('rateLimit')
         .withIndex(
           'by_table_key',
-          idx(q => q.eq('table', table).eq('key', key))
+
+          idx((q: unknown) =>
+            (q as { eq: (field: string, value: unknown) => { eq: (field: string, value: unknown) => unknown } })
+              .eq('table', table)
+              .eq('key', key)
+          )
         )
         .first()
     if (!existing) {
@@ -409,7 +412,7 @@ const parseSenderMessage = (message: string): ErrorData | undefined => {
     if (!(code in ERROR_MESSAGES)) return
     const rest = message.slice(sep + 1).trim(),
       data: ErrorData = { code: code as ErrorCode }
-    if (rest.startsWith('{') && rest.endsWith('}')) {
+    if (rest.startsWith('{') && rest.endsWith('}'))
       try {
         const parsed = JSON.parse(rest) as Record<string, unknown>
         return {
@@ -426,7 +429,7 @@ const parseSenderMessage = (message: string): ErrorData | undefined => {
       } catch {
         return { ...data, message: rest }
       }
-    }
+
     return { ...data, message: rest }
   },
   extractErrorData = (e: unknown): ErrorData | undefined => {
@@ -434,7 +437,7 @@ const parseSenderMessage = (message: string): ErrorData | undefined => {
       const { data } = e as { data?: unknown }
       if (isRecord(data)) {
         const { code } = data
-        if (typeof code === 'string' && code in ERROR_MESSAGES) {
+        if (typeof code === 'string' && code in ERROR_MESSAGES)
           return {
             code: code as ErrorCode,
             debug: typeof data.debug === 'string' ? data.debug : undefined,
@@ -446,7 +449,6 @@ const parseSenderMessage = (message: string): ErrorData | undefined => {
             retryAfter: typeof data.retryAfter === 'number' ? data.retryAfter : undefined,
             table: typeof data.table === 'string' ? data.table : undefined
           }
-        }
       }
     }
     if (e instanceof Error) return parseSenderMessage(e.message)
@@ -508,10 +510,21 @@ const parseSenderMessage = (message: string): ErrorData | undefined => {
               ? await q
                   .withIndex(
                     index,
-                    idx(i => i.eq(field, value))
+
+                    idx((i: unknown) => (i as { eq: (name: string, v: string) => unknown }).eq(field, value))
                   )
                   .first()
-              : await q.filter(flt(f => f.eq(f.field(field), value))).first()
+              : await q
+
+                  .filter(
+                    flt((f: unknown) =>
+                      (f as { eq: (left: unknown, right: unknown) => unknown; field: (name: string) => unknown }).eq(
+                        (f as { field: (name: string) => unknown }).field(field),
+                        value
+                      )
+                    )
+                  )
+                  .first()
           return !(existing as null | Record<string, unknown>) || (existing as Record<string, unknown>)._id === exclude
         })
       })
@@ -537,11 +550,11 @@ export {
   getUser,
   groupList,
   handleError,
-  idFromWire,
-  idToWire,
   identityEquals,
   identityFromHex,
   identityToHex,
+  idFromWire,
+  idToWire,
   isComparisonOp,
   isErrorCode,
   isMutationError,

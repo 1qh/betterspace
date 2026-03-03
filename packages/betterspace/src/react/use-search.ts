@@ -16,7 +16,7 @@ interface UseSearchResult<T> {
 }
 
 const normalizeQuery = (query: string): string => query.trim().toLowerCase(),
-  rowMatchesQuery = <T extends Rec>(row: T, fields: string[], normalizedQuery: string): boolean => {
+  rowMatchesQuery = (row: Rec, fields: string[], normalizedQuery: string): boolean => {
     for (const field of fields) {
       const value = row[field]
       if (String(value).toLowerCase().includes(normalizedQuery)) return true

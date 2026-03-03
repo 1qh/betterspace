@@ -1,11 +1,11 @@
 /* oxlint-disable promise/prefer-await-to-then, promise/always-return */
-/* eslint-disable no-alert */
+
 'use client'
 
 import type { Project, Task } from '@a/be/spacetimedb/types'
 
 import { reducers, tables } from '@a/be/spacetimedb'
-import { orgScoped } from '@a/be/t'
+import { orgScoped } from '@a/be/z'
 import { fail } from '@a/fe/utils'
 import { Button } from '@a/ui/button'
 import { Card, CardContent, CardHeader, CardTitle } from '@a/ui/card'
@@ -15,8 +15,8 @@ import { Form, PermissionGuard, useForm } from 'betterspace/components'
 import { pickValues } from 'betterspace/zod'
 import { useRouter } from 'next/navigation'
 import { use } from 'react'
-import { useReducer, useSpacetimeDB, useTable } from 'spacetimedb/react'
 import { toast } from 'sonner'
+import { useReducer, useSpacetimeDB, useTable } from 'spacetimedb/react'
 
 import { useOrg } from '~/hook/use-org'
 
@@ -31,7 +31,14 @@ const sameIdentity = (a: { toHexString: () => string }, b: { toHexString: () => 
       update = useReducer(reducers.updateProject),
       form = useForm({
         onSubmit: async d => {
-          await update({ ...d, id: projectId, orgId: Number(org._id) })
+          await update({
+            description: d.description,
+            editors: undefined,
+            expectedUpdatedAt: project?.updatedAt,
+            id: projectId,
+            name: d.name,
+            status: d.status
+          })
           toast.success('Project updated')
           router.push(`/projects/${projectId}`)
           return d

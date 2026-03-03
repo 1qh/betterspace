@@ -7,32 +7,32 @@ import { Input } from '@a/ui/input'
 import { Skeleton } from '@a/ui/skeleton'
 import { ArrowLeft } from 'lucide-react'
 import Link from 'next/link'
-import { useReducer } from 'spacetimedb/react'
 import { useState, useTransition } from 'react'
+import { useReducer } from 'spacetimedb/react'
 
 const TMDB_IMG = 'https://image.tmdb.org/t/p/w300',
   TMDB_BACKDROP = 'https://image.tmdb.org/t/p/w780',
   PLAYWRIGHT_MOVIES = new Map<number, MovieDetailData>([
     [
-      27_205,
+      155,
       {
-        backdropPath: '/s3TBrRGB1iav7gFOCNx3H31MoES.jpg',
-        budget: 160_000_000,
+        backdropPath: '/hqkIcbrOHL86UncnHIsHVcVmzue.jpg',
+        budget: 185_000_000,
         genres: [
           { id: 28, name: 'Action' },
-          { id: 878, name: 'Science Fiction' }
+          { id: 80, name: 'Crime' }
         ],
-        originalTitle: 'Inception',
-        overview: 'A thief steals information by infiltrating dreams.',
-        posterPath: '/9gk7adHYeDvHkCSEqAvQNLV5Uge.jpg',
-        releaseDate: '2010-07-16',
-        revenue: 836_800_000,
-        runtime: 148,
-        tagline: 'Your mind is the scene of the crime.',
-        title: 'Inception',
-        tmdbId: 27_205,
-        voteAverage: 8.4,
-        voteCount: 37_000
+        originalTitle: 'The Dark Knight',
+        overview: 'Batman raises the stakes in his war on crime.',
+        posterPath: '/qJ2tW6WMUDux911r6m7haRef0WH.jpg',
+        releaseDate: '2008-07-18',
+        revenue: 1_006_000_000,
+        runtime: 152,
+        tagline: 'Why so serious?',
+        title: 'The Dark Knight',
+        tmdbId: 155,
+        voteAverage: 8.5,
+        voteCount: 33_000
       }
     ],
     [
@@ -80,25 +80,25 @@ const TMDB_IMG = 'https://image.tmdb.org/t/p/w300',
       }
     ],
     [
-      155,
+      27_205,
       {
-        backdropPath: '/hqkIcbrOHL86UncnHIsHVcVmzue.jpg',
-        budget: 185_000_000,
+        backdropPath: '/s3TBrRGB1iav7gFOCNx3H31MoES.jpg',
+        budget: 160_000_000,
         genres: [
           { id: 28, name: 'Action' },
-          { id: 80, name: 'Crime' }
+          { id: 878, name: 'Science Fiction' }
         ],
-        originalTitle: 'The Dark Knight',
-        overview: 'Batman raises the stakes in his war on crime.',
-        posterPath: '/qJ2tW6WMUDux911r6m7haRef0WH.jpg',
-        releaseDate: '2008-07-18',
-        revenue: 1_006_000_000,
-        runtime: 152,
-        tagline: 'Why so serious?',
-        title: 'The Dark Knight',
-        tmdbId: 155,
-        voteAverage: 8.5,
-        voteCount: 33_000
+        originalTitle: 'Inception',
+        overview: 'A thief steals information by infiltrating dreams.',
+        posterPath: '/9gk7adHYeDvHkCSEqAvQNLV5Uge.jpg',
+        releaseDate: '2010-07-16',
+        revenue: 836_800_000,
+        runtime: 148,
+        tagline: 'Your mind is the scene of the crime.',
+        title: 'Inception',
+        tmdbId: 27_205,
+        voteAverage: 8.4,
+        voteCount: 37_000
       }
     ]
   ]),
@@ -138,9 +138,12 @@ interface TmdbMovieResponse {
   vote_count: number
 }
 
+// eslint-disable-next-line max-statements
 const fetchMovie = async (id: number): Promise<MovieDetailData> => {
+    // eslint-disable-next-line no-restricted-properties
     const apiKey = process.env.NEXT_PUBLIC_TMDB_API_KEY
     if (!apiKey) {
+      // eslint-disable-next-line no-restricted-properties
       if (process.env.NEXT_PUBLIC_PLAYWRIGHT === '1') {
         const local = PLAYWRIGHT_MOVIES.get(id)
         if (local) return local
@@ -196,6 +199,7 @@ const fetchMovie = async (id: number): Promise<MovieDetailData> => {
               return
             }
             setFetchError('')
+            // eslint-disable-next-line max-statements
             go(async () => {
               try {
                 const loadedMovie = await fetchMovie(n)

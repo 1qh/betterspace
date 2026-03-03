@@ -1,5 +1,5 @@
 #!/usr/bin/env bun
-/* eslint-disable no-console, max-statements, @typescript-eslint/no-unused-vars */
+/* eslint-disable no-console, max-statements, @typescript-eslint/max-params */
 /** biome-ignore-all lint/style/noProcessEnv: cli */
 
 import { existsSync, mkdirSync, writeFileSync } from 'node:fs'
@@ -169,8 +169,8 @@ export { ${name}Table }
     if (type === 'owned' || type === 'singleton') createFields.unshift('  userId: string')
     const updateFields: string[] = []
     for (const f of fields) updateFields.push(`  ${f.name}?: ${fieldToInputType({ ...f, optional: true })}`)
-    const idType = type === 'singleton' ? 'userId: string' : 'id: number'
-    const parentLabel = type === 'child' ? `, parent: '${parent || name}'` : ''
+    const idType = type === 'singleton' ? 'userId: string' : 'id: number',
+      parentLabel = type === 'child' ? `, parent: '${parent || name}'` : ''
     return `import { reducer } from 'spacetimedb'
 
 import { make${

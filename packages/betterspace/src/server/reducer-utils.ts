@@ -1,10 +1,15 @@
 import type { Identity, Timestamp } from 'spacetimedb'
-import type { TypeBuilder } from 'spacetimedb/server'
+import type { AlgebraicTypeType, ColumnBuilder, ColumnMetadata, TypeBuilder } from 'spacetimedb/server'
 
-type FieldBuilders = Record<string, TypeBuilder<unknown, unknown>>
+type FieldBuilders = Record<
+  string,
+  ColumnBuilder<unknown, AlgebraicTypeType, ColumnMetadata<unknown>> | TypeBuilder<unknown, AlgebraicTypeType>
+>
 
 interface OptionalBuilder {
-  optional: () => TypeBuilder<unknown, unknown>
+  optional: () =>
+    | ColumnBuilder<unknown, AlgebraicTypeType, ColumnMetadata<unknown>>
+    | TypeBuilder<unknown, AlgebraicTypeType>
 }
 
 interface OwnedRow {
@@ -39,7 +44,7 @@ const makeError = (code: string, message: string): Error => new Error(`${code}: 
     return Object.is(a, b)
   },
   makeOptionalFields = (fields: FieldBuilders) => {
-    const params: Record<string, TypeBuilder<unknown, unknown>> = {},
+    const params: FieldBuilders = {},
       keys = Object.keys(fields)
     for (const key of keys) {
       const field = fields[key] as unknown as OptionalBuilder
@@ -60,7 +65,7 @@ const makeError = (code: string, message: string): Error => new Error(`${code}: 
       patchKeys = Object.keys(patch)
     for (const key of patchKeys) nextRecord[key] = patch[key]
     nextRecord.updatedAt = timestamp
-    return nextRecord as Row
+    return nextRecord as unknown as Row
   },
   getOwnedRow = <Row extends OwnedRow, Id, Tbl extends TableLike<Row>, Pk extends PkLike<Row, Id>>({
     ctxSender,

@@ -7,8 +7,8 @@ import slugify from '@sindresorhus/slugify'
 import { Form, useForm } from 'betterspace/components'
 import { useRouter } from 'next/navigation'
 import { useEffect, useRef } from 'react'
-import { useReducer } from 'spacetimedb/react'
 import { toast } from 'sonner'
+import { useReducer } from 'spacetimedb/react'
 
 import { orgTeam } from '~/schema'
 
@@ -17,7 +17,7 @@ const NewOrgPage = () => {
     create = useReducer(reducers.orgCreate),
     form = useForm({
       onSubmit: async d => {
-        await create(d)
+        await create({ ...d, avatarId: undefined })
         toast.success('Organization created')
         router.push('/')
         return d

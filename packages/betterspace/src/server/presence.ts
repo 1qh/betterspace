@@ -1,7 +1,26 @@
 import type { Identity, Timestamp } from 'spacetimedb'
-import type { TypeBuilder } from 'spacetimedb/server'
+import type { AlgebraicTypeType, TypeBuilder } from 'spacetimedb/server'
 
 import { identityEquals, makeError } from './reducer-utils'
+
+interface PresenceConfig<
+  DB,
+  Id,
+  Row extends PresenceRow<Id>,
+  Tbl extends PresenceTableLike<Row>,
+  Pk extends PresencePkLike<Row, Id>
+> {
+  dataField: TypeBuilder<unknown, AlgebraicTypeType>
+  pk: (table: Tbl) => Pk
+  roomIdField: TypeBuilder<unknown, AlgebraicTypeType>
+  table: (db: DB) => Tbl
+  tableName?: string
+}
+
+interface PresencePkLike<Row, Id> {
+  delete: (id: Id) => boolean
+  update: (row: Row) => Row
+}
 
 interface PresenceRow<Id> {
   data: string
@@ -14,25 +33,6 @@ interface PresenceRow<Id> {
 interface PresenceTableLike<Row> {
   insert: (row: Row) => Row
   iter: () => Iterable<Row>
-}
-
-interface PresencePkLike<Row, Id> {
-  delete: (id: Id) => boolean
-  update: (row: Row) => Row
-}
-
-interface PresenceConfig<
-  DB,
-  Id,
-  Row extends PresenceRow<Id>,
-  Tbl extends PresenceTableLike<Row>,
-  Pk extends PresencePkLike<Row, Id>
-> {
-  dataField: TypeBuilder<unknown, unknown>
-  pk: (table: Tbl) => Pk
-  roomIdField: TypeBuilder<unknown, unknown>
-  table: (db: DB) => Tbl
-  tableName?: string
 }
 
 const HEARTBEAT_INTERVAL_MS = 15_000,
@@ -59,22 +59,16 @@ const HEARTBEAT_INTERVAL_MS = 15_000,
     for (const row of rows) if (row.roomId === roomId && identityEquals(row.userId, sender)) return row
     return null
   },
-  upsertPresence = <
-    DB,
-    Id,
-    Row extends PresenceRow<Id>,
-    Tbl extends PresenceTableLike<Row>,
-    Pk extends PresencePkLike<Row, Id>
-  >({
+  upsertPresence = <Id, Row extends PresenceRow<Id>>({
     args,
     ctx,
     pk,
     table
   }: {
     args: { data?: string; roomId: string }
-    ctx: { db: DB; sender: Identity; timestamp: Timestamp }
-    pk: Pk
-    table: Tbl
+    ctx: { db: unknown; sender: Identity; timestamp: Timestamp }
+    pk: PresencePkLike<Row, Id>
+    table: PresenceTableLike<Row>
   }) => {
     const found = findPresenceRow(table.iter(), args.roomId, ctx.sender)
     if (found) {
@@ -100,7 +94,7 @@ const HEARTBEAT_INTERVAL_MS = 15_000,
     spacetimedb: {
       reducer: (
         opts: { name: string },
-        params: Record<string, TypeBuilder<unknown, unknown>>,
+        params: Record<string, TypeBuilder<unknown, AlgebraicTypeType>>,
         fn: (ctx: { db: DB; sender: Identity; timestamp: Timestamp }, args: unknown) => void
       ) => unknown
     },
@@ -113,24 +107,25 @@ const HEARTBEAT_INTERVAL_MS = 15_000,
       heartbeat = spacetimedb.reducer(
         { name: heartbeatName },
         { data: dataField.optional(), roomId: roomIdField },
-        (ctx, args: { data?: string; roomId: string }) => {
+        (ctx, args) => {
+          const typedArgs = args as { data?: string; roomId: string }
           if (!isAuthenticated(ctx.sender)) throw makeError('NOT_AUTHENTICATED', `${tableName}:heartbeat`)
           const table = tableAccessor(ctx.db),
             pk = pkAccessor(table)
-          upsertPresence<DB, Id, Row, Tbl, Pk>({ args, ctx, pk, table })
+          upsertPresence<Id, Row>({ args: typedArgs, ctx, pk, table })
         }
       ),
-      leave = spacetimedb.reducer({ name: leaveName }, { roomId: roomIdField }, (ctx, args: { roomId: string }) => {
+      leave = spacetimedb.reducer({ name: leaveName }, { roomId: roomIdField }, (ctx, args) => {
+        const typedArgs = args as { roomId: string }
         if (!isAuthenticated(ctx.sender)) throw makeError('NOT_AUTHENTICATED', `${tableName}:leave`)
         const table = tableAccessor(ctx.db),
           pk = pkAccessor(table)
-        for (const row of table.iter()) {
-          if (row.roomId === args.roomId && identityEquals(row.userId, ctx.sender)) {
+        for (const row of table.iter())
+          if (row.roomId === typedArgs.roomId && identityEquals(row.userId, ctx.sender)) {
             const removed = pk.delete(row.id)
             if (!removed) throw makeError('NOT_FOUND', `${tableName}:leave`)
             break
           }
-        }
       }),
       cleanup = spacetimedb.reducer({ name: cleanupName }, {}, ctx => {
         const table = tableAccessor(ctx.db),
@@ -139,14 +134,15 @@ const HEARTBEAT_INTERVAL_MS = 15_000,
         for (const row of table.iter())
           if (toMicros(row.lastSeen) < cutoffMicros && !pk.delete(row.id))
             throw makeError('NOT_FOUND', `${tableName}:cleanup`)
-      })
-
-    return {
-      exports: {
+      }),
+      exportsRecord = {
         [cleanupName]: cleanup,
         [heartbeatName]: heartbeat,
         [leaveName]: leave
-      }
+      } as Record<string, unknown>
+
+    return {
+      exports: exportsRecord
     }
   }
 

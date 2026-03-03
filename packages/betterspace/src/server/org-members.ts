@@ -1,5 +1,5 @@
 import type { Identity, Timestamp } from 'spacetimedb'
-import type { ReducerExport, TypeBuilder } from 'spacetimedb/server'
+import type { AlgebraicTypeType, ReducerExport, TypeBuilder } from 'spacetimedb/server'
 
 import { identityEquals, makeError } from './reducer-utils'
 
@@ -18,10 +18,10 @@ interface OrgMemberReducersConfig<
   MemberRow extends OrgMemberRowLike<MemberId, OrgId>
 > {
   builders: {
-    isAdmin: TypeBuilder<boolean, unknown>
-    memberId: TypeBuilder<MemberId, unknown>
-    newOwnerId: TypeBuilder<UserId, unknown>
-    orgId: TypeBuilder<OrgId, unknown>
+    isAdmin: TypeBuilder<boolean, AlgebraicTypeType>
+    memberId: TypeBuilder<MemberId, AlgebraicTypeType>
+    newOwnerId: TypeBuilder<UserId, AlgebraicTypeType>
+    orgId: TypeBuilder<OrgId, AlgebraicTypeType>
   }
   orgMemberPk: (table: OrgMemberTableLike<MemberRow>) => OrgMemberPkLike<MemberRow, MemberId>
   orgMemberTable: (db: DB) => OrgMemberTableLike<MemberRow>
@@ -112,7 +112,7 @@ const findOrgMember = <OrgId, MemberId, MemberRow extends OrgMemberRowLike<Membe
     spacetimedb: {
       reducer: (
         opts: { name: string },
-        params: Record<string, TypeBuilder<unknown, unknown>>,
+        params: Record<string, TypeBuilder<unknown, AlgebraicTypeType>>,
         fn: (ctx: { db: DB; sender: Identity; timestamp: Timestamp }, args: Record<string, unknown>) => void
       ) => ReducerExport<never, never>
     },
@@ -121,12 +121,13 @@ const findOrgMember = <OrgId, MemberId, MemberRow extends OrgMemberRowLike<Membe
     const setAdminReducer = spacetimedb.reducer(
         { name: 'org_set_admin' },
         { isAdmin: config.builders.isAdmin, memberId: config.builders.memberId },
-        (ctx, args: { isAdmin: boolean; memberId: MemberId }) => {
-          const orgTable = config.orgTable(ctx.db),
+        (ctx, args) => {
+          const typedArgs = args as { isAdmin: boolean; memberId: MemberId },
+            orgTable = config.orgTable(ctx.db),
             orgPk = config.orgPk(orgTable),
             orgMemberTable = config.orgMemberTable(ctx.db),
             orgMemberPk = config.orgMemberPk(orgMemberTable),
-            member = orgMemberPk.find(args.memberId)
+            member = orgMemberPk.find(typedArgs.memberId)
 
           if (!member) throw makeError('NOT_FOUND', 'org:set_admin')
           const org = orgPk.find(member.orgId)
@@ -145,20 +146,21 @@ const findOrgMember = <OrgId, MemberId, MemberRow extends OrgMemberRowLike<Membe
 
           orgMemberPk.update({
             ...(member as unknown as Record<string, unknown>),
-            isAdmin: args.isAdmin,
+            isAdmin: typedArgs.isAdmin,
             updatedAt: ctx.timestamp
-          } as MemberRow)
+          } as unknown as MemberRow)
         }
       ),
       removeMemberReducer = spacetimedb.reducer(
         { name: 'org_remove_member' },
         { memberId: config.builders.memberId },
-        (ctx, args: { memberId: MemberId }) => {
-          const orgTable = config.orgTable(ctx.db),
+        (ctx, args) => {
+          const typedArgs = args as { memberId: MemberId },
+            orgTable = config.orgTable(ctx.db),
             orgPk = config.orgPk(orgTable),
             orgMemberTable = config.orgMemberTable(ctx.db),
             orgMemberPk = config.orgMemberPk(orgMemberTable),
-            member = orgMemberPk.find(args.memberId)
+            member = orgMemberPk.find(typedArgs.memberId)
 
           if (!member) throw makeError('NOT_FOUND', 'org:remove_member')
           const org = orgPk.find(member.orgId)
@@ -176,41 +178,39 @@ const findOrgMember = <OrgId, MemberId, MemberRow extends OrgMemberRowLike<Membe
 
           if (actorRole === 'admin' && member.isAdmin) throw makeError('CANNOT_MODIFY_ADMIN', 'org:remove_member')
 
-          const removed = orgMemberPk.delete(args.memberId)
+          const removed = orgMemberPk.delete(typedArgs.memberId)
           if (!removed) throw makeError('NOT_FOUND', 'org:remove_member')
         }
       ),
-      leaveReducer = spacetimedb.reducer(
-        { name: 'org_leave' },
-        { orgId: config.builders.orgId },
-        (ctx, args: { orgId: OrgId }) => {
-          const orgTable = config.orgTable(ctx.db),
-            orgPk = config.orgPk(orgTable),
-            orgMemberTable = config.orgMemberTable(ctx.db),
-            orgMemberPk = config.orgMemberPk(orgMemberTable),
-            org = orgPk.find(args.orgId)
+      leaveReducer = spacetimedb.reducer({ name: 'org_leave' }, { orgId: config.builders.orgId }, (ctx, args) => {
+        const typedArgs = args as { orgId: OrgId },
+          orgTable = config.orgTable(ctx.db),
+          orgPk = config.orgPk(orgTable),
+          orgMemberTable = config.orgMemberTable(ctx.db),
+          orgMemberPk = config.orgMemberPk(orgMemberTable),
+          org = orgPk.find(typedArgs.orgId)
 
-          if (!org) throw makeError('NOT_FOUND', 'org:leave')
-          if (identityEquals(org.userId, ctx.sender)) throw makeError('MUST_TRANSFER_OWNERSHIP', 'org:leave')
+        if (!org) throw makeError('NOT_FOUND', 'org:leave')
+        if (identityEquals(org.userId, ctx.sender)) throw makeError('MUST_TRANSFER_OWNERSHIP', 'org:leave')
 
-          const member = findOrgMember(orgMemberTable, args.orgId, ctx.sender)
-          if (!member) throw makeError('NOT_ORG_MEMBER', 'org:leave')
-          const removed = orgMemberPk.delete(member.id)
-          if (!removed) throw makeError('NOT_FOUND', 'org:leave')
-        }
-      ),
+        const member = findOrgMember(orgMemberTable, typedArgs.orgId, ctx.sender)
+        if (!member) throw makeError('NOT_ORG_MEMBER', 'org:leave')
+        const removed = orgMemberPk.delete(member.id)
+        if (!removed) throw makeError('NOT_FOUND', 'org:leave')
+      }),
       transferOwnershipReducer = spacetimedb.reducer(
         { name: 'org_transfer_ownership' },
         {
           newOwnerId: config.builders.newOwnerId,
           orgId: config.builders.orgId
         },
-        (ctx, args: { newOwnerId: UserId; orgId: OrgId }) => {
-          const orgTable = config.orgTable(ctx.db),
+        (ctx, args) => {
+          const typedArgs = args as { newOwnerId: UserId; orgId: OrgId },
+            orgTable = config.orgTable(ctx.db),
             orgPk = config.orgPk(orgTable),
             orgMemberTable = config.orgMemberTable(ctx.db),
             orgMemberPk = config.orgMemberPk(orgMemberTable),
-            org = orgPk.find(args.orgId)
+            org = orgPk.find(typedArgs.orgId)
 
           if (!org) throw makeError('NOT_FOUND', 'org:transfer_ownership')
           requireRole({
@@ -222,15 +222,15 @@ const findOrgMember = <OrgId, MemberId, MemberRow extends OrgMemberRowLike<Membe
             tableName: 'org'
           })
 
-          const targetMember = findOrgMember(orgMemberTable, args.orgId, args.newOwnerId as unknown as Identity)
+          const targetMember = findOrgMember(orgMemberTable, typedArgs.orgId, typedArgs.newOwnerId as unknown as Identity)
           if (!targetMember) throw makeError('NOT_ORG_MEMBER', 'org:transfer_ownership')
           if (!targetMember.isAdmin) throw makeError('TARGET_MUST_BE_ADMIN', 'org:transfer_ownership')
 
           orgPk.update({
             ...(org as unknown as Record<string, unknown>),
             updatedAt: ctx.timestamp,
-            userId: args.newOwnerId
-          } as OrgRow)
+            userId: typedArgs.newOwnerId
+          } as unknown as OrgRow)
 
           const removed = orgMemberPk.delete(targetMember.id)
           if (!removed) throw makeError('NOT_FOUND', 'org:transfer_ownership')
@@ -238,10 +238,10 @@ const findOrgMember = <OrgId, MemberId, MemberRow extends OrgMemberRowLike<Membe
           orgMemberTable.insert({
             id: 0 as MemberId,
             isAdmin: true,
-            orgId: args.orgId,
+            orgId: typedArgs.orgId,
             updatedAt: ctx.timestamp,
             userId: ctx.sender
-          } as MemberRow)
+          } as unknown as MemberRow)
         }
       )
 
@@ -256,6 +256,7 @@ const findOrgMember = <OrgId, MemberId, MemberRow extends OrgMemberRowLike<Membe
   }
 
 export type {
+  OrgMemberPkLike,
   OrgMemberReducersConfig,
   OrgMemberReducersExports,
   OrgMemberRowLike,

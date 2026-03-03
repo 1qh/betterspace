@@ -1,4 +1,4 @@
-/* eslint-disable one-var */
+/* eslint-disable one-var, max-depth, max-statements */
 import { existsSync, readdirSync, readFileSync } from 'node:fs'
 import { dirname, join } from 'node:path'
 
@@ -34,6 +34,12 @@ let discoveredSchemaDir: string | undefined
 let discoveryWarned = false
 let cachedHasSpacetimeImports: boolean | undefined
 const seenCrudTables = new Map<string, string>()
+const schemaMarkers = ['makeOwned(', 'makeOrgScoped(', 'makeSingleton(', 'makeBase(', 'child(']
+
+const isSchemaFile = (content: string): boolean => {
+  for (const marker of schemaMarkers) if (content.includes(marker)) return true
+  return false
+}
 
 const hasSchemaMarkers = (dir: string): boolean => {
   if (!existsSync(dir)) return false
@@ -64,15 +70,6 @@ const findSchemaDir = (root: string): string | undefined => {
   const found = hasSchemaMarkers(root) ? root : searchSubdirs(root)
   if (found) discoveredSchemaDir = found
   return found
-}
-
-const getModules = (root: string): string[] => {
-  if (cachedModules) return cachedModules
-  const result: string[] = []
-  const tables = parseSchemaFile(root)
-  for (const tableName of tables.keys()) result.push(tableName)
-  cachedModules = result
-  return result
 }
 
 const zodFieldKinds: Record<string, string> = {
@@ -108,7 +105,6 @@ const kindToComponent: Record<string, string> = {
 
 const crudFactories = new Set(['childCrud', 'crud', 'orgCrud', 'singletonCrud'])
 const spacetimeDataHooks = new Set(['useReducer', 'useTable'])
-const schemaMarkers = ['makeOwned(', 'makeOrgScoped(', 'makeSingleton(', 'makeBase(', 'child(']
 const routeFilePattern = /\/route\.[jt]sx?$/u
 
 const isIdent = (node: BaseNode, name: string): boolean => node.type === 'Identifier' && node.name === name
@@ -159,11 +155,6 @@ const extractTables = (content: string): Map<string, Map<string, string>> => {
   return tables
 }
 
-const isSchemaFile = (content: string): boolean => {
-  for (const marker of schemaMarkers) if (content.includes(marker)) return true
-  return false
-}
-
 const findSchemaContent = (root: string): string => {
   const schemaDir = findSchemaDir(root)
   const searchDir = schemaDir ? dirname(schemaDir) : root
@@ -180,6 +171,15 @@ const parseSchemaFile = (root: string): Map<string, Map<string, string>> => {
   if (cachedSchema) return cachedSchema
   cachedSchema = extractTables(findSchemaContent(root))
   return cachedSchema
+}
+
+const getModules = (root: string): string[] => {
+  if (cachedModules) return cachedModules
+  const result: string[] = []
+  const tables = parseSchemaFile(root)
+  for (const tableName of tables.keys()) result.push(tableName)
+  cachedModules = result
+  return result
 }
 
 const getJsxNameProp = (node: JsxNode): string | undefined => {
@@ -293,11 +293,11 @@ const hasSpacetimeImports = (root: string): boolean => {
   const schemaDir = findSchemaDir(root)
   const searchRoots: string[] = [root]
   if (schemaDir) searchRoots.push(dirname(schemaDir))
-  for (const dir of searchRoots) {
+  for (const dir of searchRoots)
     if (existsSync(dir))
-      for (const { name, isFile } of readdirSync(dir, { withFileTypes: true }))
-        if (isFile() && (name.endsWith('.ts') || name.endsWith('.tsx'))) {
-          const content = readFileSync(join(dir, name), 'utf8')
+      for (const entry of readdirSync(dir, { withFileTypes: true }))
+        if (entry.isFile() && (entry.name.endsWith('.ts') || entry.name.endsWith('.tsx'))) {
+          const content = readFileSync(join(dir, entry.name), 'utf8')
           if (content.includes("'@a/be/spacetimedb'") || content.includes('"@a/be/spacetimedb"')) {
             cachedHasSpacetimeImports = true
             return true
@@ -307,7 +307,7 @@ const hasSpacetimeImports = (root: string): boolean => {
             return true
           }
         }
-  }
+
   cachedHasSpacetimeImports = false
   return false
 }
@@ -407,6 +407,18 @@ const consistentCrudNaming = {
 }
 
 const isRouteHandler = (filename: string): boolean => routeFilePattern.test(filename)
+
+const bodyContainsIdent = (nodes: BaseNode[], target: string): boolean => {
+  for (const n of nodes) {
+    if (n.type === 'Identifier' && n.name === target) return true
+    if (n.body?.body && bodyContainsIdent(n.body.body, target)) return true
+    if (n.argument && bodyContainsIdent([n.argument], target)) return true
+    if (n.expression && bodyContainsIdent([n.expression], target)) return true
+    if (n.callee && bodyContainsIdent([n.callee], target)) return true
+    if (n.properties) for (const p of n.properties) if (bodyContainsIdent([p], target)) return true
+  }
+  return false
+}
 
 /** ESLint rule to require useSpacetimeDB() before SpacetimeDB data hooks. */
 const requireConnection = {
@@ -687,18 +699,6 @@ const getHandlerBody = (node: CallNode): BaseNode[] | undefined => {
       const fn = p.value
       if (fn.body?.type === 'BlockStatement' && fn.body.body) return fn.body.body
     }
-}
-
-const bodyContainsIdent = (nodes: BaseNode[], target: string): boolean => {
-  for (const n of nodes) {
-    if (n.type === 'Identifier' && n.name === target) return true
-    if (n.body?.body && bodyContainsIdent(n.body.body, target)) return true
-    if (n.argument && bodyContainsIdent([n.argument], target)) return true
-    if (n.expression && bodyContainsIdent([n.expression], target)) return true
-    if (n.callee && bodyContainsIdent([n.callee], target)) return true
-    if (n.properties) for (const p of n.properties) if (bodyContainsIdent([p], target)) return true
-  }
-  return false
 }
 
 /** ESLint rule to require auth checks in mutation handlers. */

@@ -1,9 +1,9 @@
 'use client'
 
+import type { Chat, Message } from '@a/be/spacetimedb/types'
 import type { UIMessage } from 'ai'
 
 import { tables } from '@a/be/spacetimedb'
-import type { Chat, Message } from '@a/be/spacetimedb/types'
 import { useParams, useRouter } from 'next/navigation'
 import { useEffect } from 'react'
 import { useSpacetimeDB, useTable } from 'spacetimedb/react'
@@ -11,10 +11,13 @@ import { useSpacetimeDB, useTable } from 'spacetimedb/react'
 import Client from './client'
 
 const toIdentityKey = (value: unknown) => {
-    if (!value || typeof value !== 'object' || !('toHexString' in value)) return String(value)
+    if (value === null || value === undefined) return ''
+    if (typeof value === 'string') return value
+    if (typeof value === 'number' || typeof value === 'boolean' || typeof value === 'bigint') return `${value}`
+    if (typeof value !== 'object' || !('toHexString' in value)) return ''
     const candidate = value as { toHexString?: () => string }
     if (typeof candidate.toHexString === 'function') return candidate.toHexString()
-    return String(value)
+    return ''
   },
   toUIMessages = (messages: Message[]): UIMessage[] =>
     messages.map(m => ({
@@ -28,6 +31,7 @@ const toIdentityKey = (value: unknown) => {
       [allChats, isChatsReady] = useTable(tables.chat),
       [allMessages, isMessagesReady] = useTable(tables.message),
       { identity } = useSpacetimeDB(),
+      // eslint-disable-next-line no-restricted-properties
       isPlaywright = process.env.NEXT_PUBLIC_PLAYWRIGHT === '1' || navigator.webdriver,
       id = Number(params.id),
       chat: Chat | undefined = Number.isNaN(id) ? undefined : allChats.find(c => c.id === id),

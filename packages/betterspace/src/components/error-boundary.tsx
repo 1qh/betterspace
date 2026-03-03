@@ -16,7 +16,7 @@ interface ErrorBoundaryState {
   error: Error | null
 }
 
-const asRecord = (value: unknown): Record<string, unknown> | null => {
+const asRecord = (value: unknown): null | Record<string, unknown> => {
     if (typeof value === 'object' && value !== null) return value as Record<string, unknown>
     return null
   },
@@ -51,7 +51,7 @@ class BetterspaceErrorBoundary extends Component<ErrorBoundaryProps, ErrorBounda
     if (onError) onError(error, errorInfo)
   }
 
-  render() {
+  async render() {
     const { error } = this.state,
       { children, fallback } = this.props
 

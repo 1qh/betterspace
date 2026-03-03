@@ -1,10 +1,10 @@
 import type { Identity, Timestamp } from 'spacetimedb'
-import type { ReducerExport, TypeBuilder } from 'spacetimedb/server'
+import type { AlgebraicTypeType, ReducerExport, TypeBuilder } from 'spacetimedb/server'
 
 import { identityEquals, makeError } from './reducer-utils'
 
 interface OptionalBuilder {
-  optional: () => TypeBuilder<unknown, unknown>
+  optional: () => TypeBuilder<unknown, AlgebraicTypeType>
 }
 
 interface OrgJoinReducersConfig<
@@ -17,10 +17,10 @@ interface OrgJoinReducersConfig<
   JoinRequestRow extends OrgJoinRequestRowLike<RequestId, OrgId>
 > {
   builders: {
-    isAdmin: TypeBuilder<boolean, unknown>
+    isAdmin: TypeBuilder<boolean, AlgebraicTypeType>
     message: OptionalBuilder
-    orgId: TypeBuilder<OrgId, unknown>
-    requestId: TypeBuilder<RequestId, unknown>
+    orgId: TypeBuilder<OrgId, AlgebraicTypeType>
+    requestId: TypeBuilder<RequestId, AlgebraicTypeType>
   }
   orgJoinRequestByOrgStatusIndex: (
     table: OrgJoinRequestTableLike<JoinRequestRow>
@@ -136,7 +136,7 @@ const findOrgMember = <OrgId, MemberId, MemberRow extends OrgMemberRowLike<Membe
     spacetimedb: {
       reducer: (
         opts: { name: string },
-        params: Record<string, TypeBuilder<unknown, unknown>>,
+        params: Record<string, TypeBuilder<unknown, AlgebraicTypeType>>,
         fn: (ctx: { db: DB; sender: Identity; timestamp: Timestamp }, args: Record<string, unknown>) => void
       ) => ReducerExport<never, never>
     },
@@ -148,8 +148,9 @@ const findOrgMember = <OrgId, MemberId, MemberRow extends OrgMemberRowLike<Membe
           message: config.builders.message.optional(),
           orgId: config.builders.orgId
         },
-        (ctx, args: { message?: string; orgId: OrgId }) => {
-          const orgTable = config.orgTable(ctx.db),
+        (ctx, _args: Record<string, unknown>) => {
+          const args = _args as { message?: string; orgId: OrgId },
+            orgTable = config.orgTable(ctx.db),
             orgPk = config.orgPk(orgTable),
             orgMemberTable = config.orgMemberTable(ctx.db),
             orgJoinRequestTable = config.orgJoinRequestTable(ctx.db),
@@ -180,8 +181,9 @@ const findOrgMember = <OrgId, MemberId, MemberRow extends OrgMemberRowLike<Membe
           isAdmin: config.builders.isAdmin.optional(),
           requestId: config.builders.requestId
         },
-        (ctx, args: { isAdmin?: boolean; requestId: RequestId }) => {
-          const orgTable = config.orgTable(ctx.db),
+        (ctx, _args: Record<string, unknown>) => {
+          const args = _args as { isAdmin?: boolean; requestId: RequestId },
+            orgTable = config.orgTable(ctx.db),
             orgPk = config.orgPk(orgTable),
             orgMemberTable = config.orgMemberTable(ctx.db),
             orgJoinRequestTable = config.orgJoinRequestTable(ctx.db),
@@ -210,8 +212,9 @@ const findOrgMember = <OrgId, MemberId, MemberRow extends OrgMemberRowLike<Membe
       rejectJoinReducer = spacetimedb.reducer(
         { name: 'org_reject_join' },
         { requestId: config.builders.requestId },
-        (ctx, args: { requestId: RequestId }) => {
-          const orgTable = config.orgTable(ctx.db),
+        (ctx, _args: Record<string, unknown>) => {
+          const args = _args as { requestId: RequestId },
+            orgTable = config.orgTable(ctx.db),
             orgPk = config.orgPk(orgTable),
             orgMemberTable = config.orgMemberTable(ctx.db),
             orgJoinRequestTable = config.orgJoinRequestTable(ctx.db),
@@ -234,8 +237,9 @@ const findOrgMember = <OrgId, MemberId, MemberRow extends OrgMemberRowLike<Membe
       cancelJoinReducer = spacetimedb.reducer(
         { name: 'org_cancel_join' },
         { requestId: config.builders.requestId },
-        (ctx, args: { requestId: RequestId }) => {
-          const orgJoinRequestTable = config.orgJoinRequestTable(ctx.db),
+        (ctx, _args: Record<string, unknown>) => {
+          const args = _args as { requestId: RequestId },
+            orgJoinRequestTable = config.orgJoinRequestTable(ctx.db),
             orgJoinRequestPk = config.orgJoinRequestPk(orgJoinRequestTable),
             request = orgJoinRequestPk.find(args.requestId)
 

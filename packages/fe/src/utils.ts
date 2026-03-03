@@ -22,7 +22,7 @@ const getCode = (error: unknown) => {
     }
     toast.error(getMessage(error) ?? 'Unknown error')
   },
-  parseId = (val: unknown): number | null => {
+  parseId = (val: unknown): null | number => {
     if (typeof val === 'number' && val > 0) return val
     if (typeof val === 'string') {
       const n = Number(val)

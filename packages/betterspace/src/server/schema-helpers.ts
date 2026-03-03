@@ -26,25 +26,25 @@ interface TableDef {
 
 const tableDef = (kind: TableDef['kind'], fields: Record<string, unknown>): TableDef => {
     const indexes: IndexDef[] = [],
-      searchIndexes: SearchIndexDef[] = []
-    const table: TableDef = {
-      fields,
-      index: (name: string, fs: string[]) => {
-        indexes.push({ fields: [...fs], name })
-        return table
-      },
-      indexes,
-      kind,
-      searchIndex: (name: string, config: { searchField: string }) => {
-        searchIndexes.push({ name, searchField: config.searchField })
-        return table
-      },
-      searchIndexes
-    }
+      searchIndexes: SearchIndexDef[] = [],
+      table: TableDef = {
+        fields,
+        index: (name: string, fs: string[]) => {
+          indexes.push({ fields: [...fs], name })
+          return table
+        },
+        indexes,
+        kind,
+        searchIndex: (name: string, config: { searchField: string }) => {
+          searchIndexes.push({ name, searchField: config.searchField })
+          return table
+        },
+        searchIndexes
+      }
     return table
   },
-  asNever = <T>(v: T): never => v as never,
-  zodShapeToFields = <T extends ZodRawShape>(shape: T): Record<string, string> => {
+  asNever = (v: unknown): never => v as never,
+  zodShapeToFields = (shape: ZodRawShape): Record<string, string> => {
     const out: Record<string, string> = {},
       keys = Object.keys(shape)
     for (const k of keys) {
@@ -214,11 +214,9 @@ const unsupportedTypes = new Set(['pipe', 'transform']),
     const b = unwrapZod(schema)
     if (b.type && unsupportedTypes.has(b.type)) out.push({ path, zodType: b.type })
     if (isArrayType(b.type)) return scanSchema(elementOf(b.schema), `${path}[]`, out)
-    if (b.type === 'object' && b.schema && isRecord((b.schema as unknown as { shape?: unknown }).shape)) {
-      for (const [k, vl] of Object.entries((b.schema as unknown as { shape: Record<string, unknown> }).shape)) {
+    if (b.type === 'object' && b.schema && isRecord((b.schema as unknown as { shape?: unknown }).shape))
+      for (const [k, vl] of Object.entries((b.schema as unknown as { shape: Record<string, unknown> }).shape))
         scanSchema(vl, path ? `${path}.${k}` : k, out)
-      }
-    }
   },
   checkSchema = (schemas: Record<string, ZodObject<ZodRawShape>>) => {
     const res: CheckSchemaOutput[] = []

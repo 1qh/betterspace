@@ -7,21 +7,24 @@ import { Label } from '@a/ui/label'
 import { Switch } from '@a/ui/switch'
 import { SparklesIcon } from 'lucide-react'
 import { useRouter } from 'next/navigation'
-import { useReducer, useSpacetimeDB, useTable } from 'spacetimedb/react'
 import { useEffect, useRef, useState, useTransition } from 'react'
+import { useReducer, useSpacetimeDB, useTable } from 'spacetimedb/react'
 
 const toIdentityKey = (value: unknown) => {
-    if (!value || typeof value !== 'object' || !('toHexString' in value)) return String(value)
+    if (value === null || value === undefined) return ''
+    if (typeof value === 'string') return value
+    if (typeof value === 'number' || typeof value === 'boolean' || typeof value === 'bigint') return `${value}`
+    if (typeof value !== 'object' || !('toHexString' in value)) return ''
     const candidate = value as { toHexString?: () => string }
     if (typeof candidate.toHexString === 'function') return candidate.toHexString()
-    return String(value)
+    return ''
   },
   Page = () => {
     const router = useRouter(),
       createChat = useReducer(reducers.createChat),
       { identity } = useSpacetimeDB(),
       [allChats] = useTable(tables.chat),
-      pendingTitle = useRef<string | null>(null),
+      pendingTitle = useRef<null | string>(null),
       [isSubmitting, setIsSubmitting] = useState(false),
       [isPublic, setIsPublic] = useState(false),
       [isPending, startTransition] = useTransition(),
@@ -31,10 +34,10 @@ const toIdentityKey = (value: unknown) => {
       if (!pendingTitle.current) return
       const title = pendingTitle.current
       let newestChat: (typeof allChats)[number] | undefined
-      for (const c of allChats) {
+      for (const c of allChats)
         if (c.title === title && toIdentityKey(c.userId) === identityKey && (!newestChat || c.id > newestChat.id))
           newestChat = c
-      }
+
       if (newestChat) {
         pendingTitle.current = null
         const query = encodeURIComponent(title)

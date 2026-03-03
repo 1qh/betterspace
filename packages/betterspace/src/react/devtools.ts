@@ -69,36 +69,43 @@ const MAX_ERRORS = 50,
   subStore = new Map<number, DevSubscription>()
 
 let nextId = 1
-const listeners: (() => void)[] = []
-
-const connectionStore: DevConnection = {
-  connectionError: '',
-  connectionId: '',
-  hasConnection: false,
-  identity: '',
-  isActive: false,
-  token: ''
-}
-
-const notify = () => {
+const listeners: (() => void)[] = [],
+  connectionStore: DevConnection = {
+    connectionError: '',
+    connectionId: '',
+    hasConnection: false,
+    identity: '',
+    isActive: false,
+    token: ''
+  },
+  notify = () => {
     for (const fn of listeners) fn()
   },
   toDisplay = (value: unknown): string => {
     if (value === null || value === undefined) return ''
     if (typeof value === 'string') return value
+    if (typeof value === 'number' || typeof value === 'boolean' || typeof value === 'bigint') return String(value)
     if (typeof value === 'object' && 'toHexString' in value) {
       const obj = value as { toHexString?: () => string }
       if (typeof obj.toHexString === 'function') return obj.toHexString()
     }
-    return String(value)
+    if (typeof value === 'object')
+      try {
+        return JSON.stringify(value)
+      } catch {
+        return Object.prototype.toString.call(value)
+      }
+
+    return ''
   },
   setConnectionState = (nextState: Partial<DevConnection>) => {
     let changed = false
-    const keys = Object.keys(nextState) as (keyof DevConnection)[]
+    const keys = Object.keys(nextState) as (keyof DevConnection)[],
+      store = connectionStore as unknown as Record<keyof DevConnection, DevConnection[keyof DevConnection]>
     for (const k of keys) {
       const val = nextState[k]
-      if (val !== undefined && connectionStore[k] !== val) {
-        connectionStore[k] = val
+      if (val !== undefined && store[k] !== val) {
+        store[k] = val
         changed = true
       }
     }
@@ -218,7 +225,8 @@ const notify = () => {
   },
   useDevErrors = () => {
     const [, setTick] = useState(0),
-      { connectionError, connectionId, getConnection, identity, isActive, token } = useSpacetimeDB()
+      spacetime = useSpacetimeDB(),
+      { connectionError, connectionId, identity, isActive, token } = spacetime
     useEffect(() => {
       const fn = () => setTick(t => t + 1)
       listeners.push(fn)
@@ -231,12 +239,12 @@ const notify = () => {
       setConnectionState({
         connectionError: connectionError ? getErrorMessage(connectionError) : '',
         connectionId: toDisplay(connectionId),
-        hasConnection: Boolean(getConnection()),
+        hasConnection: Boolean(spacetime.getConnection()),
         identity: toDisplay(identity),
         isActive,
         token: token ?? ''
       })
-    }, [connectionError, connectionId, getConnection, identity, isActive, token])
+    }, [connectionError, connectionId, identity, isActive, spacetime, token])
     return useMemo(
       () => ({
         cache: [...cacheStore.values()],

@@ -6,10 +6,28 @@ import restrictEnvAccess from '@a/eslint-config/restrict-env'
 import { defineConfig } from 'eslint/config'
 
 export default defineConfig(
-  { ignores: ['dist/**'] },
+  {
+    ignores: [
+      'dist/**',
+      'spacetimedb/src/**',
+      'spacetimedb/__tests__/**',
+      'spacetimedb/test-skeleton.ts',
+      'check-schema.ts',
+      'lazy.ts'
+    ]
+  },
   baseConfig,
   reactConfig,
   nextjsConfig,
   restrictEnvAccess,
-  betterspaceApi
+  betterspaceApi,
+  {
+    languageOptions: {
+      parserOptions: {
+        projectService: {
+          allowDefaultProject: ['../../packages/be/eslint.config.ts', '../../packages/be/t.ts', '../../packages/be/z.ts']
+        }
+      }
+    }
+  }
 )

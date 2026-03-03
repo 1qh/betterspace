@@ -8,9 +8,9 @@ import { fail, formatExpiry } from '@a/fe/utils'
 import { Button } from '@a/ui/button'
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@a/ui/table'
 import { RoleBadge } from 'betterspace/components'
-import { useReducer, useTable } from 'spacetimedb/react'
 import { Copy, Trash } from 'lucide-react'
 import { toast } from 'sonner'
+import { useReducer, useTable } from 'spacetimedb/react'
 
 import { useOrg } from '~/hook/use-org'
 

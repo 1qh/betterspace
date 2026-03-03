@@ -98,6 +98,17 @@ interface TypedFields<T> {
   Toggle: (p: WithName<Props<'Toggle'>, Key<T, boolean | undefined>>) => ReactNode
 }
 
+type Widen<T> = T extends string
+  ? string
+  : T extends number
+    ? number
+    : T extends boolean
+      ? boolean
+      : T extends (infer U)[]
+        ? Widen<U>[]
+        : T extends Record<string, unknown>
+          ? { [K in keyof T]: Widen<T[K]> }
+          : T
 type WithName<P, K> = Omit<P, 'name'> & { name: K }
 
 const useWithGuard = <T extends Record<string, unknown>, S extends ZodObject<ZodRawShape>>(
@@ -125,18 +136,18 @@ const useWithGuard = <T extends Record<string, unknown>, S extends ZodObject<Zod
     onSuccess?: () => void
     resetOnSuccess?: boolean
     schema: S
-    values?: zinfer<S>
+    values?: Widen<zinfer<S>>
   }) => useWithGuard(useBaseForm(opts)),
   useFormMutation = <S extends ZodObject<ZodRawShape>>(opts: {
     autoSave?: { debounceMs: number; enabled: boolean }
-    mutate: (args: Record<string, unknown>) => Promise<unknown> | unknown
+    mutate: (args: Record<string, unknown>) => Promise<void> | void
     onConflict?: (data: ConflictData) => void
     onError?: ((e: unknown) => void) | false
     onSuccess?: () => void
     resetOnSuccess?: boolean
     schema: S
     transform?: (d: zinfer<S>) => Record<string, unknown>
-    values?: zinfer<S>
+    values?: Widen<zinfer<S>>
   }) =>
     useWithGuard(
       useBaseForm({

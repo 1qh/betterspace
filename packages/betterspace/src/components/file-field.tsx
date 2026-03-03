@@ -13,28 +13,8 @@ import { toast } from 'sonner'
 
 import { BYTES_PER_KB, BYTES_PER_MB } from '../constants'
 
-interface UploadOptions {
-  onProgress?: (percent: number) => void
-  signal?: AbortSignal
-}
-
-type UploadResponse =
-  | string
-  | {
-      storageId?: string
-      url?: string
-    }
-
-interface FileApi {
-  upload: (file: File, options?: UploadOptions) => Promise<UploadResponse>
-}
-
-interface UploadState {
-  isUploading: boolean
-  progress: number
-  reset: () => void
-  upload: (file: File) => Promise<null | string>
-}
+/** biome-ignore lint/suspicious/noEmptyBlockStatements: noop */
+const noop = (): void => {} // eslint-disable-line @typescript-eslint/no-empty-function
 
 interface DropSlotProps {
   accept?: string
@@ -50,6 +30,10 @@ interface DropSlotProps {
   rootProps: ReturnType<ReturnType<typeof useDropzone>['getRootProps']>
 }
 
+interface FileApi {
+  upload: (file: File, options?: UploadOptions) => Promise<UploadResponse>
+}
+
 interface MultipleValueProps extends DropSlotProps {
   canAdd: boolean
   f: AnyFieldApi
@@ -60,6 +44,25 @@ interface SingleValueProps extends DropSlotProps {
   f: AnyFieldApi
   onReset: () => void
   vals: string[]
+}
+
+interface UploadOptions {
+  onProgress?: (percent: number) => void
+  signal?: AbortSignal
+}
+
+type UploadResponse =
+  | string
+  | {
+      storageId?: string
+      url?: string
+    }
+
+interface UploadState {
+  isUploading: boolean
+  progress: number
+  reset: () => void
+  upload: (file: File) => Promise<null | string>
 }
 
 const FileApiContext = createContext<FileApi | null>(null),
@@ -295,7 +298,7 @@ const FileApiContext = createContext<FileApi | null>(null),
     max?: number
     maxSize?: number
     multiple?: boolean
-    onDrop: (accepted: File[]) => void | Promise<void>
+    onDrop: (accepted: File[]) => void
   }) =>
     useDropzone({
       accept: parseAccept(accept),
@@ -335,13 +338,13 @@ const FileApiContext = createContext<FileApi | null>(null),
     multiple?: boolean
   }) => {
     const { upload: uploadFile } = useFileApi(),
-      raw = f.state.value,
+      raw: unknown = f.state.value as unknown,
       vals = useMemo(() => (multiple ? ((raw ?? []) as string[]) : raw ? [raw as string] : []), [multiple, raw]),
       inv = f.state.meta.isTouched && !f.state.meta.isValid,
       canAdd = multiple ? !max || vals.length < max : !vals.length,
       { isUploading, progress, reset, upload } = useFileUpload(uploadFile),
       errorId = `${f.name}-error`,
-      onDrop = useCallback(
+      onDropAsync = useCallback(
         async (accepted: File[]) => {
           if (multiple && max && vals.length + accepted.length > max) {
             toast.error(`Max ${max}`)
@@ -362,7 +365,10 @@ const FileApiContext = createContext<FileApi | null>(null),
         max,
         maxSize,
         multiple,
-        onDrop
+        onDrop: (accepted: File[]) => {
+          // oxlint-disable-next-line promise/prefer-await-to-then, promise/catch-or-return, promise/prefer-catch
+          onDropAsync(accepted).then(noop, noop)
+        }
       }),
       dropCls = cn(
         'flex cursor-pointer flex-col items-center justify-center rounded-lg border-2 border-dashed transition-colors focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2 focus-visible:outline-none',
@@ -371,14 +377,14 @@ const FileApiContext = createContext<FileApi | null>(null),
         (disabled ?? isUploading) && 'cursor-not-allowed opacity-50',
         dropClassName
       ),
-      tid = testId ?? f.name,
+      tid = typeof testId === 'string' ? testId : String(f.name),
       inputProps = getInputProps(),
       rootProps = getRootProps(),
       dropProps = { accept, dropCls, errorId, inputProps, inputRef, inv, isUploading, maxSize, progress, rootProps }
     return (
       <Field {...props} data-invalid={inv} data-testid={tid}>
         {label ? (
-          <FieldLabel htmlFor={f.name}>
+          <FieldLabel htmlFor={String(f.name)}>
             {label}
             {multiple && max ? (
               <span className='text-muted-foreground'>

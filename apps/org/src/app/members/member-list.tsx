@@ -1,4 +1,5 @@
 /* oxlint-disable promise/prefer-await-to-then */
+
 'use client'
 
 import type { OrgMember, OrgProfile } from '@a/be/spacetimedb/types'
@@ -11,9 +12,9 @@ import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuTrigge
 import { Skeleton } from '@a/ui/skeleton'
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@a/ui/table'
 import { RoleBadge } from 'betterspace/components'
-import { useReducer, useSpacetimeDB, useTable } from 'spacetimedb/react'
 import { MoreHorizontal, UserMinus } from 'lucide-react'
 import { toast } from 'sonner'
+import { useReducer, useSpacetimeDB, useTable } from 'spacetimedb/react'
 
 import { useOrg } from '~/hook/use-org'
 
@@ -31,10 +32,11 @@ const MemberList = () => {
   const members = allMembers
     .filter((m: OrgMember) => m.orgId === Number(org._id))
     .map((m: OrgMember) => {
-      const p = profileByUserId.get(m.userId.toHexString())
-      const role = m.userId.toHexString() === org.userId.toHexString() ? 'owner' : m.isAdmin ? 'admin' : 'member'
+      const p = profileByUserId.get(m.userId.toHexString()),
+        role: 'admin' | 'member' | 'owner' =
+          m.userId.toHexString() === org.userId.toHexString() ? 'owner' : m.isAdmin ? 'admin' : 'member'
       return {
-        memberId: `${m.id}`,
+        memberId: m.id,
         role,
         user: p ? { image: p.avatar ?? null, name: p.displayName } : null,
         userId: m.userId.toHexString()
@@ -43,7 +45,7 @@ const MemberList = () => {
 
   if (!identity) return <Skeleton className='h-40 w-full' />
 
-  type MemberId = NonNullable<(typeof members)[number]['memberId']>
+  type MemberId = (typeof members)[number]['memberId']
 
   const handleRemove = (memberId: MemberId) => {
       removeMember({ memberId })
@@ -68,13 +70,13 @@ const MemberList = () => {
       <TableBody>
         {members.map(m => {
           const { memberId } = m,
-            showActions = m.role !== 'owner' && memberId
+            showActions = m.role !== 'owner'
           return (
             <TableRow key={m.userId}>
               <TableCell className='flex items-center gap-2'>
                 <Avatar className='size-8'>
                   {m.user?.image ? <AvatarImage src={m.user.image} /> : null}
-                  <AvatarFallback>{m.user?.name?.slice(0, 2).toUpperCase() ?? '??'}</AvatarFallback>
+                  <AvatarFallback>{m.user ? m.user.name.slice(0, 2).toUpperCase() : '??'}</AvatarFallback>
                 </Avatar>
                 <span>{m.user?.name ?? 'Unknown'}</span>
               </TableCell>

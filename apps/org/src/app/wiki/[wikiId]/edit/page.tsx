@@ -28,7 +28,16 @@ const sameIdentity = (a: { toHexString: () => string }, b: { toHexString: () => 
       update = useReducer(reducers.updateWiki),
       form = useForm({
         onSubmit: async d => {
-          await update({ ...d, id: wikiId, orgId: Number(org._id) })
+          await update({
+            content: d.content,
+            deletedAt: wiki?.deletedAt,
+            editors: wiki?.editors,
+            expectedUpdatedAt: wiki?.updatedAt,
+            id: wikiId,
+            slug: d.slug,
+            status: d.status,
+            title: d.title
+          })
           return d
         },
         schema: wikiSchema,

@@ -3,9 +3,9 @@
 import { tables } from '@a/be/spacetimedb'
 import { Card, CardContent, CardHeader, CardTitle } from '@a/ui/card'
 import { RoleBadge } from 'betterspace/components'
-import { useTable } from 'spacetimedb/react'
 import { FolderOpen, Users } from 'lucide-react'
 import Link from 'next/link'
+import { useTable } from 'spacetimedb/react'
 
 import { useOrg } from '~/hook/use-org'
 
@@ -33,7 +33,7 @@ const OrgDashboard = () => {
             <CardTitle>Members</CardTitle>
           </CardHeader>
           <CardContent>
-            <div className='text-3xl font-bold'>{members?.length ?? '-'}</div>
+            <div className='text-3xl font-bold'>{members.length}</div>
             <Link className='text-sm text-primary hover:underline' href='/members'>
               View all members
             </Link>

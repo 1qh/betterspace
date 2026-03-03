@@ -8,9 +8,8 @@ import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@a/ui
 import { CheckCircle, XCircle } from 'lucide-react'
 import { useRouter } from 'next/navigation'
 import { use, useState } from 'react'
-import { useReducer } from 'spacetimedb/react'
-
 import { toast } from 'sonner'
+import { useReducer } from 'spacetimedb/react'
 
 const AcceptInvitePage = ({ params }: { params: Promise<{ token: string }> }) => {
   const { token } = use(params),
