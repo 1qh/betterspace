@@ -7,16 +7,14 @@ import {
   TypeBuilder as __TypeBuilder,
   t as __t,
   type AlgebraicTypeType as __AlgebraicTypeType,
-  type Infer as __Infer,
-} from "spacetimedb";
+  type Infer as __Infer
+} from 'spacetimedb'
 
-import {
-  MessagePart,
-} from "./types";
+import { MessagePart } from './types'
 
 export default {
   id: __t.u32(),
   parts: __t.option(__t.array(MessagePart)),
   role: __t.option(__t.string()),
-  expectedUpdatedAt: __t.option(__t.timestamp()),
-};
+  expectedUpdatedAt: __t.option(__t.timestamp())
+}

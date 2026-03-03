@@ -7,10 +7,10 @@ import {
   TypeBuilder as __TypeBuilder,
   t as __t,
   type AlgebraicTypeType as __AlgebraicTypeType,
-  type Infer as __Infer,
-} from "spacetimedb";
+  type Infer as __Infer
+} from 'spacetimedb'
 
-export const Blog = __t.object("Blog", {
+export const Blog = __t.object('Blog', {
   attachments: __t.option(__t.array(__t.string())),
   category: __t.string(),
   content: __t.string(),
@@ -20,68 +20,68 @@ export const Blog = __t.object("Blog", {
   tags: __t.option(__t.array(__t.string())),
   title: __t.string(),
   updatedAt: __t.timestamp(),
-  userId: __t.identity(),
-});
-export type Blog = __Infer<typeof Blog>;
+  userId: __t.identity()
+})
+export type Blog = __Infer<typeof Blog>
 
-export const BlogProfile = __t.object("BlogProfile", {
+export const BlogProfile = __t.object('BlogProfile', {
   avatar: __t.option(__t.string()),
   bio: __t.option(__t.string()),
   displayName: __t.string(),
   notifications: __t.bool(),
   theme: __t.string(),
   updatedAt: __t.timestamp(),
-  userId: __t.identity(),
-});
-export type BlogProfile = __Infer<typeof BlogProfile>;
+  userId: __t.identity()
+})
+export type BlogProfile = __Infer<typeof BlogProfile>
 
-export const Chat = __t.object("Chat", {
+export const Chat = __t.object('Chat', {
   id: __t.u32(),
   isPublic: __t.bool(),
   title: __t.string(),
   updatedAt: __t.timestamp(),
-  userId: __t.identity(),
-});
-export type Chat = __Infer<typeof Chat>;
+  userId: __t.identity()
+})
+export type Chat = __Infer<typeof Chat>
 
-export const File = __t.object("File", {
+export const File = __t.object('File', {
   contentType: __t.string(),
   filename: __t.string(),
   id: __t.u32(),
   size: __t.f64(),
   storageKey: __t.string(),
   uploadedAt: __t.timestamp(),
-  userId: __t.identity(),
-});
-export type File = __Infer<typeof File>;
+  userId: __t.identity()
+})
+export type File = __Infer<typeof File>
 
-export const Message = __t.object("Message", {
+export const Message = __t.object('Message', {
   chatId: __t.u32(),
   id: __t.u32(),
   get parts() {
-    return __t.array(MessagePart);
+    return __t.array(MessagePart)
   },
   role: __t.string(),
   updatedAt: __t.timestamp(),
-  userId: __t.identity(),
-});
-export type Message = __Infer<typeof Message>;
+  userId: __t.identity()
+})
+export type Message = __Infer<typeof Message>
 
-export const MessagePart = __t.object("MessagePart", {
+export const MessagePart = __t.object('MessagePart', {
   file: __t.option(__t.string()),
   image: __t.option(__t.string()),
   name: __t.option(__t.string()),
   text: __t.option(__t.string()),
-  type: __t.string(),
-});
-export type MessagePart = __Infer<typeof MessagePart>;
+  type: __t.string()
+})
+export type MessagePart = __Infer<typeof MessagePart>
 
-export const Movie = __t.object("Movie", {
+export const Movie = __t.object('Movie', {
   backdropPath: __t.option(__t.string()),
   budget: __t.option(__t.f64()),
   cachedAt: __t.timestamp(),
   get genres() {
-    return __t.array(MovieGenre);
+    return __t.array(MovieGenre)
   },
   id: __t.u32(),
   invalidatedAt: __t.option(__t.timestamp()),
@@ -96,72 +96,72 @@ export const Movie = __t.object("Movie", {
   tmdbId: __t.u32(),
   updatedAt: __t.timestamp(),
   voteAverage: __t.f64(),
-  voteCount: __t.f64(),
-});
-export type Movie = __Infer<typeof Movie>;
+  voteCount: __t.f64()
+})
+export type Movie = __Infer<typeof Movie>
 
-export const MovieGenre = __t.object("MovieGenre", {
+export const MovieGenre = __t.object('MovieGenre', {
   id: __t.f64(),
-  name: __t.string(),
-});
-export type MovieGenre = __Infer<typeof MovieGenre>;
+  name: __t.string()
+})
+export type MovieGenre = __Infer<typeof MovieGenre>
 
-export const MovieGenreInput = __t.object("MovieGenreInput", {
+export const MovieGenreInput = __t.object('MovieGenreInput', {
   id: __t.f64(),
-  name: __t.string(),
-});
-export type MovieGenreInput = __Infer<typeof MovieGenreInput>;
+  name: __t.string()
+})
+export type MovieGenreInput = __Infer<typeof MovieGenreInput>
 
-export const Org = __t.object("Org", {
+export const Org = __t.object('Org', {
   avatarId: __t.option(__t.string()),
   id: __t.u32(),
   name: __t.string(),
   slug: __t.string(),
   updatedAt: __t.timestamp(),
-  userId: __t.identity(),
-});
-export type Org = __Infer<typeof Org>;
+  userId: __t.identity()
+})
+export type Org = __Infer<typeof Org>
 
-export const OrgInvite = __t.object("OrgInvite", {
+export const OrgInvite = __t.object('OrgInvite', {
   email: __t.string(),
   expiresAt: __t.f64(),
   id: __t.u32(),
   isAdmin: __t.bool(),
   orgId: __t.u32(),
-  token: __t.string(),
-});
-export type OrgInvite = __Infer<typeof OrgInvite>;
+  token: __t.string()
+})
+export type OrgInvite = __Infer<typeof OrgInvite>
 
-export const OrgJoinRequest = __t.object("OrgJoinRequest", {
+export const OrgJoinRequest = __t.object('OrgJoinRequest', {
   id: __t.u32(),
   message: __t.option(__t.string()),
   orgId: __t.u32(),
   status: __t.string(),
-  userId: __t.identity(),
-});
-export type OrgJoinRequest = __Infer<typeof OrgJoinRequest>;
+  userId: __t.identity()
+})
+export type OrgJoinRequest = __Infer<typeof OrgJoinRequest>
 
-export const OrgMember = __t.object("OrgMember", {
+export const OrgMember = __t.object('OrgMember', {
   id: __t.u32(),
   isAdmin: __t.bool(),
   orgId: __t.u32(),
   updatedAt: __t.timestamp(),
-  userId: __t.identity(),
-});
-export type OrgMember = __Infer<typeof OrgMember>;
+  userId: __t.identity()
+})
+export type OrgMember = __Infer<typeof OrgMember>
 
-export const OrgProfile = __t.object("OrgProfile", {
+export const OrgProfile = __t.object('OrgProfile', {
   avatar: __t.option(__t.string()),
   bio: __t.option(__t.string()),
   displayName: __t.string(),
   notifications: __t.bool(),
   theme: __t.string(),
   updatedAt: __t.timestamp(),
-  userId: __t.identity(),
-});
-export type OrgProfile = __Infer<typeof OrgProfile>;
+  userId: __t.identity()
+})
+export type OrgProfile = __Infer<typeof OrgProfile>
 
-export const Project = __t.object("Project", {
+export const Project = __t.object('Project', {
   description: __t.option(__t.string()),
   editors: __t.option(__t.array(__t.identity())),
   id: __t.u32(),
@@ -169,11 +169,11 @@ export const Project = __t.object("Project", {
   orgId: __t.u32(),
   status: __t.option(__t.string()),
   updatedAt: __t.timestamp(),
-  userId: __t.identity(),
-});
-export type Project = __Infer<typeof Project>;
+  userId: __t.identity()
+})
+export type Project = __Infer<typeof Project>
 
-export const Task = __t.object("Task", {
+export const Task = __t.object('Task', {
   assigneeId: __t.option(__t.identity()),
   completed: __t.option(__t.bool()),
   id: __t.u32(),
@@ -182,11 +182,11 @@ export const Task = __t.object("Task", {
   projectId: __t.u32(),
   title: __t.string(),
   updatedAt: __t.timestamp(),
-  userId: __t.identity(),
-});
-export type Task = __Infer<typeof Task>;
+  userId: __t.identity()
+})
+export type Task = __Infer<typeof Task>
 
-export const Wiki = __t.object("Wiki", {
+export const Wiki = __t.object('Wiki', {
   content: __t.option(__t.string()),
   deletedAt: __t.option(__t.timestamp()),
   editors: __t.option(__t.array(__t.identity())),
@@ -196,7 +196,6 @@ export const Wiki = __t.object("Wiki", {
   status: __t.string(),
   title: __t.string(),
   updatedAt: __t.timestamp(),
-  userId: __t.identity(),
-});
-export type Wiki = __Infer<typeof Wiki>;
-
+  userId: __t.identity()
+})
+export type Wiki = __Infer<typeof Wiki>

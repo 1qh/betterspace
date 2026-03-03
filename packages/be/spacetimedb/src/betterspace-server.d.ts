@@ -24,9 +24,7 @@ interface TableLike<Row = Record<string, unknown>> extends Iterable<Row> {
   update: (row: Row) => Row
 }
 
-interface DbLike {
-  [key: string]: TableLike
-}
+type DbLike = Record<string, TableLike>
 
 interface ExportRecord {
   exports: Record<string, ModuleExport>
@@ -57,17 +55,19 @@ interface CacheConfig {
 
 interface OrgConfig {
   builders: Record<string, unknown>
-  cascadeTables?: Array<{
+  cascadeTables?: {
     deleteById: (db: DbLike, id: unknown) => boolean
     rowsByOrg: (db: DbLike, orgId: unknown) => Iterable<{ id: unknown }>
-  }>
+  }[]
   fields: Record<string, unknown>
   orgByUserIndex: (table: TableLike) => Iterable<unknown>
   orgInviteByOrgIndex: (table: TableLike) => { filterByOrg: (orgId: unknown) => Iterable<unknown> } & Iterable<unknown>
   orgInviteByTokenIndex: (table: TableLike) => Iterable<unknown>
   orgInvitePk: (table: TableLike) => PkLike
   orgInviteTable: (db: DbLike) => TableLike
-  orgJoinRequestByOrgIndex: (table: TableLike) => { filterByOrg: (orgId: unknown) => Iterable<unknown> } & Iterable<unknown>
+  orgJoinRequestByOrgIndex: (
+    table: TableLike
+  ) => { filterByOrg: (orgId: unknown) => Iterable<unknown> } & Iterable<unknown>
   orgJoinRequestByOrgStatusIndex: (table: TableLike) => {
     filterByOrgStatus: (orgId: unknown, status: string) => Iterable<unknown>
   } & Iterable<unknown>
@@ -91,7 +91,10 @@ interface FileUploadConfig {
 }
 
 declare const makeCacheCrud: (spacetimedb: unknown, config: CacheConfig) => ExportRecord
-declare const makeChildCrud: (spacetimedb: unknown, config: CrudConfig & { foreignKeyField: unknown; foreignKeyName: string }) => ExportRecord
+declare const makeChildCrud: (
+  spacetimedb: unknown,
+  config: CrudConfig & { foreignKeyField: unknown; foreignKeyName: string }
+) => ExportRecord
 declare const makeCrud: (spacetimedb: unknown, config: CrudConfig) => ExportRecord
 declare const makeFileUpload: (spacetimedb: unknown, config: FileUploadConfig) => ExportRecord
 declare const makeOrg: (spacetimedb: unknown, config: OrgConfig) => ExportRecord

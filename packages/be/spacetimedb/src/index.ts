@@ -1,4 +1,12 @@
-import { makeCacheCrud, makeChildCrud, makeCrud, makeFileUpload, makeOrg, makeOrgCrud, makeSingletonCrud } from './betterspace-server.js'
+import {
+  makeCacheCrud,
+  makeChildCrud,
+  makeCrud,
+  makeFileUpload,
+  makeOrg,
+  makeOrgCrud,
+  makeSingletonCrud
+} from './betterspace-server.js'
 import { schema, t, table } from 'spacetimedb/server'
 
 const messagePart = t.object('MessagePart', {
@@ -324,7 +332,7 @@ const messagePart = t.object('MessagePart', {
       {
         deleteById: (db, id) => db.task.id.delete(id as number),
         rowsByOrg: (db, orgId) => {
-          const rows: Array<{ id: unknown }> = []
+          const rows: { id: unknown }[] = []
           for (const row of db.task.orgId.filter(orgId)) rows.push({ id: row.id })
           return rows
         }
@@ -332,7 +340,7 @@ const messagePart = t.object('MessagePart', {
       {
         deleteById: (db, id) => db.project.id.delete(id as number),
         rowsByOrg: (db, orgId) => {
-          const rows: Array<{ id: unknown }> = []
+          const rows: { id: unknown }[] = []
           for (const row of db.project.orgId.filter(orgId)) rows.push({ id: row.id })
           return rows
         }
@@ -340,7 +348,7 @@ const messagePart = t.object('MessagePart', {
       {
         deleteById: (db, id) => db.wiki.id.delete(id as number),
         rowsByOrg: (db, orgId) => {
-          const rows: Array<{ id: unknown }> = []
+          const rows: { id: unknown }[] = []
           for (const row of db.wiki.orgId.filter(orgId)) rows.push({ id: row.id })
           return rows
         }
@@ -352,22 +360,31 @@ const messagePart = t.object('MessagePart', {
       slug: t.string()
     },
     orgByUserIndex: tbl => tbl.userId,
-    orgInviteByOrgIndex: tbl => ({ filterByOrg: orgId => tbl.orgId.filter(orgId), [Symbol.iterator]: () => tbl[Symbol.iterator]() }),
+    orgInviteByOrgIndex: tbl => ({
+      filterByOrg: orgId => tbl.orgId.filter(orgId),
+      [Symbol.iterator]: () => tbl[Symbol.iterator]()
+    }),
     orgInviteByTokenIndex: tbl => tbl.token,
     orgInvitePk: tbl => tbl.id,
     orgInviteTable: db => db.orgInvite,
-    orgJoinRequestByOrgIndex: tbl => ({ filterByOrg: orgId => tbl.orgId.filter(orgId), [Symbol.iterator]: () => tbl[Symbol.iterator]() }),
+    orgJoinRequestByOrgIndex: tbl => ({
+      filterByOrg: orgId => tbl.orgId.filter(orgId),
+      [Symbol.iterator]: () => tbl[Symbol.iterator]()
+    }),
     orgJoinRequestByOrgStatusIndex: tbl => ({
-          filterByOrgStatus: (orgId, status) => {
-            const out: unknown[] = []
-            for (const row of tbl.orgId.filter(orgId)) if (row.status === status) out.push(row)
-            return out
-          },
+      filterByOrgStatus: (orgId, status) => {
+        const out: unknown[] = []
+        for (const row of tbl.orgId.filter(orgId)) if (row.status === status) out.push(row)
+        return out
+      },
       [Symbol.iterator]: () => tbl[Symbol.iterator]()
     }),
     orgJoinRequestPk: tbl => tbl.id,
     orgJoinRequestTable: db => db.orgJoinRequest,
-    orgMemberByOrgIndex: tbl => ({ filterByOrg: orgId => tbl.orgId.filter(orgId), [Symbol.iterator]: () => tbl[Symbol.iterator]() }),
+    orgMemberByOrgIndex: tbl => ({
+      filterByOrg: orgId => tbl.orgId.filter(orgId),
+      [Symbol.iterator]: () => tbl[Symbol.iterator]()
+    }),
     orgMemberByUserIndex: tbl => tbl.userId,
     orgMemberPk: tbl => tbl.id,
     orgMemberTable: db => db.orgMember,

@@ -7,12 +7,10 @@ import {
   TypeBuilder as __TypeBuilder,
   t as __t,
   type AlgebraicTypeType as __AlgebraicTypeType,
-  type Infer as __Infer,
-} from "spacetimedb";
+  type Infer as __Infer
+} from 'spacetimedb'
 
-import {
-  MovieGenreInput,
-} from "./types";
+import { MovieGenreInput } from './types'
 
 export default {
   tmdbId: __t.f64(),
@@ -28,5 +26,5 @@ export default {
   tagline: __t.option(__t.option(__t.string())),
   title: __t.option(__t.string()),
   voteAverage: __t.option(__t.f64()),
-  voteCount: __t.option(__t.f64()),
-};
+  voteCount: __t.option(__t.f64())
+}

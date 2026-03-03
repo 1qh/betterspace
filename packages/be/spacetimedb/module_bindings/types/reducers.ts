@@ -3,66 +3,65 @@
 
 /* eslint-disable */
 /* tslint:disable */
-import { type Infer as __Infer } from "spacetimedb";
+import { type Infer as __Infer } from 'spacetimedb'
 
 // Import all reducer arg schemas
-import CreateBlogReducer from "../create_blog_reducer";
-import RmBlogReducer from "../rm_blog_reducer";
-import UpdateBlogReducer from "../update_blog_reducer";
-import CreateChatReducer from "../create_chat_reducer";
-import RmChatReducer from "../rm_chat_reducer";
-import UpdateChatReducer from "../update_chat_reducer";
-import CreateMessageReducer from "../create_message_reducer";
-import RmMessageReducer from "../rm_message_reducer";
-import UpdateMessageReducer from "../update_message_reducer";
-import CreateMovieReducer from "../create_movie_reducer";
-import InvalidateMovieReducer from "../invalidate_movie_reducer";
-import PurgeMovieReducer from "../purge_movie_reducer";
-import RmMovieReducer from "../rm_movie_reducer";
-import UpdateMovieReducer from "../update_movie_reducer";
-import GetBlogProfileReducer from "../get_blog_profile_reducer";
-import UpsertBlogProfileReducer from "../upsert_blog_profile_reducer";
-import GetOrgProfileReducer from "../get_org_profile_reducer";
-import UpsertOrgProfileReducer from "../upsert_org_profile_reducer";
-import CreateProjectReducer from "../create_project_reducer";
-import RmProjectReducer from "../rm_project_reducer";
-import UpdateProjectReducer from "../update_project_reducer";
-import CreateTaskReducer from "../create_task_reducer";
-import RmTaskReducer from "../rm_task_reducer";
-import UpdateTaskReducer from "../update_task_reducer";
-import CreateWikiReducer from "../create_wiki_reducer";
-import RmWikiReducer from "../rm_wiki_reducer";
-import UpdateWikiReducer from "../update_wiki_reducer";
-import DeleteFileFileReducer from "../delete_file_file_reducer";
-import RegisterUploadFileReducer from "../register_upload_file_reducer";
+import CreateBlogReducer from '../create_blog_reducer'
+import RmBlogReducer from '../rm_blog_reducer'
+import UpdateBlogReducer from '../update_blog_reducer'
+import CreateChatReducer from '../create_chat_reducer'
+import RmChatReducer from '../rm_chat_reducer'
+import UpdateChatReducer from '../update_chat_reducer'
+import CreateMessageReducer from '../create_message_reducer'
+import RmMessageReducer from '../rm_message_reducer'
+import UpdateMessageReducer from '../update_message_reducer'
+import CreateMovieReducer from '../create_movie_reducer'
+import InvalidateMovieReducer from '../invalidate_movie_reducer'
+import PurgeMovieReducer from '../purge_movie_reducer'
+import RmMovieReducer from '../rm_movie_reducer'
+import UpdateMovieReducer from '../update_movie_reducer'
+import GetBlogProfileReducer from '../get_blog_profile_reducer'
+import UpsertBlogProfileReducer from '../upsert_blog_profile_reducer'
+import GetOrgProfileReducer from '../get_org_profile_reducer'
+import UpsertOrgProfileReducer from '../upsert_org_profile_reducer'
+import CreateProjectReducer from '../create_project_reducer'
+import RmProjectReducer from '../rm_project_reducer'
+import UpdateProjectReducer from '../update_project_reducer'
+import CreateTaskReducer from '../create_task_reducer'
+import RmTaskReducer from '../rm_task_reducer'
+import UpdateTaskReducer from '../update_task_reducer'
+import CreateWikiReducer from '../create_wiki_reducer'
+import RmWikiReducer from '../rm_wiki_reducer'
+import UpdateWikiReducer from '../update_wiki_reducer'
+import DeleteFileFileReducer from '../delete_file_file_reducer'
+import RegisterUploadFileReducer from '../register_upload_file_reducer'
 
-export type CreateBlogParams = __Infer<typeof CreateBlogReducer>;
-export type RmBlogParams = __Infer<typeof RmBlogReducer>;
-export type UpdateBlogParams = __Infer<typeof UpdateBlogReducer>;
-export type CreateChatParams = __Infer<typeof CreateChatReducer>;
-export type RmChatParams = __Infer<typeof RmChatReducer>;
-export type UpdateChatParams = __Infer<typeof UpdateChatReducer>;
-export type CreateMessageParams = __Infer<typeof CreateMessageReducer>;
-export type RmMessageParams = __Infer<typeof RmMessageReducer>;
-export type UpdateMessageParams = __Infer<typeof UpdateMessageReducer>;
-export type CreateMovieParams = __Infer<typeof CreateMovieReducer>;
-export type InvalidateMovieParams = __Infer<typeof InvalidateMovieReducer>;
-export type PurgeMovieParams = __Infer<typeof PurgeMovieReducer>;
-export type RmMovieParams = __Infer<typeof RmMovieReducer>;
-export type UpdateMovieParams = __Infer<typeof UpdateMovieReducer>;
-export type GetBlogProfileParams = __Infer<typeof GetBlogProfileReducer>;
-export type UpsertBlogProfileParams = __Infer<typeof UpsertBlogProfileReducer>;
-export type GetOrgProfileParams = __Infer<typeof GetOrgProfileReducer>;
-export type UpsertOrgProfileParams = __Infer<typeof UpsertOrgProfileReducer>;
-export type CreateProjectParams = __Infer<typeof CreateProjectReducer>;
-export type RmProjectParams = __Infer<typeof RmProjectReducer>;
-export type UpdateProjectParams = __Infer<typeof UpdateProjectReducer>;
-export type CreateTaskParams = __Infer<typeof CreateTaskReducer>;
-export type RmTaskParams = __Infer<typeof RmTaskReducer>;
-export type UpdateTaskParams = __Infer<typeof UpdateTaskReducer>;
-export type CreateWikiParams = __Infer<typeof CreateWikiReducer>;
-export type RmWikiParams = __Infer<typeof RmWikiReducer>;
-export type UpdateWikiParams = __Infer<typeof UpdateWikiReducer>;
-export type DeleteFileFileParams = __Infer<typeof DeleteFileFileReducer>;
-export type RegisterUploadFileParams = __Infer<typeof RegisterUploadFileReducer>;
-
+export type CreateBlogParams = __Infer<typeof CreateBlogReducer>
+export type RmBlogParams = __Infer<typeof RmBlogReducer>
+export type UpdateBlogParams = __Infer<typeof UpdateBlogReducer>
+export type CreateChatParams = __Infer<typeof CreateChatReducer>
+export type RmChatParams = __Infer<typeof RmChatReducer>
+export type UpdateChatParams = __Infer<typeof UpdateChatReducer>
+export type CreateMessageParams = __Infer<typeof CreateMessageReducer>
+export type RmMessageParams = __Infer<typeof RmMessageReducer>
+export type UpdateMessageParams = __Infer<typeof UpdateMessageReducer>
+export type CreateMovieParams = __Infer<typeof CreateMovieReducer>
+export type InvalidateMovieParams = __Infer<typeof InvalidateMovieReducer>
+export type PurgeMovieParams = __Infer<typeof PurgeMovieReducer>
+export type RmMovieParams = __Infer<typeof RmMovieReducer>
+export type UpdateMovieParams = __Infer<typeof UpdateMovieReducer>
+export type GetBlogProfileParams = __Infer<typeof GetBlogProfileReducer>
+export type UpsertBlogProfileParams = __Infer<typeof UpsertBlogProfileReducer>
+export type GetOrgProfileParams = __Infer<typeof GetOrgProfileReducer>
+export type UpsertOrgProfileParams = __Infer<typeof UpsertOrgProfileReducer>
+export type CreateProjectParams = __Infer<typeof CreateProjectReducer>
+export type RmProjectParams = __Infer<typeof RmProjectReducer>
+export type UpdateProjectParams = __Infer<typeof UpdateProjectReducer>
+export type CreateTaskParams = __Infer<typeof CreateTaskReducer>
+export type RmTaskParams = __Infer<typeof RmTaskReducer>
+export type UpdateTaskParams = __Infer<typeof UpdateTaskReducer>
+export type CreateWikiParams = __Infer<typeof CreateWikiReducer>
+export type RmWikiParams = __Infer<typeof RmWikiReducer>
+export type UpdateWikiParams = __Infer<typeof UpdateWikiReducer>
+export type DeleteFileFileParams = __Infer<typeof DeleteFileFileReducer>
+export type RegisterUploadFileParams = __Infer<typeof RegisterUploadFileReducer>

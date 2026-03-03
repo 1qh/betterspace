@@ -7,18 +7,18 @@ import {
   TypeBuilder as __TypeBuilder,
   t as __t,
   type AlgebraicTypeType as __AlgebraicTypeType,
-  type Infer as __Infer,
-} from "spacetimedb";
+  type Infer as __Infer
+} from 'spacetimedb'
 
 export default __t.row({
   content: __t.option(__t.string()),
-  deletedAt: __t.option(__t.timestamp()).name("deleted_at"),
+  deletedAt: __t.option(__t.timestamp()).name('deleted_at'),
   editors: __t.option(__t.array(__t.identity())),
   id: __t.u32().primaryKey(),
-  orgId: __t.u32().name("org_id"),
+  orgId: __t.u32().name('org_id'),
   slug: __t.string(),
   status: __t.string(),
   title: __t.string(),
-  updatedAt: __t.timestamp().name("updated_at"),
-  userId: __t.identity().name("user_id"),
-});
+  updatedAt: __t.timestamp().name('updated_at'),
+  userId: __t.identity().name('user_id')
+})

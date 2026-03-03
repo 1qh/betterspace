@@ -33,7 +33,9 @@
       "!!**/Android",
       "!!**/Darwin",
       "!!**/*.xcassets",
-      "!!**/maestro"
+      "!!**/maestro",
+      "!!**/module_bindings",
+      "!!**/betterspace-server.bundle.js"
     ]
   },
   "formatter": {
