@@ -1,303 +1,266 @@
-# Building Forms with betterspace
+# Forms
 
-This tutorial walks through building a blog post editor, starting simple and adding features incrementally. Each section builds on the previous one.
+## zodFromTable
 
-## 1. A basic create form
+`zodFromTable` converts a SpacetimeDB table's column definitions into a Zod schema. This lets you derive form validation schemas directly from your database schema, keeping them in sync automatically.
 
-You have a blog schema and a `crud('blog', owned.blog)` call. Let's build a form to create posts.
+```typescript
+import { zodFromTable } from 'betterspace'
+import { tables } from '@/generated/module_bindings'
 
-```tsx
-import { Form, useForm } from 'betterspace/components'
-import { useMutation } from 'convex/react'
-import { api } from '../../convex/_generated/api'
-import { owned } from '../../convex/t'
+// Generate a Zod schema from the post table
+const postSchema = zodFromTable(tables.post.columns)
+// Automatically excludes: id (autoInc), userId (identity), updatedAt (timestamp)
+// Includes: title (string), content (string), published (bool)
+```
 
-const CreatePost = () => {
-  const create = useMutation(api.blog.create)
+### Options
+
+```typescript
+zodFromTable(columns, {
+  // Only include these fields
+  include: ['title', 'content'],
+
+  // Exclude specific fields (in addition to auto-excluded ones)
+  exclude: ['published'],
+
+  // Make these fields optional in the schema
+  optional: ['content'],
+})
+```
+
+Auto-excluded fields (unless explicitly included):
+- `identity` columns (e.g., `userId`)
+- `timestamp` columns (e.g., `updatedAt`)
+- Auto-increment primary keys (e.g., `id`)
+
+### Practical example
+
+```typescript
+// apps/blog/src/schema-client.ts
+import { zodFromTable } from 'betterspace'
+import { tables } from '@/generated/module_bindings'
+
+// For creating a post: exclude published (defaults to false)
+const createPostSchema = zodFromTable(tables.post.columns, {
+  exclude: ['published'],
+})
+
+// For editing: all fields optional
+const editPostSchema = zodFromTable(tables.post.columns).partial()
+
+// For a profile form
+const profileSchema = zodFromTable(tables.blogProfile.columns)
+
+export { createPostSchema, editPostSchema, profileSchema }
+```
+
+## Integration with @tanstack/react-form
+
+```bash
+bun add @tanstack/react-form zod
+```
+
+```typescript
+'use client'
+
+import { useForm } from '@tanstack/react-form'
+import { zodValidator } from '@tanstack/zod-form-adapter'
+import { useReducer } from 'spacetimedb/react'
+import { reducers } from '@/generated/module_bindings'
+import { createPostSchema } from '@/schema-client'
+
+const CreatePostForm = () => {
+  const createPost = useReducer(reducers.create_post)
+
   const form = useForm({
-    schema: owned.blog,
-    onSubmit: async d => { await create({ ...d, published: false }); return d }
+    defaultValues: {
+      title: '',
+      content: '',
+    },
+    validatorAdapter: zodValidator(),
+    validators: {
+      onChange: createPostSchema,
+    },
+    onSubmit: async ({ value }) => {
+      await createPost({
+        ...value,
+        published: false,
+      })
+      form.reset()
+    },
   })
 
   return (
-    <Form form={form} render={({ Text, Choose, Toggle, Submit }) => (
-      <>
-        <Text name='title' label='Title' />
-        <Text name='content' label='Content' multiline />
-        <Choose name='category' label='Category' />
-        <Toggle name='published' label='Published' />
-        <Submit>Create</Submit>
-      </>
-    )} />
+    <form
+      onSubmit={e => {
+        e.preventDefault()
+        form.handleSubmit()
+      }}
+    >
+      <form.Field
+        name="title"
+        children={field => (
+          <div>
+            <label>Title</label>
+            <input
+              value={field.state.value}
+              onChange={e => field.handleChange(e.target.value)}
+              onBlur={field.handleBlur}
+            />
+            {field.state.meta.errors.map(err => (
+              <span key={err}>{err}</span>
+            ))}
+          </div>
+        )}
+      />
+      <form.Field
+        name="content"
+        children={field => (
+          <div>
+            <label>Content</label>
+            <textarea
+              value={field.state.value}
+              onChange={e => field.handleChange(e.target.value)}
+              onBlur={field.handleBlur}
+            />
+          </div>
+        )}
+      />
+      <button type="submit" disabled={form.state.isSubmitting}>
+        {form.state.isSubmitting ? 'Creating...' : 'Create post'}
+      </button>
+    </form>
   )
 }
+
+export default CreatePostForm
 ```
 
-What's happening:
-- `useForm` takes your Zod schema and generates typed field props
-- `name='title'` is checked at compile time — `name='titl'` is a type error
-- `Choose` auto-generates options from the Zod enum
-- `Toggle` knows `published` is a boolean field — using `<Text name='published' />` would be a type error
-- Zod validation runs on submit — `title.min(1)` enforces non-empty
+## Error handling in forms
 
-![Field type errors](assets/field-errors.png)
+Reducer errors use the `SenderError('CODE: message')` convention. Parse them to show field-level errors:
 
-## 2. Add file upload
+```typescript
+import { extractErrorData } from 'betterspace'
 
-Your schema has `coverImage: cvFile().nullable().optional()`. The `File` field handles upload automatically:
-
-```tsx
-<Form form={form} render={({ Text, Choose, File, Submit }) => (
-  <>
-    <Text name='title' label='Title' />
-    <Text name='content' label='Content' multiline />
-    <Choose name='category' label='Category' />
-    <File name='coverImage' label='Cover Image' accept='image/*' />
-    <Submit>Create</Submit>
-  </>
-)} />
-```
-
-- `<File name='coverImage' />` compiles because `coverImage` is a `cvFile()` field
-- `<File name='title' />` is a compile error — `title` is a string, not a file
-- Upload happens on file selection, form submission sends the storage ID
-- On delete, betterspace auto-cleans the uploaded file from storage
-
-## 3. Edit an existing post
-
-Switch to `useFormMutation` which wires up the mutation and pre-fills values:
-
-```tsx
-import { useFormMutation } from 'betterspace/react'
-import { pickValues } from 'betterspace/zod'
-
-const EditPost = ({ post }: { post: Doc<'blog'> }) => {
-  const form = useFormMutation({
-    mutation: api.blog.update,
-    schema: owned.blog,
-    values: pickValues(owned.blog, post),
-    transform: d => ({ ...d, id: post._id }),
-    onSuccess: () => toast.success('Saved')
-  })
-
-  return (
-    <Form form={form} render={({ Text, Choose, File, Submit }) => (
-      <>
-        <Text name='title' label='Title' />
-        <Text name='content' label='Content' multiline />
-        <Choose name='category' label='Category' />
-        <File name='coverImage' label='Cover Image' accept='image/*' />
-        <Submit>Save</Submit>
-      </>
-    )} />
-  )
-}
-```
-
-- `pickValues` extracts schema-matching fields from the doc (ignores `_id`, `_creationTime`, `userId`)
-- `transform` adds the `id` field before submitting — the schema doesn't have `id` but the mutation needs it
-- Empty optional strings auto-coerce to `undefined`
-
-## 4. Add conflict detection
-
-If two users edit the same post simultaneously, detect the conflict:
-
-```tsx
-const form = useFormMutation({
-  mutation: api.blog.update,
-  schema: owned.blog,
-  values: pickValues(owned.blog, post),
-  transform: d => ({ ...d, id: post._id, expectedUpdatedAt: post.updatedAt }),
-  onSuccess: () => toast.success('Saved')
-})
-```
-
-When the server detects a stale `expectedUpdatedAt`, a `ConflictDialog` appears automatically with three options:
-- **Cancel** — discard your changes
-- **Reload** — fetch the latest version
-- **Overwrite** — force your changes through
-
-No extra UI code needed — the dialog is built into the `Form` component.
-
-## 5. Add auto-save
-
-For a document editor experience, enable auto-save with debounce:
-
-```tsx
 const form = useForm({
-  schema: owned.blog,
-  onSubmit: d => update({ id: post._id, ...d }),
-  autoSave: { enabled: true, debounceMs: 1000 }
-})
-```
-
-Add a save indicator:
-
-```tsx
-import { AutoSaveIndicator } from 'betterspace/components'
-
-<AutoSaveIndicator lastSaved={form.lastSaved} />
-```
-
-This shows "Saved 5s ago" that updates in real-time.
-
-## 6. Add async validation
-
-Check if a slug is already taken while the user types:
-
-```tsx
-export const isSlugAvailable = uniqueCheck(orgScoped.wiki, 'wiki', 'slug')
-
-<Text name='slug' asyncValidate={async v => {
-  const ok = await isSlugAvailable({ value: v, exclude: id })
-  return ok ? undefined : 'Slug already taken'
-}} asyncDebounceMs={500} />
-```
-
-The validation runs 500ms after the user stops typing, and shows inline feedback.
-
-## 7. Build a multi-step wizard
-
-For complex forms like onboarding, use `defineSteps` to split into typed steps:
-
-> [Real example: apps/org/src/app/onboarding/page.tsx](https://github.com/1qh/betterspace/blob/main/apps/org/src/app/onboarding/page.tsx)
-
-```tsx
-import { defineSteps } from 'betterspace/components'
-
-const { StepForm, useStepper } = defineSteps(
-  { id: 'profile', label: 'Profile', schema: profileStep },
-  { id: 'org', label: 'Organization', schema: orgStep },
-  { id: 'preferences', label: 'Preferences', schema: preferencesStep }
-)
-
-const stepper = useStepper({
-  onSubmit: async d => {
-    await upsert({ ...d.profile, ...d.preferences })
-    await createOrg({ name: d.org.name, slug: d.org.slug })
+  onSubmit: async ({ value }) => {
+    try {
+      await createPost(value)
+    } catch (error) {
+      const data = extractErrorData(error)
+      if (data?.code === 'CONFLICT') {
+        form.setFieldMeta('title', meta => ({
+          ...meta,
+          errors: ['A post with this title already exists'],
+        }))
+      }
+    }
   },
-  onSuccess: () => toast.success('Done!')
-})
-
-<StepForm stepper={stepper} submitLabel='Complete'>
-  <StepForm.Step id='profile' render={({ Text, File }) => (
-    <>
-      <Text name='displayName' label='Name' />
-      <File name='avatar' label='Avatar' accept='image/*' />
-    </>
-  )} />
-  <StepForm.Step id='org' render={({ Text }) => (
-    <>
-      <Text name='name' label='Org Name' />
-      <Text name='slug' label='URL Slug' />
-    </>
-  )} />
-  <StepForm.Step id='preferences' render={({ Choose }) => (
-    <Choose name='theme' label='Theme' />
-  )} />
-</StepForm>
-```
-
-Each step has:
-- Its own Zod schema and independent validation
-- Type-isolated fields — `name='displayName'` compiles on the profile step but errors on the org step
-- Navigation guard — warns on unsaved changes
-- Clickable step indicators (previous steps only)
-
-## 8. Add optimistic deletes
-
-For instant-feeling delete buttons:
-
-```tsx
-import { useOptimisticMutation } from 'betterspace/react'
-
-const { execute, isPending } = useOptimisticMutation({
-  mutation: api.blog.rm,
-  onOptimistic: () => onOptimisticRemove?.(),
-  onRollback: () => toast.error('Failed to delete'),
-  onSuccess: () => toast.success('Deleted'),
 })
 ```
 
-The item disappears immediately. If the server rejects, it reappears with an error toast.
+## File uploads
 
-## Available field components
+File uploads go through a Next.js API route that generates S3/MinIO pre-signed URLs. The `useUpload` hook handles the upload flow.
 
-| Component | Zod types | Renders |
-|-----------|-----------|---------|
-| `Text` | `string()`, `string().email()` | Input or textarea (`multiline`) |
-| `Num` | `number()` | Number input |
-| `Choose` | `enum()` | Select dropdown |
-| `Toggle` | `boolean()` | Checkbox or switch |
-| `File` | `cvFile()` | File picker with upload |
-| `Files` | `cvFiles()` | Multi-file picker |
-| `Arr` | `array(string())` | Tag input |
-| `Datepick` | `date()` | Date picker |
-| `Combobox` | `string()` with options | Searchable dropdown |
-| `Submit` | — | Submit button with loading state |
+### API route
 
-All components accept `label`, `placeholder`, `disabled`, and `className` props.
+```typescript
+// app/api/upload/presign/route.ts
+import { createS3UploadPresignedUrl } from 'betterspace/server'
+import { NextResponse } from 'next/server'
 
-## 9. Error handling
+const S3_CONFIG = {
+  accessKeyId: process.env.S3_ACCESS_KEY_ID!,
+  secretAccessKey: process.env.S3_SECRET_ACCESS_KEY!,
+  bucket: process.env.S3_BUCKET!,
+  endpoint: process.env.S3_ENDPOINT ?? 'http://localhost:9000',
+  region: process.env.S3_REGION ?? 'us-east-1',
+}
 
-**Validation errors** — Zod validation runs on submit. Field-level errors appear automatically:
+export const POST = async (req: Request) => {
+  const { filename, contentType, size } = await req.json() as {
+    filename: string
+    contentType: string
+    size: number
+  }
 
-```tsx
-const form = useForm({
-  schema: owned.blog,
-  onSubmit: async d => { await create(d); return d }
-})
+  const key = `uploads/${Date.now()}-${filename}`
+
+  const presigned = await createS3UploadPresignedUrl({
+    ...S3_CONFIG,
+    key,
+    contentType,
+  })
+
+  return NextResponse.json({
+    uploadUrl: presigned.url,
+    storageKey: key,
+    headers: presigned.headers,
+    method: 'PUT',
+  })
+}
 ```
 
-When `title.min(1)` fails, the `<Text name='title' />` field shows "Required" inline — no manual error wiring needed.
+### useUpload hook
 
-**Mutation errors** — `useMutate` and `useFormMutation` show error toasts by default:
+```typescript
+'use client'
 
-```tsx
-const form = useFormMutation({
-  mutation: api.blog.create,
-  schema: owned.blog,
-})
+import useUpload from 'betterspace/react'
+import { useReducer } from 'spacetimedb/react'
+import { reducers } from '@/generated/module_bindings'
+
+const FileUploadForm = () => {
+  const registerUpload = useReducer(reducers.register_upload_file)
+
+  const { upload, isUploading, progress, error } = useUpload({
+    apiEndpoint: '/api/upload/presign',
+    registerFile: async ({ contentType, filename, size, storageKey }) => {
+      await registerUpload({ contentType, filename, size, storageKey })
+      return { storageId: storageKey }
+    },
+  })
+
+  const handleFileChange = async (e: React.ChangeEvent<HTMLInputElement>) => {
+    const file = e.target.files?.[0]
+    if (!file) return
+
+    const result = await upload(file)
+    if (result.ok) {
+      console.log('Uploaded:', result.storageId)
+    } else {
+      console.error('Upload failed:', result.code)
+    }
+  }
+
+  return (
+    <div>
+      <input type="file" onChange={handleFileChange} disabled={isUploading} />
+      {isUploading && <progress value={progress} max={100} />}
+      {error && <span>Upload failed: {error}</span>}
+    </div>
+  )
+}
 ```
 
-If the mutation throws, a toast appears automatically. Customize or disable:
+### Upload flow
 
-```tsx
-const form = useFormMutation({
-  mutation: api.blog.create,
-  schema: owned.blog,
-  onError: e => toast.error(`Failed: ${e.message}`),
-})
+1. User selects a file
+2. `useUpload` calls your API route (`/api/upload/presign`) with file metadata
+3. API route generates a pre-signed S3/MinIO URL
+4. `useUpload` uploads the file directly to S3/MinIO using the pre-signed URL
+5. On success, `registerFile` is called to record the upload in SpacetimeDB via a reducer
+6. The file row is now in the database and visible to subscribers
 
-const form = useFormMutation({
-  mutation: api.blog.create,
-  schema: owned.blog,
-  onError: false,
-})
+This pattern works in local dev (MinIO) and production (S3, R2, etc.) without changing client code.
+
+## Form utilities from betterspace/react
+
+```typescript
+import { buildMeta, getMeta, useForm, useFormMutation } from 'betterspace/react'
 ```
 
-**Rate limit errors** — When `RATE_LIMITED` is returned, the default error toast shows "Too many requests". For custom UX:
-
-```tsx
-import { handleConvexError } from 'betterspace/server'
-
-const form = useFormMutation({
-  mutation: api.blog.create,
-  schema: owned.blog,
-  onError: e => handleConvexError(e, {
-    RATE_LIMITED: () => toast.error('Slow down — try again in a minute'),
-    CONFLICT: () => toast.error('Someone else edited this'),
-    default: () => toast.error('Something went wrong'),
-  }),
-})
-```
-
-**Error boundary** — Wrap pages with `ConvexErrorBoundary` to catch unhandled errors:
-
-```tsx
-import { ConvexErrorBoundary } from 'betterspace/components'
-
-<ConvexErrorBoundary>
-  <BlogEditor />
-</ConvexErrorBoundary>
-```
+These are lower-level utilities for building custom form integrations. For most cases, `@tanstack/react-form` with `zodFromTable` is the recommended approach.

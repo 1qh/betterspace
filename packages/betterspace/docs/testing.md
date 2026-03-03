@@ -1,258 +1,302 @@
 # Testing
 
-betterspace exports test utilities for writing backend tests with [convex-test](https://docs.convex.dev/testing).
+## Local SpacetimeDB for tests
 
-## Setup
+All tests run against a local SpacetimeDB instance. Start it with Docker:
 
 ```bash
-bun add -d convex-test
+docker compose up -d
 ```
 
-```tsx
-import { makeTestAuth } from 'betterspace/test'
-import { getAuthUserId } from '@convex-dev/auth/server'
-import { mutation, query } from './_generated/server'
+Wait for it to be healthy before running tests:
 
-const t = makeTestAuth({ getAuthUserId, mutation, query })
-export const { ensureTestUser, getTestUser, cleanupTestUsers, getAuthUserIdOrTest } = t
+```bash
+docker compose ps  # spacetimedb should show "healthy"
 ```
 
-## Writing Tests
+Publish your module before running integration tests:
 
-```tsx
-import { convexTest } from 'convex-test'
-import { describe, expect, test } from 'bun:test'
-import schema from './schema'
-import { api } from './_generated/api'
+```bash
+spacetime publish my-app-test --module-path packages/be/spacetimedb/
+```
 
-const modules = {
-  './_generated/api.js': async () => import('./_generated/api'),
-  './_generated/server.js': async () => import('./_generated/server'),
-  './blog.ts': async () => import('./blog'),
+Use a separate module name for tests (e.g., `my-app-test`) so tests don't interfere with your dev module.
+
+## Unit tests with Bun
+
+Bun's built-in test runner works for testing pure logic, schema utilities, and server-side helpers.
+
+```typescript
+// packages/be/spacetimedb/__tests__/schema.test.ts
+import { describe, expect, it } from 'bun:test'
+import { zodFromTable } from 'betterspace'
+import { tables } from '../module_bindings'
+
+describe('zodFromTable', () => {
+  it('generates a schema from a table definition', () => {
+    const schema = zodFromTable(tables.post.columns)
+    const result = schema.safeParse({
+      title: 'Hello',
+      content: 'World',
+      published: false,
+    })
+    expect(result.success).toBe(true)
+  })
+
+  it('excludes auto-increment and identity fields by default', () => {
+    const schema = zodFromTable(tables.post.columns)
+    // id, userId, updatedAt are excluded automatically
+    expect(Object.keys(schema.shape)).not.toContain('id')
+    expect(Object.keys(schema.shape)).not.toContain('userId')
+  })
+})
+```
+
+Run unit tests:
+
+```bash
+bun test packages/be/spacetimedb/__tests__/
+```
+
+## Integration tests
+
+Integration tests connect to a real SpacetimeDB instance and call reducers.
+
+### Test helper: connectAsTestUser
+
+SpacetimeDB assigns a stable `Identity` when you reconnect with a saved token. Use this to create deterministic test users:
+
+```typescript
+// test-helpers/connect.ts
+import { DbConnection } from '../module_bindings'
+
+const TOKEN_CACHE = new Map<string, string>()
+
+export const connectAsTestUser = async (name: string): Promise<DbConnection> => {
+  const savedToken = TOKEN_CACHE.get(name)
+
+  return new Promise((resolve, reject) => {
+    const builder = DbConnection.builder()
+      .withUri('ws://localhost:3000')
+      .withModuleName('my-app-test')
+
+    if (savedToken) {
+      builder.withToken(savedToken)
+    }
+
+    builder
+      .onConnect((conn, identity, token) => {
+        TOKEN_CACHE.set(name, token)
+        resolve(conn)
+      })
+      .onError(reject)
+      .build()
+  })
 }
+```
+
+### Writing integration tests
+
+```typescript
+// __tests__/blog.test.ts
+import { afterEach, beforeEach, describe, expect, it } from 'bun:test'
+import { connectAsTestUser } from '../test-helpers/connect'
+import { reducers, tables } from '../module_bindings'
 
 describe('blog CRUD', () => {
-  test('create and read a blog post', async () => {
-    const ctx = convexTest(schema, modules)
-    const userId = await ctx.run(async c =>
-      c.db.insert('users', { email: 'test@example.com', emailVerificationTime: Date.now() })
-    )
-    const asUser = ctx.withIdentity({ subject: userId, tokenIdentifier: `test|${userId}` })
-    const postId = await asUser.mutation(api.blog.create, {
-      title: 'Hello', content: 'World', category: 'tech', published: true
+  let conn: Awaited<ReturnType<typeof connectAsTestUser>>
+
+  beforeEach(async () => {
+    conn = await connectAsTestUser('alice')
+  })
+
+  afterEach(() => {
+    conn.disconnect()
+  })
+
+  it('creates a post', async () => {
+    await conn.reducers.create_post({
+      title: 'Test post',
+      content: 'Test content',
+      published: false,
     })
-    const post = await asUser.query(api.blog.read, { id: postId })
-    expect(post?.title).toBe('Hello')
+
+    // Wait for subscription to update
+    await new Promise(resolve => setTimeout(resolve, 100))
+
+    const posts = [...conn.db.post.iter()]
+    const created = posts.find(p => p.title === 'Test post')
+    expect(created).toBeDefined()
+    expect(created?.published).toBe(false)
+  })
+
+  it('rejects update from non-owner', async () => {
+    // Alice creates a post
+    await conn.reducers.create_post({
+      title: 'Alice post',
+      content: 'Content',
+      published: false,
+    })
+    await new Promise(resolve => setTimeout(resolve, 100))
+
+    const posts = [...conn.db.post.iter()]
+    const post = posts.find(p => p.title === 'Alice post')
+    expect(post).toBeDefined()
+
+    // Bob tries to update it
+    const bob = await connectAsTestUser('bob')
+    await expect(
+      bob.reducers.update_post({ id: post!.id, title: 'Hacked' })
+    ).rejects.toThrow()
+    bob.disconnect()
   })
 })
 ```
 
-## Testing Org-Scoped Endpoints
+## Auth in tests
 
-`makeOrgTestCrud` creates test helpers for org tables with membership and ACL checks:
+SpacetimeDB uses anonymous connections for local testing. Each connection gets a unique `Identity`. Reconnecting with the same token gives the same `Identity`.
 
-```tsx
-import { makeOrgTestCrud } from 'betterspace/test'
+```typescript
+// First connection: gets a new identity + token
+const conn1 = await connectAsTestUser('alice')
+// conn1.identity is alice's identity
 
-export const wikiTest = makeOrgTestCrud({
-  acl: true,
-  mutation,
-  query,
-  table: 'wiki'
-})
+// Disconnect and reconnect: same identity
+conn1.disconnect()
+const conn2 = await connectAsTestUser('alice')
+// conn2.identity === conn1.identity (same hex string)
 ```
 
-```tsx
-const orgId = await ctx.run(async c =>
-  c.db.insert('org', { name: 'Acme', slug: 'acme', updatedAt: Date.now(), userId: ownerId })
-)
-const memberId = await ctx.run(async c =>
-  c.db.insert('orgMember', { isAdmin: false, orgId, updatedAt: Date.now(), userId: memberUserId })
-)
+For tests that need multiple users, call `connectAsTestUser` with different names:
 
-let threw = false
-try {
-  await asMember.mutation(api.wiki.update, { id: wikiId, orgId, title: 'Hacked' })
-} catch (error) {
-  threw = true
-  expect(String(error)).toContain('EDITOR_REQUIRED')
+```typescript
+const alice = await connectAsTestUser('alice')
+const bob = await connectAsTestUser('bob')
+// alice.identity !== bob.identity
+```
+
+Tokens are cached in memory per test run. For persistent tokens across runs, save them to a file:
+
+```typescript
+import { readFileSync, writeFileSync } from 'fs'
+
+const TOKEN_FILE = '.test-tokens.json'
+
+const loadTokens = (): Record<string, string> => {
+  try {
+    return JSON.parse(readFileSync(TOKEN_FILE, 'utf-8')) as Record<string, string>
+  } catch {
+    return {}
+  }
 }
-expect(threw).toBe(true)
-```
 
-## Environment
-
-Set `CONVEX_TEST_MODE=true` when running tests:
-
-```json
-{
-  "scripts": {
-    "test": "CONVEX_TEST_MODE=true bun with-env bun test"
-  }
+const saveTokens = (tokens: Record<string, string>) => {
+  writeFileSync(TOKEN_FILE, JSON.stringify(tokens, null, 2))
 }
 ```
 
-## Testing Soft Delete and Restore
+## E2E tests with Playwright
 
-Tables with `softDelete: true` don't delete documents — they set `deletedAt`. The `restore` endpoint reverses this.
+E2E tests run against the full stack: Next.js dev server + SpacetimeDB.
 
-```tsx
-test('soft delete and restore', async () => {
-  const ctx = convexTest(schema, modules)
-  const userId = await ctx.run(async c =>
-    c.db.insert('users', { email: 'test@example.com', emailVerificationTime: Date.now() })
-  )
-  const asUser = ctx.withIdentity({ subject: userId, tokenIdentifier: `test|${userId}` })
+### Setup
 
-  const id = await asUser.mutation(api.wiki.create, {
-    orgId, slug: 'test', status: 'draft', title: 'Test'
-  })
+```typescript
+// playwright.config.ts
+import { defineConfig } from '@playwright/test'
 
-  await asUser.mutation(api.wiki.rm, { id, orgId })
-
-  const deleted = await asUser.query(api.wiki.read, { id, orgId })
-  expect(deleted.deletedAt).toBeDefined()
-
-  await asUser.mutation(api.wiki.restore, { id, orgId })
-
-  const restored = await asUser.query(api.wiki.read, { id, orgId })
-  expect(restored.deletedAt).toBeUndefined()
+export default defineConfig({
+  testDir: './e2e',
+  timeout: 10_000,
+  use: {
+    baseURL: 'http://localhost:3001',
+  },
+  webServer: {
+    command: 'bun dev',
+    url: 'http://localhost:3001',
+    reuseExistingServer: !process.env.CI,
+  },
 })
 ```
 
-## Testing Rate Limiting
+### Writing E2E tests
 
-Rate limiting is skipped when `CONVEX_TEST_MODE=true`. To test rate limits, either unset the env var or test against a deployed backend.
+```typescript
+// e2e/blog.test.ts
+import { expect, test } from '@playwright/test'
 
-```tsx
-test('rate limit blocks excessive requests', async () => {
-  const ctx = convexTest(schema, modules)
-  const userId = await ctx.run(async c =>
-    c.db.insert('users', { email: 'test@example.com', emailVerificationTime: Date.now() })
-  )
-  const asUser = ctx.withIdentity({ subject: userId, tokenIdentifier: `test|${userId}` })
+test('creates and displays a post', async ({ page }) => {
+  await page.goto('/')
 
-  for (let i = 0; i < 10; i++) {
-    await asUser.mutation(api.blog.create, {
-      title: `Post ${String(i)}`, content: 'Content', category: 'tech', published: true
-    })
-  }
+  // Wait for connection
+  await page.waitForSelector('[data-testid="post-list"]')
 
-  let threw = false
-  try {
-    await asUser.mutation(api.blog.create, {
-      title: 'One too many', content: 'Content', category: 'tech', published: true
-    })
-  } catch (error) {
-    threw = true
-    expect(String(error)).toContain('RATE_LIMITED')
-  }
-  expect(threw).toBe(true)
+  // Create a post
+  await page.click('[data-testid="new-post-button"]')
+  await page.fill('[name="title"]', 'E2E test post')
+  await page.fill('[name="content"]', 'Test content')
+  await page.click('[type="submit"]')
+
+  // Post appears in the list (real-time update)
+  await expect(page.getByText('E2E test post')).toBeVisible()
+})
+
+test('deletes a post', async ({ page }) => {
+  await page.goto('/')
+  await page.waitForSelector('[data-testid="post-list"]')
+
+  const postTitle = `Delete test ${Date.now()}`
+  await page.click('[data-testid="new-post-button"]')
+  await page.fill('[name="title"]', postTitle)
+  await page.fill('[name="content"]', 'To be deleted')
+  await page.click('[type="submit"]')
+
+  await expect(page.getByText(postTitle)).toBeVisible()
+
+  await page.click(`[data-testid="delete-${postTitle}"]`)
+
+  await expect(page.getByText(postTitle)).not.toBeVisible()
 })
 ```
 
-Note: this test only works when `CONVEX_TEST_MODE` is NOT set. `isTestMode()` bypasses rate limits, so the 11th request will succeed in test mode.
+### Running E2E tests
 
-## Testing Search
+```bash
+# Start SpacetimeDB first
+docker compose up -d
 
-Search tests require the `searchIndex` to be defined in your schema. `convex-test` supports search indexes — results match the same behavior as production.
+# Run a single test (recommended during development)
+timeout 30 bun playwright test e2e/blog.test.ts --timeout=8000
 
-```tsx
-test('search returns matching results', async () => {
-  const ctx = convexTest(schema, modules)
-  const userId = await ctx.run(async c =>
-    c.db.insert('users', { email: 'test@example.com', emailVerificationTime: Date.now() })
-  )
-  const asUser = ctx.withIdentity({ subject: userId, tokenIdentifier: `test|${userId}` })
+# Run all E2E tests
+bun test:e2e
+```
 
-  await asUser.mutation(api.blog.create, {
-    title: 'TypeScript Guide', content: 'Learn TypeScript basics', category: 'tech', published: true
-  })
-  await asUser.mutation(api.blog.create, {
-    title: 'Cooking Tips', content: 'Best pasta recipes', category: 'life', published: true
-  })
+Follow the [E2E testing strategy](../AGENTS.md) for timeout rules and debugging hanging tests.
 
-  const results = await asUser.query(api.blog.search, { query: 'TypeScript' })
-  expect(results.length).toBe(1)
-  expect(results[0]?.title).toBe('TypeScript Guide')
+## Test isolation
+
+SpacetimeDB doesn't have built-in test isolation (no per-test database reset). Options:
+
+1. **Use unique identifiers**: prefix test data with a timestamp or UUID so tests don't collide.
+2. **Clean up in afterEach**: call `rm_*` reducers to delete test data after each test.
+3. **Use a fresh module**: publish a new module name for each test run (slower but fully isolated).
+
+```typescript
+// Option 1: unique prefix
+const testId = Date.now()
+await conn.reducers.create_post({
+  title: `Test post ${testId}`,
+  content: 'Content',
+  published: false,
 })
 ```
 
-## Testing Error Cases
+## Running all tests
 
-Test both authorization (wrong user) and authentication (no user) failures to ensure your endpoints reject invalid access.
-
-```tsx
-test('update fails on non-owned document', async () => {
-  const ctx = convexTest(schema, modules)
-  const owner = await ctx.run(async c =>
-    c.db.insert('users', { email: 'owner@test.com', emailVerificationTime: Date.now() })
-  )
-  const other = await ctx.run(async c =>
-    c.db.insert('users', { email: 'other@test.com', emailVerificationTime: Date.now() })
-  )
-
-  const asOwner = ctx.withIdentity({ subject: owner, tokenIdentifier: `test|${owner}` })
-  const asOther = ctx.withIdentity({ subject: other, tokenIdentifier: `test|${other}` })
-
-  const id = await asOwner.mutation(api.blog.create, {
-    title: 'My Post', content: 'Content', category: 'tech', published: true
-  })
-
-  let threw = false
-  try {
-    await asOther.mutation(api.blog.update, { id, title: 'Hacked' })
-  } catch (error) {
-    threw = true
-    expect(String(error)).toContain('NOT_FOUND')
-  }
-  expect(threw).toBe(true)
-})
-
-test('unauthenticated access throws', async () => {
-  const ctx = convexTest(schema, modules)
-  let threw = false
-  try {
-    await ctx.mutation(api.blog.create, {
-      title: 'No Auth', content: 'Content', category: 'tech', published: true
-    })
-  } catch (error) {
-    threw = true
-    expect(String(error)).toContain('NOT_AUTHENTICATED')
-  }
-  expect(threw).toBe(true)
-})
+```bash
+bun test:all
 ```
 
-## Testing Conflict Detection
-
-Pass `expectedUpdatedAt` to detect when another user has modified a document since you loaded it. The server returns `CONFLICT` if the timestamp doesn't match.
-
-```tsx
-test('concurrent edit triggers conflict', async () => {
-  const ctx = convexTest(schema, modules)
-  const userId = await ctx.run(async c =>
-    c.db.insert('users', { email: 'test@example.com', emailVerificationTime: Date.now() })
-  )
-  const asUser = ctx.withIdentity({ subject: userId, tokenIdentifier: `test|${userId}` })
-
-  const id = await asUser.mutation(api.blog.create, {
-    title: 'Original', content: 'Content', category: 'tech', published: true
-  })
-  const post = await asUser.query(api.blog.read, { id })
-  const staleTimestamp = post?.updatedAt
-
-  await asUser.mutation(api.blog.update, { id, title: 'Updated by user A' })
-
-  let threw = false
-  try {
-    await asUser.mutation(api.blog.update, {
-      id, title: 'Updated by user B', expectedUpdatedAt: staleTimestamp
-    })
-  } catch (error) {
-    threw = true
-    expect(String(error)).toContain('CONFLICT')
-  }
-  expect(threw).toBe(true)
-})
-```
+This runs unit tests and E2E tests in parallel. All tests must pass before pushing.

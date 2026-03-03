@@ -1,208 +1,251 @@
 # Data Fetching
 
-## `pub` vs `auth` — Easy Access Control Switching
+SpacetimeDB uses subscriptions, not queries. When you subscribe to a table, you receive the current state and all future changes over a WebSocket. There's no separate "fetch" step.
 
-Every `crud()` call generates two sets of read endpoints: `pub` (public, no auth required) and `auth` (requires authentication). Both have the same API — `list`, `read`, and optionally `search`.
+## Subscriptions are the data layer
 
-```tsx
-const { pub, auth, create, rm, update } = crud('blog', owned.blog)
+```typescript
+'use client'
 
-export const { list, read } = pub   // anyone can list/read blogs
-export const { list, read } = auth  // only logged-in users see blogs
+import { useTable } from 'spacetimedb/react'
+import { tables } from '@/generated/module_bindings'
+
+const Posts = () => {
+  const [posts, isReady] = useTable(tables.post)
+  // posts: Post[] -- all rows, updated in real-time
+  // isReady: boolean -- false until initial sync completes
+}
 ```
 
-Change access control by changing one destructure line — no endpoint rewriting, no middleware changes. Both support the same `where` clauses:
+`isReady` is `false` until the initial subscription sync finishes. After that, `posts` updates automatically whenever any client calls a reducer that modifies the `post` table.
 
-```tsx
-const { pub, auth } = crud('blog', owned.blog, {
-  pub: { where: { published: true } },    // public readers only see published
-  auth: { where: { published: false } },   // logged-in users see drafts
-})
+## Server-side filtering with WHERE
+
+SpacetimeDB subscriptions support SQL WHERE clauses. Use `tables.post.where(...)` to subscribe to a filtered subset:
+
+```typescript
+// Only published posts
+const [published, isReady] = useTable(
+  tables.post.where(r => r.published.eq(true))
+)
+
+// Posts by a specific user
+const [myPosts, isReady] = useTable(
+  tables.post.where(r => r.userId.eq(currentIdentity))
+)
 ```
 
-## Where Clauses and Pagination
+Multiple WHERE subscriptions on the same table work independently. Unsubscribing from one doesn't affect others.
 
-```tsx
-const { items: mine, loadMore, isDone } = useList(api.blog.list, { where: { own: true } })
-const published = usePaginatedQuery(api.blog.list, { where: { published: true } }, { initialNumItems: 20 })
-const expensive = usePaginatedQuery(api.product.list, { where: { price: { $gte: 100 } } }, { initialNumItems: 20 })
-const either = usePaginatedQuery(api.blog.list, { where: { or: [{ category: 'tech' }, { category: 'life' }] } }, { initialNumItems: 20 })
+## Client-side filtering with useList
+
+For filtering that doesn't map cleanly to a single WHERE clause, subscribe to the full table and filter client-side with `useList`:
+
+```typescript
+'use client'
+
+import { useTable } from 'spacetimedb/react'
+import { useList } from 'betterspace/react'
+import { tables } from '@/generated/module_bindings'
+
+const PostList = ({ category }: { category: string }) => {
+  const [posts, isReady] = useTable(tables.post)
+
+  const { data, hasMore, loadMore, totalCount } = useList(posts, isReady, {
+    where: { category, published: true },
+    sort: { field: 'updatedAt', direction: 'desc' },
+    pageSize: 20,
+  })
+
+  return (
+    <div>
+      <p>{totalCount} posts</p>
+      <ul>
+        {data.map(post => (
+          <li key={post.id}>{post.title}</li>
+        ))}
+      </ul>
+      {hasMore && <button onClick={loadMore}>Load more</button>}
+    </div>
+  )
+}
 ```
 
-`{ own: true }` uses the `by_user` index automatically. Default where clauses can be set at the factory level:
+### useList options
 
-```tsx
-crud('blog', owned.blog, { pub: { where: { published: true } } })
-```
-
-## Search Configuration
-
-Search is generated only when `search` is configured on `crud(...)`. Three forms:
-
-```tsx
-crud('blog', owned.blog, { search: true })            // defaults: field='text', index='search_field'
-crud('blog', owned.blog, { search: 'content' })       // shorthand: search on 'content' field
-crud('blog', owned.blog, { search: { field: 'content', index: 'my_index' } })  // full config
-```
-
-The string shorthand is typesafe — `search: 'conten'` is a compile error if `conten` is not a field in your schema.
-
-You must add a matching `searchIndex` to your schema table.
-
-## File Upload
-
-`cvFile()` for single file, `cvFiles()` for arrays. Everything is automatic:
-
-- Image compression (max 1920px, auto quality) — disable with `compressImg={false}`
-- Auto-cleanup on doc update/delete (orphaned files removed)
-- URL resolution — `photo` (storage ID) → `photoUrl` (URL string) in query results
-- Rate limited (10 uploads/min), max 10MB per file
-
-## Soft Delete + Undo Toast
-
-> [Real example: apps/org/src/app/wiki/page.tsx — bulk delete with undo](https://github.com/1qh/betterspace/blob/main/apps/org/src/app/wiki/page.tsx)
-
-```tsx
-const { remove } = useSoftDelete({
-  rm: useOrgMutation(api.wiki.rm),
-  restore: useOrgMutation(api.wiki.restore),
-  toast, label: 'wiki page',
-})
-await remove({ id: wikiId })
-```
-
-Bulk version:
-
-```tsx
-const { handleBulkDelete, selected, toggleSelect } = useBulkSelection({
-  bulkRm: useMutation(api.wiki.bulkRm),
-  items: wikis?.page ?? [],
-  orgId: org._id,
-  restore: useOrgMutation(api.wiki.restore),
-  toast, undoLabel: 'wiki page',
-})
-```
-
-Enable soft delete on any table by adding `deletedAt: number().optional()` to the schema and `softDelete: true` to the factory:
-
-```tsx
-orgCrud('wiki', orgScoped.wiki, { acl: true, softDelete: true })
-```
-
-## Singleton CRUD
-
-For 1:1 per-user data — profiles, settings, preferences. Each user gets exactly one record.
-
-> [Real example: packages/be/convex/blogprofile.ts](https://github.com/1qh/betterspace/blob/main/packages/be/convex/blogprofile.ts)
-
-```tsx
-const { get, upsert } = singletonCrud('blogProfile', singleton.blogProfile)
-export { get, upsert }
-```
-
-- `get` — returns the current user's record (or `null`), with file URLs resolved
-- `upsert` — creates on first call, partial-updates on subsequent calls. Handles file cleanup
-
-```tsx
-await upsert({ displayName: 'Jane', theme: 'dark' })
-await upsert({ bio: 'Updated bio' }) // merges — displayName and theme preserved
-```
-
-## Child CRUD
-
-> [Real example: packages/be/convex/message.ts](https://github.com/1qh/betterspace/blob/main/packages/be/convex/message.ts)
-
-```tsx
-export const { create, list, update } = childCrud('message', children.message)
-```
-
-Parent ownership verified automatically. Add `cascade` on the parent to cascade deletes:
-
-```tsx
-crud('chat', owned.chat, { cascade: [{ foreignKey: 'chatId', table: 'message' }] })
-```
-
-### Public Access for Child Resources
-
-```tsx
-const ops = childCrud('message', children.message, { pub: { parentField: 'isPublic' } })
-export const { list: pubList, get: pubGet } = ops.pub
-```
-
-`pub.list` and `pub.get` check the parent document's `isPublic` field before returning data.
-
-## External API Cache
-
-> [Real example: packages/be/convex/movie.ts](https://github.com/1qh/betterspace/blob/main/packages/be/convex/movie.ts)
-
-```tsx
-const c = cacheCrud({
-  table: 'movie', schema: base.movie, key: 'tmdb_id',
-  fetcher: async (_, tmdbId) => {
-    const { id, ...rest } = await tmdb(`/movie/${tmdbId}`, {}).json<TmdbMovie>()
-    return { ...rest, tmdb_id: id }
+```typescript
+useList(data, isReady, {
+  // Filter rows (AND conditions, with optional OR groups)
+  where: {
+    published: true,
+    category: 'tech',
+    or: [{ category: 'news' }],
   },
-  rateLimit: { max: 30, window: 60_000 },
-})
-export const { all, get, load, refresh, invalidate, purge } = c
-```
 
-`load` returns cached or fetches. `refresh` force-refreshes. `purge` cleans expired entries.
+  // Sort by a field
+  sort: { field: 'updatedAt', direction: 'desc' },
+  // Or shorthand:
+  sort: { updatedAt: 'desc' },
 
-## Rate Limiting
-
-Built-in sliding window rate limiting on mutations:
-
-```tsx
-crud('blog', owned.blog, { rateLimit: { max: 10, window: 60_000 } })
-```
-
-`max` requests per `window` (ms) per authenticated user. Uses a single-row sliding window counter per user+table (no write amplification). Returns `RATE_LIMITED` error code when exceeded. Requires `...rateLimitTable()` in schema.
-
-## Performance & Scaling
-
-Where clauses (`$gt`, `$lt`, `$between`, `or`) use `.filter()` at the application level, not database indexes. This works well up to ~1,000 documents per table. Beyond that, queries slow down proportionally — Convex scans all rows then filters in-memory.
-
-| Query pattern | Uses index? | Scales to |
-|--------------|-------------|-----------|
-| `{ own: true }` | Yes (`by_user`) | Millions |
-| `{ category: 'tech' }` | No (runtime filter) | ~1,000 docs |
-| `{ price: { $gte: 100 } }` | No (runtime filter) | ~1,000 docs |
-| `{ or: [...] }` | No (runtime filter) | ~1,000 docs |
-| `pubIndexed` / `authIndexed` | Yes (custom index) | Millions |
-
-For high-volume tables, add Convex indexes and use `pubIndexed`/`authIndexed` instead of where clauses:
-
-```tsx
-blog: ownedTable(owned.blog).index('by_category', ['category'])
-
-const techPosts = useQuery(api.blog.pubIndexed, {
-  index: 'by_category', key: 'category', value: 'tech'
+  // Pagination
+  pageSize: 20,
+  page: 1,  // controlled page (optional)
 })
 ```
 
-Enable `strictFilter: true` in `setup()` to throw instead of warn when a filter set exceeds 1,000 docs. Recommended in production.
+The return value:
 
-Pagination best practices:
-
-- Start with small page sizes (`numItems: 20`)
-- `useList` handles cursor management and `loadMore` automatically
-- Avoid `.collect()` on large tables in custom queries
-
-Convex subscriptions are cleaned up automatically when components unmount. For manual subscriptions in custom hooks, ensure cleanup in the `useEffect` return.
-
-## Browser Devtools Panel
-
-In dev mode, the devtools panel auto-mounts inside `<Form>` components. It tracks subscriptions, mutations, cache, and errors in real time.
-
-![Devtools button in app](assets/devtools-button.png)
-
-![Devtools panel expanded](assets/devtools-panel.png)
-
-For standalone usage:
-
-```tsx
-import { LazyConvexDevtools } from 'betterspace/react'
-
-<LazyConvexDevtools position='bottom-right' defaultTab='subs' />
+```typescript
+{
+  data: T[]        // current page of filtered, sorted rows
+  hasMore: boolean // whether more rows exist beyond current page
+  isLoading: boolean
+  loadMore: () => void
+  page: number
+  totalCount: number
+}
 ```
+
+`useList` is purely client-side. It doesn't make any network requests. All filtering and sorting happens over the in-memory subscription data.
+
+## Comparison operators in where
+
+```typescript
+useList(posts, isReady, {
+  where: {
+    voteCount: { $gte: 100 },
+    releaseYear: { $between: [2020, 2024] },
+  },
+})
+```
+
+Supported operators: `$gt`, `$gte`, `$lt`, `$lte`, `$between`.
+
+## Filtering by current user
+
+Use `own: true` in the where clause to filter rows where `userId` matches the current viewer:
+
+```typescript
+// This requires passing the viewer's identity to matchW internally.
+// For now, filter by identity explicitly:
+const [myPosts, isReady] = useTable(
+  tables.post.where(r => r.userId.eq(identity))
+)
+```
+
+## Pagination patterns
+
+### Infinite scroll (load more)
+
+```typescript
+const { data, hasMore, loadMore } = useList(posts, isReady, {
+  pageSize: 20,
+})
+
+// Render a "Load more" button or use an intersection observer
+```
+
+### Controlled page
+
+```typescript
+const [page, setPage] = useState(1)
+
+const { data, totalCount } = useList(posts, isReady, {
+  pageSize: 20,
+  page,
+})
+
+// Traditional page controls
+const totalPages = Math.ceil(totalCount / 20)
+```
+
+## SSR with the HTTP SQL API
+
+SpacetimeDB exposes an HTTP endpoint for SQL queries. This is ideal for Next.js Server Components where you can't use WebSockets.
+
+```typescript
+// app/posts/page.tsx (Server Component)
+const STDB_URL = process.env.SPACETIMEDB_URL ?? 'http://localhost:3000'
+const MODULE = process.env.MODULE_NAME ?? 'my-app'
+
+type SqlRow = [number, string, string, boolean]
+
+const fetchPosts = async () => {
+  const res = await fetch(`${STDB_URL}/v1/database/${MODULE}/sql`, {
+    method: 'POST',
+    headers: { 'Content-Type': 'text/plain' },
+    body: 'SELECT id, title, content, published FROM post WHERE published = true ORDER BY id DESC LIMIT 20',
+    cache: 'no-store',
+  })
+
+  if (!res.ok) throw new Error('Failed to fetch posts')
+
+  const [result] = await res.json() as [{ rows: SqlRow[] }]
+  return result.rows.map(([id, title, content, published]) => ({
+    id,
+    title,
+    content,
+    published,
+  }))
+}
+
+const PostsPage = async () => {
+  const posts = await fetchPosts()
+  return (
+    <ul>
+      {posts.map(post => (
+        <li key={post.id}>{post.title}</li>
+      ))}
+    </ul>
+  )
+}
+
+export default PostsPage
+```
+
+The HTTP SQL API returns:
+
+```json
+[{
+  "schema": {
+    "elements": [
+      { "name": "id", "algebraicType": { "tag": "U32" } },
+      { "name": "title", "algebraicType": { "tag": "String" } }
+    ]
+  },
+  "rows": [[1, "Hello world"], [2, "Second post"]],
+  "total_duration_micros": 269
+}]
+```
+
+Latency is ~0.27ms for simple queries on local Docker.
+
+## Views for computed/joined data
+
+SpacetimeDB views are subscribable. Define a view in your module and subscribe to it like any table:
+
+```typescript
+// In your SpacetimeDB module (server-side)
+// Views are defined in SQL and registered with the schema
+// They update automatically when underlying tables change
+
+// Client-side subscription to a view
+const [postsWithAuthors, isReady] = useTable(tables.post_with_author)
+```
+
+Views are useful for:
+- Joining tables (post + user profile)
+- Filtering by `ctx.sender` for per-user data (read-side ACL)
+- Computing derived fields
+
+## No loading spinners for updates
+
+Because subscriptions push deltas, you don't need to show a loading state when a reducer runs. The UI updates within ~39ms (local Docker). Optimistic updates are unnecessary at this latency.
+
+If you're deploying to Maincloud and latency is higher, you can add optimistic updates later. The `useOptimisticMutation` hook from `betterspace/react` provides a placeholder API for this.
+
+## Known limitations
+
+- Subscriptions don't support `ORDER BY` or `LIMIT`. Sort and paginate client-side with `useList`.
+- `ctx.http.fetch()` inside procedures panics in local Docker (networking issue). Use Next.js API routes for external HTTP calls.
+- No built-in rate limiting. See [custom queries](./custom-queries.md) for a manual approach.

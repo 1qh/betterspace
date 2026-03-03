@@ -1,175 +1,201 @@
 # Ejecting from betterspace
 
-betterspace is designed for incremental ejection. You can replace one factory at a time while the rest of your app keeps running.
+If you outgrow betterspace or want full control over your SpacetimeDB module, you can eject to raw SpacetimeDB SDK code. The generated bindings stay intact. Only the server-side factory layer is replaced.
 
-## Why eject?
+## What betterspace provides
 
-- You need a query pattern that `crud()` can't express (complex joins, aggregations, graph traversals)
-- You want to remove the dependency entirely
-- You need behavior that conflicts with betterspace's conventions (custom auth, non-standard ownership)
+The factories (`makeCrud`, `makeOrgCrud`, etc.) generate reducer definitions. Ejecting means writing those reducers manually instead of using the factories.
 
-## The spectrum
+The client-side hooks (`useList`, `usePresence`, `useUpload`) are independent utilities. You can keep using them after ejecting from the server factories.
 
-You don't have to eject everything. Most apps settle somewhere in the middle:
+## Step 1: understand what the factories generate
 
-```
-Full betterspace ←───────────────────────────→ Full raw Convex
+For a `makeCrud` call like:
 
-crud() for all   crud() + custom    custom only,     no betterspace
-tables           queries on hot     keep schemas     at all
-                 paths
-```
-
-## Step 1: Identify what to eject
-
-Replace a `crud()` call only when you need behavior it doesn't support. Keep it for tables where standard CRUD is sufficient.
-
-Signs a table needs ejecting:
-- You're using `pq`/`q`/`m` for most operations on that table
-- The runtime filter warning (`RUNTIME_FILTER_WARN_THRESHOLD`) fires consistently
-- You need transactions spanning multiple tables
-- You need custom subscriptions or real-time patterns
-
-## Step 2: Write raw Convex equivalents
-
-For each generated endpoint you want to replace, write the raw Convex version. Here's `crud('blog', owned.blog)` fully ejected:
-
-### list → query
-
-```tsx
-import { paginationOptsValidator } from 'convex/server'
-import { v } from 'convex/values'
-
-import { query } from './_generated/server'
-
-export const list = query({
-  args: { paginationOpts: paginationOptsValidator },
-  handler: async (ctx, { paginationOpts }) => {
-    return ctx.db.query('blog').order('desc').paginate(paginationOpts)
-  }
+```typescript
+const postCrud = makeCrud(spacetimedb, {
+  fields: { title: t.string(), content: t.string(), published: t.bool() },
+  idField: t.u32(),
+  pk: tbl => tbl.id,
+  table: db => db.post,
+  tableName: 'post',
 })
 ```
 
-### create → mutation
+The factory generates these three reducers:
 
-```tsx
-import { v } from 'convex/values'
-
-import { mutation } from './_generated/server'
-
-export const create = mutation({
-  args: { category: v.string(), content: v.string(), published: v.boolean(), title: v.string() },
-  handler: async (ctx, args) => {
-    const userId = await getAuthUserId(ctx)
-    if (!userId) throw new Error('Not authenticated')
-    return ctx.db.insert('blog', { ...args, userId, updatedAt: Date.now() })
+```typescript
+// create_post
+spacetimedb.reducer(
+  { name: 'create_post' },
+  { title: t.string(), content: t.string(), published: t.bool() },
+  (ctx, args) => {
+    ctx.db.post.insert({
+      id: 0,
+      title: args.title,
+      content: args.content,
+      published: args.published,
+      updatedAt: ctx.timestamp,
+      userId: ctx.sender,
+    })
   }
+)
+
+// update_post
+spacetimedb.reducer(
+  { name: 'update_post' },
+  { id: t.u32(), title: t.string().optional(), content: t.string().optional(), published: t.bool().optional() },
+  (ctx, args) => {
+    const post = ctx.db.post.id.find(args.id)
+    if (!post) throw new SenderError('NOT_FOUND: post:update')
+    if (!post.userId.isEqual(ctx.sender)) throw new SenderError('FORBIDDEN: post:update')
+    ctx.db.post.id.update({
+      ...post,
+      ...(args.title !== undefined && { title: args.title }),
+      ...(args.content !== undefined && { content: args.content }),
+      ...(args.published !== undefined && { published: args.published }),
+      updatedAt: ctx.timestamp,
+    })
+  }
+)
+
+// rm_post
+spacetimedb.reducer(
+  { name: 'rm_post' },
+  { id: t.u32() },
+  (ctx, { id }) => {
+    const post = ctx.db.post.id.find(id)
+    if (!post) throw new SenderError('NOT_FOUND: post:rm')
+    if (!post.userId.isEqual(ctx.sender)) throw new SenderError('FORBIDDEN: post:rm')
+    ctx.db.post.id.delete(id)
+  }
+)
+```
+
+## Step 2: replace factory calls with manual reducers
+
+In your module file, replace:
+
+```typescript
+// Before (with betterspace)
+import { makeCrud } from 'betterspace/server'
+
+const postCrud = makeCrud(spacetimedb, { /* config */ })
+
+const reducers = spacetimedb.exportGroup({
+  ...postCrud.exports,
 })
 ```
 
-### update → mutation
+With:
 
-```tsx
-export const update = mutation({
-  args: { content: v.optional(v.string()), id: v.id('blog'), title: v.optional(v.string()) },
-  handler: async (ctx, { id, ...fields }) => {
-    const userId = await getAuthUserId(ctx)
-    if (!userId) throw new Error('Not authenticated')
-    const doc = await ctx.db.get(id)
-    if (!doc || doc.userId !== userId) throw new Error('Not found')
-    await ctx.db.patch(id, { ...fields, updatedAt: Date.now() })
+```typescript
+// After (raw SpacetimeDB)
+import { SenderError } from 'spacetimedb/server'
+
+const createPost = spacetimedb.reducer(
+  { name: 'create_post' },
+  { title: t.string(), content: t.string(), published: t.bool() },
+  (ctx, args) => {
+    ctx.db.post.insert({
+      id: 0,
+      title: args.title,
+      content: args.content,
+      published: args.published,
+      updatedAt: ctx.timestamp,
+      userId: ctx.sender,
+    })
   }
+)
+
+const updatePost = spacetimedb.reducer(
+  { name: 'update_post' },
+  { id: t.u32(), title: t.string().optional(), content: t.string().optional(), published: t.bool().optional() },
+  (ctx, args) => {
+    const post = ctx.db.post.id.find(args.id)
+    if (!post) throw new SenderError('NOT_FOUND: post:update')
+    if (!post.userId.isEqual(ctx.sender)) throw new SenderError('FORBIDDEN: post:update')
+    ctx.db.post.id.update({
+      ...post,
+      ...(args.title !== undefined && { title: args.title }),
+      ...(args.content !== undefined && { content: args.content }),
+      ...(args.published !== undefined && { published: args.published }),
+      updatedAt: ctx.timestamp,
+    })
+  }
+)
+
+const rmPost = spacetimedb.reducer(
+  { name: 'rm_post' },
+  { id: t.u32() },
+  (ctx, { id }) => {
+    const post = ctx.db.post.id.find(id)
+    if (!post) throw new SenderError('NOT_FOUND: post:rm')
+    if (!post.userId.isEqual(ctx.sender)) throw new SenderError('FORBIDDEN: post:rm')
+    ctx.db.post.id.delete(id)
+  }
+)
+
+const reducers = spacetimedb.exportGroup({
+  create_post: createPost,
+  update_post: updatePost,
+  rm_post: rmPost,
 })
 ```
 
-### rm → mutation
+## Step 3: remove betterspace dependency from the module
 
-```tsx
-export const rm = mutation({
-  args: { id: v.id('blog') },
-  handler: async (ctx, { id }) => {
-    const userId = await getAuthUserId(ctx)
-    if (!userId) throw new Error('Not authenticated')
-    const doc = await ctx.db.get(id)
-    if (!doc || doc.userId !== userId) throw new Error('Not found')
-    await ctx.db.delete(id)
-  }
-})
+```bash
+# In your SpacetimeDB module package
+bun remove betterspace
 ```
 
-## Step 3: Replace one at a time
+Update imports in your module file:
 
-Don't replace everything at once. Replace one endpoint, verify the frontend still works, then proceed.
+```typescript
+// Remove
+import { makeCrud, makeOrgCrud } from 'betterspace/server'
 
-```tsx
-import { crud } from './lazy'
-import { owned } from './t'
-
-export const {
-    create, rm, update // keep these generated
-  } = crud('blog', owned.blog),
-  // replace list with a custom indexed version
-  list = query({
-    args: { paginationOpts: paginationOptsValidator },
-    handler: async (ctx, { paginationOpts }) =>
-      ctx.db.query('blog').withIndex('by_published_date').order('desc').paginate(paginationOpts)
-  })
+// Keep (these are SpacetimeDB SDK imports)
+import { schema, t, table, SenderError } from 'spacetimedb/server'
 ```
 
-The frontend doesn't change — it still imports `api.blog.list`.
+## Step 4: keep or remove client-side utilities
 
-## Step 4: Remove the schema wrapper (optional)
+The client-side hooks (`useList`, `usePresence`, `useUpload`, etc.) are independent of the server factories. You can keep using them:
 
-If you eject all factories for a table, you can also replace the branded schema with a plain Convex table definition:
-
-```tsx
-// Before (betterspace)
-import { ownedTable } from 'betterspace/server'
-import { owned } from './t'
-blog: ownedTable(owned.blog)
-
-// After (raw Convex)
-import { defineTable } from 'convex/server'
-import { v } from 'convex/values'
-blog: defineTable({
-  category: v.string(),
-  content: v.string(),
-  coverImage: v.optional(v.union(v.null(), v.object({ storageId: v.string() }))),
-  published: v.boolean(),
-  title: v.string(),
-  updatedAt: v.float64(),
-  userId: v.string()
-}).index('by_userId', ['userId'])
+```typescript
+// These still work after ejecting from server factories
+import { useList, usePresence, useUpload } from 'betterspace/react'
+import { zodFromTable } from 'betterspace'
 ```
 
-Note: `ownedTable` adds `userId`, `updatedAt`, and the `by_userId` index automatically. When ejecting, you must add these yourself.
+If you want to remove betterspace entirely from the client too, replace:
 
-## Step 5: Remove frontend utilities (optional)
+- `useList` with your own filtering/pagination logic
+- `usePresence` with direct `useTable` + `useReducer` calls
+- `useUpload` with a custom XHR upload implementation
+- `zodFromTable` with manually written Zod schemas
 
-Replace betterspace React hooks with Convex equivalents:
+## Step 5: republish and regenerate
 
-| betterspace | Raw Convex |
-|------------|-----------|
-| `useList(api.blog.list)` | `usePaginatedQuery(api.blog.list, {}, { initialNumItems: 50 })` |
-| `useFormMutation(api.blog.create, owned.blog)` | `useMutation(api.blog.create)` + manual form state |
-| `useSoftDelete(api.blog.rm)` | `useMutation(api.blog.rm)` + manual undo toast |
-| `useOptimisticMutation(...)` | `useMutation(...)` + `optimisticUpdate` option |
+```bash
+spacetime publish my-app --module-path packages/be/spacetimedb/
+spacetime generate --lang typescript --module-path packages/be/spacetimedb/ --out-dir packages/be/spacetimedb/module_bindings/
+```
 
-## What you lose
+The generated bindings are identical whether you used betterspace factories or wrote reducers manually. The reducer names (`create_post`, `update_post`, `rm_post`) are what matter, not how they were defined.
 
-| Feature | Ejected equivalent |
-|---------|-------------------|
-| Zod validation on every mutation | Manual `v.` validators or no validation |
-| Automatic file cleanup on delete/update | Manual `storage.delete()` calls |
-| Conflict detection (`expectedUpdatedAt`) | Manual timestamp comparison |
-| Rate limiting | Manual `rateLimiter` integration |
-| Author enrichment (`withAuthor`) | Manual user join |
-| Where clause filtering | Manual `.filter()` or `.withIndex()` |
-| Branded type safety | Standard TypeScript (still typed, just not branded) |
+## What you lose by ejecting
 
-## What you keep
+- Automatic ownership checks (you write them manually)
+- Conflict detection via `expectedUpdatedAt` (you implement it)
+- Soft delete support (you implement it)
+- Lifecycle hooks (you inline the logic)
+- Future betterspace improvements (you're on your own)
 
-- Your data stays exactly the same — no migration needed
-- Other tables using `crud()` keep working
-- Frontend code that imports from `api.blog.*` doesn't change (same export names)
-- Schema definitions in `t.ts` can stay as documentation even if unused
+## What you gain
+
+- Full control over reducer logic
+- No dependency on betterspace's internal types
+- Ability to deviate from the standard CRUD pattern
