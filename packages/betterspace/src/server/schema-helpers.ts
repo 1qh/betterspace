@@ -43,6 +43,7 @@ const tableDef = (kind: TableDef['kind'], fields: Record<string, unknown>): Tabl
     }
     return table
   },
+  asNever = <T>(v: T): never => v as never,
   zodShapeToFields = <T extends ZodRawShape>(shape: T): Record<string, string> => {
     const out: Record<string, string> = {},
       keys = Object.keys(shape)
@@ -54,31 +55,39 @@ const tableDef = (kind: TableDef['kind'], fields: Record<string, unknown>): Tabl
     return out
   },
   baseTable = <T extends ZodRawShape>(s: BaseSchema<T>) =>
-    tableDef('base', {
-      ...zodShapeToFields(s.shape),
-      updatedAt: 'number'
-    }),
+    asNever(
+      tableDef('base', {
+        ...zodShapeToFields(s.shape),
+        updatedAt: 'number'
+      })
+    ),
   ownedTable = <T extends ZodRawShape>(s: OwnedSchema<T>) =>
-    tableDef('owned', {
-      ...zodShapeToFields(s.shape),
-      updatedAt: 'number',
-      userId: 'identity'
-    }).index('by_user', ['userId']),
+    asNever(
+      tableDef('owned', {
+        ...zodShapeToFields(s.shape),
+        updatedAt: 'number',
+        userId: 'identity'
+      }).index('by_user', ['userId'])
+    ),
   singletonTable = <T extends ZodRawShape>(s: SingletonSchema<T>) =>
-    tableDef('singleton', {
-      ...zodShapeToFields(s.shape),
-      updatedAt: 'number',
-      userId: 'identity'
-    }).index('by_user', ['userId']),
+    asNever(
+      tableDef('singleton', {
+        ...zodShapeToFields(s.shape),
+        updatedAt: 'number',
+        userId: 'identity'
+      }).index('by_user', ['userId'])
+    ),
   orgTable = <T extends ZodRawShape>(s: OrgSchema<T>) =>
-    tableDef('org', {
-      ...zodShapeToFields(s.shape),
-      orgId: 'u32',
-      updatedAt: 'number',
-      userId: 'identity'
-    })
-      .index('by_org', ['orgId'])
-      .index('by_org_user', ['orgId', 'userId']),
+    asNever(
+      tableDef('org', {
+        ...zodShapeToFields(s.shape),
+        orgId: 'u32',
+        updatedAt: 'number',
+        userId: 'identity'
+      })
+        .index('by_org', ['orgId'])
+        .index('by_org_user', ['orgId', 'userId'])
+    ),
   orgChildTable = <T extends ZodRawShape>(
     s: OrgSchema<T>,
     parent: {
@@ -86,93 +95,113 @@ const tableDef = (kind: TableDef['kind'], fields: Record<string, unknown>): Tabl
       table: string
     }
   ) =>
-    tableDef('org-child', {
-      ...zodShapeToFields(s.shape),
-      orgId: 'u32',
-      updatedAt: 'number',
-      userId: 'identity'
-    })
-      .index('by_org', ['orgId'])
-      .index('by_parent', [parent.foreignKey]),
+    asNever(
+      tableDef('org-child', {
+        ...zodShapeToFields(s.shape),
+        orgId: 'u32',
+        updatedAt: 'number',
+        userId: 'identity'
+      })
+        .index('by_org', ['orgId'])
+        .index('by_parent', [parent.foreignKey])
+    ),
   childTable = <T extends ZodRawShape>(s: ZodObject<T>, indexField: string, indexName?: string) =>
-    tableDef('child', {
-      ...zodShapeToFields(s.shape),
-      updatedAt: 'number'
-    }).index(indexName ?? `by_${indexField}`, [indexField]),
+    asNever(
+      tableDef('child', {
+        ...zodShapeToFields(s.shape),
+        updatedAt: 'number'
+      }).index(indexName ?? `by_${indexField}`, [indexField])
+    ),
   orgTables = () => ({
-    org: tableDef('system', {
-      avatarId: 'string?',
-      name: 'string',
-      slug: 'string',
-      updatedAt: 'number',
-      userId: 'identity'
-    })
-      .index('by_slug', ['slug'])
-      .index('by_user', ['userId']),
-    orgInvite: tableDef('system', {
-      email: 'string',
-      expiresAt: 'number',
-      isAdmin: 'boolean',
-      orgId: 'u32',
-      token: 'string'
-    })
-      .index('by_org', ['orgId'])
-      .index('by_token', ['token']),
-    orgJoinRequest: tableDef('system', {
-      message: 'string?',
-      orgId: 'u32',
-      status: 'pending|approved|rejected',
-      userId: 'identity'
-    })
-      .index('by_org', ['orgId'])
-      .index('by_org_status', ['orgId', 'status'])
-      .index('by_user', ['userId']),
-    orgMember: tableDef('system', {
-      isAdmin: 'boolean',
-      orgId: 'u32',
-      updatedAt: 'number',
-      userId: 'identity'
-    })
-      .index('by_org', ['orgId'])
-      .index('by_org_user', ['orgId', 'userId'])
-      .index('by_user', ['userId'])
+    org: asNever(
+      tableDef('system', {
+        avatarId: 'string?',
+        name: 'string',
+        slug: 'string',
+        updatedAt: 'number',
+        userId: 'identity'
+      })
+        .index('by_slug', ['slug'])
+        .index('by_user', ['userId'])
+    ),
+    orgInvite: asNever(
+      tableDef('system', {
+        email: 'string',
+        expiresAt: 'number',
+        isAdmin: 'boolean',
+        orgId: 'u32',
+        token: 'string'
+      })
+        .index('by_org', ['orgId'])
+        .index('by_token', ['token'])
+    ),
+    orgJoinRequest: asNever(
+      tableDef('system', {
+        message: 'string?',
+        orgId: 'u32',
+        status: 'pending|approved|rejected',
+        userId: 'identity'
+      })
+        .index('by_org', ['orgId'])
+        .index('by_org_status', ['orgId', 'status'])
+        .index('by_user', ['userId'])
+    ),
+    orgMember: asNever(
+      tableDef('system', {
+        isAdmin: 'boolean',
+        orgId: 'u32',
+        updatedAt: 'number',
+        userId: 'identity'
+      })
+        .index('by_org', ['orgId'])
+        .index('by_org_user', ['orgId', 'userId'])
+        .index('by_user', ['userId'])
+    )
   }),
   rateLimitTable = () => ({
-    rateLimit: tableDef('system', {
-      count: 'number',
-      key: 'string',
-      table: 'string',
-      windowStart: 'number'
-    }).index('by_table_key', ['table', 'key'])
+    rateLimit: asNever(
+      tableDef('system', {
+        count: 'number',
+        key: 'string',
+        table: 'string',
+        windowStart: 'number'
+      }).index('by_table_key', ['table', 'key'])
+    )
   }),
   uploadTables = () => ({
-    uploadChunk: tableDef('system', {
-      chunkIndex: 'number',
-      storageId: 'string',
-      totalChunks: 'number',
-      uploadId: 'string',
-      userId: 'identity'
-    })
-      .index('by_upload', ['uploadId'])
-      .index('by_user', ['userId']),
-    uploadRateLimit: tableDef('system', {
-      count: 'number',
-      userId: 'identity',
-      windowStart: 'number'
-    }).index('by_user', ['userId']),
-    uploadSession: tableDef('system', {
-      completedChunks: 'number',
-      contentType: 'string',
-      fileName: 'string',
-      finalStorageId: 'string?',
-      status: 'pending|assembling|completed|failed',
-      totalChunks: 'number',
-      totalSize: 'number',
-      uploadId: 'string',
-      userId: 'identity'
-    })
-      .index('by_upload_id', ['uploadId'])
-      .index('by_user', ['userId'])
+    uploadChunk: asNever(
+      tableDef('system', {
+        chunkIndex: 'number',
+        storageId: 'string',
+        totalChunks: 'number',
+        uploadId: 'string',
+        userId: 'identity'
+      })
+        .index('by_upload', ['uploadId'])
+        .index('by_user', ['userId'])
+    ),
+    uploadRateLimit: asNever(
+      tableDef('system', {
+        count: 'number',
+        userId: 'identity',
+        windowStart: 'number'
+      }).index('by_user', ['userId'])
+    ),
+    uploadSession: asNever(
+      tableDef('system', {
+        completedChunks: 'number',
+        contentType: 'string',
+        fileName: 'string',
+        finalStorageId: 'string?',
+        status: 'pending|assembling|completed|failed',
+        totalChunks: 'number',
+        totalSize: 'number',
+        uploadId: 'string',
+        userId: 'identity'
+      })
+        .index('by_upload_id', ['uploadId'])
+        .index('by_user', ['userId'])
+    )
   })
 
 interface CheckSchemaOutput {
