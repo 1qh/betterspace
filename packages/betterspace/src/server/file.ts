@@ -1,43 +1,31 @@
-import type { ActionBuilder, GenericDataModel, MutationBuilder, QueryBuilder } from 'convex/server'
+import type { Identity, Timestamp } from 'spacetimedb'
+import type { TypeBuilder } from 'spacetimedb/server'
 
-import { anyApi } from 'convex/server'
-import { ConvexError, v } from 'convex/values'
-
-import type { DbLike, ErrorCode, FilterLike, Rec } from './types'
+import type {
+  FileUploadConfig,
+  FileUploadExports,
+  FileUploadPkLike,
+  FileUploadTableLike,
+  S3PresignDownloadOptions,
+  S3PresignedUrl,
+  S3PresignUploadOptions
+} from './types/file'
 
 import { BYTES_PER_MB } from '../constants'
-import { idx } from './bridge'
-import { isTestMode } from './env'
-import { log } from './helpers'
 
-interface FileActionCtx {
-  runMutation: (...a: unknown[]) => Promise<unknown>
-  runQuery: (...a: unknown[]) => Promise<unknown>
-  storage: FileStor
+interface FileRowBase<Id> {
+  contentType: string
+  filename: string
+  id: Id
+  size: number
+  storageKey: string
+  uploadedAt: Timestamp
+  userId: Identity
 }
 
-interface FileCtx {
-  db: DbLike
-  storage: FileStor
-}
-interface FileStor {
-  delete: (id: string) => Promise<void>
-  generateUploadUrl: () => Promise<string>
-  get: (id: string) => Promise<Blob | null>
-  getUrl: (id: string) => Promise<null | string>
-  store: (blob: Blob) => Promise<string>
-}
-
-interface FileUploadConfig<DM extends GenericDataModel = GenericDataModel> {
-  action: ActionBuilder<DM, 'public'>
-  allowedTypes?: Set<string>
-  getAuthUserId: (ctx: unknown) => Promise<null | string>
-  internalMutation: MutationBuilder<DM, 'internal'>
-  internalQuery: QueryBuilder<DM, 'internal'>
-  maxFileSize?: number
-  mutation: MutationBuilder<DM, 'public'>
-  namespace: string
-  query: QueryBuilder<DM, 'public'>
+interface SenderLike {
+  toHexString?: () => string
+  toString?: () => string
 }
 
 const DEFAULT_ALLOWED_TYPES = new Set([
@@ -55,365 +43,262 @@ const DEFAULT_ALLOWED_TYPES = new Set([
     'text/csv',
     'text/plain'
   ]),
-  DEFAULT_MAX_FILE_SIZE = 10 * BYTES_PER_MB, // eslint-disable-line @typescript-eslint/no-magic-numbers
-  CHUNK_SIZE = 5 * BYTES_PER_MB, // eslint-disable-line @typescript-eslint/no-magic-numbers
-  RATE_LIMIT_WINDOW = 60 * 1000,
-  MAX_UPLOADS_PER_WINDOW = 10,
-  cvErr = (code: ErrorCode, message?: string) => new ConvexError(message ? { code, message } : { code }),
-  /**
-   * Creates a complete file upload system with single-file upload, validation, chunked upload, and progress tracking.
-   * @param config - Upload configuration including builders, auth, allowed types, max size, and namespace
-   * @returns Object with upload, validate, info, chunked upload endpoints, and CHUNK_SIZE constant
-   */
-  makeFileUpload = <DM extends GenericDataModel>(config: FileUploadConfig<DM>) => {
-    const {
-        action,
-        allowedTypes = DEFAULT_ALLOWED_TYPES,
-        getAuthUserId,
-        internalMutation,
-        internalQuery,
-        maxFileSize = DEFAULT_MAX_FILE_SIZE,
-        mutation,
-        namespace,
-        query
-      } = config,
-      tPath = (anyApi as Rec)[namespace] as Rec,
-      authUserId = async (ctx: unknown) => getAuthUserId(ctx),
-      validateFileType = async (
-        storage: { delete: (id: string) => Promise<void> },
-        id: string,
-        contentType: string | undefined
-      ) => {
-        if (!allowedTypes.has(contentType ?? '')) {
-          await storage.delete(id)
-          throw cvErr('INVALID_FILE_TYPE', `File type ${contentType} not allowed`)
-        }
-      },
-      validateFileSize = async (storage: { delete: (id: string) => Promise<void> }, id: string, size: number) => {
-        if (size > maxFileSize) {
-          await storage.delete(id)
-          throw cvErr('FILE_TOO_LARGE', `File size ${size} exceeds ${maxFileSize} bytes`)
-        }
-      },
-      checkRateLimit = async (db: DbLike, userId: string) => {
-        const now = Date.now(),
-          existing = await db
-            .query('uploadRateLimit')
-            .withIndex(
-              'by_user',
-              idx(q => q.eq('userId', userId))
-            )
-            .first()
-        if (!existing) {
-          await db.insert('uploadRateLimit', { count: 1, userId, windowStart: now })
-          return
-        }
-        const windowExpired = now - (existing.windowStart as number) >= RATE_LIMIT_WINDOW
-        if (windowExpired) {
-          await db.patch(existing._id as string, { count: 1, windowStart: now })
-          return
-        }
-        if ((existing.count as number) >= MAX_UPLOADS_PER_WINDOW) throw cvErr('RATE_LIMITED')
-        await db.patch(existing._id as string, { count: (existing.count as number) + 1 })
-      },
-      upload = mutation({
-        handler: async (c: FileCtx) => {
-          const userId = await authUserId(c)
-          if (!userId) throw cvErr('NOT_AUTHENTICATED')
-          if (!isTestMode()) await checkRateLimit(c.db, userId)
-          return c.storage.generateUploadUrl()
-        }
-      } as never),
-      validate = mutation({
-        args: { id: v.id('_storage') },
-        handler: async (c: FileCtx, { id }: { id: string }) => {
-          const userId = await authUserId(c)
-          if (!userId) throw cvErr('NOT_AUTHENTICATED')
-          const meta = await c.db.system.get(id)
-          if (!meta) throw cvErr('FILE_NOT_FOUND')
-          await validateFileType(c.storage, id, meta.contentType as string)
-          await validateFileSize(c.storage, id, meta.size as number)
-          return { contentType: meta.contentType, size: meta.size, valid: true }
-        }
-      } as never),
-      info = query({
-        args: { id: v.id('_storage') },
-        handler: async (c: FileCtx, { id }: { id: string }) => {
-          const userId = await authUserId(c)
-          if (!userId) throw cvErr('NOT_AUTHENTICATED')
-          const [meta, url] = await Promise.all([c.db.system.get(id), c.storage.getUrl(id)])
-          return meta ? { ...meta, url } : null
-        }
-      } as never),
-      startChunkedUpload = mutation({
-        args: {
-          contentType: v.string(),
-          fileName: v.string(),
-          totalChunks: v.number(),
-          totalSize: v.number()
-        },
-        handler: async (
-          c: FileCtx,
-          {
-            contentType,
-            fileName,
-            totalChunks,
-            totalSize
-          }: { contentType: string; fileName: string; totalChunks: number; totalSize: number }
-        ) => {
-          const userId = await authUserId(c)
-          if (!userId) throw cvErr('NOT_AUTHENTICATED')
-          if (!isTestMode()) await checkRateLimit(c.db, userId)
-          if (!allowedTypes.has(contentType)) throw cvErr('INVALID_FILE_TYPE', `File type ${contentType} not allowed`)
-          if (totalSize > maxFileSize) throw cvErr('FILE_TOO_LARGE', `File size ${totalSize} exceeds ${maxFileSize} bytes`)
-          const uploadId = `${userId}_${Date.now()}_${Math.random().toString(36).slice(2)}`
-          await c.db.insert('uploadSession', {
-            completedChunks: 0,
-            contentType,
-            fileName,
-            status: 'pending',
-            totalChunks,
-            totalSize,
-            uploadId,
-            userId
-          })
-          return { uploadId }
-        }
-      } as never),
-      uploadChunk = mutation({
-        args: {
-          chunkIndex: v.number(),
-          uploadId: v.string()
-        },
-        handler: async (c: FileCtx, { chunkIndex, uploadId }: { chunkIndex: number; uploadId: string }) => {
-          const userId = await authUserId(c)
-          if (!userId) throw cvErr('NOT_AUTHENTICATED')
-          const session = await c.db
-            .query('uploadSession')
-            .withIndex(
-              'by_upload_id',
-              idx(q => q.eq('uploadId', uploadId))
-            )
-            .unique()
-          if (!session) throw cvErr('SESSION_NOT_FOUND')
-          if (session.userId !== userId) throw cvErr('UNAUTHORIZED')
-          if (session.status !== 'pending') throw cvErr('INVALID_SESSION_STATE')
-          const existing = await c.db
-            .query('uploadChunk')
-            .withIndex(
-              'by_upload',
-              idx(q => q.eq('uploadId', uploadId))
-            )
-            .filter((q: FilterLike) => q.eq(q.field('chunkIndex'), chunkIndex))
-            .unique()
-          if (existing) throw cvErr('CHUNK_ALREADY_UPLOADED')
-          return c.storage.generateUploadUrl()
-        }
-      } as never),
-      confirmChunk = mutation({
-        args: {
-          chunkIndex: v.number(),
-          storageId: v.id('_storage'),
-          uploadId: v.string()
-        },
-        handler: async (
-          c: FileCtx,
-          { chunkIndex, storageId, uploadId }: { chunkIndex: number; storageId: string; uploadId: string }
-        ) => {
-          const userId = await authUserId(c)
-          if (!userId) throw cvErr('NOT_AUTHENTICATED')
-          const session = await c.db
-            .query('uploadSession')
-            .withIndex(
-              'by_upload_id',
-              idx(q => q.eq('uploadId', uploadId))
-            )
-            .unique()
-          if (!session) throw cvErr('SESSION_NOT_FOUND')
-          if (session.userId !== userId) throw cvErr('UNAUTHORIZED')
-          await c.db.insert('uploadChunk', {
-            chunkIndex,
-            storageId,
-            totalChunks: session.totalChunks,
-            uploadId,
-            userId
-          })
-          const chunks = await c.db
-            .query('uploadChunk')
-            .withIndex(
-              'by_upload',
-              idx(q => q.eq('uploadId', uploadId))
-            )
-            .collect()
-          await c.db.patch(session._id as string, {
-            completedChunks: chunks.length
-          })
-          const allUploaded = chunks.length === session.totalChunks
-          return {
-            allUploaded,
-            completedChunks: chunks.length,
-            totalChunks: session.totalChunks
-          }
-        }
-      } as never),
-      getSessionForAssembly = internalQuery({
-        args: { uploadId: v.string() },
-        handler: async (c: { db: DbLike }, { uploadId }: { uploadId: string }) => {
-          const session = await c.db
-            .query('uploadSession')
-            .withIndex(
-              'by_upload_id',
-              idx(q => q.eq('uploadId', uploadId))
-            )
-            .unique()
-          if (!session) return null
-          const chunks = await c.db
-            .query('uploadChunk')
-            .withIndex(
-              'by_upload',
-              idx(q => q.eq('uploadId', uploadId))
-            )
-            .collect()
-          if (chunks.length !== session.totalChunks) throw cvErr('INCOMPLETE_UPLOAD')
-          return { ...session, chunks }
-        }
-      } as never),
-      finalizeAssembly = internalMutation({
-        args: {
-          chunkStorageIds: v.array(v.id('_storage')),
-          finalStorageId: v.id('_storage'),
-          uploadId: v.string()
-        },
-        handler: async (
-          c: FileCtx,
-          {
-            chunkStorageIds,
-            finalStorageId,
-            uploadId
-          }: { chunkStorageIds: string[]; finalStorageId: string; uploadId: string }
-        ) => {
-          const session = await c.db
-            .query('uploadSession')
-            .withIndex(
-              'by_upload_id',
-              idx(q => q.eq('uploadId', uploadId))
-            )
-            .unique()
-          if (!session) throw cvErr('SESSION_NOT_FOUND')
-          await c.db.patch(session._id as string, { finalStorageId, status: 'completed' })
-          const chunks = await c.db
-              .query('uploadChunk')
-              .withIndex(
-                'by_upload',
-                idx(q => q.eq('uploadId', uploadId))
-              )
-              .collect(),
-            sr = await Promise.allSettled(chunkStorageIds.map(async (id: string) => c.storage.delete(id)))
-          for (const r of sr)
-            if (r.status === 'rejected') log('warn', 'file:chunk_cleanup_failed', { reason: String(r.reason) })
-          await Promise.all(chunks.map(async (chunk: Rec) => c.db.delete(chunk._id as string)))
-        }
-      } as never),
-      assembleChunks = action({
-        args: { uploadId: v.string() },
-        handler: async (
-          c: FileActionCtx,
-          { uploadId }: { uploadId: string }
-        ): Promise<{ contentType: string; size: number; storageId: string }> => {
-          const session = (await c.runQuery(tPath.getSessionForAssembly, { uploadId })) as null | Rec
-          if (!session) throw cvErr('SESSION_NOT_FOUND')
-          if (session.status !== 'pending') throw cvErr('INVALID_SESSION_STATE')
-          const sortedChunks = (session.chunks as Rec[]).toSorted(
-              (a: Rec, b: Rec) => (a.chunkIndex as number) - (b.chunkIndex as number)
-            ),
-            chunkBlobs = await Promise.all(
-              sortedChunks.map(async (chunk: Rec) => {
-                const blob = await c.storage.get(chunk.storageId as string)
-                if (!blob) throw cvErr('CHUNK_NOT_FOUND')
-                return blob
-              })
-            ),
-            combinedBlob = new Blob(chunkBlobs, { type: session.contentType as string }),
-            finalStorageId = await c.storage.store(combinedBlob)
-          await c.runMutation(tPath.finalizeAssembly, {
-            chunkStorageIds: sortedChunks.map((ch: Rec) => ch.storageId),
-            finalStorageId,
-            uploadId
-          })
-          return {
-            contentType: session.contentType as string,
-            size: session.totalSize as number,
-            storageId: finalStorageId
-          }
-        }
-      } as never),
-      cancelChunkedUpload = mutation({
-        args: { uploadId: v.string() },
-
-        handler: async (c: FileCtx, { uploadId }: { uploadId: string }) => {
-          const userId = await authUserId(c)
-          if (!userId) throw cvErr('NOT_AUTHENTICATED')
-          const session = await c.db
-            .query('uploadSession')
-            .withIndex(
-              'by_upload_id',
-              idx(q => q.eq('uploadId', uploadId))
-            )
-            .unique()
-          if (!session) throw cvErr('SESSION_NOT_FOUND')
-          if (session.userId !== userId) throw cvErr('UNAUTHORIZED')
-          const chunks = await c.db
-              .query('uploadChunk')
-              .withIndex(
-                'by_upload',
-                idx(q => q.eq('uploadId', uploadId))
-              )
-              .collect(),
-            sr = await Promise.allSettled(chunks.map(async (chunk: Rec) => c.storage.delete(chunk.storageId as string)))
-          for (const r of sr)
-            if (r.status === 'rejected') log('warn', 'file:chunk_cleanup_failed', { reason: String(r.reason) })
-          await Promise.all(chunks.map(async (chunk: Rec) => c.db.delete(chunk._id as string)))
-          await c.db.patch(session._id as string, { status: 'failed' })
-          return { cancelled: true }
-        }
-      } as never),
-      getUploadProgress = query({
-        args: { uploadId: v.string() },
-        handler: async (c: { db: DbLike }, { uploadId }: { uploadId: string }) => {
-          const userId = await authUserId(c)
-          if (!userId) throw cvErr('NOT_AUTHENTICATED')
-          const session = await c.db
-            .query('uploadSession')
-            .withIndex(
-              'by_upload_id',
-              idx(q => q.eq('uploadId', uploadId))
-            )
-            .unique()
-          if (!session) return null
-          if (session.userId !== userId) throw cvErr('UNAUTHORIZED')
-          return {
-            completedChunks: session.completedChunks,
-            finalStorageId: session.finalStorageId,
-            progress: Math.round(((session.completedChunks as number) / (session.totalChunks as number)) * 100),
-            status: session.status,
-            totalChunks: session.totalChunks
-          }
-        }
-      } as never)
+  DEFAULT_MAX_FILE_SIZE_MB = 10,
+  CHUNK_SIZE_MB = 5,
+  HEX_RADIX = 16,
+  YEAR_LENGTH = 4,
+  SECONDS_IN_MILLISECOND = 1000,
+  MAX_PRESIGN_EXPIRY_SECONDS = 604_800,
+  DEFAULT_MAX_FILE_SIZE = DEFAULT_MAX_FILE_SIZE_MB * BYTES_PER_MB,
+  CHUNK_SIZE = CHUNK_SIZE_MB * BYTES_PER_MB,
+  DEFAULT_PRESIGN_EXPIRY_SECONDS = 900,
+  ZERO_PREFIX_REGEX = /^0x/u,
+  TRAILING_SLASH_REGEX = /\/$/u,
+  URI_EXTRA_REGEX = /[!'()*]/gu,
+  makeError = (code: string, message: string): Error => new Error(`${code}: ${message}`),
+  makeSenderError = (code: string, message: string): Error => {
+    const senderError = new Error(`${code}: ${message}`)
+    senderError.name = 'SenderError'
+    return senderError
+  },
+  identityEquals = (a: Identity, b: Identity): boolean => {
+    const left = a as unknown as { isEqual?: (v: unknown) => boolean; toHexString?: () => string }
+    if (typeof left.isEqual === 'function') return left.isEqual(b)
+    const right = b as unknown as { toHexString?: () => string }
+    if (typeof left.toHexString === 'function' && typeof right.toHexString === 'function')
+      return left.toHexString() === right.toHexString()
+    return Object.is(a, b)
+  },
+  normalizeHexIdentity = (sender: Identity): string => {
+    const senderLike = sender as unknown as SenderLike,
+      raw = typeof senderLike.toHexString === 'function' ? senderLike.toHexString() : senderLike.toString?.() ?? ''
+    return raw.trim().toLowerCase().replace(ZERO_PREFIX_REGEX, '')
+  },
+  isAuthenticatedSender = (sender: Identity): boolean => {
+    const normalized = normalizeHexIdentity(sender)
+    if (!normalized) return false
+    for (const ch of normalized)
+      if (ch !== '0') return true
+    return false
+  },
+  encodeUriSegment = (value: string): string =>
+    encodeURIComponent(value).replace(URI_EXTRA_REGEX, c => `%${c.charCodeAt(0).toString(HEX_RADIX).toUpperCase()}`),
+  encodeCanonicalPath = (value: string): string => {
+    const segments = value.split('/'),
+      out: string[] = []
+    for (const segment of segments) out.push(encodeUriSegment(segment))
+    if (value.startsWith('/')) return `/${out.join('/')}`
+    return out.join('/')
+  },
+  toHex = (buffer: ArrayBuffer): string => {
+    const bytes = new Uint8Array(buffer)
+    let hex = ''
+    for (const byte of bytes) hex += byte.toString(HEX_RADIX).padStart(2, '0')
+    return hex
+  },
+  toDateParts = (date: Date): { amzDate: string; dateStamp: string } => {
+    const year = date.getUTCFullYear().toString().padStart(YEAR_LENGTH, '0'),
+      month = (date.getUTCMonth() + 1).toString().padStart(2, '0'),
+      day = date.getUTCDate().toString().padStart(2, '0'),
+      hours = date.getUTCHours().toString().padStart(2, '0'),
+      minutes = date.getUTCMinutes().toString().padStart(2, '0'),
+      seconds = date.getUTCSeconds().toString().padStart(2, '0')
     return {
-      assembleChunks,
-      cancelChunkedUpload,
-      CHUNK_SIZE,
-      confirmChunk,
-      finalizeAssembly,
-      getSessionForAssembly,
-      getUploadProgress,
-      info,
-      startChunkedUpload,
-      upload,
-      uploadChunk,
-      validate
+      amzDate: `${year}${month}${day}T${hours}${minutes}${seconds}Z`,
+      dateStamp: `${year}${month}${day}`
+    }
+  },
+  toCanonicalQuery = (params: Record<string, string>): string => {
+    const keys = Object.keys(params).sort(),
+      pairs: string[] = []
+    for (const key of keys) pairs.push(`${encodeUriSegment(key)}=${encodeUriSegment(params[key] ?? '')}`)
+    return pairs.join('&')
+  },
+  hmac = async (key: BufferSource, message: string): Promise<ArrayBuffer> => {
+    const cryptoKey = await crypto.subtle.importKey('raw', key, { hash: 'SHA-256', name: 'HMAC' }, false, ['sign']),
+      data = new TextEncoder().encode(message)
+    return crypto.subtle.sign('HMAC', cryptoKey, data)
+  },
+  sha256Hex = async (value: string): Promise<string> => {
+    const hash = await crypto.subtle.digest('SHA-256', new TextEncoder().encode(value))
+    return toHex(hash)
+  },
+  signingKey = async (secretAccessKey: string, dateStamp: string, region: string): Promise<ArrayBuffer> => {
+    const kDate = await hmac(new TextEncoder().encode(`AWS4${secretAccessKey}`), dateStamp),
+      kRegion = await hmac(kDate, region),
+      kService = await hmac(kRegion, 's3')
+    return hmac(kService, 'aws4_request')
+  },
+  toHost = (endpoint: URL): string => endpoint.port ? `${endpoint.hostname}:${endpoint.port}` : endpoint.hostname,
+  makePresignedRequest = async ({
+    accessKeyId,
+    bucket,
+    contentType,
+    endpoint,
+    expiresInSeconds,
+    key,
+    method,
+    region,
+    secretAccessKey,
+    sessionToken
+  }: {
+    accessKeyId: string
+    bucket: string
+    contentType?: string
+    endpoint: string
+    expiresInSeconds?: number
+    key: string
+    method: 'GET' | 'PUT'
+    region: string
+    secretAccessKey: string
+    sessionToken?: string
+  }): Promise<S3PresignedUrl> => {
+    const now = new Date(),
+      { amzDate, dateStamp } = toDateParts(now),
+      normalizedExpiry = Math.max(1, Math.min(expiresInSeconds ?? DEFAULT_PRESIGN_EXPIRY_SECONDS, MAX_PRESIGN_EXPIRY_SECONDS)),
+      endpointUrl = new URL(endpoint),
+      host = toHost(endpointUrl),
+      pathPrefix = endpointUrl.pathname === '/' ? '' : endpointUrl.pathname.replace(TRAILING_SLASH_REGEX, ''),
+      canonicalObjectPath = `${pathPrefix}/${encodeUriSegment(bucket)}/${key.split('/').map(encodeUriSegment).join('/')}`,
+      canonicalUri = encodeCanonicalPath(canonicalObjectPath),
+      credentialScope = `${dateStamp}/${region}/s3/aws4_request`,
+      headers: Record<string, string> = {
+        host
+      },
+      signedHeaderNames: string[] = ['host']
+
+    if (contentType) {
+      headers['content-type'] = contentType
+      signedHeaderNames.push('content-type')
+    }
+
+    const canonicalHeaders = `${signedHeaderNames.map(name => `${name}:${headers[name]}`).join('\n')}\n`,
+      signedHeaders = signedHeaderNames.join(';'),
+      queryParams: Record<string, string> = {
+        'X-Amz-Algorithm': 'AWS4-HMAC-SHA256',
+        'X-Amz-Credential': `${accessKeyId}/${credentialScope}`,
+        'X-Amz-Date': amzDate,
+        'X-Amz-Expires': String(normalizedExpiry),
+        'X-Amz-SignedHeaders': signedHeaders
+      }
+
+    if (sessionToken) queryParams['X-Amz-Security-Token'] = sessionToken
+
+    const canonicalQuery = toCanonicalQuery(queryParams),
+      canonicalRequest = `${method}\n${canonicalUri}\n${canonicalQuery}\n${canonicalHeaders}\n${signedHeaders}\nUNSIGNED-PAYLOAD`,
+      canonicalRequestHash = await sha256Hex(canonicalRequest),
+      stringToSign = `AWS4-HMAC-SHA256\n${amzDate}\n${credentialScope}\n${canonicalRequestHash}`,
+      keyBytes = await signingKey(secretAccessKey, dateStamp, region),
+      signature = toHex(await hmac(keyBytes, stringToSign)),
+      finalQuery = `${canonicalQuery}&X-Amz-Signature=${signature}`,
+      url = `${endpointUrl.protocol}//${host}${canonicalUri}?${finalQuery}`,
+      clientHeaders: Record<string, string> = {}
+
+    if (contentType) clientHeaders['content-type'] = contentType
+
+    return {
+      expiresAt: now.getTime() + normalizedExpiry * SECONDS_IN_MILLISECOND,
+      headers: clientHeaders,
+      key,
+      method,
+      url
+    }
+  },
+  createS3UploadPresignedUrl = async (options: S3PresignUploadOptions): Promise<S3PresignedUrl> =>
+    makePresignedRequest({ ...options, method: 'PUT' }),
+  createS3DownloadPresignedUrl = async (options: S3PresignDownloadOptions): Promise<S3PresignedUrl> =>
+    makePresignedRequest({ ...options, method: 'GET' }),
+  makeFileUpload = <
+    DB,
+    Id,
+    Row extends FileRowBase<Id>,
+    Tbl extends FileUploadTableLike<Row>,
+    Pk extends FileUploadPkLike<Row, Id>
+  >(
+    spacetimedb: {
+      reducer: (
+        opts: { name: string },
+        params: Record<string, TypeBuilder<unknown, unknown>>,
+        fn: (ctx: { db: DB; sender: Identity; timestamp: Timestamp }, args: unknown) => void
+      ) => unknown
+    },
+    config: FileUploadConfig<DB, Row, Id, Tbl, Pk>
+  ): FileUploadExports => {
+    const {
+        allowedTypes = DEFAULT_ALLOWED_TYPES,
+        maxFileSize = DEFAULT_MAX_FILE_SIZE,
+        namespace,
+        pk: pkAccessor,
+        table: tableAccessor
+      } = config,
+      registerName = `register_upload_${namespace}`,
+      deleteName = `delete_file_${namespace}`,
+      typeBuilder = {} as TypeBuilder<unknown, unknown>,
+      registerReducer = spacetimedb.reducer(
+        { name: registerName },
+        {
+          contentType: typeBuilder,
+          filename: typeBuilder,
+          size: typeBuilder,
+          storageKey: typeBuilder
+        },
+        (
+          ctx,
+          args: {
+            contentType: string
+            filename: string
+            size: number
+            storageKey: string
+          }
+        ) => {
+          if (!isAuthenticatedSender(ctx.sender)) throw makeError('NOT_AUTHENTICATED', `${namespace}:register`)
+          if (!allowedTypes.has(args.contentType))
+            throw makeSenderError('INVALID_FILE_TYPE', `File type ${args.contentType} not allowed`)
+          if (args.size > maxFileSize)
+            throw makeSenderError('FILE_TOO_LARGE', `File size ${args.size} exceeds ${maxFileSize} bytes`)
+
+          const table = tableAccessor(ctx.db)
+          table.insert({
+            contentType: args.contentType,
+            filename: args.filename,
+            id: 0 as Id,
+            size: args.size,
+            storageKey: args.storageKey,
+            uploadedAt: ctx.timestamp,
+            userId: ctx.sender
+          } as Row)
+        }
+      ),
+      deleteReducer = spacetimedb.reducer(
+        { name: deleteName },
+        {
+          fileId: typeBuilder
+        },
+        (ctx, { fileId }: { fileId: Id }) => {
+          if (!isAuthenticatedSender(ctx.sender)) throw makeError('NOT_AUTHENTICATED', `${namespace}:delete`)
+          const table = tableAccessor(ctx.db),
+            pk = pkAccessor(table),
+            row = pk.find(fileId)
+          if (!row) throw makeError('NOT_FOUND', `${namespace}:delete`)
+          if (!identityEquals(row.userId, ctx.sender)) throw makeError('FORBIDDEN', `${namespace}:delete`)
+          const removed = pk.delete(fileId)
+          if (!removed) throw makeError('NOT_FOUND', `${namespace}:delete`)
+        }
+      )
+
+    return {
+      exports: {
+        [deleteName]: deleteReducer,
+        [registerName]: registerReducer
+      }
     }
   }
 
-export { makeFileUpload }
+export {
+  CHUNK_SIZE,
+  createS3DownloadPresignedUrl,
+  createS3UploadPresignedUrl,
+  DEFAULT_ALLOWED_TYPES,
+  DEFAULT_MAX_FILE_SIZE,
+  makeFileUpload
+}

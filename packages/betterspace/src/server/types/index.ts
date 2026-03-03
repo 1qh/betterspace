@@ -67,6 +67,17 @@ export type {
 } from './common'
 export { ERROR_MESSAGES } from './common'
 export type { CascadeOption, CrudBuilders, CrudHooks, CrudOptions, CrudReadApi, CrudResult, DbCtx } from './crud'
+export type {
+  FileRowShape,
+  FileUploadBuilder,
+  FileUploadConfig,
+  FileUploadExports,
+  FileUploadPkLike,
+  FileUploadTableLike,
+  S3PresignDownloadOptions,
+  S3PresignUploadOptions,
+  S3PresignedUrl
+} from './file'
 export type { Middleware, MiddlewareCtx } from './middleware'
 export type { CanEditOpts, OrgCascadeTableConfig, OrgCrudResult } from './org-crud'
 export type { SingletonCrudResult, SingletonDoc, SingletonOptions } from './singleton'
