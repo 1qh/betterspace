@@ -1,98 +1,153 @@
-import { defineTable } from 'convex/server'
-import { v } from 'convex/values'
-import { any, object, string } from 'zod/v4'
+import type { Identity, Timestamp } from 'spacetimedb'
+import type { TypeBuilder } from 'spacetimedb/server'
 
-import type { Mb, MutCtx, Qb, Rec } from './types'
+import { identityEquals, makeError } from './reducer-utils'
 
-import { idx, indexFields, typed } from './bridge'
+interface PresenceRow<Id> {
+  data: string
+  id: Id
+  lastSeen: Timestamp
+  roomId: string
+  userId: Identity
+}
 
-/** Interval in milliseconds between heartbeat pings for presence tracking. */
+interface PresenceTableLike<Row> {
+  insert: (row: Row) => Row
+  iter: () => Iterable<Row>
+}
+
+interface PresencePkLike<Row, Id> {
+  delete: (id: Id) => boolean
+  update: (row: Row) => Row
+}
+
+interface PresenceConfig<
+  DB,
+  Id,
+  Row extends PresenceRow<Id>,
+  Tbl extends PresenceTableLike<Row>,
+  Pk extends PresencePkLike<Row, Id>
+> {
+  dataField: TypeBuilder<unknown, unknown>
+  pk: (table: Tbl) => Pk
+  roomIdField: TypeBuilder<unknown, unknown>
+  table: (db: DB) => Tbl
+  tableName?: string
+}
+
 const HEARTBEAT_INTERVAL_MS = 15_000,
-  /** Time-to-live in milliseconds after which a presence entry is considered stale. */
   PRESENCE_TTL_MS = 30_000,
-  /**
-   * Returns a Convex table definition for the presence table with room and user indexes.
-   * @returns Object with a `presence` table definition
-   */
-  presenceTable = () => ({
-    presence: defineTable({
-      data: v.optional(v.any()),
-      lastSeen: v.number(),
-      roomId: v.string(),
-      userId: v.id('users')
-    })
-      .index('by_room', indexFields('roomId'))
-      .index('by_room_user', indexFields('roomId', 'userId'))
-  }),
-  /**
-   * Creates presence tracking endpoints: heartbeat, list active users, and leave.
-   * @param builders - Object with authenticated mutation (m) and query (q) builders
-   * @returns Object with heartbeat, list, and leave endpoints
-   */
-  makePresence = ({ m, q }: { m: Mb; q: Qb }) => {
-    const heartbeat = m({
-        args: object({ data: any().optional(), roomId: string() }),
-        handler: typed(async (ctx: MutCtx, { data, roomId }: { data?: unknown; roomId: string }) => {
-          const userId = ctx.user._id as string,
-            existing = await ctx.db
-              .query('presence')
-              .withIndex(
-                'by_room_user',
-                idx(ib => ib.eq('roomId', roomId).eq('userId', userId))
-              )
-              .unique(),
-            now = Date.now()
-          if (existing) {
-            const patch: Rec = { lastSeen: now }
-            if (data !== undefined) patch.data = data
-            await ctx.db.patch(existing._id as string, patch)
-          } else
-            await ctx.db.insert('presence', {
-              data: data ?? null,
-              lastSeen: now,
-              roomId,
-              userId
-            })
-        })
+  MICROS_PER_MILLISECOND = 1000n,
+  ZERO_PREFIX_REGEX = /^0x/u,
+  isAuthenticated = (sender: Identity): boolean => {
+    const senderLike = sender as unknown as { toHexString?: () => string; toString?: () => string },
+      raw = typeof senderLike.toHexString === 'function' ? senderLike.toHexString() : (senderLike.toString?.() ?? ''),
+      normalized = raw.trim().toLowerCase().replace(ZERO_PREFIX_REGEX, '')
+    if (!normalized) return false
+    for (const ch of normalized) if (ch !== '0') return true
+    return false
+  },
+  toMicros = (timestamp: Timestamp): bigint => {
+    const value = timestamp as unknown as { microsSinceUnixEpoch?: bigint }
+    return value.microsSinceUnixEpoch ?? 0n
+  },
+  findPresenceRow = <Id, Row extends PresenceRow<Id>>(
+    rows: Iterable<Row>,
+    roomId: string,
+    sender: Identity
+  ): null | Row => {
+    for (const row of rows) if (row.roomId === roomId && identityEquals(row.userId, sender)) return row
+    return null
+  },
+  upsertPresence = <
+    DB,
+    Id,
+    Row extends PresenceRow<Id>,
+    Tbl extends PresenceTableLike<Row>,
+    Pk extends PresencePkLike<Row, Id>
+  >({
+    args,
+    ctx,
+    pk,
+    table
+  }: {
+    args: { data?: string; roomId: string }
+    ctx: { db: DB; sender: Identity; timestamp: Timestamp }
+    pk: Pk
+    table: Tbl
+  }) => {
+    const found = findPresenceRow(table.iter(), args.roomId, ctx.sender)
+    if (found) {
+      pk.update({ ...found, data: args.data ?? found.data, lastSeen: ctx.timestamp })
+      return
+    }
+    table.insert({
+      data: args.data ?? '{}',
+      id: 0 as Id,
+      lastSeen: ctx.timestamp,
+      roomId: args.roomId,
+      userId: ctx.sender
+    } as Row)
+  },
+  presenceTable = <T>(presence: T): { presence: T } => ({ presence }),
+  makePresence = <
+    DB,
+    Id,
+    Row extends PresenceRow<Id>,
+    Tbl extends PresenceTableLike<Row>,
+    Pk extends PresencePkLike<Row, Id>
+  >(
+    spacetimedb: {
+      reducer: (
+        opts: { name: string },
+        params: Record<string, TypeBuilder<unknown, unknown>>,
+        fn: (ctx: { db: DB; sender: Identity; timestamp: Timestamp }, args: unknown) => void
+      ) => unknown
+    },
+    config: PresenceConfig<DB, Id, Row, Tbl, Pk>
+  ) => {
+    const { dataField, pk: pkAccessor, roomIdField, table: tableAccessor, tableName = 'presence' } = config,
+      heartbeatName = `presence_heartbeat_${tableName}`,
+      leaveName = `presence_leave_${tableName}`,
+      cleanupName = `presence_cleanup_${tableName}`,
+      heartbeat = spacetimedb.reducer(
+        { name: heartbeatName },
+        { data: dataField.optional(), roomId: roomIdField },
+        (ctx, args: { data?: string; roomId: string }) => {
+          if (!isAuthenticated(ctx.sender)) throw makeError('NOT_AUTHENTICATED', `${tableName}:heartbeat`)
+          const table = tableAccessor(ctx.db),
+            pk = pkAccessor(table)
+          upsertPresence<DB, Id, Row, Tbl, Pk>({ args, ctx, pk, table })
+        }
+      ),
+      leave = spacetimedb.reducer({ name: leaveName }, { roomId: roomIdField }, (ctx, args: { roomId: string }) => {
+        if (!isAuthenticated(ctx.sender)) throw makeError('NOT_AUTHENTICATED', `${tableName}:leave`)
+        const table = tableAccessor(ctx.db),
+          pk = pkAccessor(table)
+        for (const row of table.iter()) {
+          if (row.roomId === args.roomId && identityEquals(row.userId, ctx.sender)) {
+            const removed = pk.delete(row.id)
+            if (!removed) throw makeError('NOT_FOUND', `${tableName}:leave`)
+            break
+          }
+        }
       }),
-      list = q({
-        args: object({ roomId: string() }),
-        handler: typed(async (ctx: MutCtx, { roomId }: { roomId: string }) => {
-          const cutoff = Date.now() - PRESENCE_TTL_MS,
-            docs = await ctx.db
-              .query('presence')
-              .withIndex(
-                'by_room',
-                idx(ib => ib.eq('roomId', roomId))
-              )
-              .collect(),
-            result: { data: unknown; lastSeen: number; userId: string }[] = []
-          for (const d of docs)
-            if ((d.lastSeen as number) >= cutoff)
-              result.push({
-                data: d.data,
-                lastSeen: d.lastSeen as number,
-                userId: d.userId as string
-              })
-
-          return result
-        })
-      }),
-      leave = m({
-        args: object({ roomId: string() }),
-        handler: typed(async (ctx: MutCtx, { roomId }: { roomId: string }) => {
-          const userId = ctx.user._id as string,
-            existing = await ctx.db
-              .query('presence')
-              .withIndex(
-                'by_room_user',
-                idx(ib => ib.eq('roomId', roomId).eq('userId', userId))
-              )
-              .unique()
-          if (existing) await ctx.db.delete(existing._id as string)
-        })
+      cleanup = spacetimedb.reducer({ name: cleanupName }, {}, ctx => {
+        const table = tableAccessor(ctx.db),
+          pk = pkAccessor(table),
+          cutoffMicros = toMicros(ctx.timestamp) - BigInt(PRESENCE_TTL_MS) * MICROS_PER_MILLISECOND
+        for (const row of table.iter())
+          if (toMicros(row.lastSeen) < cutoffMicros && !pk.delete(row.id))
+            throw makeError('NOT_FOUND', `${tableName}:cleanup`)
       })
-    return { heartbeat, leave, list }
+
+    return {
+      exports: {
+        [cleanupName]: cleanup,
+        [heartbeatName]: heartbeat,
+        [leaveName]: leave
+      }
+    }
   }
 
 export { HEARTBEAT_INTERVAL_MS, makePresence, PRESENCE_TTL_MS, presenceTable }
