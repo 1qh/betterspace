@@ -1,119 +1,96 @@
 'use client'
 
-import type { PaginatedQueryArgs, PaginatedQueryReference } from 'convex/react'
-import type { FunctionReturnType } from 'convex/server'
+import { useCallback, useEffect, useMemo, useState } from 'react'
 
-import { usePaginatedQuery } from 'convex/react'
-import { useEffect, useMemo, useRef } from 'react'
+import { matchW } from '../server/helpers'
 
-import type { PendingMutation } from './optimistic-store'
-
-import { trackSubscription, untrackSubscription, updateSubscription, updateSubscriptionData } from './devtools'
-import { usePendingMutations } from './optimistic-store'
-
-type ListItems<F extends PaginatedQueryReference> = FunctionReturnType<F>['page']
-
-type ListRest<F extends PaginatedQueryReference> =
-  PaginatedQueryArgs<F> extends Record<string, never>
-    ? [args?: PaginatedQueryArgs<F>, options?: UseListOptions]
-    : [args: PaginatedQueryArgs<F>, options?: UseListOptions]
 type Rec = Record<string, unknown>
+type SortDirection = 'asc' | 'desc'
 
-interface UseListOptions {
-  optimistic?: boolean
-  pageSize?: number
+interface SortObject<T extends Rec> {
+  direction?: SortDirection
+  field: keyof T & string
 }
 
-const classifyPending = (pending: PendingMutation[]) => {
-    const deleteIds = new Set<string>(),
-      updates = new Map<string, Rec>(),
-      creates: Rec[] = []
-    for (const p of pending)
-      if (p.type === 'delete') deleteIds.add(p.id)
-      else if (p.type === 'update') {
-        const prev = updates.get(p.id)
-        updates.set(p.id, prev ? { ...prev, ...p.args } : p.args)
-      } else
-        creates.push({
-          ...p.args,
-          __optimistic: true,
-          _creationTime: p.timestamp,
-          _id: p.tempId,
-          updatedAt: p.timestamp
-        })
+type SortMap<T extends Rec> = Partial<Record<keyof T & string, SortDirection>>
+type ListSort<T extends Rec> = SortMap<T> | SortObject<T>
 
-    return { creates, deleteIds, updates }
+type WhereGroup = Rec & { own?: boolean }
+type ListWhere = WhereGroup & { or?: WhereGroup[] }
+
+interface UseListOptions {
+  page?: number
+  pageSize?: number
+  sort?: ListSort<Rec>
+  where?: ListWhere
+}
+
+const DEFAULT_PAGE_SIZE = 50,
+  getSortConfig = <T extends Rec>(sort?: ListSort<T>): null | { direction: SortDirection; field: keyof T & string } => {
+    if (!sort) return null
+    if ('field' in sort) return { direction: sort.direction ?? 'desc', field: sort.field }
+    const keys = Object.keys(sort)
+    if (!keys.length) return null
+    const key = keys[0] as keyof T & string,
+      direction = (sort[key] ?? 'desc') as SortDirection
+    return { direction, field: key }
   },
-  isDev = typeof process !== 'undefined' && process.env.NODE_ENV !== 'production',
-  DEFAULT_PAGE_SIZE = 50,
-  /** Applies pending optimistic creates, updates, and deletes to a list of items. */
-  applyOptimistic = <T extends Rec>(items: T[], pending: PendingMutation[]): T[] => {
-    if (pending.length === 0) return items
-    const { creates, deleteIds, updates } = classifyPending(pending)
-    let result = items
-    if (deleteIds.size > 0) result = result.filter(i => !deleteIds.has((i as Rec)._id as string))
-    if (updates.size > 0)
-      result = result.map(i => {
-        const patch = updates.get((i as Rec)._id as string)
-        return patch ? ({ ...i, ...patch, _id: (i as Rec)._id } as T) : i
-      })
-    if (creates.length > 0) result = [...(creates.toReversed() as T[]), ...result]
-    return result
+  compareValues = (left: unknown, right: unknown): number => {
+    if (left === right) return 0
+    if (left === undefined || left === null) return -1
+    if (right === undefined || right === null) return 1
+    if (typeof left === 'number' && typeof right === 'number') return left - right
+    if (typeof left === 'boolean' && typeof right === 'boolean') return Number(left) - Number(right)
+    if (left instanceof Date && right instanceof Date) return left.getTime() - right.getTime()
+    return String(left).localeCompare(String(right))
   },
-  /**
-   * Paginated list hook with optimistic update support and devtools integration.
-   * @param query A paginated Convex query reference
-   * @example
-   * ```tsx
-   * const { items, loadMore, isDone } = useList(api.blog.list, { where: { published: true } })
-   * ```
-   */
-  useList = <F extends PaginatedQueryReference>(query: F, ...rest: ListRest<F>) => {
-    const queryArgs = (rest[0] ?? {}) as unknown as PaginatedQueryArgs<F>,
-      pageSize = rest[1]?.pageSize ?? DEFAULT_PAGE_SIZE,
-      isOptimistic = rest[1]?.optimistic !== false,
-      { loadMore, results, status } = usePaginatedQuery(query, queryArgs, { initialNumItems: pageSize }),
-      pending = usePendingMutations(),
-      subIdRef = useRef<number>(0)
+  sortData = <T extends Rec>(rows: T[], sort?: ListSort<T>): T[] => {
+    const config = getSortConfig(sort)
+    if (!config) return rows
+    const factor = config.direction === 'asc' ? 1 : -1,
+      out = [...rows]
+    out.sort((a, b) => compareValues(a[config.field], b[config.field]) * factor)
+    return out
+  },
+  useList = <T extends Rec>(data: T[], isReady: boolean, options?: UseListOptions) => {
+    const pageSize = options?.pageSize ?? DEFAULT_PAGE_SIZE,
+      [currentPage, setCurrentPage] = useState(options?.page ?? 1),
+      filtered = useMemo(() => {
+        if (!options?.where) return data
+        const out: T[] = []
+        for (const row of data) if (matchW(row, options.where)) out.push(row)
+        return out
+      }, [data, options?.where]),
+      sorted = useMemo(() => sortData(filtered, options?.sort), [filtered, options?.sort]),
+      totalCount = sorted.length,
+      cappedPageSize = Math.max(1, pageSize),
+      visibleCount = currentPage * cappedPageSize,
+      pagedData = useMemo(() => sorted.slice(0, visibleCount), [sorted, visibleCount]),
+      hasMore = visibleCount < totalCount,
+      loadMore = useCallback(() => {
+        if (!hasMore) return
+        setCurrentPage(p => p + 1)
+      }, [hasMore])
 
     useEffect(() => {
-      if (!isDev) return
-      const queryName = typeof query === 'string' ? query : ((query as { _name?: string })._name ?? 'unknown')
-      subIdRef.current = trackSubscription(queryName, queryArgs as Record<string, unknown>)
-      const id = subIdRef.current
-      return () => untrackSubscription(id)
-      // eslint-disable-next-line react-hooks/exhaustive-deps
-    }, [])
+      if (options?.page === undefined) return
+      setCurrentPage(Math.max(1, options.page))
+    }, [options?.page])
 
     useEffect(() => {
-      if (!(isDev && subIdRef.current)) return
-      const devStatus =
-        status === 'LoadingFirstPage'
-          ? 'loading'
-          : status === 'Exhausted' || status === 'CanLoadMore'
-            ? 'loaded'
-            : 'loading'
-      updateSubscription(subIdRef.current, devStatus)
-    }, [status, results])
-
-    useEffect(() => {
-      if (!(isDev && subIdRef.current)) return
-      const preview = results.length > 0 ? JSON.stringify(results[0]).slice(0, 200) : ''
-      updateSubscriptionData(subIdRef.current, results, preview)
-    }, [results])
-
-    const items = useMemo(
-      () => (isOptimistic ? applyOptimistic(results as Rec[], pending) : results),
-      [isOptimistic, pending, results]
-    )
+      const maxPage = Math.max(1, Math.ceil(totalCount / cappedPageSize))
+      if (currentPage > maxPage) setCurrentPage(maxPage)
+    }, [cappedPageSize, currentPage, totalCount])
 
     return {
-      isDone: status === 'Exhausted',
-      items: items as ListItems<F>,
-      loadMore: (n?: number) => loadMore(n ?? pageSize),
-      status
+      data: pagedData,
+      hasMore,
+      isLoading: !isReady,
+      loadMore,
+      page: currentPage,
+      totalCount
     }
   }
 
 export type { UseListOptions }
-export { applyOptimistic, DEFAULT_PAGE_SIZE, useList }
+export { DEFAULT_PAGE_SIZE, useList }

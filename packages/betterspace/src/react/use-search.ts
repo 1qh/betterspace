@@ -1,65 +1,52 @@
 'use client'
 
-import type { FunctionReference, FunctionReturnType, OptionalRestArgs } from 'convex/server'
+import { useEffect, useMemo, useState } from 'react'
 
-import { useQuery } from 'convex/react'
-import { useCallback, useEffect, useRef, useState } from 'react'
-
-type SearchFn = FunctionReference<'query'>
+type Rec = Record<string, unknown>
 
 interface UseSearchOptions {
   debounceMs?: number
-  minLength?: number
+  fields: string[]
+  query: string
 }
 
 interface UseSearchResult<T> {
   isSearching: boolean
-  query: string
-  results: T
-  setQuery: (q: string) => void
+  results: T[]
 }
 
-const DEFAULT_DEBOUNCE_MS = 300,
-  DEFAULT_MIN_LENGTH = 1,
-  /** Debounced search hook that queries a Convex search endpoint with configurable delay and minimum length. */
-  useSearch = <F extends SearchFn>(
-    searchRef: F,
-    argsBuilder: (query: string) => OptionalRestArgs<F>[0],
-    options?: UseSearchOptions
-  ): UseSearchResult<FunctionReturnType<F> | undefined> => {
-    const debounceMs = options?.debounceMs ?? DEFAULT_DEBOUNCE_MS,
-      minLength = options?.minLength ?? DEFAULT_MIN_LENGTH,
-      [query, setQueryRaw] = useState(''),
-      [debouncedQuery, setDebouncedQuery] = useState(''),
-      timerRef = useRef<null | ReturnType<typeof setTimeout>>(null),
-      setQuery = useCallback(
-        (q: string) => {
-          setQueryRaw(q)
-          if (timerRef.current) clearTimeout(timerRef.current)
-          timerRef.current = setTimeout(() => setDebouncedQuery(q), debounceMs)
-        },
-        [debounceMs]
-      )
-
-    useEffect(
-      () => () => {
-        if (timerRef.current) clearTimeout(timerRef.current)
-      },
-      []
-    )
-
-    const shouldSearch = debouncedQuery.length >= minLength,
-      args = shouldSearch ? argsBuilder(debouncedQuery) : 'skip',
-      results = useQuery(searchRef, args as OptionalRestArgs<F>[0]),
-      isSearching = query !== debouncedQuery || (shouldSearch && results === undefined)
-
-    return {
-      isSearching,
-      query,
-      results: shouldSearch ? results : (undefined as FunctionReturnType<F> | undefined),
-      setQuery
+const normalizeQuery = (query: string): string => query.trim().toLowerCase(),
+  rowMatchesQuery = <T extends Rec>(row: T, fields: string[], normalizedQuery: string): boolean => {
+    for (const field of fields) {
+      const value = row[field]
+      if (String(value).toLowerCase().includes(normalizedQuery)) return true
     }
+    return false
+  },
+  filterSearchData = <T extends Rec>(rows: T[], fields: string[], normalizedQuery: string): T[] => {
+    if (!normalizedQuery) return rows
+    const out: T[] = []
+    for (const row of rows) if (rowMatchesQuery(row, fields, normalizedQuery)) out.push(row)
+    return out
+  },
+  DEFAULT_DEBOUNCE_MS = 300,
+  useSearch = <T extends Rec>(data: T[], isReady: boolean, options: UseSearchOptions): UseSearchResult<T> => {
+    const debounceMs = options.debounceMs ?? DEFAULT_DEBOUNCE_MS,
+      [debouncedQuery, setDebouncedQuery] = useState(options.query)
+
+    useEffect(() => {
+      const id = setTimeout(() => setDebouncedQuery(options.query), debounceMs)
+      return () => clearTimeout(id)
+    }, [debounceMs, options.query])
+
+    const results = useMemo(() => {
+        if (!isReady) return []
+        return filterSearchData(data, options.fields, normalizeQuery(debouncedQuery))
+      }, [data, debouncedQuery, isReady, options.fields]),
+      isSearching = options.query !== debouncedQuery || !isReady
+
+    return { isSearching, results }
   }
 
 export type { UseSearchOptions, UseSearchResult }
-export { DEFAULT_DEBOUNCE_MS, DEFAULT_MIN_LENGTH, useSearch }
+export { DEFAULT_DEBOUNCE_MS, useSearch }
