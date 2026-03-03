@@ -92,8 +92,6 @@ test.describe
     })
 
     test('can upload avatar image', async ({ profilePage }) => {
-      /** biome-ignore lint/suspicious/noSkippedTests: no presign endpoint in test mode */
-      test.skip(process.env.NEXT_PUBLIC_PLAYWRIGHT === '1', 'presign endpoint')
       await profilePage.fillProfile({ displayName: `Avatar ${Date.now()}` })
       await profilePage.uploadAvatar(path.join(import.meta.dirname, 'fixtures', 'test-avatar.png'))
       await expect(profilePage.getAvatarPreview()).toBeVisible({ timeout: 10_000 })
@@ -102,15 +100,11 @@ test.describe
     })
 
     test('avatar preview persists after reload', async ({ profilePage }) => {
-      /** biome-ignore lint/suspicious/noSkippedTests: no presign endpoint in test mode */
-      test.skip(process.env.NEXT_PUBLIC_PLAYWRIGHT === '1', 'presign endpoint')
       await expect(profilePage.getAvatarPreview()).toBeVisible({ timeout: 10_000 })
     })
 
     // eslint-disable-next-line max-statements
     test('can replace avatar with new image', async ({ profilePage }) => {
-      /** biome-ignore lint/suspicious/noSkippedTests: no presign endpoint in test mode */
-      test.skip(process.env.NEXT_PUBLIC_PLAYWRIGHT === '1', 'presign endpoint')
       await expect(profilePage.getAvatarPreview()).toBeVisible({ timeout: 10_000 })
       const oldSrc = await profilePage.getAvatarPreview().getAttribute('src')
       await profilePage.getAvatarRemoveButton().click()
@@ -129,8 +123,6 @@ test.describe
     })
 
     test('can remove avatar', async ({ profilePage }) => {
-      /** biome-ignore lint/suspicious/noSkippedTests: no presign endpoint in test mode */
-      test.skip(process.env.NEXT_PUBLIC_PLAYWRIGHT === '1', 'presign endpoint')
       await expect(profilePage.getAvatarPreview()).toBeVisible({ timeout: 10_000 })
       await profilePage.getAvatarRemoveButton().click()
       await profilePage.fillProfile({ displayName: `Remove ${Date.now()}` })

@@ -5,6 +5,7 @@
     "./*": "./src/*.tsx",
     "./env": "./src/env.ts",
     "./image-route": "./src/image-route.ts",
+    "./upload-presign-route": "./src/upload-presign-route.ts",
     "./next-config": "./src/next-config.ts",
     "./proxy": "./src/proxy.ts",
     "./utils": "./src/utils.ts"
