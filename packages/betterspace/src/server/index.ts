@@ -1,3 +1,5 @@
+export { makeCacheCrud } from './cache-crud'
+export { makeChildCrud } from './child'
 export { makeCrud, ownedCascade } from './crud'
 export {
   CHUNK_SIZE,
@@ -42,6 +44,7 @@ export {
   singletonTable,
   uploadTables
 } from './schema-helpers'
+export { makeSingletonCrud } from './singleton'
 export { setup } from './setup'
 export { asUser, callReducer, cleanup, createTestContext, createTestUser, isTestMode, queryTable } from './test'
 export { discoverModules } from './test-discover'
