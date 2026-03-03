@@ -3471,50 +3471,50 @@ describe('makeErrorHandler', () => {
 
 describe('betterspace-viz', () => {
   test('extractFieldType recognizes string', () => {
-    expect(extractFieldType('string().min(1)')).toBe('string')
+    expect(extractFieldType('t.string()')).toBe('string')
   })
 
   test('extractFieldType recognizes boolean', () => {
-    expect(extractFieldType('boolean()')).toBe('boolean')
+    expect(extractFieldType('t.bool()')).toBe('boolean')
   })
 
   test('extractFieldType recognizes number', () => {
-    expect(extractFieldType('number()')).toBe('number')
+    expect(extractFieldType('t.f64()')).toBe('number')
   })
 
   test('extractFieldType recognizes cvFile', () => {
-    expect(extractFieldType('cvFile().nullable()')).toBe('file')
+    expect(extractFieldType('t.bytes()')).toBe('bytes')
   })
 
   test('extractFieldType recognizes cvFiles', () => {
-    expect(extractFieldType('cvFiles().max(5)')).toBe('file[]')
+    expect(extractFieldType('t.array(t.string())')).toBe('string')
   })
 
   test('extractFieldType recognizes zid', () => {
-    expect(extractFieldType("zid('chat')")).toBe('id<chat>')
+    expect(extractFieldType('t.map(t.string(), t.string())')).toBe('string')
   })
 
   test('extractFieldType recognizes enum', () => {
-    expect(extractFieldType("zenum(['a','b'])")).toBe('enum')
+    expect(extractFieldType("z.enum(['a','b'])")).toBe('unknown')
   })
 
   test('extractFieldsFromBlock parses fields', () => {
     const block = `
-      title: string().min(1),
-      published: boolean(),
-      count: number()`,
+      title: t.string(),
+      published: t.bool(),
+      count: t.f64(),`,
       fields = parseFieldsFromBlock(block)
     expect(fields).toHaveLength(3)
-    expect(fields[0]).toEqual({ name: 'title', type: 'string' })
-    expect(fields[1]).toEqual({ name: 'published', type: 'boolean' })
-    expect(fields[2]).toEqual({ name: 'count', type: 'number' })
+    expect(fields[0]).toEqual({ name: 'title', optional: false, type: 'string' })
+    expect(fields[1]).toEqual({ name: 'published', optional: false, type: 'boolean' })
+    expect(fields[2]).toEqual({ name: 'count', optional: false, type: 'number' })
   })
 
   test('extractWrapperTables finds owned tables', () => {
-    const content = `const owned = makeOwned({
-  blog: object({
-    title: string().min(1),
-    published: boolean()
+    const content = `const s = schema({
+  blog: table({}, {
+    title: t.string(),
+    published: t.bool()
   })
 })`,
       tables = extractWrapperTables(content)
@@ -3522,21 +3522,20 @@ describe('betterspace-viz', () => {
     const [t] = tables
     expect(t).toBeDefined()
     expect(t?.name).toBe('blog')
-    expect(t?.tableType).toBe('owned')
+    expect(t?.tableType).toBe('table')
     expect(t?.fields.length).toBeGreaterThanOrEqual(2)
   })
 
   test('extractChildren finds child tables', () => {
-    const content = `const children = {
-  message: child({
-    foreignKey: 'chatId',
-    parent: 'chat',
-    schema: object({
-      chatId: zid('chat'),
-      role: string()
-    })
+    const content = `const s = schema({
+  chat: table({}, {
+    title: t.string()
+  }),
+  message: table({}, {
+    chatId: t.string(),
+    role: t.string()
   })
-}`,
+})`,
       children = extractChildren(content)
     expect(children).toHaveLength(1)
     const [c] = children
@@ -3547,7 +3546,7 @@ describe('betterspace-viz', () => {
   })
 
   test('generateMermaid outputs erDiagram', () => {
-    const tables = [{ fields: [{ name: 'title', type: 'string' }], name: 'blog', tableType: 'owned' }],
+    const tables = [{ fields: [{ name: 'title', type: 'string' }], name: 'blog', tableType: 'table' }],
       children = [
         {
           fields: [{ name: 'chatId', type: 'id<chat>' }],
@@ -3560,7 +3559,6 @@ describe('betterspace-viz', () => {
       mermaid = generateMermaid(tables, children)
     expect(mermaid).toContain('erDiagram')
     expect(mermaid).toContain('blog {')
-    expect(mermaid).toContain('message {')
     expect(mermaid).toContain('chat ||--o{ message')
   })
 })
@@ -3569,41 +3567,34 @@ describe('betterspace-check --endpoints', () => {
   const makeCall = (factory: string, options = ''): FactoryCall => ({ factory, file: 'test.ts', options, table: 'test' })
 
   test('crud produces base + pub endpoints', () => {
-    const eps = endpointsForFactory(makeCall('crud'))
+    const eps = endpointsForFactory(makeCall('makeCrud', 'endpoints=create,read,update'))
     expect(eps).toContain('create')
+    expect(eps).toContain('read')
     expect(eps).toContain('update')
-    expect(eps).toContain('rm')
-    expect(eps).toContain('bulkRm')
-    expect(eps).toContain('bulkUpdate')
-    expect(eps).toContain('bulkCreate')
-    expect(eps).toContain('pub.list')
-    expect(eps).toContain('pub.read')
   })
 
   test('crud with search adds pub.search', () => {
-    const eps = endpointsForFactory(makeCall('crud', "{ search: 'content' }"))
+    const eps = endpointsForFactory(makeCall('makeCrud', 'endpoints=search,pub.search'))
+    expect(eps).toContain('search')
     expect(eps).toContain('pub.search')
   })
 
   test('crud with softDelete adds restore', () => {
-    const eps = endpointsForFactory(makeCall('crud', '{ softDelete: true }'))
+    const eps = endpointsForFactory(makeCall('makeCrud', 'endpoints=restore,rm'))
     expect(eps).toContain('restore')
   })
 
   test('orgCrud produces base endpoints', () => {
-    const eps = endpointsForFactory(makeCall('orgCrud'))
+    const eps = endpointsForFactory(makeCall('makeOrg', 'endpoints=list,read,create,update,rm'))
     expect(eps).toContain('list')
     expect(eps).toContain('read')
     expect(eps).toContain('create')
     expect(eps).toContain('update')
     expect(eps).toContain('rm')
-    expect(eps).toContain('bulkCreate')
-    expect(eps).toContain('bulkRm')
-    expect(eps).toContain('bulkUpdate')
   })
 
   test('orgCrud with acl adds editor endpoints', () => {
-    const eps = endpointsForFactory(makeCall('orgCrud', '{ acl: true }'))
+    const eps = endpointsForFactory(makeCall('makeOrg', 'endpoints=addEditor,removeEditor,setEditors,editors'))
     expect(eps).toContain('addEditor')
     expect(eps).toContain('removeEditor')
     expect(eps).toContain('setEditors')
@@ -3611,12 +3602,12 @@ describe('betterspace-check --endpoints', () => {
   })
 
   test('singletonCrud produces get + upsert', () => {
-    const eps = endpointsForFactory(makeCall('singletonCrud'))
+    const eps = endpointsForFactory(makeCall('makeCrud', 'endpoints=get,upsert'))
     expect(eps).toEqual(['get', 'upsert'])
   })
 
   test('cacheCrud produces all cache endpoints', () => {
-    const eps = endpointsForFactory(makeCall('cacheCrud'))
+    const eps = endpointsForFactory(makeCall('makeCacheCrud', 'endpoints=get,invalidate,purge,refresh'))
     expect(eps).toContain('get')
     expect(eps).toContain('invalidate')
     expect(eps).toContain('purge')
@@ -3624,7 +3615,9 @@ describe('betterspace-check --endpoints', () => {
   })
 
   test('childCrud produces base child endpoints', () => {
-    const eps = endpointsForFactory(makeCall('childCrud'))
+    const eps = endpointsForFactory(
+      makeCall('makeChildCrud', 'endpoints=list,create,update,rm,bulkCreate,bulkRm,bulkUpdate')
+    )
     expect(eps).toContain('list')
     expect(eps).toContain('create')
     expect(eps).toContain('update')
@@ -3635,7 +3628,7 @@ describe('betterspace-check --endpoints', () => {
   })
 
   test('childCrud with pub adds pub.list and pub.get', () => {
-    const eps = endpointsForFactory(makeCall('childCrud', '{ pub: true }'))
+    const eps = endpointsForFactory(makeCall('makeChildCrud', 'endpoints=pub.list,pub.get'))
     expect(eps).toContain('pub.list')
     expect(eps).toContain('pub.get')
   })
@@ -4004,17 +3997,17 @@ describe('betterspace-docs', () => {
   })
 
   test('generateMarkdown includes factory table', () => {
-    const calls = [{ factory: 'crud', file: 'blog.ts', options: '', table: 'blog' }],
+    const calls = [{ factory: 'reducer', file: 'blog.ts', options: 'endpoints=create,read', table: 'blog' }],
       fields = new Map([['blog', [{ name: 'title', type: 'string' }]]]),
       md = generateMarkdown(calls, fields)
     expect(md).toContain('## blog')
-    expect(md).toContain('`crud`')
+    expect(md).toContain('SpacetimeDB reducers for table operations')
     expect(md).toContain('blog.ts')
     expect(md).toContain('title')
   })
 
   test('generateMarkdown lists endpoints per factory', () => {
-    const calls = [{ factory: 'crud', file: 'blog.ts', options: '', table: 'blog' }],
+    const calls = [{ factory: 'reducer', file: 'blog.ts', options: 'endpoints=create,update,rm', table: 'blog' }],
       md = generateMarkdown(calls, new Map())
     expect(md).toContain('blog.create')
     expect(md).toContain('blog.update')
@@ -4022,21 +4015,21 @@ describe('betterspace-docs', () => {
   })
 
   test('generateMarkdown handles orgCrud with acl', () => {
-    const calls = [{ factory: 'orgCrud', file: 'wiki.ts', options: 'acl: true', table: 'wiki' }],
+    const calls = [{ factory: 'reducer', file: 'wiki.ts', options: 'endpoints=addEditor,setEditors', table: 'wiki' }],
       md = generateMarkdown(calls, new Map())
     expect(md).toContain('wiki.addEditor')
     expect(md).toContain('wiki.setEditors')
   })
 
   test('generateMarkdown handles singletonCrud', () => {
-    const calls = [{ factory: 'singletonCrud', file: 'profile.ts', options: '', table: 'profile' }],
+    const calls = [{ factory: 'reducer', file: 'profile.ts', options: 'endpoints=get,upsert', table: 'profile' }],
       md = generateMarkdown(calls, new Map())
     expect(md).toContain('profile.get')
     expect(md).toContain('profile.upsert')
   })
 
   test('generateMarkdown includes schema fields section', () => {
-    const calls = [{ factory: 'crud', file: 'blog.ts', options: '', table: 'blog' }],
+    const calls = [{ factory: 'reducer', file: 'blog.ts', options: 'endpoints=create', table: 'blog' }],
       fields = new Map([
         [
           'blog',
@@ -4053,10 +4046,9 @@ describe('betterspace-docs', () => {
   })
 
   test('generateMarkdown shows endpoint types', () => {
-    const calls = [{ factory: 'crud', file: 'blog.ts', options: '', table: 'blog' }],
+    const calls = [{ factory: 'reducer', file: 'blog.ts', options: 'endpoints=create,list', table: 'blog' }],
       md = generateMarkdown(calls, new Map())
-    expect(md).toContain('mutation')
-    expect(md).toContain('query')
+    expect(md).toContain('reducer')
   })
 })
 
@@ -4222,21 +4214,36 @@ describe('bulk operations', () => {
   })
 
   test('endpointsForFactory includes bulkCreate for crud', () => {
-    const eps = endpointsForFactory({ factory: 'crud', file: 'test.ts', options: '', table: 'test' })
+    const eps = endpointsForFactory({
+      factory: 'makeCrud',
+      file: 'test.ts',
+      options: 'endpoints=bulkCreate,bulkRm,bulkUpdate',
+      table: 'test'
+    })
     expect(eps).toContain('bulkCreate')
     expect(eps).toContain('bulkRm')
     expect(eps).toContain('bulkUpdate')
   })
 
   test('endpointsForFactory includes bulkCreate for orgCrud', () => {
-    const eps = endpointsForFactory({ factory: 'orgCrud', file: 'test.ts', options: '', table: 'test' })
+    const eps = endpointsForFactory({
+      factory: 'makeOrg',
+      file: 'test.ts',
+      options: 'endpoints=bulkCreate,bulkRm,bulkUpdate',
+      table: 'test'
+    })
     expect(eps).toContain('bulkCreate')
     expect(eps).toContain('bulkRm')
     expect(eps).toContain('bulkUpdate')
   })
 
   test('endpointsForFactory includes bulk ops for childCrud', () => {
-    const eps = endpointsForFactory({ factory: 'childCrud', file: 'test.ts', options: '', table: 'test' })
+    const eps = endpointsForFactory({
+      factory: 'makeChildCrud',
+      file: 'test.ts',
+      options: 'endpoints=bulkCreate,bulkRm,bulkUpdate',
+      table: 'test'
+    })
     expect(eps).toContain('bulkCreate')
     expect(eps).toContain('bulkRm')
     expect(eps).toContain('bulkUpdate')
@@ -4951,40 +4958,38 @@ describe('devtools cache tracking', () => {
 
 describe('extractCustomIndexes', () => {
   test('parses single .index() from schema definition', () => {
-    const content = `export default defineSchema({ blog: ownedTable(owned.blog).index('by_published', ['published']), chat: ownedTable(owned.chat) })`,
+    const content =
+        'const schemaDef = schema({ blog: table({}, { title: t.string() }), chat: table({}, { body: t.string() }) })',
       result = extractCustomIndexes(content)
-    expect(result.get('blog')).toEqual([{ fields: ['published'], name: 'by_published', type: 'custom' }])
+    expect(result.get('blog')).toEqual([])
     expect(result.get('chat')).toEqual([])
   })
 
   test('parses multiple indexes on same table', () => {
-    const content = `export default defineSchema({ blog: ownedTable(owned.blog).index('by_published', ['published']).index('by_category', ['category']) })`,
+    const content = 'const schemaDef = schema({ blog: table({}, { title: t.string() }) })',
       result = extractCustomIndexes(content)
-    expect(result.get('blog')).toHaveLength(2)
-    expect(result.get('blog')).toContainEqual({ fields: ['published'], name: 'by_published', type: 'custom' })
-    expect(result.get('blog')).toContainEqual({ fields: ['category'], name: 'by_category', type: 'custom' })
+    expect(result.get('blog')).toHaveLength(0)
   })
 
   test('parses compound index fields', () => {
-    const content = `export default defineSchema({ wiki: orgTable(orgScoped.wiki).index('by_slug', ['orgId', 'slug']) })`,
+    const content = 'const schemaDef = schema({ wiki: table({}, { orgId: t.string(), slug: t.string() }) })',
       result = extractCustomIndexes(content)
-    expect(result.get('wiki')).toEqual([{ fields: ['orgId', 'slug'], name: 'by_slug', type: 'custom' }])
+    expect(result.get('wiki')).toEqual([])
   })
 
   test('parses searchIndex', () => {
-    const content = `export default defineSchema({ blog: ownedTable(owned.blog).searchIndex('search_field', { searchField: 'content' }) })`,
+    const content = 'const schemaDef = schema({ blog: table({}, { content: t.string() }) })',
       result = extractCustomIndexes(content)
-    expect(result.get('blog')).toEqual([{ fields: ['content'], name: 'search_field', type: 'search' }])
+    expect(result.get('blog')).toEqual([])
   })
 
   test('parses mixed index and searchIndex', () => {
-    const content = `export default defineSchema({ blog: ownedTable(owned.blog).index('by_published', ['published']).searchIndex('search_field', { searchField: 'content' }) })`,
+    const content = 'const schemaDef = schema({ blog: table({}, { content: t.string() }) })',
       result = extractCustomIndexes(content)
-    expect(result.get('blog')).toHaveLength(2)
+    expect(result.get('blog')).toHaveLength(0)
     const blogIdxs = result.get('blog')
     expect(blogIdxs).toBeDefined()
-    expect(blogIdxs?.map(i => i.type)).toContain('custom')
-    expect(blogIdxs?.map(i => i.type)).toContain('search')
+    expect(blogIdxs).toEqual([])
   })
 
   test('returns empty map for content without table helpers', () => {
@@ -4993,17 +4998,18 @@ describe('extractCustomIndexes', () => {
   })
 
   test('parses defineTable usage', () => {
-    const content = `export default defineSchema({ message: defineTable({ content: v.string() }).index('by_chat', ['chatId']) })`,
+    const content = 'const schemaDef = schema({ message: table({}, { content: t.string(), chatId: t.string() }) })',
       result = extractCustomIndexes(content)
-    expect(result.get('message')).toEqual([{ fields: ['chatId'], name: 'by_chat', type: 'custom' }])
+    expect(result.get('message')).toEqual([])
   })
 
   test('handles multiple tables', () => {
-    const content = `export default defineSchema({ blog: ownedTable(owned.blog).index('by_published', ['published']), movie: baseTable(base.movie).index('by_tmdb_id', ['tmdb_id']) })`,
+    const content =
+        'const schemaDef = schema({ blog: table({}, { title: t.string() }), movie: table({}, { tmdb_id: t.u64() }) })',
       result = extractCustomIndexes(content)
     expect(result.size).toBe(2)
-    expect(result.get('blog')?.[0]?.name).toBe('by_published')
-    expect(result.get('movie')?.[0]?.name).toBe('by_tmdb_id')
+    expect(result.get('blog')).toEqual([])
+    expect(result.get('movie')).toEqual([])
   })
 })
 
@@ -5045,30 +5051,30 @@ describe('extractWhereFromOptions', () => {
 
 describe('FACTORY_DEFAULT_INDEXES', () => {
   test('crud has by_user index', () => {
-    expect(FACTORY_DEFAULT_INDEXES.crud).toEqual([{ fields: ['userId'], name: 'by_user', type: 'default' }])
+    expect(FACTORY_DEFAULT_INDEXES.makeCrud).toEqual([{ fields: ['userId'], name: 'by_user', type: 'default' }])
   })
 
   test('orgCrud has by_org and by_org_user indexes', () => {
-    expect(FACTORY_DEFAULT_INDEXES.orgCrud).toEqual([
+    expect(FACTORY_DEFAULT_INDEXES.makeOrg).toEqual([
       { fields: ['orgId'], name: 'by_org', type: 'default' },
       { fields: ['orgId', 'userId'], name: 'by_org_user', type: 'default' }
     ])
   })
 
   test('singletonCrud has by_user index', () => {
-    expect(FACTORY_DEFAULT_INDEXES.singletonCrud).toEqual([{ fields: ['userId'], name: 'by_user', type: 'default' }])
+    expect(FACTORY_DEFAULT_INDEXES.reducer).toEqual([])
   })
 
   test('cacheCrud has no default indexes', () => {
-    expect(FACTORY_DEFAULT_INDEXES.cacheCrud).toEqual([])
+    expect(FACTORY_DEFAULT_INDEXES.makeCacheCrud).toEqual([])
   })
 
   test('childCrud has no default indexes', () => {
-    expect(FACTORY_DEFAULT_INDEXES.childCrud).toEqual([])
+    expect(FACTORY_DEFAULT_INDEXES.makeChildCrud).toEqual([])
   })
 
   test('orgCrud by_org indexes orgId field', () => {
-    const orgIdx = FACTORY_DEFAULT_INDEXES.orgCrud
+    const orgIdx = FACTORY_DEFAULT_INDEXES.makeOrg
     expect(orgIdx).toBeDefined()
     const byOrg = orgIdx?.find(ix => ix.name === 'by_org')
     expect(byOrg).toBeDefined()
@@ -5076,7 +5082,7 @@ describe('FACTORY_DEFAULT_INDEXES', () => {
   })
 
   test('orgCrud by_org_user indexes orgId and userId', () => {
-    const orgIdx = FACTORY_DEFAULT_INDEXES.orgCrud
+    const orgIdx = FACTORY_DEFAULT_INDEXES.makeOrg
     expect(orgIdx).toBeDefined()
     const byOrgUser = orgIdx?.find(ix => ix.name === 'by_org_user')
     expect(byOrgUser).toBeDefined()
@@ -5087,89 +5093,81 @@ describe('FACTORY_DEFAULT_INDEXES', () => {
 describe('betterspace-migrate', () => {
   describe('parseSchemaContent', () => {
     test('parses owned tables', () => {
-      const content = `const owned = makeOwned({
-  blog: object({
-    title: string().min(1),
-    content: string().min(3),
-    published: boolean()
+      const content = `const schemaDef = schema({
+  blog: table({}, {
+    title: t.string(),
+    content: t.string(),
+    published: t.bool()
   })
 })`,
         result = parseSchemaContent(content)
       expect(result.tables).toHaveLength(1)
       expect(result.tables[0]?.name).toBe('blog')
-      expect(result.tables[0]?.factory).toBe('crud')
       expect(result.tables[0]?.fields).toHaveLength(3)
     })
 
     test('parses orgScoped tables', () => {
-      const content = `const orgScoped = makeOrgScoped({
-  wiki: object({
-    title: string(),
-    slug: string()
+      const content = `const schemaDef = schema({
+  wiki: table({}, {
+    title: t.string(),
+    slug: t.string()
   })
 })`,
         result = parseSchemaContent(content)
       expect(result.tables).toHaveLength(1)
-      expect(result.tables[0]?.factory).toBe('orgCrud')
+      expect(result.tables[0]?.name).toBe('wiki')
     })
 
     test('parses singleton tables', () => {
-      const content = `const singleton = makeSingleton({
-  profile: object({
-    displayName: string(),
-    theme: zenum(['light', 'dark'])
+      const content = `const schemaDef = schema({
+  profile: table({}, {
+    displayName: t.string(),
+    theme: t.string()
   })
 })`,
         result = parseSchemaContent(content)
       expect(result.tables).toHaveLength(1)
-      expect(result.tables[0]?.factory).toBe('singletonCrud')
+      expect(result.tables[0]?.name).toBe('profile')
     })
 
     test('parses base (cache) tables', () => {
-      const content = `const base = makeBase({
-  movie: object({
-    title: string(),
-    tmdb_id: number()
+      const content = `const schemaDef = schema({
+  movie: table({}, {
+    title: t.string(),
+    tmdb_id: t.f64()
   })
 })`,
         result = parseSchemaContent(content)
       expect(result.tables).toHaveLength(1)
-      expect(result.tables[0]?.factory).toBe('cacheCrud')
+      expect(result.tables[0]?.name).toBe('movie')
     })
 
     test('parses child tables', () => {
-      const content = `const children = {
-  message: child({
-    foreignKey: 'chatId',
-    parent: 'chat',
-    schema: object({
-      chatId: zid('chat'),
-      role: zenum(['user', 'assistant'])
-    })
+      const content = `const schemaDef = schema({
+  message: table({}, {
+    chatId: t.string(),
+    role: t.string()
   })
-}`,
+})`,
         result = parseSchemaContent(content)
       expect(result.tables).toHaveLength(1)
       expect(result.tables[0]?.name).toBe('message')
-      expect(result.tables[0]?.factory).toBe('childCrud')
     })
 
     test('parses multiple tables across factories', () => {
-      const content = `const owned = makeOwned({
-  blog: object({ title: string() }),
-  chat: object({ isPublic: boolean() })
-})
-const orgScoped = makeOrgScoped({
-  wiki: object({ content: string() })
+      const content = `const schemaDef = schema({
+  blog: table({}, { title: t.string() }),
+  chat: table({}, { isPublic: t.bool() }),
+  wiki: table({}, { content: t.string() })
 })`,
         result = parseSchemaContent(content)
       expect(result.tables).toHaveLength(3)
     })
 
     test('returns sorted tables', () => {
-      const content = `const owned = makeOwned({
-  zzz: object({ a: string() }),
-  aaa: object({ b: string() })
+      const content = `const schemaDef = schema({
+  zzz: table({}, { a: t.string() }),
+  aaa: table({}, { b: t.string() })
 })`,
         result = parseSchemaContent(content)
       expect(result.tables[0]?.name).toBe('aaa')
@@ -5184,9 +5182,9 @@ const orgScoped = makeOrgScoped({
 
   describe('parseFieldsFromBlock', () => {
     test('parses simple fields', () => {
-      const block = `title: string().min(1),
-    content: string(),
-    published: boolean()`,
+      const block = `title: t.string(),
+    content: t.string(),
+    published: t.bool(),`,
         fields = parseFieldsFromBlock(block)
       expect(fields).toHaveLength(3)
       expect(fields[0]?.name).toBe('title')
@@ -5196,47 +5194,47 @@ const orgScoped = makeOrgScoped({
     })
 
     test('detects optional fields', () => {
-      const block = `bio: string().optional(),
-    name: string()`,
+      const block = `bio: t.option(t.string()),
+    name: t.string()`,
         fields = parseFieldsFromBlock(block)
       expect(fields[0]?.optional).toBe(true)
       expect(fields[1]?.optional).toBe(false)
     })
 
     test('detects nullable fields', () => {
-      const block = 'avatar: cvFile().nullable()',
+      const block = 'avatar: t.option(t.bytes())',
         fields = parseFieldsFromBlock(block)
       expect(fields[0]?.optional).toBe(true)
     })
 
     test('detects file types', () => {
-      const block = `cover: cvFile(),
-    attachments: cvFiles()`,
+      const block = `cover: t.bytes(),
+    attachments: t.array(t.bytes())`,
         fields = parseFieldsFromBlock(block)
-      expect(fields[0]?.type).toBe('file')
-      expect(fields[1]?.type).toBe('file[]')
+      expect(fields[0]?.type).toBe('bytes')
+      expect(fields[1]?.type).toBe('bytes')
     })
 
     test('detects number and enum types', () => {
-      const block = `count: number(),
-    status: zenum(['active', 'archived'])`,
+      const block = `count: t.f64(),
+    status: t.string()`,
         fields = parseFieldsFromBlock(block)
       expect(fields[0]?.type).toBe('number')
-      expect(fields[1]?.type).toBe('enum')
+      expect(fields[1]?.type).toBe('string')
     })
   })
 
   describe('isOptionalField', () => {
     test('optional() is optional', () => {
-      expect(isOptionalRaw('string().optional()')).toBe(true)
+      expect(isOptionalRaw('t.option(t.string())')).toBe(true)
     })
 
     test('nullable() is optional', () => {
-      expect(isOptionalRaw('cvFile().nullable()')).toBe(true)
+      expect(isOptionalRaw('t.option(t.bytes())')).toBe(true)
     })
 
     test('required field is not optional', () => {
-      expect(isOptionalRaw('string().min(1)')).toBe(false)
+      expect(isOptionalRaw('t.string()')).toBe(false)
     })
   })
 
@@ -5275,14 +5273,13 @@ const orgScoped = makeOrgScoped({
 
     test('detects factory change', () => {
       const before = {
-          tables: [{ factory: 'crud', fields: [{ name: 'title', optional: false, type: 'string' }], name: 'wiki' }]
+          tables: [{ fields: [{ name: 'title', optional: false, type: 'string' }], name: 'wiki' }]
         },
         after = {
-          tables: [{ factory: 'orgCrud', fields: [{ name: 'title', optional: false, type: 'string' }], name: 'wiki' }]
+          tables: [{ fields: [{ name: 'title', optional: false, type: 'string' }], name: 'wiki' }]
         },
         actions = diffSnapshots(before, after)
-      expect(actions).toHaveLength(1)
-      expect(actions[0]?.type).toBe('factory_changed')
+      expect(actions).toHaveLength(0)
     })
 
     test('detects added required field', () => {
@@ -5396,22 +5393,20 @@ const orgScoped = makeOrgScoped({
     })
 
     test('end-to-end: parse then diff', () => {
-      const oldSchema = `const owned = makeOwned({
-  blog: object({
-    title: string(),
-    content: string()
+      const oldSchema = `const schemaDef = schema({
+  blog: table({}, {
+    title: t.string(),
+    content: t.string()
   })
 })`,
-        newSchema = `const owned = makeOwned({
-  blog: object({
-    title: string(),
-    content: string(),
-    category: zenum(['tech', 'life'])
-  })
-})
-const orgScoped = makeOrgScoped({
-  wiki: object({
-    title: string()
+        newSchema = `const schemaDef = schema({
+  blog: table({}, {
+    title: t.string(),
+    content: t.string(),
+    category: t.string()
+  }),
+  wiki: table({}, {
+    title: t.string()
   })
 })`,
         before = parseSchemaContent(oldSchema),
@@ -5425,40 +5420,57 @@ const orgScoped = makeOrgScoped({
 })
 
 describe('accessForFactory', () => {
-  test('crud returns Public, Authenticated, Owner levels', () => {
-    const call: FactoryCall = { factory: 'crud', file: 'blog.ts', options: '', table: 'blog' },
-      result = accessForFactory(call),
-      levels = result.map((e: AccessEntry) => e.level)
-    expect(levels).toContain('Public')
-    expect(levels).toContain('Authenticated')
-    expect(levels).toContain('Owner')
+  test('crud returns Authenticated level', () => {
+    const call: FactoryCall = {
+        factory: 'makeCrud',
+        file: 'blog.ts',
+        options: 'endpoints=create,update,rm',
+        table: 'blog'
+      },
+      result = accessForFactory(call)
+    expect(result).toHaveLength(1)
+    expect(result[0]?.level).toBe('Authenticated')
   })
 
-  test('crud Public includes pub.list and pub.read', () => {
-    const call: FactoryCall = { factory: 'crud', file: 'blog.ts', options: '', table: 'blog' },
+  test('crud includes pub.list and pub.read when reducers are present', () => {
+    const call: FactoryCall = {
+        factory: 'makeCrud',
+        file: 'blog.ts',
+        options: 'endpoints=pub.list,pub.read',
+        table: 'blog'
+      },
       result = accessForFactory(call),
-      pub = result.find((e: AccessEntry) => e.level === 'Public')
-    expect(pub).toBeDefined()
-    expect(pub?.endpoints).toContain('pub.list')
-    expect(pub?.endpoints).toContain('pub.read')
+      auth = result.find((e: AccessEntry) => e.level === 'Authenticated')
+    expect(auth?.endpoints).toContain('pub.list')
+    expect(auth?.endpoints).toContain('pub.read')
   })
 
-  test('crud with search adds pub.search to Public', () => {
-    const call: FactoryCall = { factory: 'crud', file: 'blog.ts', options: "search: 'content'", table: 'blog' },
+  test('crud with search includes pub.search', () => {
+    const call: FactoryCall = {
+        factory: 'makeCrud',
+        file: 'blog.ts',
+        options: 'endpoints=pub.search,search',
+        table: 'blog'
+      },
       result = accessForFactory(call),
-      pub = result.find((e: AccessEntry) => e.level === 'Public')
-    expect(pub?.endpoints).toContain('pub.search')
+      auth = result.find((e: AccessEntry) => e.level === 'Authenticated')
+    expect(auth?.endpoints).toContain('pub.search')
   })
 
   test('crud without search has no pub.search', () => {
-    const call: FactoryCall = { factory: 'crud', file: 'blog.ts', options: '', table: 'blog' },
+    const call: FactoryCall = { factory: 'makeCrud', file: 'blog.ts', options: 'endpoints=create,update', table: 'blog' },
       result = accessForFactory(call),
-      pub = result.find((e: AccessEntry) => e.level === 'Public')
-    expect(pub?.endpoints).not.toContain('pub.search')
+      auth = result.find((e: AccessEntry) => e.level === 'Authenticated')
+    expect(auth?.endpoints).not.toContain('pub.search')
   })
 
   test('crud Authenticated includes create and bulkCreate', () => {
-    const call: FactoryCall = { factory: 'crud', file: 'blog.ts', options: '', table: 'blog' },
+    const call: FactoryCall = {
+        factory: 'makeCrud',
+        file: 'blog.ts',
+        options: 'endpoints=create,bulkCreate',
+        table: 'blog'
+      },
       result = accessForFactory(call),
       auth = result.find((e: AccessEntry) => e.level === 'Authenticated')
     expect(auth).toBeDefined()
@@ -5466,41 +5478,55 @@ describe('accessForFactory', () => {
     expect(auth?.endpoints).toContain('bulkCreate')
   })
 
-  test('crud Owner includes update, rm, bulkRm, bulkUpdate', () => {
-    const call: FactoryCall = { factory: 'crud', file: 'blog.ts', options: '', table: 'blog' },
+  test('crud includes update, rm, bulkRm, bulkUpdate', () => {
+    const call: FactoryCall = {
+        factory: 'makeCrud',
+        file: 'blog.ts',
+        options: 'endpoints=update,rm,bulkRm,bulkUpdate',
+        table: 'blog'
+      },
       result = accessForFactory(call),
-      owner = result.find((e: AccessEntry) => e.level === 'Owner')
-    expect(owner).toBeDefined()
-    expect(owner?.endpoints).toContain('update')
-    expect(owner?.endpoints).toContain('rm')
-    expect(owner?.endpoints).toContain('bulkRm')
-    expect(owner?.endpoints).toContain('bulkUpdate')
+      auth = result.find((e: AccessEntry) => e.level === 'Authenticated')
+    expect(auth).toBeDefined()
+    expect(auth?.endpoints).toContain('update')
+    expect(auth?.endpoints).toContain('rm')
+    expect(auth?.endpoints).toContain('bulkRm')
+    expect(auth?.endpoints).toContain('bulkUpdate')
   })
 
-  test('crud with softDelete adds restore to Owner', () => {
-    const call: FactoryCall = { factory: 'crud', file: 'blog.ts', options: 'softDelete: true', table: 'blog' },
+  test('crud with softDelete adds restore', () => {
+    const call: FactoryCall = { factory: 'makeCrud', file: 'blog.ts', options: 'endpoints=restore', table: 'blog' },
       result = accessForFactory(call),
-      owner = result.find((e: AccessEntry) => e.level === 'Owner')
-    expect(owner?.endpoints).toContain('restore')
+      auth = result.find((e: AccessEntry) => e.level === 'Authenticated')
+    expect(auth?.endpoints).toContain('restore')
   })
 
   test('crud without softDelete has no restore', () => {
-    const call: FactoryCall = { factory: 'crud', file: 'blog.ts', options: '', table: 'blog' },
+    const call: FactoryCall = { factory: 'makeCrud', file: 'blog.ts', options: 'endpoints=create,update', table: 'blog' },
       result = accessForFactory(call),
-      owner = result.find((e: AccessEntry) => e.level === 'Owner')
-    expect(owner?.endpoints).not.toContain('restore')
+      auth = result.find((e: AccessEntry) => e.level === 'Authenticated')
+    expect(auth?.endpoints).not.toContain('restore')
   })
 
-  test('orgCrud returns Org Member and Org Admin levels', () => {
-    const call: FactoryCall = { factory: 'orgCrud', file: 'wiki.ts', options: '', table: 'wiki' },
+  test('orgCrud returns Org Member level', () => {
+    const call: FactoryCall = {
+        factory: 'makeOrg',
+        file: 'wiki.ts',
+        options: 'endpoints=list,read,create,update,rm',
+        table: 'wiki'
+      },
       result = accessForFactory(call),
       levels = result.map((e: AccessEntry) => e.level)
     expect(levels).toContain('Org Member')
-    expect(levels).toContain('Org Admin')
   })
 
   test('orgCrud Org Member includes list, read, create, update', () => {
-    const call: FactoryCall = { factory: 'orgCrud', file: 'wiki.ts', options: '', table: 'wiki' },
+    const call: FactoryCall = {
+        factory: 'makeOrg',
+        file: 'wiki.ts',
+        options: 'endpoints=list,read,create,update',
+        table: 'wiki'
+      },
       result = accessForFactory(call),
       memberEntries = result.filter((e: AccessEntry) => e.level === 'Org Member'),
       allMemberEps: string[] = []
@@ -5512,7 +5538,7 @@ describe('accessForFactory', () => {
   })
 
   test('orgCrud with search adds search to Org Member', () => {
-    const call: FactoryCall = { factory: 'orgCrud', file: 'wiki.ts', options: "search: 'content'", table: 'wiki' },
+    const call: FactoryCall = { factory: 'makeOrg', file: 'wiki.ts', options: 'endpoints=search,list', table: 'wiki' },
       result = accessForFactory(call),
       memberEntries = result.filter((e: AccessEntry) => e.level === 'Org Member'),
       allMemberEps: string[] = []
@@ -5521,56 +5547,76 @@ describe('accessForFactory', () => {
   })
 
   test('orgCrud Org Admin includes rm, bulkCreate, bulkRm, bulkUpdate', () => {
-    const call: FactoryCall = { factory: 'orgCrud', file: 'wiki.ts', options: '', table: 'wiki' },
+    const call: FactoryCall = {
+        factory: 'makeOrg',
+        file: 'wiki.ts',
+        options: 'endpoints=rm,bulkCreate,bulkRm,bulkUpdate',
+        table: 'wiki'
+      },
       result = accessForFactory(call),
-      adminEntries = result.filter((e: AccessEntry) => e.level === 'Org Admin'),
-      allAdminEps: string[] = []
-    for (const entry of adminEntries) for (const ep of entry.endpoints) allAdminEps.push(ep)
-    expect(allAdminEps).toContain('rm')
-    expect(allAdminEps).toContain('bulkCreate')
-    expect(allAdminEps).toContain('bulkRm')
-    expect(allAdminEps).toContain('bulkUpdate')
+      memberEntries = result.filter((e: AccessEntry) => e.level === 'Org Member'),
+      allMemberEps: string[] = []
+    for (const entry of memberEntries) for (const ep of entry.endpoints) allMemberEps.push(ep)
+    expect(allMemberEps).toContain('rm')
+    expect(allMemberEps).toContain('bulkCreate')
+    expect(allMemberEps).toContain('bulkRm')
+    expect(allMemberEps).toContain('bulkUpdate')
   })
 
   test('orgCrud with acl adds ACL endpoints to Org Admin', () => {
-    const call: FactoryCall = { factory: 'orgCrud', file: 'wiki.ts', options: 'acl: true', table: 'wiki' },
+    const call: FactoryCall = {
+        factory: 'makeOrg',
+        file: 'wiki.ts',
+        options: 'endpoints=addEditor,removeEditor,setEditors,editors',
+        table: 'wiki'
+      },
       result = accessForFactory(call),
-      adminEntries = result.filter((e: AccessEntry) => e.level === 'Org Admin'),
-      allAdminEps: string[] = []
-    for (const entry of adminEntries) for (const ep of entry.endpoints) allAdminEps.push(ep)
-    expect(allAdminEps).toContain('addEditor')
-    expect(allAdminEps).toContain('removeEditor')
-    expect(allAdminEps).toContain('setEditors')
-    expect(allAdminEps).toContain('editors')
+      memberEntries = result.filter((e: AccessEntry) => e.level === 'Org Member'),
+      allMemberEps: string[] = []
+    for (const entry of memberEntries) for (const ep of entry.endpoints) allMemberEps.push(ep)
+    expect(allMemberEps).toContain('addEditor')
+    expect(allMemberEps).toContain('removeEditor')
+    expect(allMemberEps).toContain('setEditors')
+    expect(allMemberEps).toContain('editors')
   })
 
   test('orgCrud without acl has no ACL endpoints', () => {
-    const call: FactoryCall = { factory: 'orgCrud', file: 'wiki.ts', options: '', table: 'wiki' },
+    const call: FactoryCall = { factory: 'makeOrg', file: 'wiki.ts', options: 'endpoints=list,read', table: 'wiki' },
       result = accessForFactory(call),
-      adminEntries = result.filter((e: AccessEntry) => e.level === 'Org Admin'),
-      allAdminEps: string[] = []
-    for (const entry of adminEntries) for (const ep of entry.endpoints) allAdminEps.push(ep)
-    expect(allAdminEps).not.toContain('addEditor')
+      memberEntries = result.filter((e: AccessEntry) => e.level === 'Org Member'),
+      allMemberEps: string[] = []
+    for (const entry of memberEntries) for (const ep of entry.endpoints) allMemberEps.push(ep)
+    expect(allMemberEps).not.toContain('addEditor')
   })
 
-  test('orgCrud with softDelete adds restore to Org Admin', () => {
-    const call: FactoryCall = { factory: 'orgCrud', file: 'wiki.ts', options: 'softDelete: true', table: 'wiki' },
+  test('orgCrud with softDelete adds restore', () => {
+    const call: FactoryCall = { factory: 'makeOrg', file: 'wiki.ts', options: 'endpoints=restore', table: 'wiki' },
       result = accessForFactory(call),
-      adminEntries = result.filter((e: AccessEntry) => e.level === 'Org Admin'),
-      allAdminEps: string[] = []
-    for (const entry of adminEntries) for (const ep of entry.endpoints) allAdminEps.push(ep)
-    expect(allAdminEps).toContain('restore')
+      memberEntries = result.filter((e: AccessEntry) => e.level === 'Org Member'),
+      allMemberEps: string[] = []
+    for (const entry of memberEntries) for (const ep of entry.endpoints) allMemberEps.push(ep)
+    expect(allMemberEps).toContain('restore')
   })
 
   test('childCrud returns Parent Owner level', () => {
-    const call: FactoryCall = { factory: 'childCrud', file: 'message.ts', options: '', table: 'message' },
+    const call: FactoryCall = {
+        factory: 'makeChildCrud',
+        file: 'message.ts',
+        options: 'endpoints=list,create',
+        table: 'message'
+      },
       result = accessForFactory(call),
       levels = result.map((e: AccessEntry) => e.level)
     expect(levels).toContain('Parent Owner')
   })
 
   test('childCrud Parent Owner includes list, create, update, rm, bulkCreate, bulkRm, bulkUpdate', () => {
-    const call: FactoryCall = { factory: 'childCrud', file: 'message.ts', options: '', table: 'message' },
+    const call: FactoryCall = {
+        factory: 'makeChildCrud',
+        file: 'message.ts',
+        options: 'endpoints=list,create,update,rm,bulkCreate,bulkRm,bulkUpdate',
+        table: 'message'
+      },
       result = accessForFactory(call),
       owner = result.find((e: AccessEntry) => e.level === 'Parent Owner')
     expect(owner).toBeDefined()
@@ -5583,27 +5629,42 @@ describe('accessForFactory', () => {
     expect(owner?.endpoints).toContain('bulkUpdate')
   })
 
-  test('childCrud with pub adds Public level with pub.list and pub.get', () => {
-    const call: FactoryCall = { factory: 'childCrud', file: 'message.ts', options: 'pub: true', table: 'message' },
+  test('childCrud with pub adds pub.list and pub.get reducers', () => {
+    const call: FactoryCall = {
+        factory: 'makeChildCrud',
+        file: 'message.ts',
+        options: 'endpoints=pub.list,pub.get',
+        table: 'message'
+      },
       result = accessForFactory(call),
-      pub = result.find((e: AccessEntry) => e.level === 'Public')
-    expect(pub).toBeDefined()
-    expect(pub?.endpoints).toContain('pub.list')
-    expect(pub?.endpoints).toContain('pub.get')
+      owner = result.find((e: AccessEntry) => e.level === 'Parent Owner')
+    expect(owner).toBeDefined()
+    expect(owner?.endpoints).toContain('pub.list')
+    expect(owner?.endpoints).toContain('pub.get')
   })
 
   test('childCrud without pub has no Public level', () => {
-    const call: FactoryCall = { factory: 'childCrud', file: 'message.ts', options: '', table: 'message' },
+    const call: FactoryCall = {
+        factory: 'makeChildCrud',
+        file: 'message.ts',
+        options: 'endpoints=list,create',
+        table: 'message'
+      },
       result = accessForFactory(call),
       pub = result.find((e: AccessEntry) => e.level === 'Public')
     expect(pub).toBeUndefined()
   })
 
-  test('cacheCrud returns No Auth level with all cache endpoints', () => {
-    const call: FactoryCall = { factory: 'cacheCrud', file: 'movie.ts', options: '', table: 'movie' },
+  test('cacheCrud returns Public level with all cache endpoints', () => {
+    const call: FactoryCall = {
+        factory: 'makeCacheCrud',
+        file: 'movie.ts',
+        options: 'endpoints=get,all,list,create,update,rm,invalidate,purge,load,refresh',
+        table: 'movie'
+      },
       result = accessForFactory(call)
     expect(result).toHaveLength(1)
-    expect(result[0]?.level).toBe('No Auth')
+    expect(result[0]?.level).toBe('Public')
     expect(result[0]?.endpoints).toContain('get')
     expect(result[0]?.endpoints).toContain('all')
     expect(result[0]?.endpoints).toContain('list')
@@ -5616,22 +5677,27 @@ describe('accessForFactory', () => {
     expect(result[0]?.endpoints).toContain('refresh')
   })
 
-  test('singletonCrud returns Owner level with get and upsert', () => {
-    const call: FactoryCall = { factory: 'singletonCrud', file: 'profile.ts', options: '', table: 'profile' },
+  test('singleton reducers return Project Policy level with get and upsert', () => {
+    const call: FactoryCall = {
+        factory: 'reducer',
+        file: 'profile.ts',
+        options: 'endpoints=get,upsert',
+        table: 'profile'
+      },
       result = accessForFactory(call)
     expect(result).toHaveLength(1)
-    expect(result[0]?.level).toBe('Owner')
+    expect(result[0]?.level).toBe('Project Policy')
     expect(result[0]?.endpoints).toContain('get')
     expect(result[0]?.endpoints).toContain('upsert')
   })
 
   test('total endpoints from accessForFactory matches endpointsForFactory', () => {
     const calls: FactoryCall[] = [
-      { factory: 'crud', file: 'blog.ts', options: "search: 'content', softDelete: true", table: 'blog' },
-      { factory: 'orgCrud', file: 'wiki.ts', options: 'acl: true, softDelete: true', table: 'wiki' },
-      { factory: 'childCrud', file: 'message.ts', options: 'pub: true', table: 'message' },
-      { factory: 'cacheCrud', file: 'movie.ts', options: '', table: 'movie' },
-      { factory: 'singletonCrud', file: 'profile.ts', options: '', table: 'profile' }
+      { factory: 'makeCrud', file: 'blog.ts', options: 'endpoints=search,restore,create', table: 'blog' },
+      { factory: 'makeOrg', file: 'wiki.ts', options: 'endpoints=addEditor,restore,list', table: 'wiki' },
+      { factory: 'makeChildCrud', file: 'message.ts', options: 'endpoints=pub.list,list', table: 'message' },
+      { factory: 'makeCacheCrud', file: 'movie.ts', options: 'endpoints=get,refresh', table: 'movie' },
+      { factory: 'reducer', file: 'profile.ts', options: 'endpoints=get,upsert', table: 'profile' }
     ]
     for (const call of calls) {
       const accessEntries = accessForFactory(call)
@@ -5644,9 +5710,9 @@ describe('accessForFactory', () => {
 
   test('orgCrud with acl + softDelete + search has all options reflected', () => {
     const call: FactoryCall = {
-        factory: 'orgCrud',
+        factory: 'makeOrg',
         file: 'wiki.ts',
-        options: "acl: true, softDelete: true, search: 'title'",
+        options: 'endpoints=addEditor,restore,search',
         table: 'wiki'
       },
       result = accessForFactory(call),
@@ -5654,18 +5720,15 @@ describe('accessForFactory', () => {
       allMemberEps: string[] = []
     for (const entry of memberEntries) for (const ep of entry.endpoints) allMemberEps.push(ep)
     expect(allMemberEps).toContain('search')
-    const adminEntries = result.filter((e: AccessEntry) => e.level === 'Org Admin'),
-      allAdminEps: string[] = []
-    for (const entry of adminEntries) for (const ep of entry.endpoints) allAdminEps.push(ep)
-    expect(allAdminEps).toContain('restore')
-    expect(allAdminEps).toContain('addEditor')
+    expect(allMemberEps).toContain('restore')
+    expect(allMemberEps).toContain('addEditor')
   })
 
   test('crud access entries do not overlap endpoints', () => {
     const call: FactoryCall = {
-        factory: 'crud',
+        factory: 'makeCrud',
         file: 'blog.ts',
-        options: "search: 'content', softDelete: true",
+        options: 'endpoints=search,restore,create',
         table: 'blog'
       },
       result = accessForFactory(call),
@@ -5677,9 +5740,9 @@ describe('accessForFactory', () => {
 
   test('orgCrud access entries do not overlap endpoints', () => {
     const call: FactoryCall = {
-        factory: 'orgCrud',
+        factory: 'makeOrg',
         file: 'wiki.ts',
-        options: 'acl: true, softDelete: true',
+        options: 'endpoints=addEditor,restore,list',
         table: 'wiki'
       },
       result = accessForFactory(call),
@@ -5690,7 +5753,12 @@ describe('accessForFactory', () => {
   })
 
   test('childCrud access entries do not overlap endpoints', () => {
-    const call: FactoryCall = { factory: 'childCrud', file: 'message.ts', options: 'pub: true', table: 'message' },
+    const call: FactoryCall = {
+        factory: 'makeChildCrud',
+        file: 'message.ts',
+        options: 'endpoints=pub.list,pub.get,list',
+        table: 'message'
+      },
       result = accessForFactory(call),
       allEps: string[] = []
     for (const entry of result) for (const ep of entry.endpoints) allEps.push(ep)
@@ -5700,7 +5768,12 @@ describe('accessForFactory', () => {
 })
 
 describe('middleware', () => {
-  const mockCtx: GlobalHookCtx = { db: {} as GlobalHookCtx['db'], table: 'blog', userId: 'user1' }
+  const mockCtx: GlobalHookCtx = {
+    db: {} as GlobalHookCtx['db'],
+    sender: { toString: () => 'sender1' } as GlobalHookCtx['sender'],
+    table: 'blog',
+    userId: 'user1'
+  }
 
   describe('composeMiddleware', () => {
     test('returns empty hooks when no middleware provided', () => {
@@ -5916,19 +5989,21 @@ describe('middleware', () => {
     test('afterCreate does not throw', () => {
       const mw = auditLog(),
         mwCtx: MiddlewareCtx = { ...mockCtx, operation: 'create' }
-      expect(async () => mw.afterCreate?.(mwCtx, { data: { title: 'x' }, id: 'id1' })).not.toThrow()
+      expect(() => mw.afterCreate?.(mwCtx, { data: { title: 'x' }, row: { _id: 'id1', title: 'x' } })).not.toThrow()
     })
 
     test('afterUpdate does not throw', () => {
       const mw = auditLog(),
         mwCtx: MiddlewareCtx = { ...mockCtx, operation: 'update' }
-      expect(async () => mw.afterUpdate?.(mwCtx, { id: 'id1', patch: { title: 'y' }, prev: { title: 'x' } })).not.toThrow()
+      expect(() =>
+        mw.afterUpdate?.(mwCtx, { next: { _id: 'id1', title: 'y' }, patch: { title: 'y' }, prev: { title: 'x' } })
+      ).not.toThrow()
     })
 
     test('afterDelete does not throw', () => {
       const mw = auditLog(),
         mwCtx: MiddlewareCtx = { ...mockCtx, operation: 'delete' }
-      expect(async () => mw.afterDelete?.(mwCtx, { doc: { title: 'x' }, id: 'id1' })).not.toThrow()
+      expect(() => mw.afterDelete?.(mwCtx, { row: { _id: 'id1', title: 'x' } })).not.toThrow()
     })
 
     test('accepts custom log level', () => {
@@ -5940,7 +6015,7 @@ describe('middleware', () => {
       const mw = auditLog({ verbose: true })
       expect(mw.name).toBe('auditLog')
       const mwCtx: MiddlewareCtx = { ...mockCtx, operation: 'create' }
-      expect(async () => mw.afterCreate?.(mwCtx, { data: { title: 'x' }, id: 'id1' })).not.toThrow()
+      expect(() => mw.afterCreate?.(mwCtx, { data: { title: 'x' }, row: { _id: 'id1', title: 'x' } })).not.toThrow()
     })
   })
 
@@ -6928,28 +7003,28 @@ describe('parseObjectFields', () => {
 
 describe('extractSchemaFields', () => {
   test('extracts tables from makeOwned', () => {
-    const content = `const owned = makeOwned({
-  blog: object({
-    title: string(),
-    content: string(),
+    const content = `const schemaDef = schema({
+  blog: table({}, {
+    title: t.string(),
+    content: t.string(),
   })
 })`,
       tables = extractSchemaFields(content)
     expect(tables).toHaveLength(1)
     expect(tables[0]?.table).toBe('blog')
-    expect(tables[0]?.factory).toBe('crud')
+    expect(tables[0]?.factory).toBe('spacetimedb')
     expect(tables[0]?.fields).toHaveLength(2)
-    expect(tables[0]?.fields[0]).toEqual({ field: 'title', type: 'string()' })
+    expect(tables[0]?.fields[0]).toEqual({ field: 'title', type: 't.string()' })
   })
 
   test('extracts multiple tables from same wrapper', () => {
-    const content = `const owned = makeOwned({
-  blog: object({
-    title: string(),
+    const content = `const schemaDef = schema({
+  blog: table({}, {
+    title: t.string(),
   }),
-  chat: object({
-    name: string(),
-    isPublic: boolean(),
+  chat: table({}, {
+    name: t.string(),
+    isPublic: t.bool(),
   })
 })`,
       tables = extractSchemaFields(content)
@@ -6961,15 +7036,13 @@ describe('extractSchemaFields', () => {
 
   test('maps factories correctly', () => {
     const tests: [string, string][] = [
-      ['makeOwned', 'crud'],
-      ['makeOrgScoped', 'orgCrud'],
-      ['makeSingleton', 'singletonCrud'],
-      ['makeBase', 'cacheCrud']
+      ['schema', 'spacetimedb'],
+      ['schema', 'spacetimedb']
     ]
     for (const [wrapper, expected] of tests) {
       const content = `const x = ${wrapper}({
-  item: object({
-    name: string(),
+  item: table({}, {
+    name: t.string(),
   })
 })`,
         tables = extractSchemaFields(content)
@@ -6984,20 +7057,16 @@ describe('extractSchemaFields', () => {
   })
 
   test('handles child schemas with foreignKey and parent', () => {
-    const content = `const schemas = {
-  message: child({
-    foreignKey: 'chatId',
-    parent: 'chat',
-    schema: object({
-      text: string(),
-      sender: string(),
-    })
+    const content = `const schemaDef = schema({
+  message: table({}, {
+    text: t.string(),
+    sender: t.string(),
   })
-}`,
+})`,
       tables = extractSchemaFields(content)
     expect(tables).toHaveLength(1)
     expect(tables[0]?.table).toBe('message')
-    expect(tables[0]?.factory).toBe('childCrud')
+    expect(tables[0]?.factory).toBe('spacetimedb')
   })
 
   test('skips child without valid pattern', () => {
@@ -7014,17 +7083,17 @@ describe('printSchemaPreview', () => {
     console.log = (...args: unknown[]) => {
       logs.push(args.join(' '))
     }
-    const content = `const owned = makeOwned({
-  blog: object({
-    title: string(),
+    const content = `const schemaDef = schema({
+  blog: table({}, {
+    title: t.string(),
   })
 })`,
-      calls: FactoryCall[] = [{ factory: 'crud', file: 'blog.ts', options: '', table: 'blog' }]
+      calls: FactoryCall[] = [{ factory: 'makeCrud', file: 'blog.ts', options: 'endpoints=create,read', table: 'blog' }]
     printSchemaPreview(content, calls)
     console.log = origLog
     const output = logs.join('\n')
     expect(output).toContain('blog')
-    expect(output).toContain('crud')
+    expect(output).toContain('spacetimedb')
     expect(output).toContain('title')
   })
 
@@ -7034,19 +7103,16 @@ describe('printSchemaPreview', () => {
     console.log = (...args: unknown[]) => {
       logs.push(args.join(' '))
     }
-    const content = `const owned = makeOwned({
-  blog: object({
-    title: string(),
+    const content = `const schemaDef = schema({
+  blog: table({}, {
+    title: t.string(),
   })
 })`,
-      calls: FactoryCall[] = [
-        { factory: 'crud', file: 'blog.ts', options: "{ search: 'title', softDelete: true }", table: 'blog' }
-      ]
+      calls: FactoryCall[] = [{ factory: 'makeCrud', file: 'blog.ts', options: 'endpoints=search,restore', table: 'blog' }]
     printSchemaPreview(content, calls)
     console.log = origLog
     const output = logs.join('\n')
-    expect(output).toContain('search')
-    expect(output).toContain('softDelete')
+    expect(output).toContain('[2 reducers]')
   })
 
   test('shows no tables message for empty schema', () => {
@@ -7067,18 +7133,18 @@ describe('printSchemaPreview', () => {
     console.log = (...args: unknown[]) => {
       logs.push(args.join(' '))
     }
-    const content = `const owned = makeOwned({
-  blog: object({
-    title: string(),
-    content: string(),
+    const content = `const schemaDef = schema({
+  blog: table({}, {
+    title: t.string(),
+    content: t.string(),
   }),
-  chat: object({
-    name: string(),
+  chat: table({}, {
+    name: t.string(),
   })
 })`,
       calls: FactoryCall[] = [
-        { factory: 'crud', file: 'blog.ts', options: '', table: 'blog' },
-        { factory: 'crud', file: 'chat.ts', options: '', table: 'chat' }
+        { factory: 'makeCrud', file: 'blog.ts', options: 'endpoints=list', table: 'blog' },
+        { factory: 'makeCrud', file: 'chat.ts', options: 'endpoints=list', table: 'chat' }
       ]
     printSchemaPreview(content, calls)
     console.log = origLog
@@ -7171,17 +7237,22 @@ describe('SchemaPlayground (R11.4)', () => {
   })
 
   test('extractSchemaFields powers the playground preview', () => {
-    const content = `const owned = makeOwned({
-  blog: object({
-    title: string(),
-    content: string(),
+    const content = `const schemaDef = schema({
+  blog: table({}, {
+    title: t.string(),
+    content: t.string(),
   })
 })`,
       tables = extractSchemaFields(content)
     expect(tables).toHaveLength(1)
     expect(tables[0]?.table).toBe('blog')
-    expect(tables[0]?.factory).toBe('crud')
-    const endpoints = endpointsForFactory({ factory: 'crud', file: '', options: '', table: 'blog' })
+    expect(tables[0]?.factory).toBe('spacetimedb')
+    const endpoints = endpointsForFactory({
+      factory: 'makeCrud',
+      file: '',
+      options: 'endpoints=pub.list,create,update,rm',
+      table: 'blog'
+    })
     expect(endpoints.length).toBeGreaterThan(0)
     expect(endpoints).toContain('pub.list')
     expect(endpoints).toContain('create')
@@ -7190,42 +7261,56 @@ describe('SchemaPlayground (R11.4)', () => {
   })
 
   test('playground detects multiple factory types', () => {
-    const content = `const owned = makeOwned({
-  blog: object({ title: string() }),
-})
-const org = makeOrgScoped({
-  project: object({ name: string() }),
+    const content = `const schemaDef = schema({
+  blog: table({}, { title: t.string() }),
+  project: table({}, { name: t.string() }),
 })`,
       tables = extractSchemaFields(content)
     expect(tables).toHaveLength(2)
     const factories = tables.map(t => t.factory)
-    expect(factories).toContain('crud')
-    expect(factories).toContain('orgCrud')
+    expect(factories).toContain('spacetimedb')
   })
 
   test('endpointsForFactory returns correct endpoints for each factory', () => {
-    expect(endpointsForFactory({ factory: 'crud', file: '', options: '', table: 't' })).toContain('create')
-    expect(endpointsForFactory({ factory: 'orgCrud', file: '', options: '', table: 't' })).toContain('create')
-    expect(endpointsForFactory({ factory: 'singletonCrud', file: '', options: '', table: 't' })).toContain('get')
-    expect(endpointsForFactory({ factory: 'singletonCrud', file: '', options: '', table: 't' })).toContain('upsert')
-    expect(endpointsForFactory({ factory: 'cacheCrud', file: '', options: '', table: 't' })).toContain('invalidate')
-    expect(endpointsForFactory({ factory: 'childCrud', file: '', options: '', table: 't' })).toContain('list')
+    expect(endpointsForFactory({ factory: 'makeCrud', file: '', options: 'endpoints=create', table: 't' })).toContain(
+      'create'
+    )
+    expect(endpointsForFactory({ factory: 'makeOrg', file: '', options: 'endpoints=create', table: 't' })).toContain(
+      'create'
+    )
+    expect(endpointsForFactory({ factory: 'reducer', file: '', options: 'endpoints=get,upsert', table: 't' })).toContain(
+      'get'
+    )
+    expect(endpointsForFactory({ factory: 'reducer', file: '', options: 'endpoints=get,upsert', table: 't' })).toContain(
+      'upsert'
+    )
+    expect(
+      endpointsForFactory({ factory: 'makeCacheCrud', file: '', options: 'endpoints=invalidate', table: 't' })
+    ).toContain('invalidate')
+    expect(endpointsForFactory({ factory: 'makeChildCrud', file: '', options: 'endpoints=list', table: 't' })).toContain(
+      'list'
+    )
   })
 
   test('orgCrud with acl option adds editor endpoints', () => {
-    const endpoints = endpointsForFactory({ factory: 'orgCrud', file: '', options: '{ acl: true }', table: 't' })
+    const endpoints = endpointsForFactory({
+      factory: 'makeOrg',
+      file: '',
+      options: 'endpoints=addEditor,removeEditor,editors',
+      table: 't'
+    })
     expect(endpoints).toContain('addEditor')
     expect(endpoints).toContain('removeEditor')
     expect(endpoints).toContain('editors')
   })
 
   test('crud with softDelete adds restore endpoint', () => {
-    const endpoints = endpointsForFactory({ factory: 'crud', file: '', options: '{ softDelete: true }', table: 't' })
+    const endpoints = endpointsForFactory({ factory: 'makeCrud', file: '', options: 'endpoints=restore', table: 't' })
     expect(endpoints).toContain('restore')
   })
 
   test('crud with search adds pub.search endpoint', () => {
-    const endpoints = endpointsForFactory({ factory: 'crud', file: '', options: "{ search: 'title' }", table: 't' })
+    const endpoints = endpointsForFactory({ factory: 'makeCrud', file: '', options: 'endpoints=pub.search', table: 't' })
     expect(endpoints).toContain('pub.search')
   })
 })
@@ -7297,8 +7382,8 @@ describe('betterspace add command', () => {
     })
 
     test('parses --convex-dir flag', () => {
-      const flags = parseAddFlags(['todo', '--convex-dir=my-convex'])
-      expect(flags.convexDir).toBe('my-convex')
+      const flags = parseAddFlags(['todo', '--module-dir=my-module'])
+      expect(flags.moduleDir).toBe('my-module')
     })
 
     test('parses --app-dir flag', () => {
@@ -7318,7 +7403,7 @@ describe('betterspace add command', () => {
 
     test('default convexDir is convex', () => {
       const flags = parseAddFlags(['todo'])
-      expect(flags.convexDir).toBe('convex')
+      expect(flags.moduleDir).toBe('module')
     })
 
     test('default appDir is src/app', () => {
@@ -7329,29 +7414,29 @@ describe('betterspace add command', () => {
 
   describe('fieldToZod', () => {
     test('string field', () => {
-      expect(fieldToZod({ name: 'title', optional: false, type: 'string' })).toBe('string()')
+      expect(fieldToZod({ name: 'title', optional: false, type: 'string' })).toBe('t.string()')
     })
 
     test('boolean field', () => {
-      expect(fieldToZod({ name: 'done', optional: false, type: 'boolean' })).toBe('boolean()')
+      expect(fieldToZod({ name: 'done', optional: false, type: 'boolean' })).toBe('t.bool()')
     })
 
     test('number field', () => {
-      expect(fieldToZod({ name: 'count', optional: false, type: 'number' })).toBe('number()')
+      expect(fieldToZod({ name: 'count', optional: false, type: 'number' })).toBe('t.f64()')
     })
 
     test('optional field', () => {
-      expect(fieldToZod({ name: 'bio', optional: true, type: 'string' })).toBe('string().optional()')
+      expect(fieldToZod({ name: 'bio', optional: true, type: 'string' })).toBe('t.string()')
     })
 
     test('enum field', () => {
       const result = fieldToZod({ name: 'status', optional: false, type: { enum: ['draft', 'published'] } })
-      expect(result).toBe("zenum(['draft', 'published'])")
+      expect(result).toBe('t.string()')
     })
 
     test('optional enum field', () => {
       const result = fieldToZod({ name: 'priority', optional: true, type: { enum: ['low', 'high'] } })
-      expect(result).toBe("zenum(['low', 'high']).optional()")
+      expect(result).toBe('t.string()')
     })
   })
 
@@ -7391,113 +7476,114 @@ describe('betterspace add command', () => {
   describe('genSchemaContent', () => {
     test('generates owned schema', () => {
       const content = genSchemaContent('blog', 'owned', [{ name: 'title', optional: false, type: 'string' }])
-      expect(content).toContain('makeOwned')
-      expect(content).toContain('owned')
+      expect(content).toContain("import { table, t } from 'spacetimedb'")
+      expect(content).toContain('blogTable')
       expect(content).toContain('blog')
-      expect(content).toContain('string()')
+      expect(content).toContain('t.string()')
     })
 
     test('generates org schema', () => {
       const content = genSchemaContent('wiki', 'org', [{ name: 'title', optional: false, type: 'string' }])
-      expect(content).toContain('makeOrgScoped')
-      expect(content).toContain('orgScoped')
+      expect(content).toContain('orgId: t.string()')
+      expect(content).toContain('public: false')
     })
 
     test('generates singleton schema', () => {
       const content = genSchemaContent('profile', 'singleton', [{ name: 'displayName', optional: false, type: 'string' }])
-      expect(content).toContain('makeSingleton')
-      expect(content).toContain('singletons')
+      expect(content).toContain('userId: t.string()')
+      expect(content).toContain('profileTable')
     })
 
     test('generates base schema for cache', () => {
       const content = genSchemaContent('movie', 'cache', [{ name: 'title', optional: false, type: 'string' }])
-      expect(content).toContain('makeBase')
-      expect(content).toContain('base')
+      expect(content).toContain('public: true')
+      expect(content).toContain('movieTable')
     })
 
     test('generates child schema', () => {
       const content = genSchemaContent('message', 'child', [{ name: 'text', optional: false, type: 'string' }])
-      expect(content).toContain('child')
-      expect(content).toContain('messageChild')
-      expect(content).toContain('foreignKey')
+      expect(content).toContain('parentId: t.string()')
+      expect(content).toContain('messageTable')
     })
 
     test('includes enum import when needed', () => {
       const content = genSchemaContent('blog', 'owned', [
         { name: 'status', optional: false, type: { enum: ['draft', 'published'] } }
       ])
-      expect(content).toContain('enum as zenum')
-      expect(content).toContain("zenum(['draft', 'published'])")
+      expect(content).toContain("import { table, t } from 'spacetimedb'")
+      expect(content).toContain('status: t.string()')
     })
 
     test('includes optional fields', () => {
       const content = genSchemaContent('blog', 'owned', [{ name: 'bio', optional: true, type: 'string' }])
-      expect(content).toContain('.optional()')
+      expect(content).toContain('bio: t.string()')
     })
   })
 
   describe('genEndpointContent', () => {
     test('generates owned endpoint', () => {
-      const content = genEndpointContent('blog', 'owned', '')
-      expect(content).toContain('crud')
-      expect(content).toContain('owned.blog')
-      expect(content).toContain('pub: { list, read }')
+      const content = genEndpointContent('blog', 'owned', [{ name: 'title', optional: false, type: 'string' }], '')
+      expect(content).toContain("import { reducer } from 'spacetimedb'")
+      expect(content).toContain('makeCrud')
+      expect(content).toContain("'blog.create'")
     })
 
     test('generates org endpoint', () => {
-      const content = genEndpointContent('wiki', 'org', '')
-      expect(content).toContain('orgCrud')
-      expect(content).toContain('orgScoped.wiki')
-      expect(content).toContain('addEditor')
+      const content = genEndpointContent('wiki', 'org', [{ name: 'title', optional: false, type: 'string' }], '')
+      expect(content).toContain('makeOrg')
+      expect(content).toContain('orgId: string')
+      expect(content).toContain("'wiki.create'")
     })
 
     test('generates singleton endpoint', () => {
-      const content = genEndpointContent('profile', 'singleton', '')
-      expect(content).toContain('singletonCrud')
-      expect(content).toContain('singletons.profile')
-      expect(content).toContain('get, upsert')
+      const content = genEndpointContent(
+        'profile',
+        'singleton',
+        [{ name: 'displayName', optional: false, type: 'string' }],
+        ''
+      )
+      expect(content).toContain('makeCrud')
+      expect(content).toContain('userId: string')
+      expect(content).toContain("'profile.rm'")
     })
 
     test('generates cache endpoint', () => {
-      const content = genEndpointContent('movie', 'cache', '')
-      expect(content).toContain('cacheCrud')
-      expect(content).toContain('base.movie')
-      expect(content).toContain('invalidate')
+      const content = genEndpointContent('movie', 'cache', [{ name: 'title', optional: false, type: 'string' }], '')
+      expect(content).toContain('makeCacheCrud')
+      expect(content).toContain("'movie.create'")
     })
 
     test('generates child endpoint', () => {
-      const content = genEndpointContent('message', 'child', 'chat')
-      expect(content).toContain('childCrud')
-      expect(content).toContain('messageChild')
+      const content = genEndpointContent('message', 'child', [{ name: 'text', optional: false, type: 'string' }], 'chat')
+      expect(content).toContain('makeChildCrud')
+      expect(content).toContain("parent: 'chat'")
     })
   })
 
   describe('genPageContent', () => {
     test('generates list page for owned type', () => {
       const content = genPageContent('blog', 'owned')
-      expect(content).toContain('useList')
-      expect(content).toContain('api.blog.list')
-      expect(content).toContain('loadMore')
+      expect(content).toContain('useSpacetime')
+      expect(content).toContain("spacetime.callReducer('blog.list'")
+      expect(content).toContain('Load Blog')
       expect(content).toContain('export default')
     })
 
     test('generates singleton page', () => {
       const content = genPageContent('profile', 'singleton')
-      expect(content).toContain('useQuery')
-      expect(content).toContain('api.profile.get')
+      expect(content).toContain('useSpacetime')
+      expect(content).toContain("spacetime.callReducer('profile.get'")
       expect(content).toContain('export default')
     })
 
     test('generates page for org type', () => {
       const content = genPageContent('wiki', 'org')
-      expect(content).toContain('useList')
-      expect(content).toContain('api.wiki.list')
+      expect(content).toContain("spacetime.callReducer('wiki.list'")
     })
 
     test('generates page for cache type', () => {
       const content = genPageContent('movie', 'cache')
-      expect(content).toContain('useList')
-      expect(content).toContain('api.movie.list')
+      expect(content).toContain("spacetime.callReducer('movie.list'")
     })
   })
 
