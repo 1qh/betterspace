@@ -1,3 +1,4 @@
+/* eslint-disable max-statements */
 'use client'
 
 import { useCallback, useRef, useState } from 'react'

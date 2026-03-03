@@ -1,3 +1,4 @@
+/* eslint-disable max-statements, complexity */
 'use client'
 import type { StandardSchemaV1 } from '@tanstack/form-core'
 import type { FormValidateOrFn, ReactFormExtendedApi } from '@tanstack/react-form'
