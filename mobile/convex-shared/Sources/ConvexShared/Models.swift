@@ -1,1 +1,0 @@
-../../../../swift-core/Sources/ConvexCore/Generated.swift
