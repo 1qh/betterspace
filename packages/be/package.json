@@ -2,7 +2,7 @@
   "name": "@a/be",
   "exports": {
     ".": "./convex/_generated/api.js",
-    "./ai": "./ai.ts",
+
     "./chat": "./convex/chat.ts",
     "./lazy": "./lazy.ts",
     "./model": "./convex/_generated/dataModel.d.ts",
@@ -21,7 +21,7 @@
     "with-env": "dotenv -e ../../.env --"
   },
   "dependencies": {
-    "@ai-sdk/google-vertex": "latest",
+
     "@t3-oss/env-nextjs": "latest",
     "betterspace": "*",
     "convex": "latest",
