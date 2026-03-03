@@ -16,7 +16,7 @@ export type { Api, ConflictData, FieldKind, FieldMeta, FieldMetaMap, FormReturn 
 export type { OrgContextValue, OrgDoc, OrgProviderProps } from './react/org'
 export type { SoftDeleteOpts, ToastFn } from './react/use-soft-delete'
 export type { ConvexErrorData, ErrorHandler } from './server/helpers'
-export { idFromWire, idToWire, identityEquals, identityFromHex, identityToHex } from './server/helpers'
+export { identityEquals, identityFromHex, identityToHex, idFromWire, idToWire } from './server/helpers'
 export type {
   Ab,
   ActionCtxLike,
@@ -58,5 +58,6 @@ export type {
 } from './server/types'
 
 export type { StrictApi }
+export { zodFromTable } from './stdb-zod'
 export type { CvMeta, DefType, ZodSchema } from './zod'
 export { strictApi }
