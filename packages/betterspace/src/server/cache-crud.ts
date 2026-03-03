@@ -1,231 +1,225 @@
-/* eslint-disable no-await-in-loop, @typescript-eslint/no-unnecessary-type-parameters */
-import type { GenericDataModel } from 'convex/server'
-import type { ZodObject, ZodRawShape } from 'zod/v4'
+import type { Timestamp } from 'spacetimedb'
+import type { TypeBuilder } from 'spacetimedb/server'
 
-import { zodOutputToConvexFields as z2c, zid } from 'convex-helpers/server/zod4'
-import { anyApi } from 'convex/server'
-import { v } from 'convex/values'
-import { boolean, number } from 'zod/v4'
+import type {
+  CacheConfig,
+  CacheExports,
+  CacheFieldBuilders,
+  CacheFieldValues,
+  CachePkLike,
+  CacheTableLike
+} from './types/cache'
 
-import type { ActionCtxLike, CacheBuilders, CacheCrudResult, CacheHooks, DbCtx, RateLimitConfig, Rec } from './types'
+interface OptionalBuilder {
+  optional: () => TypeBuilder<unknown, unknown>
+}
 
-import { BULK_MAX } from '../constants'
-import { flt, idx as idxBridge, typed } from './bridge'
-import { isTestMode } from './env'
-import {
-  checkRateLimit,
-  dbDelete,
-  dbInsert,
-  dbPatch,
-  err,
-  noFetcher,
-  pgOpts,
-  pickFields,
-  SEVEN_DAYS_MS,
-  time
-} from './helpers'
+type UpdateArgs<F extends CacheFieldBuilders> = Partial<CacheFieldValues<F>>
 
-const chk = (c: DbCtx) => ({ db: c.db }),
-  makeCacheCrud = <S extends ZodRawShape, K extends string, DM extends GenericDataModel = GenericDataModel>({
-    builders: b,
-    fetcher,
-    hooks,
-    key,
-    rateLimit: rl,
-    schema,
-    staleWhileRevalidate: swr,
-    table,
-    ttl = SEVEN_DAYS_MS
-  }: {
-    builders: CacheBuilders<DM>
-    fetcher?: (c: unknown, key: unknown) => Promise<unknown>
-    hooks?: CacheHooks
-    key: K
-    rateLimit?: RateLimitConfig
-    schema: ZodObject<S>
-    staleWhileRevalidate?: boolean
-    table: string
-    ttl?: number
-  }): CacheCrudResult<S> => {
-    const keys = Object.keys(schema.shape),
-      pick = (d: Rec) => pickFields(d, keys),
-      valid = (d: Rec) => ((d.updatedAt as number | undefined) ?? (d._creationTime as number)) + ttl > Date.now(),
-      partial = schema.partial(),
-      indexName = `by_${key}` as const,
-      kArgs = z2c(typed({ [key]: schema.shape[key] })) as Rec,
-      idArgs = { id: zid(table) },
-      expArgs = { includeExpired: boolean().optional() },
-      listArgs = { includeExpired: boolean().optional(), paginationOpts: pgOpts },
-      retFields = z2c(schema.extend({ cacheHit: boolean() }).shape) as Rec,
-      kVal = kArgs[key] ?? err('INVALID_WHERE'),
-      byK = (x: unknown) => idxBridge(i => i.eq(key, x)),
-      getInt = b.internalQuery({
-        args: typed(kArgs),
-        handler: typed(async (c: DbCtx, a: Rec) => c.db.query(table).withIndex(indexName, byK(a[key])).first())
-      }),
-      get = b.query({
-        args: typed(kArgs),
-        handler: typed(async (c: DbCtx, a: Rec) => {
-          const d = await c.db.query(table).withIndex(indexName, byK(a[key])).first()
-          if (!d) return null
-          if (valid(d)) return { ...d, cacheHit: true, stale: false }
-          return swr ? { ...d, cacheHit: true, stale: true } : null
-        })
-      }),
-      read = b.cq({ args: idArgs, handler: typed(async (c: DbCtx, { id }: { id: string }) => c.db.get(id)) }),
-      all = b.cq({
-        args: expArgs,
-        handler: typed(async (c: DbCtx, { includeExpired: ie }: { includeExpired?: boolean }) => {
-          const d = await c.db.query(table).order('desc').collect()
-          return ie ? d : d.filter(valid)
-        })
-      }),
-      list = b.cq({
-        args: listArgs,
-        handler: typed(
-          async (
-            c: DbCtx,
-            { includeExpired: ie, paginationOpts: op }: { includeExpired?: boolean; paginationOpts: Rec }
-          ) => {
-            const qr = c.db.query(table).order('desc')
-            if (ie) return qr.paginate(op)
-            const { page, ...rest } = await qr.paginate({ ...op, numItems: (op.numItems as number) * 2 })
-            return { ...rest, page: page.filter(valid).slice(0, op.numItems as number) }
-          }
-        )
-      }),
-      upsert = async (c: DbCtx, data: Rec) => {
-        const ex = await c.db.query(table).withIndex(indexName, byK(data[key])).first(),
-          wt = { ...data, ...time() }
-        if (ex) {
-          await dbPatch(c.db, ex._id as string, wt)
-          return ex._id
+const DAYS_PER_WEEK = 7,
+  HOURS_PER_DAY = 24,
+  MINUTES_PER_HOUR = 60,
+  SECONDS_PER_MINUTE = 60,
+  MILLIS_PER_SECOND = 1000,
+  DEFAULT_TTL_MS = DAYS_PER_WEEK * HOURS_PER_DAY * MINUTES_PER_HOUR * SECONDS_PER_MINUTE * MILLIS_PER_SECOND,
+  makeError = (code: string, message: string): Error => new Error(`${code}: ${message}`),
+  parseTimestampText = (value: string): null | number => {
+    const parsedNumber = Number(value)
+    if (Number.isFinite(parsedNumber)) return parsedNumber
+    const parsedDate = Date.parse(value)
+    if (Number.isFinite(parsedDate)) return parsedDate
+    return null
+  },
+  parseTimestampValue = (value: unknown): null | number => {
+    if (typeof value === 'number' && Number.isFinite(value)) return value
+    if (typeof value === 'string') return parseTimestampText(value)
+    return null
+  },
+  makeOptionalFields = (fields: CacheFieldBuilders) => {
+    const params: Record<string, TypeBuilder<unknown, unknown>> = {},
+      keys = Object.keys(fields)
+    for (const key of keys) {
+      const field = fields[key] as unknown as OptionalBuilder
+      params[key] = field.optional()
+    }
+    return params
+  },
+  pickPatch = <F extends CacheFieldBuilders>(
+    args: UpdateArgs<F>,
+    fieldNames: string[]
+  ): Partial<CacheFieldValues<F>> => {
+    const patchRecord: Record<string, unknown> = {},
+      argsRecord = args as unknown as Record<string, unknown>
+    for (const key of fieldNames) {
+      const value = argsRecord[key]
+      if (value !== undefined) patchRecord[key] = value
+    }
+    return patchRecord as Partial<CacheFieldValues<F>>
+  },
+  timestampToMs = (value: Timestamp): number => {
+    const timestamp = value as unknown as {
+      toJSON?: () => string
+      toString?: () => string
+      valueOf?: () => number | string
+    },
+
+     fromValue = typeof timestamp.valueOf === 'function' ? parseTimestampValue(timestamp.valueOf()) : null
+    if (fromValue !== null) return fromValue
+
+    const fromJson = typeof timestamp.toJSON === 'function' ? parseTimestampValue(timestamp.toJSON()) : null
+    if (fromJson !== null) return fromJson
+
+    const fromString = typeof timestamp.toString === 'function' ? parseTimestampValue(timestamp.toString()) : null
+    if (fromString !== null) return fromString
+
+    throw makeError('INVALID_TIMESTAMP', 'cache:timestamp')
+  },
+  isExpired = (cachedAt: Timestamp, now: Timestamp, ttl: number): boolean => timestampToMs(cachedAt) + ttl < timestampToMs(now),
+  makeCacheCrud = <
+    DB,
+    F extends CacheFieldBuilders,
+    Row,
+    Key,
+    Tbl extends CacheTableLike<Row>,
+    Pk extends CachePkLike<Row, Key>
+  >(
+    spacetimedb: {
+      reducer: (
+        opts: { name: string },
+        params: CacheFieldBuilders,
+        fn: (ctx: { db: DB; timestamp: Timestamp }, args: unknown) => void
+      ) => unknown
+    },
+    config: CacheConfig<DB, F, Row, Key, Tbl, Pk>
+  ): CacheExports => {
+    const { fields, keyField, keyName, options, pk: pkAccessor, table: tableAccessor, tableName } = config,
+      ttl = options?.ttl ?? DEFAULT_TTL_MS,
+      fieldNames = Object.keys(fields) as (keyof F & string)[],
+      createName = `create_${tableName}`,
+      updateName = `update_${tableName}`,
+      rmName = `rm_${tableName}`,
+      invalidateName = `invalidate_${tableName}`,
+      purgeName = `purge_${tableName}`,
+      createParams: CacheFieldBuilders = {
+        [keyName]: keyField
+      },
+      updateParams: CacheFieldBuilders = {
+        [keyName]: keyField
+      },
+      optionalFields = makeOptionalFields(fields),
+      createKeys = Object.keys(fields),
+      optionalKeys = Object.keys(optionalFields)
+
+    for (const key of createKeys) {
+      const field = fields[key]
+      if (field) createParams[key] = field
+    }
+
+    for (const key of optionalKeys) {
+      const field = optionalFields[key]
+      if (field) updateParams[key] = field
+    }
+
+    const createReducer = spacetimedb.reducer(
+        { name: createName },
+        createParams,
+        (ctx, args: CacheFieldValues<F> & Record<string, unknown>) => {
+          const table = tableAccessor(ctx.db),
+            argsRecord = args as Record<string, unknown>,
+            keyValue = argsRecord[keyName] as Key,
+            payload = {
+              ...argsRecord,
+              cachedAt: ctx.timestamp,
+              id: 0,
+              invalidatedAt: null,
+              [keyName]: keyValue,
+              updatedAt: ctx.timestamp
+            } as Row
+          table.insert(payload)
         }
-        return dbInsert(c.db, table, wt)
-      },
-      set = b.internalMutation({
-        args: { data: v.object(typed(z2c(schema.shape))) },
-        handler: typed(async (c: DbCtx, { data }: { data: Rec }) => {
-          await upsert(c, pick(data))
-        })
+      ),
+      updateReducer = spacetimedb.reducer({ name: updateName }, updateParams, (ctx, args: Record<string, unknown> & UpdateArgs<F>) => {
+        const table = tableAccessor(ctx.db),
+          argsRecord = args as Record<string, unknown>,
+          keyValue = argsRecord[keyName] as Key,
+          pk = pkAccessor(table),
+          row = pk.find(keyValue)
+
+        if (!row) throw makeError('NOT_FOUND', `${tableName}:update`)
+
+        const patch = pickPatch(args, fieldNames),
+          nextRecord = {
+            ...(row as unknown as Record<string, unknown>),
+            invalidatedAt: null,
+            updatedAt: ctx.timestamp
+          },
+          patchKeys = Object.keys(patch as Record<string, unknown>)
+
+        for (const key of patchKeys) {
+          const value = (patch as Record<string, unknown>)[key]
+          if (value !== undefined) nextRecord[key] = value
+        }
+
+        pk.update(nextRecord as Row)
       }),
-      create = b.cm({
-        args: schema.shape,
-        handler: typed(async (c: DbCtx, d: Rec) => {
-          if (rl && !isTestMode()) await checkRateLimit(c.db, { config: rl, key: `global:${table}`, table })
-          let data = d
-          if (hooks?.beforeCreate) data = await hooks.beforeCreate(chk(c), { data })
-          const id = await upsert(c, data)
-          if (hooks?.afterCreate) await hooks.afterCreate(chk(c), { data, id: id as string })
-          return id
-        })
+      rmReducer = spacetimedb.reducer({ name: rmName }, { [keyName]: keyField }, (ctx, args: Record<string, unknown> & { key: Key }) => {
+        const table = tableAccessor(ctx.db),
+          argsRecord = args as Record<string, unknown>,
+          keyValue = argsRecord[keyName] as Key,
+          pk = pkAccessor(table),
+          row = pk.find(keyValue)
+
+        if (!row) throw makeError('NOT_FOUND', `${tableName}:rm`)
+        const removed = pk.delete(keyValue)
+        if (!removed) throw makeError('NOT_FOUND', `${tableName}:rm`)
       }),
-      checkRL = rl
-        ? b.internalMutation({
-            args: {},
-            handler: typed(async (c: DbCtx) => {
-              await checkRateLimit(c.db, { config: rl, key: `global:${table}`, table })
-            })
-          })
-        : undefined,
-      update = b.cm({
-        args: { ...idArgs, ...partial.shape },
-        handler: typed(async (c: DbCtx, a: Rec) => {
-          const { id, ...d } = a as Rec & { id: string },
-            ex = await c.db.get(id),
-            t = time()
-          if (!ex) return err('NOT_FOUND')
-          let patch = d as Rec
-          if (hooks?.beforeUpdate) patch = await hooks.beforeUpdate(chk(c), { id, patch, prev: ex })
-          await dbPatch(c.db, id, { ...patch, ...t })
-          const result = { ...ex, ...patch, ...t }
-          if (hooks?.afterUpdate) await hooks.afterUpdate(chk(c), { id, patch, prev: ex })
-          return result
-        })
-      }),
-      rm = b.cm({
-        args: idArgs,
-        handler: typed(async (c: DbCtx, { id }: { id: string }) => {
-          const d = await c.db.get(id)
-          if (d) {
-            if (hooks?.beforeDelete) await hooks.beforeDelete(chk(c), { doc: d, id })
-            await c.db.delete(id)
-            if (hooks?.afterDelete) await hooks.afterDelete(chk(c), { doc: d, id })
+      invalidateReducer = spacetimedb.reducer(
+        { name: invalidateName },
+        { [keyName]: keyField },
+        (ctx, args: Record<string, unknown> & { key: Key }) => {
+          const table = tableAccessor(ctx.db),
+            argsRecord = args as Record<string, unknown>,
+            keyValue = argsRecord[keyName] as Key,
+            pk = pkAccessor(table),
+            row = pk.find(keyValue)
+
+          if (!row) throw makeError('NOT_FOUND', `${tableName}:invalidate`)
+
+          const nextRecord = {
+            ...(row as unknown as Record<string, unknown>),
+            invalidatedAt: ctx.timestamp,
+            updatedAt: ctx.timestamp
+          } as Row
+
+          pk.update(nextRecord)
+        }
+      ),
+      purgeReducer = spacetimedb.reducer({ name: purgeName }, {}, ctx => {
+        const table = tableAccessor(ctx.db),
+          pk = pkAccessor(table),
+          keysToDelete: Key[] = []
+
+        for (const row of table) {
+          const rowRecord = row as unknown as Record<string, unknown>,
+            cachedAt = rowRecord.cachedAt as Timestamp
+          if (isExpired(cachedAt, ctx.timestamp, ttl)) {
+            const keyValue = rowRecord[keyName] as Key
+            keysToDelete.push(keyValue)
           }
-          return d
-        })
-      }),
-      invalidate = b.mutation({
-        args: typed(kArgs),
-        handler: typed(async (c: DbCtx, a: Rec) => {
-          const d = await c.db.query(table).withIndex(indexName, byK(a[key])).first()
-          if (d) await dbDelete(c.db, d._id as string)
-          return d
-        })
-      }),
-      purge = b.cm({
-        args: { batchSize: number().optional() },
-        handler: typed(async (c: DbCtx, { batchSize }: { batchSize?: number }) => {
-          const cut = Date.now() - ttl,
-            limit = Math.min(batchSize ?? BULK_MAX, BULK_MAX),
-            exp = await c.db
-              .query(table)
-              .filter(flt(qr => qr.lt(qr.field('_creationTime'), cut)))
-              .take(limit)
-          // biome-ignore lint/performance/noAwaitInLoops: x
-          for (const d of exp) await dbDelete(c.db, d._id as string)
-          return exp.length
-        })
-      }),
-      tPath = (anyApi as Rec)[table] as Rec,
-      tKArgs = { [key]: kVal } as Rec,
-      doFetch = async (c: ActionCtxLike, kv: unknown) => {
-        let d = pick((await fetcher?.(c, kv)) as Rec)
-        if (hooks?.onFetch) d = await hooks.onFetch(d)
-        await c.runMutation(tPath.set as string, { data: d })
-        return { ...d, cacheHit: false }
-      },
-      load = fetcher
-        ? b.action({
-            args: typed(tKArgs),
-            handler: typed(async (c: ActionCtxLike, a: Rec) => {
-              const kv = a[key],
-                d = await c.runQuery(tPath.getInternal as string, { [key]: kv })
-              if (d && valid(d as Rec)) return { ...pick(d as Rec), cacheHit: true }
-              if (checkRL && !isTestMode()) await c.runMutation(tPath.checkRL as string, {})
-              return doFetch(c, kv)
-            }),
-            returns: v.object(typed(retFields))
-          })
-        : b.action(typed(noFetcher)),
-      refresh = fetcher
-        ? b.action({
-            args: typed(tKArgs),
-            handler: typed(async (c: ActionCtxLike, a: Rec) => {
-              if (checkRL && !isTestMode()) await c.runMutation(tPath.checkRL as string, {})
-              const kv = a[key]
-              await c.runMutation(tPath.invalidate as string, { [key]: kv })
-              return doFetch(c, kv)
-            }),
-            returns: v.object(typed(retFields))
-          })
-        : b.action(typed(noFetcher))
+        }
+
+        for (const key of keysToDelete) pk.delete(key)
+      })
+
     return {
-      all,
-      checkRL,
-      create,
-      get,
-      getInternal: getInt,
-      invalidate,
-      list,
-      load,
-      purge,
-      read,
-      refresh,
-      rm,
-      set,
-      update
-    } as unknown as CacheCrudResult<S>
+      exports: {
+        [createName]: createReducer,
+        [invalidateName]: invalidateReducer,
+        [purgeName]: purgeReducer,
+        [rmName]: rmReducer,
+        [updateName]: updateReducer
+      }
+    }
   }
 
 export { makeCacheCrud }

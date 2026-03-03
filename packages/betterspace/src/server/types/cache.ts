@@ -1,67 +1,77 @@
-import type { ZodObject, ZodRawShape, z as _ } from 'zod/v4'
+import type { Timestamp } from 'spacetimedb'
+import type { ColumnBuilder, ReducerExport, TypeBuilder } from 'spacetimedb/server'
 
-import type {
-  ActionCtxLike,
-  BaseBuilders,
-  DbLike,
-  DocBase,
-  PaginatedResult,
-  Qb,
-  Rec,
-  RegisteredAction,
-  RegisteredMutation,
-  RegisteredQuery
-} from './common'
+type CacheBuilder = ColumnBuilder<unknown, unknown, unknown> | TypeBuilder<unknown, unknown>
 
-interface CacheBuilders {
-  action: BaseBuilders['m']
-  cm: BaseBuilders['m']
-  cq: Qb
-  internalMutation: BaseBuilders['m']
-  internalQuery: Qb<'internal'>
-  mutation: BaseBuilders['m']
-  query: Qb
+type CacheBuilders = never
+
+interface CacheConfig<DB, F extends CacheFieldBuilders, Row, Key, Tbl extends CacheTableLike<Row>, Pk extends CachePkLike<Row, Key>> {
+  fields: F
+  keyField: TypeBuilder<Key, unknown>
+  keyName: string
+  options?: CacheOptions
+  pk: (table: Tbl) => Pk
+  table: (db: DB) => Tbl
+  tableName: string
+}
+
+type CacheCrudResult = CacheExports
+
+interface CacheExports {
+  exports: Record<string, ReducerExportLike>
+}
+
+type CacheFieldBuilders = Record<string, CacheBuilder>
+
+type CacheFieldValues<F extends CacheFieldBuilders> = {
+  [K in keyof F]: F[K] extends ColumnBuilder<infer T, unknown, unknown>
+    ? T
+    : F[K] extends TypeBuilder<infer T, unknown>
+      ? T
+      : never
 }
 
 interface CacheHookCtx {
-  db: DbLike
+  db: unknown
 }
 
-interface CacheHooks {
-  afterCreate?: (ctx: CacheHookCtx, args: { data: Rec; id: number | string }) => Promise<void> | void
-  afterDelete?: (ctx: CacheHookCtx, args: { doc: Rec; id: number | string }) => Promise<void> | void
-  afterUpdate?: (ctx: CacheHookCtx, args: { id: number | string; patch: Rec; prev: Rec }) => Promise<void> | void
-  beforeCreate?: (ctx: CacheHookCtx, args: { data: Rec }) => Promise<Rec> | Rec
-  beforeDelete?: (ctx: CacheHookCtx, args: { doc: Rec; id: number | string }) => Promise<void> | void
-  beforeUpdate?: (ctx: CacheHookCtx, args: { id: number | string; patch: Rec; prev: Rec }) => Promise<Rec> | Rec
-  onFetch?: (data: Rec) => Promise<Rec> | Rec
-}
+type CacheHooks = never
 
-interface CacheOptions<S extends ZodRawShape, K extends keyof _.output<ZodObject<S>> & string> {
-  fetcher?: (c: ActionCtxLike, key: _.output<ZodObject<S>>[K]) => Promise<_.output<ZodObject<S>>>
-  hooks?: CacheHooks
-  key: K
-  schema: ZodObject<S>
-  staleWhileRevalidate?: boolean
-  table: string
+interface CacheOptions {
   ttl?: number
 }
 
-interface CacheCrudResult<S extends ZodRawShape> {
-  all: RegisteredQuery<'public', Rec, DocBase<S>[]>
-  checkRL?: RegisteredMutation<'internal', Rec, void>
-  create: RegisteredMutation<'public', Rec, number | string>
-  get: RegisteredQuery<'public', Rec, (DocBase<S> & { cacheHit: true; stale: boolean }) | null>
-  getInternal: RegisteredQuery<'internal', Rec, DocBase<S> | null>
-  invalidate: RegisteredMutation<'public', Rec, DocBase<S> | null>
-  list: RegisteredQuery<'public', Rec, PaginatedResult<DocBase<S>>>
-  load: RegisteredAction<'public', Rec, _.output<ZodObject<S>> & { cacheHit: boolean }>
-  purge: RegisteredMutation<'public', Rec, number>
-  read: RegisteredQuery<'public', Rec, DocBase<S> | null>
-  refresh: RegisteredAction<'public', Rec, _.output<ZodObject<S>> & { cacheHit: boolean }>
-  rm: RegisteredMutation<'public', Rec, DocBase<S> | null>
-  set: RegisteredMutation<'internal', Rec, void>
-  update: RegisteredMutation<'public', Rec, DocBase<S>>
+interface CachePkLike<Row, Key> {
+  delete: (key: Key) => boolean
+  find: (key: Key) => null | Row
+  update: (row: Row) => Row
 }
 
-export type { CacheBuilders, CacheCrudResult, CacheHookCtx, CacheHooks, CacheOptions }
+interface CacheRowBase {
+  cachedAt: Timestamp
+  id: number
+  invalidatedAt: null | Timestamp
+  updatedAt: Timestamp
+}
+
+interface CacheTableLike<Row> extends Iterable<Row> {
+  insert: (row: Row) => Row
+}
+
+type ReducerExportLike = ReducerExport<never, never>
+
+export type {
+  CacheBuilder,
+  CacheBuilders,
+  CacheConfig,
+  CacheCrudResult,
+  CacheExports,
+  CacheFieldBuilders,
+  CacheFieldValues,
+  CacheHookCtx,
+  CacheHooks,
+  CacheOptions,
+  CachePkLike,
+  CacheRowBase,
+  CacheTableLike
+}
