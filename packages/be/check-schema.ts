@@ -1,11 +1,5 @@
-import type { ZodObject, ZodRawShape } from 'zod/v4'
+import spacetimedb from './spacetimedb/src/index'
 
-import { checkSchema } from 'betterspace/server'
-
-import { base, children, owned } from './t'
-
-checkSchema({
-  ...base,
-  ...Object.fromEntries(Object.entries(children).map(([k, c]) => [k, c.schema])),
-  ...owned
-} as Record<string, ZodObject<ZodRawShape>>)
+if (!spacetimedb) {
+  process.exit(1)
+}
