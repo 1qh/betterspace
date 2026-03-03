@@ -4,7 +4,7 @@
 import type { OrgProfile, Wiki } from '@a/be/spacetimedb/types'
 
 import { reducers, tables } from '@a/be/spacetimedb'
-import { fail } from '@a/fe/utils'
+import { fail, sameIdentity } from '@a/fe/utils'
 import { Badge } from '@a/ui/badge'
 import { Button } from '@a/ui/button'
 import { Skeleton } from '@a/ui/skeleton'
@@ -17,10 +17,8 @@ import { useReducer, useSpacetimeDB, useTable } from 'spacetimedb/react'
 
 import { useOrg } from '~/hook/use-org'
 
-const sameIdentity = (a: { toHexString: () => string }, b: { toHexString: () => string }) =>
-    a.toHexString() === b.toHexString(),
-  /** biome-ignore lint/suspicious/noEmptyBlockStatements: noop */
-  noop: () => void = (): void => {}, // eslint-disable-line @typescript-eslint/no-empty-function
+/** biome-ignore lint/suspicious/noEmptyBlockStatements: noop */
+const noop: () => void = (): void => {}, // eslint-disable-line @typescript-eslint/no-empty-function
   WikiDetailPage = ({ params }: { params: Promise<{ wikiId: string }> }) => {
     const { wikiId } = use(params),
       id = Number(wikiId),

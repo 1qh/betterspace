@@ -4,6 +4,7 @@
 import type { Wiki } from '@a/be/spacetimedb/types'
 
 import { reducers, tables } from '@a/be/spacetimedb'
+import { sameIdentity } from '@a/fe/utils'
 import { Button } from '@a/ui/button'
 import { Card, CardContent, CardHeader, CardTitle } from '@a/ui/card'
 import { FieldGroup } from '@a/ui/field'
@@ -17,9 +18,7 @@ import { useReducer, useSpacetimeDB, useTable } from 'spacetimedb/react'
 import { useOrg } from '~/hook/use-org'
 import { wiki as wikiSchema } from '~/schema'
 
-const sameIdentity = (a: { toHexString: () => string }, b: { toHexString: () => string }) =>
-    a.toHexString() === b.toHexString(),
-  EditWikiForm = ({ wikiId }: { wikiId: number }) => {
+const EditWikiForm = ({ wikiId }: { wikiId: number }) => {
     const router = useRouter(),
       { org } = useOrg(),
       [wikis] = useTable(tables.wiki),

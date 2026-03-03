@@ -4,22 +4,14 @@ import type { Chat, Message } from '@a/be/spacetimedb/types'
 import type { UIMessage } from 'ai'
 
 import { tables } from '@a/be/spacetimedb'
+import { toIdentityKey } from '@a/fe/utils'
 import { useParams, useRouter } from 'next/navigation'
 import { useEffect } from 'react'
 import { useSpacetimeDB, useTable } from 'spacetimedb/react'
 
 import Client from './client'
 
-const toIdentityKey = (value: unknown) => {
-    if (value === null || value === undefined) return ''
-    if (typeof value === 'string') return value
-    if (typeof value === 'number' || typeof value === 'boolean' || typeof value === 'bigint') return `${value}`
-    if (typeof value !== 'object' || !('toHexString' in value)) return ''
-    const candidate = value as { toHexString?: () => string }
-    if (typeof candidate.toHexString === 'function') return candidate.toHexString()
-    return ''
-  },
-  toUIMessages = (messages: Message[]): UIMessage[] =>
+const toUIMessages = (messages: Message[]): UIMessage[] =>
     messages.map(m => ({
       id: String(m.id),
       parts: m.parts as UIMessage['parts'],

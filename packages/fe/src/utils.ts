@@ -36,6 +36,17 @@ const getCode = (error: unknown) => {
     if (days <= 0) return 'Expired'
     if (days === 1) return '1 day left'
     return `${days} days left`
-  }
+  },
+  toIdentityKey = (value: unknown) => {
+    if (value === null || value === undefined) return ''
+    if (typeof value === 'string') return value
+    if (typeof value === 'number' || typeof value === 'boolean' || typeof value === 'bigint') return `${value}`
+    if (typeof value !== 'object' || !('toHexString' in value)) return ''
+    const candidate = value as { toHexString?: () => string }
+    if (typeof candidate.toHexString === 'function') return candidate.toHexString()
+    return ''
+  },
+  sameIdentity = (a: { toHexString: () => string }, b: { toHexString: () => string }) =>
+    a.toHexString() === b.toHexString()
 
-export { fail, formatDate, formatExpiry, parseId }
+export { fail, formatDate, formatExpiry, parseId, sameIdentity, toIdentityKey }

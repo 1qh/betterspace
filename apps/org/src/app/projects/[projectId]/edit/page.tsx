@@ -6,7 +6,7 @@ import type { Project, Task } from '@a/be/spacetimedb/types'
 
 import { reducers, tables } from '@a/be/spacetimedb'
 import { orgScoped } from '@a/be/z'
-import { fail } from '@a/fe/utils'
+import { fail, sameIdentity } from '@a/fe/utils'
 import { Button } from '@a/ui/button'
 import { Card, CardContent, CardHeader, CardTitle } from '@a/ui/card'
 import { FieldGroup } from '@a/ui/field'
@@ -20,9 +20,7 @@ import { useReducer, useSpacetimeDB, useTable } from 'spacetimedb/react'
 
 import { useOrg } from '~/hook/use-org'
 
-const sameIdentity = (a: { toHexString: () => string }, b: { toHexString: () => string }) =>
-    a.toHexString() === b.toHexString(),
-  EditProjectForm = ({ projectId, taskCount }: { projectId: number; taskCount: number }) => {
+const EditProjectForm = ({ projectId, taskCount }: { projectId: number; taskCount: number }) => {
     const router = useRouter(),
       { org } = useOrg(),
       [projects] = useTable(tables.project),

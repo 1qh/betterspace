@@ -8,7 +8,7 @@ import type { output } from 'zod/v4'
 
 import { reducers, tables } from '@a/be/spacetimedb'
 import { orgScoped } from '@a/be/z'
-import { fail } from '@a/fe/utils'
+import { fail, sameIdentity } from '@a/fe/utils'
 import { Avatar, AvatarFallback, AvatarImage } from '@a/ui/avatar'
 import { Badge } from '@a/ui/badge'
 import { Button } from '@a/ui/button'
@@ -30,8 +30,6 @@ import { useOrg } from '~/hook/use-org'
 type Priority = NonNullable<output<typeof orgScoped.task>['priority']>
 
 const priorityOptions = enumToOptions(orgScoped.task.shape.priority.unwrap()),
-  sameIdentity = (a: { toHexString: () => string }, b: { toHexString: () => string }) =>
-    a.toHexString() === b.toHexString(),
   asPriority = (value: string | undefined): Priority =>
     value === 'high' || value === 'low' || value === 'medium' ? value : 'medium',
   /** biome-ignore lint/suspicious/noEmptyBlockStatements: noop */

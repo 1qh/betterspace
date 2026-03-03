@@ -7,6 +7,7 @@ import type { ReactNode } from 'react'
 import { tables } from '@a/be/spacetimedb'
 import AuthLayout from '@a/fe/auth-layout'
 import SpacetimeProvider from '@a/fe/spacetimedb-provider'
+import { sameIdentity } from '@a/fe/utils'
 import { usePathname, useRouter } from 'next/navigation'
 import { useEffect, useState } from 'react'
 import { useSpacetimeDB, useTable } from 'spacetimedb/react'
@@ -19,7 +20,6 @@ const ORG_PATHS = ['/dashboard', '/members', '/projects', '/wiki', '/settings'],
     return false
   },
   toOrgId = (id: number) => `${id}`,
-  sameIdentity = (a: Org['userId'], b: Org['userId']) => a.toHexString() === b.toHexString(),
   OrgRedirect = ({ orgId, slug, to }: { orgId: string; slug: string; to: string }) => (
     <script
       dangerouslySetInnerHTML={{
