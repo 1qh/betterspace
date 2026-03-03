@@ -1,6 +1,8 @@
 import type { Identity, Timestamp } from 'spacetimedb'
 import type { ReducerExport, TypeBuilder } from 'spacetimedb/server'
 
+import { identityEquals, makeError } from './reducer-utils'
+
 type OrgInviteByTokenIndexLike<Row> = Iterable<Row>
 
 interface OrgInvitePkLike<Row, Id> {
@@ -104,15 +106,6 @@ const DAY_HOURS = 24,
   SECONDS_PER_MINUTE = 60,
   SEVEN_DAYS_MS = DAYS_PER_WEEK * DAY_HOURS * MINUTES_PER_HOUR * SECONDS_PER_MINUTE * MILLIS_PER_SECOND,
   TOKEN_BASE = 36,
-  makeError = (code: string, message: string): Error => new Error(`${code}: ${message}`),
-  identityEquals = (a: Identity, b: Identity): boolean => {
-    const left = a as unknown as { isEqual?: (v: unknown) => boolean; toHexString?: () => string }
-    if (typeof left.isEqual === 'function') return left.isEqual(b)
-    const right = b as unknown as { toHexString?: () => string }
-    if (typeof left.toHexString === 'function' && typeof right.toHexString === 'function')
-      return left.toHexString() === right.toHexString()
-    return Object.is(a, b)
-  },
   makeInviteToken = (): string => {
     const cryptoApi = globalThis.crypto as undefined | { randomUUID?: () => string }
     if (cryptoApi && typeof cryptoApi.randomUUID === 'function') return cryptoApi.randomUUID()

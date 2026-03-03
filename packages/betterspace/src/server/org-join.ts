@@ -1,6 +1,8 @@
 import type { Identity, Timestamp } from 'spacetimedb'
 import type { ReducerExport, TypeBuilder } from 'spacetimedb/server'
 
+import { identityEquals, makeError } from './reducer-utils'
+
 interface OptionalBuilder {
   optional: () => TypeBuilder<unknown, unknown>
 }
@@ -78,16 +80,7 @@ interface OrgRowLike<OrgId> {
   userId: Identity
 }
 
-const makeError = (code: string, message: string): Error => new Error(`${code}: ${message}`),
-  identityEquals = (a: Identity, b: Identity): boolean => {
-    const left = a as unknown as { isEqual?: (v: unknown) => boolean; toHexString?: () => string }
-    if (typeof left.isEqual === 'function') return left.isEqual(b)
-    const right = b as unknown as { toHexString?: () => string }
-    if (typeof left.toHexString === 'function' && typeof right.toHexString === 'function')
-      return left.toHexString() === right.toHexString()
-    return Object.is(a, b)
-  },
-  findOrgMember = <OrgId, MemberId, MemberRow extends OrgMemberRowLike<MemberId, OrgId>>(
+const findOrgMember = <OrgId, MemberId, MemberRow extends OrgMemberRowLike<MemberId, OrgId>>(
     orgMemberTable: Iterable<MemberRow>,
     orgId: OrgId,
     userId: Identity
