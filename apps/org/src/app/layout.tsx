@@ -6,7 +6,7 @@ import type { ReactNode } from 'react'
 
 import { tables } from '@a/be/spacetimedb'
 import AuthLayout from '@a/fe/auth-layout'
-import ConvexProvider from '@a/fe/convex-provider'
+import SpacetimeProvider from '@a/fe/spacetimedb-provider'
 import { useSpacetimeDB, useTable } from 'spacetimedb/react'
 import { usePathname, useRouter } from 'next/navigation'
 
@@ -36,10 +36,10 @@ const ORG_PATHS = ['/dashboard', '/members', '/projects', '/wiki', '/settings'],
       [members] = useTable(tables.orgMember)
 
     if (!(identity && pathname))
-      return <AuthLayout convexProvider={inner => <ConvexProvider fileApi>{inner}</ConvexProvider>}>{children}</AuthLayout>
+      return <AuthLayout provider={inner => <SpacetimeProvider fileApi>{inner}</SpacetimeProvider>}>{children}</AuthLayout>
 
     if (!needsOrgLayout(pathname))
-      return <AuthLayout convexProvider={inner => <ConvexProvider fileApi>{inner}</ConvexProvider>}>{children}</AuthLayout>
+      return <AuthLayout provider={inner => <SpacetimeProvider fileApi>{inner}</SpacetimeProvider>}>{children}</AuthLayout>
 
     const myMemberships = members.filter((m: OrgMember) => m.userId.toHexString() === identity.toHexString()),
       myOrgItems = myMemberships
@@ -66,14 +66,14 @@ const ORG_PATHS = ['/dashboard', '/members', '/projects', '/wiki', '/settings'],
 
     if (activeOrgId !== active.org._id) {
       return (
-        <AuthLayout convexProvider={inner => <ConvexProvider fileApi>{inner}</ConvexProvider>}>
+        <AuthLayout provider={inner => <SpacetimeProvider fileApi>{inner}</SpacetimeProvider>}>
           <OrgRedirect orgId={active.org._id} slug={active.org.slug} to={pathname} />
         </AuthLayout>
       )
     }
 
     return (
-      <AuthLayout convexProvider={inner => <ConvexProvider fileApi>{inner}</ConvexProvider>}>
+      <AuthLayout provider={inner => <SpacetimeProvider fileApi>{inner}</SpacetimeProvider>}>
         <OrgLayoutClient membership={null} org={active.org} orgs={myOrgItems} role={active.role}>
           {children}
         </OrgLayoutClient>

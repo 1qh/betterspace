@@ -10,21 +10,21 @@ import ErrorBoundary from './error-boundary'
 
 interface AuthLayoutProps {
   children: ReactNode
-  convexProvider: (children: ReactNode) => ReactNode
+  provider: (children: ReactNode) => ReactNode
 }
 
-const AuthLayout = ({ children, convexProvider }: AuthLayoutProps) => (
+const AuthLayout = ({ children, provider }: AuthLayoutProps) => (
   <html lang='en' suppressHydrationWarning>
     <body className='min-h-screen bg-background font-sans tracking-tight text-foreground antialiased'>
       <Suspense>
         <ErrorBoundary>
-          {convexProvider(
+          {provider(
             <ThemeProvider attribute='class' defaultTheme='system' enableSystem>
               {children}
+              <OfflineIndicator />
             </ThemeProvider>
           )}
           <Toaster duration={1000} />
-          <OfflineIndicator />
         </ErrorBoundary>
       </Suspense>
     </body>

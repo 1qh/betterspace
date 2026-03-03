@@ -2,7 +2,7 @@ import type { Metadata } from 'next'
 import type { ReactNode } from 'react'
 
 import AuthLayout from '@a/fe/auth-layout'
-import ConvexProvider from '@a/fe/convex-provider'
+import SpacetimeProvider from '@a/fe/spacetimedb-provider'
 import { SidebarInset, SidebarProvider } from '@a/ui/sidebar'
 import { isAuthenticated } from 'betterspace/next'
 import { headers } from 'next/headers'
@@ -24,7 +24,7 @@ const metadata: Metadata = { description: 'betterspace chat demo', title: 'Chat'
     const showSidebar = !isPublicPath(pathname)
 
     return (
-      <AuthLayout convexProvider={inner => <ConvexProvider>{inner}</ConvexProvider>}>
+      <AuthLayout provider={inner => <SpacetimeProvider>{inner}</SpacetimeProvider>}>
         {showSidebar ? (
           <SidebarProvider>
             <Sidebar />

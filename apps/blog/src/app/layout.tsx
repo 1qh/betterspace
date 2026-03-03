@@ -2,7 +2,7 @@ import type { Metadata } from 'next'
 import type { ReactNode } from 'react'
 
 import AuthLayout from '@a/fe/auth-layout'
-import ConvexProvider from '@a/fe/convex-provider'
+import SpacetimeProvider from '@a/fe/spacetimedb-provider'
 import Logout from '@a/fe/user-menu'
 import { UserRound } from 'lucide-react'
 import { headers } from 'next/headers'
@@ -14,7 +14,7 @@ const metadata: Metadata = { description: 'betterspace blog demo', title: 'Blog'
       isLogin = pathname === '/login' || pathname.startsWith('/login/')
 
     return (
-      <AuthLayout convexProvider={inner => <ConvexProvider fileApi>{inner}</ConvexProvider>}>
+      <AuthLayout provider={inner => <SpacetimeProvider fileApi>{inner}</SpacetimeProvider>}>
         {isLogin ? (
           children
         ) : (

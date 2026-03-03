@@ -12,7 +12,6 @@ import env from './env'
 
 interface SpacetimeDBProviderProps {
   children: ReactNode
-  convexUrl?: string
   fileApi?: boolean
   noAuth?: boolean
   spacetimeUri?: string
@@ -50,9 +49,9 @@ const TOKEN_KEY = 'spacetimedb.token',
     clients.set(key, builder)
     return builder
   },
-  SpacetimeProvider = ({ children, convexUrl, fileApi, noAuth, spacetimeUri }: SpacetimeDBProviderProps) => {
+  SpacetimeProvider = ({ children, fileApi, noAuth, spacetimeUri }: SpacetimeDBProviderProps) => {
     const moduleName = env.SPACETIMEDB_MODULE_NAME,
-      uri = spacetimeUri ?? convexUrl ?? env.NEXT_PUBLIC_SPACETIMEDB_URI,
+      uri = spacetimeUri ?? env.NEXT_PUBLIC_SPACETIMEDB_URI,
       builder = getClient(uri, moduleName),
       guarded = <NavigationGuardProvider>{children}</NavigationGuardProvider>,
       inner = fileApi ? <FileApiProvider value={FILE_API}>{guarded}</FileApiProvider> : guarded,

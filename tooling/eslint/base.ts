@@ -13,7 +13,7 @@ import tseslint from 'typescript-eslint'
 
 export default defineConfig(
   includeIgnoreFile(path.join(import.meta.dirname, '../../.gitignore')),
-  globalIgnores(['convex/_generated']),
+  globalIgnores(['module_bindings']),
   perfectionist['recommended-natural'],
   { ignores: ['postcss.config.mjs'] },
   {

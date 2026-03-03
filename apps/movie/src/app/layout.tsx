@@ -1,9 +1,9 @@
 import '@a/ui/globals.css'
 import type { ReactNode } from 'react'
 
-import ConvexProvider from '@a/fe/convex-provider'
+import SpacetimeProvider from '@a/fe/spacetimedb-provider'
 import { Toaster } from '@a/ui/sonner'
-import { ConvexErrorBoundary } from 'betterspace/components'
+import { ErrorBoundary } from 'betterspace/components'
 import { ThemeProvider } from 'next-themes'
 import { Suspense } from 'react'
 
@@ -11,14 +11,14 @@ const Layout = ({ children }: { children: ReactNode }) => (
   <html lang='en' suppressHydrationWarning>
     <body className='min-h-screen bg-background font-sans tracking-tight text-foreground antialiased'>
       <Suspense>
-        <ConvexErrorBoundary>
-          <ConvexProvider noAuth>
+        <ErrorBoundary>
+          <SpacetimeProvider noAuth>
             <ThemeProvider attribute='class' defaultTheme='system' enableSystem>
               {children}
             </ThemeProvider>
-          </ConvexProvider>
+          </SpacetimeProvider>
           <Toaster duration={1000} />
-        </ConvexErrorBoundary>
+        </ErrorBoundary>
       </Suspense>
     </body>
   </html>
