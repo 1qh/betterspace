@@ -28,10 +28,7 @@ class BlogPage extends BasePage {
     await this.getCreateDialog().waitFor({ state: 'visible' })
     await this.getTitleInput().fill(title)
     await this.getContentTextarea().fill(content)
-    if (options?.category) {
-      await this.getCategorySelect().click()
-      await this.page.getByRole('option', { name: options.category }).click()
-    }
+    await this.getCategoryInput().fill(options?.category ?? 'general')
     if (options?.tags) await this.addTags(options.tags)
     await this.getCreateSubmit().click()
     await this.getCreateDialog().waitFor({ state: 'hidden' })
@@ -51,8 +48,8 @@ class BlogPage extends BasePage {
   public getBlogList(): Locator {
     return this.$('blog-list')
   }
-  public getCategorySelect(): Locator {
-    return this.$('blog-category', 'button')
+  public getCategoryInput(): Locator {
+    return this.$('blog-category', 'input')
   }
   public getContentTextarea(): Locator {
     return this.$('blog-content', 'textarea')

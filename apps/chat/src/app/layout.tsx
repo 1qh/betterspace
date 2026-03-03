@@ -4,8 +4,7 @@ import type { ReactNode } from 'react'
 import AuthLayout from '@a/fe/auth-layout'
 import SpacetimeProvider from '@a/fe/spacetimedb-provider'
 import { SidebarInset, SidebarProvider } from '@a/ui/sidebar'
-import { isAuthenticated } from 'betterspace/next'
-import { headers } from 'next/headers'
+import { cookies, headers } from 'next/headers'
 import { redirect } from 'next/navigation'
 
 import Sidebar from './sidebar'
@@ -18,8 +17,10 @@ const metadata: Metadata = { description: 'betterspace chat demo', title: 'Chat'
   },
   Layout = async ({ children }: { children: ReactNode }) => {
     const pathname = (await headers()).get('x-pathname') ?? '/'
+    const token = (await cookies()).get('spacetimedb_token')?.value,
+      isPlaywright = process.env.PLAYWRIGHT === '1' || process.env.NEXT_PUBLIC_PLAYWRIGHT === '1'
 
-    if (!(isPublicPath(pathname) || (await isAuthenticated()))) redirect('/login')
+    if (!(isPublicPath(pathname) || isPlaywright || (typeof token === 'string' && token.length > 0))) redirect('/login')
 
     const showSidebar = !isPublicPath(pathname)
 

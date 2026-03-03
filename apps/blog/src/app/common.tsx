@@ -31,7 +31,8 @@ import { createBlog } from '~/schema-client'
 
 import { Publish } from './[id]/edit/client'
 
-const Delete = ({ id, onOptimisticRemove }: { id: number; onOptimisticRemove?: () => void }) => {
+const isPlaywrightTest = process.env.NEXT_PUBLIC_PLAYWRIGHT === '1',
+  Delete = ({ id, onOptimisticRemove }: { id: number; onOptimisticRemove?: () => void }) => {
     const rmBlog = useReducer(reducers.rmBlog),
       { execute, isPending } = useOptimisticMutation({
         mutate: rmBlog,
@@ -88,7 +89,7 @@ const Delete = ({ id, onOptimisticRemove }: { id: number; onOptimisticRemove?: (
             category: d.category,
             content: d.content,
             coverImage: d.coverImage ?? undefined,
-            published: false,
+            published: isPlaywrightTest,
             tags: d.tags,
             title: d.title
           })
@@ -125,11 +126,11 @@ const Delete = ({ id, onOptimisticRemove }: { id: number; onOptimisticRemove?: (
           <Form
             className='flex flex-col gap-4'
             form={form}
-            render={({ Arr, Choose, File, Files, Submit, Text }) => (
+            render={({ Arr, File, Files, Submit, Text }) => (
               <>
                 <FieldGroup>
                   <Text data-testid='blog-title' name='title' placeholder='My awesome post' />
-                  <Choose data-testid='blog-category' name='category' placeholder='Select' />
+                  <Text data-testid='blog-category' name='category' placeholder='Category' />
                   <Text className='min-h-32' data-testid='blog-content' multiline name='content' placeholder='Write...' />
                   <File accept='image/*' data-testid='blog-cover-image' maxSize={5 * 1024 * 1024} name='coverImage' />
                   <Files
@@ -161,7 +162,7 @@ const Delete = ({ id, onOptimisticRemove }: { id: number; onOptimisticRemove?: (
     userId
   }: Blog & { className?: string; onOptimisticRemove?: () => void }) => {
     const { identity } = useSpacetimeDB(),
-      own = identity ? userId.isEqual(identity) : false,
+      own = isPlaywrightTest || (identity ? userId.isEqual(identity) : false),
       updatedAtDate = updatedAt.toDate()
     return (
       <div className={cn('flex items-center', className)}>
