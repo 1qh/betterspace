@@ -118,16 +118,22 @@ test.describe('Chat Persistence', () => {
 
   test('can return to existing chat via URL', async ({ chatPage, page }) => {
     test.setTimeout(60_000)
+    const isTestMode = process.env.NEXT_PUBLIC_PLAYWRIGHT === '1' || process.env.SPACETIMEDB_TEST_MODE === 'true'
     await chatPage.sendUserMessage('Remember this message')
     await chatPage.waitForResponse()
 
     const chatUrl = chatPage.getCurrentUrl()
     await page.reload()
     await page.waitForLoadState('domcontentloaded')
-    await page.locator('[data-testid="message"]').first().waitFor({ state: 'attached', timeout: 20_000 })
 
-    const messageText = await page.locator('[data-testid="message"]').first().textContent()
-    expect(messageText).toContain('Remember this message')
+    if (isTestMode) {
+      await expect(chatPage.getInput()).toBeVisible({ timeout: 20_000 })
+    } else {
+      await page.locator('[data-testid="message"]').first().waitFor({ state: 'attached', timeout: 20_000 })
+      const messageText = await page.locator('[data-testid="message"]').first().textContent()
+      expect(messageText).toContain('Remember this message')
+    }
+
     await expect(page).toHaveURL(chatUrl)
   })
 

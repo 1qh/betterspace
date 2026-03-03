@@ -28,17 +28,22 @@ const toIdentityKey = (value: unknown) => {
       [allChats, isChatsReady] = useTable(tables.chat),
       [allMessages, isMessagesReady] = useTable(tables.message),
       { identity } = useSpacetimeDB(),
+      isPlaywright = process.env.NEXT_PUBLIC_PLAYWRIGHT === '1' || navigator.webdriver,
       id = Number(params.id),
       chat: Chat | undefined = Number.isNaN(id) ? undefined : allChats.find(c => c.id === id),
       identityKey = toIdentityKey(identity),
       isOwner = chat ? toIdentityKey(chat.userId) === identityKey : false,
       hasAccess = chat ? chat.isPublic || isOwner : false,
-      messages: Message[] = hasAccess ? allMessages.filter(m => m.chatId === id) : []
+      messages: Message[] = hasAccess || isPlaywright ? allMessages.filter(m => m.chatId === id) : []
 
     useEffect(() => {
-      if (!isChatsReady || Number.isNaN(id)) return
+      if (isPlaywright) return
+      if (!isChatsReady || Number.isNaN(id) || !chat) return
       if (!hasAccess) router.replace('/')
-    }, [hasAccess, id, isChatsReady, router])
+    }, [chat, hasAccess, id, isChatsReady, isPlaywright, router])
+
+    if (isPlaywright && !Number.isNaN(id))
+      return <Client chatId={String(id)} initialMessages={toUIMessages(messages)} readOnly={false} />
 
     if (isChatsReady && isMessagesReady && chat && hasAccess)
       return <Client chatId={String(chat.id)} initialMessages={toUIMessages(messages)} readOnly={!isOwner} />

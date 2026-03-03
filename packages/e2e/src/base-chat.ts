@@ -21,7 +21,7 @@ abstract class BaseChatPage extends BasePage {
   }
 
   public getInput(): Locator {
-    return this.$('chat-input').first()
+    return this.page.locator('[data-testid="chat-input"]:visible').first()
   }
 
   public getMessageByStatus(status: string): Locator {
@@ -37,11 +37,11 @@ abstract class BaseChatPage extends BasePage {
   }
 
   public getSendButton(): Locator {
-    return this.$('send-button').first()
+    return this.page.locator('[data-testid="send-button"]:visible').first()
   }
 
   public getStopButton(): Locator {
-    return this.$('stop-button')
+    return this.page.locator('[data-testid="stop-button"]:visible').first()
   }
 
   public getThreadItems(): Locator {
@@ -65,7 +65,6 @@ abstract class BaseChatPage extends BasePage {
     await this.typeMessage(message)
     await this.sendMessage()
     await this.page.waitForURL(this.urlPattern, { timeout: 60_000 })
-    await this.waitForInputReady()
   }
 
   public async typeMessage(message: string): Promise<void> {
@@ -75,8 +74,14 @@ abstract class BaseChatPage extends BasePage {
   }
 
   public async waitForResponse(timeout = 30_000): Promise<void> {
-    await this.page.locator('[data-testid="send-button"]').waitFor({ timeout })
-    await this.page.locator('[data-testid="message"].is-assistant').last().waitFor({ timeout })
+    const assistantMessage = this.page.locator('[data-testid="message"].is-assistant').last()
+    await assistantMessage.waitFor({ timeout })
+    const stopButton = this.page.locator('[data-testid="stop-button"]').first()
+    try {
+      await stopButton.waitFor({ state: 'detached', timeout: 2000 })
+    } catch {
+      await this.page.locator('[data-testid="send-button"]').first().waitFor({ timeout })
+    }
   }
 
   public async waitForStreamingToStart(timeout = 5000): Promise<void> {

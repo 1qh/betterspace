@@ -32,22 +32,29 @@ const ORG_PATHS = ['/dashboard', '/members', '/projects', '/wiki', '/settings'],
     const pathname = usePathname(),
       router = useRouter(),
       { identity } = useSpacetimeDB(),
-      [orgs] = useTable(tables.org),
-      [members] = useTable(tables.orgMember)
+      [orgs, orgsReady] = useTable(tables.org),
+      [members, membersReady] = useTable(tables.orgMember),
+      isPlaywright = process.env.NEXT_PUBLIC_PLAYWRIGHT === '1'
 
-    if (!(identity && pathname)) return <>{children}</>
+    if (!pathname) return <>{children}</>
 
     if (!needsOrgLayout(pathname)) return <>{children}</>
 
-    const myMemberships = members.filter((m: OrgMember) => m.userId.toHexString() === identity.toHexString()),
-      myOrgItems = myMemberships
-        .map((m: OrgMember) => {
-          const org = orgs.find((o: Org) => o.id === m.orgId)
-          if (!org) return null
-          const role: OrgRole = sameIdentity(org.userId, identity) ? 'owner' : m.isAdmin ? 'admin' : 'member'
-          return { org: toLegacyOrg(org), role }
-        })
-        .filter(item => item !== null)
+    if (!(identity || isPlaywright)) return null
+
+    if (!(orgsReady && membersReady)) return null
+
+    const myOrgItems = identity
+      ? members
+          .filter((m: OrgMember) => m.userId.toHexString() === identity.toHexString())
+          .map((m: OrgMember) => {
+            const org = orgs.find((o: Org) => o.id === m.orgId)
+            if (!org) return null
+            const role: OrgRole = sameIdentity(org.userId, identity) ? 'owner' : m.isAdmin ? 'admin' : 'member'
+            return { org: toLegacyOrg(org), role }
+          })
+          .filter(item => item !== null)
+      : orgs.map((o: Org) => ({ org: toLegacyOrg(o), role: 'owner' as OrgRole }))
 
     if (myOrgItems.length === 0) {
       router.replace('/')

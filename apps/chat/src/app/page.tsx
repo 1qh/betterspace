@@ -30,11 +30,15 @@ const toIdentityKey = (value: unknown) => {
     useEffect(() => {
       if (!pendingTitle.current) return
       const title = pendingTitle.current
-      const chat = allChats.find(c => c.title === title && toIdentityKey(c.userId) === identityKey)
-      if (chat) {
+      let newestChat: (typeof allChats)[number] | undefined
+      for (const c of allChats) {
+        if (c.title === title && toIdentityKey(c.userId) === identityKey && (!newestChat || c.id > newestChat.id))
+          newestChat = c
+      }
+      if (newestChat) {
         pendingTitle.current = null
         const query = encodeURIComponent(title)
-        startTransition(() => router.push(`/${chat.id}?query=${query}`))
+        startTransition(() => router.push(`/${newestChat.id}?query=${query}`))
       }
     }, [allChats, identityKey, router, startTransition])
 
