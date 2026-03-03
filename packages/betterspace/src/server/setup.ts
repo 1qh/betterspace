@@ -1,327 +1,413 @@
-/* eslint-disable complexity, max-statements, @typescript-eslint/no-unnecessary-type-parameters, @typescript-eslint/max-params */
-import type { GenericDataModel, GenericMutationCtx, GenericQueryCtx } from 'convex/server'
-import type { ZodObject, ZodRawShape } from 'zod/v4'
+import type { ReducerExport } from 'spacetimedb/server'
 
-import { customCtx } from 'convex-helpers/server/customFunctions'
-import { zCustomMutation, zCustomQuery } from 'convex-helpers/server/zod4'
+import type { GlobalHookCtx, GlobalHooks, Middleware, Rec } from './types'
+import type { CrudHooks } from './types/crud'
+import type { SingletonHooks } from './types/singleton'
 
-import type { OrgCrudOptions } from './org-crud'
-import type {
-  BaseSchema,
-  CacheHookCtx,
-  CacheHooks,
-  CrudHooks,
-  CrudOptions,
-  DbLike,
-  GlobalHooks,
-  HookCtx,
-  Mb,
-  OrgSchema,
-  OwnedSchema,
-  Qb,
-  Rec,
-  SetupConfig,
-  SingletonOptions,
-  SingletonSchema
-} from './types'
-
-import { typed } from './bridge'
 import { makeCacheCrud } from './cache-crud'
 import { makeChildCrud } from './child'
 import { makeCrud } from './crud'
-import { dbInsert, dbPatch, err, getUser, makeUnique, ownGet, readCtx, time } from './helpers'
 import { composeMiddleware } from './middleware'
 import { makeOrg } from './org'
 import { makeOrgCrud } from './org-crud'
 import { makeSingletonCrud } from './singleton'
 
-const mergeGlobalHooks = (a: GlobalHooks | undefined, b: GlobalHooks | undefined): GlobalHooks | undefined => {
-    if (!(a || b)) return
-    if (!a) return b
-    if (!b) return a
-    const merged: GlobalHooks = {}
-    if (a.beforeCreate ?? b.beforeCreate)
-      merged.beforeCreate = async (ctx, args) => {
-        let { data } = args
-        if (a.beforeCreate) data = await a.beforeCreate(ctx, { data })
-        if (b.beforeCreate) data = await b.beforeCreate(ctx, { data })
-        return data
-      }
-    if (a.afterCreate ?? b.afterCreate)
-      merged.afterCreate = async (ctx, args) => {
-        if (a.afterCreate) await a.afterCreate(ctx, args)
-        if (b.afterCreate) await b.afterCreate(ctx, args)
-      }
-    if (a.beforeUpdate ?? b.beforeUpdate)
-      merged.beforeUpdate = async (ctx, args) => {
-        let { patch } = args
-        if (a.beforeUpdate) patch = await a.beforeUpdate(ctx, { ...args, patch })
-        if (b.beforeUpdate) patch = await b.beforeUpdate(ctx, { ...args, patch })
-        return patch
-      }
-    if (a.afterUpdate ?? b.afterUpdate)
-      merged.afterUpdate = async (ctx, args) => {
-        if (a.afterUpdate) await a.afterUpdate(ctx, args)
-        if (b.afterUpdate) await b.afterUpdate(ctx, args)
-      }
-    if (a.beforeDelete ?? b.beforeDelete)
-      merged.beforeDelete = async (ctx, args) => {
-        if (a.beforeDelete) await a.beforeDelete(ctx, args)
-        if (b.beforeDelete) await b.beforeDelete(ctx, args)
-      }
-    if (a.afterDelete ?? b.afterDelete)
-      merged.afterDelete = async (ctx, args) => {
-        if (a.afterDelete) await a.afterDelete(ctx, args)
-        if (b.afterDelete) await b.afterDelete(ctx, args)
-      }
+type ReducerExportRecord = Record<string, ReducerExport<never, never>>
+
+interface SetupConfig {
+  hooks?: GlobalHooks
+  middleware?: Middleware[]
+}
+
+interface SpacetimeDbLike {
+  reducer: (...args: unknown[]) => unknown
+}
+
+const isPromiseLike = (value: unknown): value is PromiseLike<unknown> => {
+    if (!value || typeof value !== 'object') return false
+    const { then } = value as { then?: unknown }
+    return typeof then === 'function'
+  },
+  requireSync = <T>(value: Promise<T> | T, hookName: string): T => {
+    if (isPromiseLike(value)) throw new Error(`Hook "${hookName}" must be synchronous in SpacetimeDB reducers`)
+    return value
+  },
+  toGlobalCtx = (
+    table: string,
+    { db, sender, timestamp }: { db: unknown; sender: GlobalHookCtx['sender']; timestamp: GlobalHookCtx['timestamp'] }
+  ): GlobalHookCtx => ({ db, sender, table, timestamp }),
+  hasGlobalHooks = (hooks: GlobalHooks): boolean =>
+    Boolean(
+      hooks.beforeCreate ?? hooks.afterCreate ?? hooks.beforeUpdate ?? hooks.afterUpdate ?? hooks.beforeDelete ?? hooks.afterDelete
+    ),
+  mergeGlobalBeforeCreate = (left: GlobalHooks, right: GlobalHooks): GlobalHooks['beforeCreate'] => {
+    if (!(left.beforeCreate || right.beforeCreate)) return
+    return (ctx, { data: initialData }) => {
+      let data = initialData
+      if (left.beforeCreate) data = requireSync(left.beforeCreate(ctx, { data }), 'global.beforeCreate:left')
+      if (right.beforeCreate) data = requireSync(right.beforeCreate(ctx, { data }), 'global.beforeCreate:right')
+      return data
+    }
+  },
+  mergeGlobalAfterCreate = (left: GlobalHooks, right: GlobalHooks): GlobalHooks['afterCreate'] => {
+    if (!(left.afterCreate || right.afterCreate)) return
+    return (ctx, args) => {
+      if (left.afterCreate) requireSync(left.afterCreate(ctx, args), 'global.afterCreate:left')
+      if (right.afterCreate) requireSync(right.afterCreate(ctx, args), 'global.afterCreate:right')
+    }
+  },
+  mergeGlobalBeforeUpdate = (left: GlobalHooks, right: GlobalHooks): GlobalHooks['beforeUpdate'] => {
+    if (!(left.beforeUpdate || right.beforeUpdate)) return
+    return (ctx, { patch: initialPatch, prev }) => {
+      let patch = initialPatch
+      if (left.beforeUpdate) patch = requireSync(left.beforeUpdate(ctx, { patch, prev }), 'global.beforeUpdate:left')
+      if (right.beforeUpdate) patch = requireSync(right.beforeUpdate(ctx, { patch, prev }), 'global.beforeUpdate:right')
+      return patch
+    }
+  },
+  mergeGlobalAfterUpdate = (left: GlobalHooks, right: GlobalHooks): GlobalHooks['afterUpdate'] => {
+    if (!(left.afterUpdate || right.afterUpdate)) return
+    return (ctx, args) => {
+      if (left.afterUpdate) requireSync(left.afterUpdate(ctx, args), 'global.afterUpdate:left')
+      if (right.afterUpdate) requireSync(right.afterUpdate(ctx, args), 'global.afterUpdate:right')
+    }
+  },
+  mergeGlobalBeforeDelete = (left: GlobalHooks, right: GlobalHooks): GlobalHooks['beforeDelete'] => {
+    if (!(left.beforeDelete || right.beforeDelete)) return
+    return (ctx, args) => {
+      if (left.beforeDelete) requireSync(left.beforeDelete(ctx, args), 'global.beforeDelete:left')
+      if (right.beforeDelete) requireSync(right.beforeDelete(ctx, args), 'global.beforeDelete:right')
+    }
+  },
+  mergeGlobalAfterDelete = (left: GlobalHooks, right: GlobalHooks): GlobalHooks['afterDelete'] => {
+    if (!(left.afterDelete || right.afterDelete)) return
+    return (ctx, args) => {
+      if (left.afterDelete) requireSync(left.afterDelete(ctx, args), 'global.afterDelete:left')
+      if (right.afterDelete) requireSync(right.afterDelete(ctx, args), 'global.afterDelete:right')
+    }
+  },
+  mergeGlobalHooks = (left: GlobalHooks | undefined, right: GlobalHooks | undefined): GlobalHooks | undefined => {
+    if (!(left || right)) return
+    if (!left) return right
+    if (!right) return left
+
+    const merged: GlobalHooks = {
+      afterCreate: mergeGlobalAfterCreate(left, right),
+      afterDelete: mergeGlobalAfterDelete(left, right),
+      afterUpdate: mergeGlobalAfterUpdate(left, right),
+      beforeCreate: mergeGlobalBeforeCreate(left, right),
+      beforeDelete: mergeGlobalBeforeDelete(left, right),
+      beforeUpdate: mergeGlobalBeforeUpdate(left, right)
+    }
+
+    if (!hasGlobalHooks(merged)) return
     return merged
   },
-  mergeHooks = (gh: GlobalHooks | undefined, fh: CrudHooks | undefined, table: string): CrudHooks | undefined => {
-    if (!(gh || fh)) return
-    const merged: CrudHooks = {}
-    if (gh?.beforeCreate ?? fh?.beforeCreate)
-      merged.beforeCreate = async (ctx: HookCtx, args: { data: Rec }) => {
-        let { data } = args
-        if (gh?.beforeCreate) data = await gh.beforeCreate({ ...ctx, table }, { data })
-        if (fh?.beforeCreate) data = await fh.beforeCreate(ctx, { data })
-        return data
-      }
-    if (gh?.afterCreate ?? fh?.afterCreate)
-      merged.afterCreate = async (ctx: HookCtx, args: { data: Rec; id: string }) => {
-        if (gh?.afterCreate) await gh.afterCreate({ ...ctx, table }, args)
-        if (fh?.afterCreate) await fh.afterCreate(ctx, args)
-      }
-    if (gh?.beforeUpdate ?? fh?.beforeUpdate)
-      merged.beforeUpdate = async (ctx: HookCtx, args: { id: string; patch: Rec; prev: Rec }) => {
-        let { patch } = args
-        if (gh?.beforeUpdate) patch = await gh.beforeUpdate({ ...ctx, table }, { ...args, patch })
-        if (fh?.beforeUpdate) patch = await fh.beforeUpdate(ctx, { ...args, patch })
-        return patch
-      }
-    if (gh?.afterUpdate ?? fh?.afterUpdate)
-      merged.afterUpdate = async (ctx: HookCtx, args: { id: string; patch: Rec; prev: Rec }) => {
-        if (gh?.afterUpdate) await gh.afterUpdate({ ...ctx, table }, args)
-        if (fh?.afterUpdate) await fh.afterUpdate(ctx, args)
-      }
-    if (gh?.beforeDelete ?? fh?.beforeDelete)
-      merged.beforeDelete = async (ctx: HookCtx, args: { doc: Rec; id: string }) => {
-        if (gh?.beforeDelete) await gh.beforeDelete({ ...ctx, table }, args)
-        if (fh?.beforeDelete) await fh.beforeDelete(ctx, args)
-      }
-    if (gh?.afterDelete ?? fh?.afterDelete)
-      merged.afterDelete = async (ctx: HookCtx, args: { doc: Rec; id: string }) => {
-        if (gh?.afterDelete) await gh.afterDelete({ ...ctx, table }, args)
-        if (fh?.afterDelete) await fh.afterDelete(ctx, args)
-      }
+  hasCrudHooks = <DB, Row extends Rec, CreateArgs extends Rec, UpdatePatch extends Rec>(
+    hooks: CrudHooks<DB, Row, CreateArgs, UpdatePatch>
+  ): boolean =>
+    Boolean(
+      hooks.beforeCreate ?? hooks.afterCreate ?? hooks.beforeUpdate ?? hooks.afterUpdate ?? hooks.beforeDelete ?? hooks.afterDelete
+    ),
+  mergeCrudBeforeCreate = <DB, Row extends Rec, CreateArgs extends Rec, UpdatePatch extends Rec>(
+    table: string,
+    globalHooks: GlobalHooks | undefined,
+    localHooks: CrudHooks<DB, Row, CreateArgs, UpdatePatch> | undefined
+  ): CrudHooks<DB, Row, CreateArgs, UpdatePatch>['beforeCreate'] => {
+    if (!(globalHooks?.beforeCreate || localHooks?.beforeCreate)) return
+    return (ctx, { data: initialData }) => {
+      let data = initialData
+      if (globalHooks?.beforeCreate)
+        data = requireSync(globalHooks.beforeCreate(toGlobalCtx(table, ctx), { data: data as Rec }), 'crud.beforeCreate:global') as CreateArgs
+      if (localHooks?.beforeCreate) data = requireSync(localHooks.beforeCreate(ctx, { data }), 'crud.beforeCreate:local')
+      return data
+    }
+  },
+  mergeCrudAfterCreate = <DB, Row extends Rec, CreateArgs extends Rec, UpdatePatch extends Rec>(
+    table: string,
+    globalHooks: GlobalHooks | undefined,
+    localHooks: CrudHooks<DB, Row, CreateArgs, UpdatePatch> | undefined
+  ): CrudHooks<DB, Row, CreateArgs, UpdatePatch>['afterCreate'] => {
+    if (!(globalHooks?.afterCreate || localHooks?.afterCreate)) return
+    return (ctx, { data, row }) => {
+      if (globalHooks?.afterCreate)
+        requireSync(globalHooks.afterCreate(toGlobalCtx(table, ctx), { data: data as Rec, row: row as Rec }), 'crud.afterCreate:global')
+      if (localHooks?.afterCreate) requireSync(localHooks.afterCreate(ctx, { data, row }), 'crud.afterCreate:local')
+    }
+  },
+  mergeCrudBeforeUpdate = <DB, Row extends Rec, CreateArgs extends Rec, UpdatePatch extends Rec>(
+    table: string,
+    globalHooks: GlobalHooks | undefined,
+    localHooks: CrudHooks<DB, Row, CreateArgs, UpdatePatch> | undefined
+  ): CrudHooks<DB, Row, CreateArgs, UpdatePatch>['beforeUpdate'] => {
+    if (!(globalHooks?.beforeUpdate || localHooks?.beforeUpdate)) return
+    return (ctx, { patch: initialPatch, prev }) => {
+      let patch = initialPatch
+      if (globalHooks?.beforeUpdate)
+        patch = requireSync(
+          globalHooks.beforeUpdate(toGlobalCtx(table, ctx), { patch: patch as Rec, prev: prev as Rec }),
+          'crud.beforeUpdate:global'
+        ) as UpdatePatch
+      if (localHooks?.beforeUpdate) patch = requireSync(localHooks.beforeUpdate(ctx, { patch, prev }), 'crud.beforeUpdate:local')
+      return patch
+    }
+  },
+  mergeCrudAfterUpdate = <DB, Row extends Rec, CreateArgs extends Rec, UpdatePatch extends Rec>(
+    table: string,
+    globalHooks: GlobalHooks | undefined,
+    localHooks: CrudHooks<DB, Row, CreateArgs, UpdatePatch> | undefined
+  ): CrudHooks<DB, Row, CreateArgs, UpdatePatch>['afterUpdate'] => {
+    if (!(globalHooks?.afterUpdate || localHooks?.afterUpdate)) return
+    return (ctx, { next, patch, prev }) => {
+      if (globalHooks?.afterUpdate)
+        requireSync(
+          globalHooks.afterUpdate(toGlobalCtx(table, ctx), {
+            next: next as Rec,
+            patch: patch as Rec,
+            prev: prev as Rec
+          }),
+          'crud.afterUpdate:global'
+        )
+      if (localHooks?.afterUpdate) requireSync(localHooks.afterUpdate(ctx, { next, patch, prev }), 'crud.afterUpdate:local')
+    }
+  },
+  mergeCrudBeforeDelete = <DB, Row extends Rec, CreateArgs extends Rec, UpdatePatch extends Rec>(
+    table: string,
+    globalHooks: GlobalHooks | undefined,
+    localHooks: CrudHooks<DB, Row, CreateArgs, UpdatePatch> | undefined
+  ): CrudHooks<DB, Row, CreateArgs, UpdatePatch>['beforeDelete'] => {
+    if (!(globalHooks?.beforeDelete || localHooks?.beforeDelete)) return
+    return (ctx, { row }) => {
+      if (globalHooks?.beforeDelete)
+        requireSync(globalHooks.beforeDelete(toGlobalCtx(table, ctx), { row: row as Rec }), 'crud.beforeDelete:global')
+      if (localHooks?.beforeDelete) requireSync(localHooks.beforeDelete(ctx, { row }), 'crud.beforeDelete:local')
+    }
+  },
+  mergeCrudAfterDelete = <DB, Row extends Rec, CreateArgs extends Rec, UpdatePatch extends Rec>(
+    table: string,
+    globalHooks: GlobalHooks | undefined,
+    localHooks: CrudHooks<DB, Row, CreateArgs, UpdatePatch> | undefined
+  ): CrudHooks<DB, Row, CreateArgs, UpdatePatch>['afterDelete'] => {
+    if (!(globalHooks?.afterDelete || localHooks?.afterDelete)) return
+    return (ctx, { row }) => {
+      if (globalHooks?.afterDelete)
+        requireSync(globalHooks.afterDelete(toGlobalCtx(table, ctx), { row: row as Rec }), 'crud.afterDelete:global')
+      if (localHooks?.afterDelete) requireSync(localHooks.afterDelete(ctx, { row }), 'crud.afterDelete:local')
+    }
+  },
+  mergeCrudHooks = <DB, Row extends Rec, CreateArgs extends Rec, UpdatePatch extends Rec>(
+    table: string,
+    globalHooks: GlobalHooks | undefined,
+    localHooks: CrudHooks<DB, Row, CreateArgs, UpdatePatch> | undefined
+  ): CrudHooks<DB, Row, CreateArgs, UpdatePatch> | undefined => {
+    if (!(globalHooks || localHooks)) return
+    const merged: CrudHooks<DB, Row, CreateArgs, UpdatePatch> = {
+      afterCreate: mergeCrudAfterCreate(table, globalHooks, localHooks),
+      afterDelete: mergeCrudAfterDelete(table, globalHooks, localHooks),
+      afterUpdate: mergeCrudAfterUpdate(table, globalHooks, localHooks),
+      beforeCreate: mergeCrudBeforeCreate(table, globalHooks, localHooks),
+      beforeDelete: mergeCrudBeforeDelete(table, globalHooks, localHooks),
+      beforeUpdate: mergeCrudBeforeUpdate(table, globalHooks, localHooks)
+    }
+    if (!hasCrudHooks(merged)) return
     return merged
   },
-  mergeCacheHooks = (gh: GlobalHooks | undefined, fh: CacheHooks | undefined, table: string): CacheHooks | undefined => {
-    if (!(gh || fh)) return
-    const merged: CacheHooks = {}
-    if (fh?.onFetch) merged.onFetch = fh.onFetch
-    if (gh?.beforeCreate ?? fh?.beforeCreate)
-      merged.beforeCreate = async (ctx: CacheHookCtx, args: { data: Rec }) => {
-        let { data } = args
-        if (gh?.beforeCreate) data = await gh.beforeCreate({ ...ctx, table }, { data })
-        if (fh?.beforeCreate) data = await fh.beforeCreate(ctx, { data })
-        return data
-      }
-    if (gh?.afterCreate ?? fh?.afterCreate)
-      merged.afterCreate = async (ctx: CacheHookCtx, args: { data: Rec; id: string }) => {
-        if (gh?.afterCreate) await gh.afterCreate({ ...ctx, table }, args)
-        if (fh?.afterCreate) await fh.afterCreate(ctx, args)
-      }
-    if (gh?.beforeUpdate ?? fh?.beforeUpdate)
-      merged.beforeUpdate = async (ctx: CacheHookCtx, args: { id: string; patch: Rec; prev: Rec }) => {
-        let { patch } = args
-        if (gh?.beforeUpdate) patch = await gh.beforeUpdate({ ...ctx, table }, { ...args, patch })
-        if (fh?.beforeUpdate) patch = await fh.beforeUpdate(ctx, { ...args, patch })
-        return patch
-      }
-    if (gh?.afterUpdate ?? fh?.afterUpdate)
-      merged.afterUpdate = async (ctx: CacheHookCtx, args: { id: string; patch: Rec; prev: Rec }) => {
-        if (gh?.afterUpdate) await gh.afterUpdate({ ...ctx, table }, args)
-        if (fh?.afterUpdate) await fh.afterUpdate(ctx, args)
-      }
-    if (gh?.beforeDelete ?? fh?.beforeDelete)
-      merged.beforeDelete = async (ctx: CacheHookCtx, args: { doc: Rec; id: string }) => {
-        if (gh?.beforeDelete) await gh.beforeDelete({ ...ctx, table }, args)
-        if (fh?.beforeDelete) await fh.beforeDelete(ctx, args)
-      }
-    if (gh?.afterDelete ?? fh?.afterDelete)
-      merged.afterDelete = async (ctx: CacheHookCtx, args: { doc: Rec; id: string }) => {
-        if (gh?.afterDelete) await gh.afterDelete({ ...ctx, table }, args)
-        if (fh?.afterDelete) await fh.afterDelete(ctx, args)
-      }
+  hasSingletonHooks = <DB, Row extends Rec, UpdatePatch extends Rec>(hooks: SingletonHooks<DB, Row, UpdatePatch>): boolean =>
+    Boolean(hooks.beforeCreate ?? hooks.afterCreate ?? hooks.beforeUpdate ?? hooks.afterUpdate ?? hooks.beforeRead),
+  mergeSingletonBeforeCreate = <DB, Row extends Rec, UpdatePatch extends Rec>(
+    table: string,
+    globalHooks: GlobalHooks | undefined,
+    localHooks: SingletonHooks<DB, Row, UpdatePatch> | undefined
+  ): SingletonHooks<DB, Row, UpdatePatch>['beforeCreate'] => {
+    if (!(globalHooks?.beforeCreate || localHooks?.beforeCreate)) return
+    return (ctx, { data: initialData }) => {
+      let data = initialData
+      if (globalHooks?.beforeCreate)
+        data = requireSync(
+          globalHooks.beforeCreate(toGlobalCtx(table, ctx), { data: data as Rec }),
+          'singleton.beforeCreate:global'
+        ) as UpdatePatch
+      if (localHooks?.beforeCreate) data = requireSync(localHooks.beforeCreate(ctx, { data }), 'singleton.beforeCreate:local')
+      return data
+    }
+  },
+  mergeSingletonAfterCreate = <DB, Row extends Rec, UpdatePatch extends Rec>(
+    table: string,
+    globalHooks: GlobalHooks | undefined,
+    localHooks: SingletonHooks<DB, Row, UpdatePatch> | undefined
+  ): SingletonHooks<DB, Row, UpdatePatch>['afterCreate'] => {
+    if (!(globalHooks?.afterCreate || localHooks?.afterCreate)) return
+    return (ctx, { data, row }) => {
+      if (globalHooks?.afterCreate)
+        requireSync(
+          globalHooks.afterCreate(toGlobalCtx(table, ctx), { data: data as Rec, row: row as Rec }),
+          'singleton.afterCreate:global'
+        )
+      if (localHooks?.afterCreate) requireSync(localHooks.afterCreate(ctx, { data, row }), 'singleton.afterCreate:local')
+    }
+  },
+  mergeSingletonBeforeUpdate = <DB, Row extends Rec, UpdatePatch extends Rec>(
+    table: string,
+    globalHooks: GlobalHooks | undefined,
+    localHooks: SingletonHooks<DB, Row, UpdatePatch> | undefined
+  ): SingletonHooks<DB, Row, UpdatePatch>['beforeUpdate'] => {
+    if (!(globalHooks?.beforeUpdate || localHooks?.beforeUpdate)) return
+    return (ctx, { patch: initialPatch, prev }) => {
+      let patch = initialPatch
+      if (globalHooks?.beforeUpdate)
+        patch = requireSync(
+          globalHooks.beforeUpdate(toGlobalCtx(table, ctx), { patch: patch as Rec, prev: prev as Rec }),
+          'singleton.beforeUpdate:global'
+        ) as UpdatePatch
+      if (localHooks?.beforeUpdate) patch = requireSync(localHooks.beforeUpdate(ctx, { patch, prev }), 'singleton.beforeUpdate:local')
+      return patch
+    }
+  },
+  mergeSingletonAfterUpdate = <DB, Row extends Rec, UpdatePatch extends Rec>(
+    table: string,
+    globalHooks: GlobalHooks | undefined,
+    localHooks: SingletonHooks<DB, Row, UpdatePatch> | undefined
+  ): SingletonHooks<DB, Row, UpdatePatch>['afterUpdate'] => {
+    if (!(globalHooks?.afterUpdate || localHooks?.afterUpdate)) return
+    return (ctx, { next, patch, prev }) => {
+      if (globalHooks?.afterUpdate)
+        requireSync(
+          globalHooks.afterUpdate(toGlobalCtx(table, ctx), {
+            next: next as Rec,
+            patch: patch as Rec,
+            prev: prev as Rec
+          }),
+          'singleton.afterUpdate:global'
+        )
+      if (localHooks?.afterUpdate)
+        requireSync(localHooks.afterUpdate(ctx, { next, patch, prev }), 'singleton.afterUpdate:local')
+    }
+  },
+  mergeSingletonHooks = <DB, Row extends Rec, UpdatePatch extends Rec>(
+    table: string,
+    globalHooks: GlobalHooks | undefined,
+    localHooks: SingletonHooks<DB, Row, UpdatePatch> | undefined
+  ): SingletonHooks<DB, Row, UpdatePatch> | undefined => {
+    if (!(globalHooks || localHooks)) return
+    const merged: SingletonHooks<DB, Row, UpdatePatch> = {
+      afterCreate: mergeSingletonAfterCreate(table, globalHooks, localHooks),
+      afterUpdate: mergeSingletonAfterUpdate(table, globalHooks, localHooks),
+      beforeCreate: mergeSingletonBeforeCreate(table, globalHooks, localHooks),
+      beforeRead: localHooks?.beforeRead,
+      beforeUpdate: mergeSingletonBeforeUpdate(table, globalHooks, localHooks)
+    }
+    if (!hasSingletonHooks(merged)) return
     return merged
   },
-  /**
-   * Initializes betterspace by wiring Convex builders, auth, hooks, and middleware into factory functions.
-   * @param config - Convex query/mutation/action builders, getAuthUserId, optional hooks, middleware, and org config
-   * @returns Object containing `crud`, `orgCrud`, `childCrud`, `cacheCrud`, `singletonCrud`, custom builders (`pq`, `q`, `m`), and `org` endpoints
-   * @example
-   * const { crud, orgCrud, pq, q, m } = setup({
-   *   query, mutation, action, internalQuery, internalMutation, getAuthUserId
-   * })
-   *
-   * // Then generate endpoints:
-   * export const { create, update, rm, pub: { list, read } } = crud('blog', owned.blog)
-   */
-  setup = <DM extends GenericDataModel>(config: SetupConfig<DM>) => {
-    type QCtx = GenericQueryCtx<DM>
-    type MCtx = GenericMutationCtx<DM>
-    const { getAuthUserId } = config,
-      mwHooks = config.middleware?.length ? composeMiddleware(...config.middleware) : undefined,
-      gh = mergeGlobalHooks(config.hooks, mwHooks),
-      authId = async (c: unknown) => getAuthUserId(typed(c)),
-      asDb = (c: { db: unknown }) => typed(c.db) as DbLike,
-      pq = zCustomQuery(
-        config.query,
-        customCtx(async (c: QCtx) => {
-          const vid = await authId(c),
-            { withAuthor } = readCtx({ db: asDb(c), storage: typed(c.storage), viewerId: vid })
-          return { viewerId: vid, withAuthor }
-        })
-      ),
-      q = zCustomQuery(
-        config.query,
-        customCtx(async (c: QCtx) => {
-          const db = asDb(c),
-            user = await getUser({ ctx: typed(c), db, getAuthUserId }),
-            { viewerId, withAuthor } = readCtx({ db, storage: typed(c.storage), viewerId: user._id })
-          return {
-            get: ownGet(db, user._id),
-            user,
-            viewerId,
-            withAuthor
-          }
-        })
-      ),
-      m = zCustomMutation(
-        config.mutation,
-        customCtx(async (c: MCtx) => {
-          const db = asDb(c),
-            now = time(),
-            user = await getUser({ ctx: typed(c), db, getAuthUserId }),
-            get = ownGet(db, user._id)
-          return {
-            create: async (t: string, d: Rec) => dbInsert(db, t, { ...d, ...now, userId: user._id }),
-            delete: async (id: string) => {
-              const d = await get(id)
-              await db.delete(id)
-              return d
-            },
-            get,
-            patch: async (
-              id: string,
-              data: ((doc: Rec) => Partial<Rec> | Promise<Partial<Rec>>) | Partial<Rec>,
-              expectedUpdatedAt?: number
-            ) => {
-              const doc = await get(id)
-              if (expectedUpdatedAt !== undefined && doc.updatedAt !== expectedUpdatedAt) return err('CONFLICT')
-              const up = typeof data === 'function' ? await data(doc) : data
-              await dbPatch(db, id, { ...up, ...now })
-              return { ...doc, ...up, ...now }
-            },
-            user
-          }
-        })
-      ),
-      cq = zCustomQuery(
-        config.query,
-        customCtx(() => ({}))
-      ),
-      cm = zCustomMutation(
-        config.mutation,
-        customCtx(() => ({}))
-      ),
-      crud = <S extends ZodRawShape>(table: keyof DM & string, schema: OwnedSchema<S>, opt?: CrudOptions<S>) =>
-        makeCrud({
-          builders: { cm, cq, m: typed(m) as Mb, pq: typed(pq) as Qb, q: typed(q) as Qb },
-          options: opt
-            ? { ...opt, hooks: mergeHooks(gh, opt.hooks, table) }
-            : gh
-              ? { hooks: mergeHooks(gh, undefined, table) }
-              : undefined,
-          schema,
-          strictFilter: config.strictFilter,
-          table
-        }),
-      childCrud = <S extends ZodRawShape, PS extends ZodRawShape = ZodRawShape>(
-        table: keyof DM & string,
-        meta: { foreignKey: string; index: string; parent: string; parentSchema?: ZodObject<PS>; schema: ZodObject<S> },
-        opt?: { pub?: { parentField: keyof PS & string } }
-      ) =>
-        makeChildCrud({
-          builders: { m: typed(m) as Mb, pq: typed(pq) as Qb, q: typed(q) as Qb },
-          globalHooks: gh,
-          meta,
-          options: opt,
-          table
-        }),
-      orgCrud = <S extends ZodRawShape>(table: keyof DM & string, schema: OrgSchema<S>, opt?: OrgCrudOptions<S>) =>
-        makeOrgCrud({
-          builders: { m: typed(m) as Mb, q: typed(q) as Qb },
-          options: opt
-            ? { ...opt, hooks: mergeHooks(gh, opt.hooks, table) }
-            : gh
-              ? { hooks: mergeHooks(gh, undefined, table) }
-              : undefined,
-          schema,
-          table
-        }),
-      cacheCrud = <S extends ZodRawShape, K extends keyof S & string>(opts: {
-        fetcher?: (c: unknown, key: unknown) => Promise<unknown>
-        hooks?: CacheHooks
-        key: K
-        rateLimit?: { max: number; window: number }
-        schema: BaseSchema<S>
-        staleWhileRevalidate?: boolean
-        table: keyof DM & string
-        ttl?: number
-      }) =>
-        makeCacheCrud({
-          ...opts,
-          builders: {
-            action: config.action,
-            cm,
-            cq,
-            internalMutation: config.internalMutation,
-            internalQuery: config.internalQuery,
-            mutation: config.mutation,
-            query: config.query
-          },
-          hooks: mergeCacheHooks(gh, opts.hooks, opts.table)
-        }),
-      singletonCrud = <S extends ZodRawShape>(
-        table: keyof DM & string,
-        schema: SingletonSchema<S>,
-        opt?: SingletonOptions
-      ) =>
-        makeSingletonCrud({
-          builders: { m: typed(m) as Mb, q: typed(q) as Qb },
-          options: opt,
-          schema,
-          table
-        }),
-      uniqueCheck = <S extends ZodRawShape>(
-        _schema: ZodObject<S>,
-        table: keyof DM & string,
-        field: keyof S & string,
-        index?: string
-      ) => makeUnique({ field, index, pq: typed(pq) as Qb, table }),
-      normCascade = config.orgCascadeTables?.map(t => (typeof t === 'string' ? { table: t } : t)),
-      org = config.orgSchema
-        ? makeOrg({
-            cascadeTables: normCascade,
-            getAuthUserId: config.getAuthUserId,
-            mutation: config.mutation,
-            query: config.query,
-            schema: config.orgSchema
-          })
-        : undefined,
-      user = { me: q({ handler: (c: Rec) => c.user }) }
-    return { cacheCrud, childCrud, cm, cq, crud, m, org, orgCrud, pq, q, singletonCrud, uniqueCheck, user }
+  registerExports = (target: ReducerExportRecord, next: ReducerExportRecord) => {
+    const names = Object.keys(next)
+    for (const name of names) {
+      const reducer = next[name]
+      if (reducer) target[name] = reducer
+    }
+  },
+  setup = (spacetimedb: SpacetimeDbLike, config: SetupConfig = {}) => {
+    const middlewareHooks = config.middleware?.length ? composeMiddleware(...config.middleware) : undefined,
+      globalHooks = mergeGlobalHooks(config.hooks, middlewareHooks),
+      accumulatedExports: ReducerExportRecord = {},
+      crud = (factoryConfig: Parameters<typeof makeCrud>[1]) => {
+        const mergedHooks = mergeCrudHooks(
+            factoryConfig.tableName,
+            globalHooks,
+            factoryConfig.options?.hooks as CrudHooks<unknown, Rec, Rec, Rec> | undefined
+          ),
+          nextConfig = mergedHooks
+            ? {
+                ...factoryConfig,
+                options: {
+                  ...factoryConfig.options,
+                  hooks: mergedHooks
+                }
+              }
+            : factoryConfig,
+          result = makeCrud(spacetimedb, nextConfig)
+        registerExports(accumulatedExports, result.exports)
+        return result
+      },
+      orgCrud = (factoryConfig: Parameters<typeof makeOrgCrud>[1]) => {
+        const mergedHooks = mergeCrudHooks(
+            factoryConfig.tableName,
+            globalHooks,
+            factoryConfig.options?.hooks as CrudHooks<unknown, Rec, Rec, Rec> | undefined
+          ),
+          nextConfig = mergedHooks
+            ? {
+                ...factoryConfig,
+                options: {
+                  ...factoryConfig.options,
+                  hooks: mergedHooks
+                }
+              }
+            : factoryConfig,
+          result = makeOrgCrud(spacetimedb, nextConfig)
+        registerExports(accumulatedExports, result.exports)
+        return result
+      },
+      childCrud = (factoryConfig: Parameters<typeof makeChildCrud>[1]) => {
+        const mergedHooks = mergeCrudHooks(
+            factoryConfig.tableName,
+            globalHooks,
+            factoryConfig.options?.hooks as CrudHooks<unknown, Rec, Rec, Rec> | undefined
+          ),
+          nextConfig = mergedHooks
+            ? {
+                ...factoryConfig,
+                options: {
+                  ...factoryConfig.options,
+                  hooks: mergedHooks
+                }
+              }
+            : factoryConfig,
+          result = makeChildCrud(spacetimedb, nextConfig)
+        registerExports(accumulatedExports, result.exports)
+        return result
+      },
+      singletonCrud = (factoryConfig: Parameters<typeof makeSingletonCrud>[1]) => {
+        const mergedHooks = mergeSingletonHooks(
+            factoryConfig.tableName,
+            globalHooks,
+            factoryConfig.options?.hooks as SingletonHooks<unknown, Rec, Rec> | undefined
+          ),
+          nextConfig = mergedHooks
+            ? {
+                ...factoryConfig,
+                options: {
+                  ...factoryConfig.options,
+                  hooks: mergedHooks
+                }
+              }
+            : factoryConfig,
+          result = makeSingletonCrud(spacetimedb, nextConfig)
+        registerExports(accumulatedExports, result.exports)
+        return result
+      },
+      cacheCrud = (factoryConfig: Parameters<typeof makeCacheCrud>[1]) => {
+        const result = makeCacheCrud(spacetimedb, factoryConfig)
+        registerExports(accumulatedExports, result.exports)
+        return result
+      },
+      org = (factoryConfig: Parameters<typeof makeOrg>[1]) => {
+        const result = makeOrg(spacetimedb, factoryConfig)
+        registerExports(accumulatedExports, result.exports)
+        return result
+      },
+      allExports = (): ReducerExportRecord => ({ ...accumulatedExports })
+
+    return {
+      allExports,
+      cacheCrud,
+      childCrud,
+      crud,
+      exports: accumulatedExports,
+      org,
+      orgCrud,
+      singletonCrud
+    }
   }
 
 export { setup }
