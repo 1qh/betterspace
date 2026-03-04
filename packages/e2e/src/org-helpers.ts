@@ -1,4 +1,6 @@
-// oxlint-disable no-await-in-loop complexity
+// biome-ignore-all lint/performance/noAwaitInLoops: e2e sequential
+// oxlint-disable no-await-in-loop
+// oxlint-disable complexity
 import type { api as BeApi } from '@a/be'
 import type { Id } from '@a/be/model'
 

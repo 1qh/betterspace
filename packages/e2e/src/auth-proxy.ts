@@ -1,3 +1,4 @@
+// biome-ignore-all lint/suspicious/noEmptyBlockStatements: intentional swallow
 // oxlint-disable no-empty-function
 import { serve } from 'bun'
 
