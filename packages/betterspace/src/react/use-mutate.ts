@@ -125,7 +125,29 @@ const isDev = typeof process !== 'undefined' && process.env.NODE_ENV !== 'produc
       },
       [errorHandler, isOptimistic, mutate, options, store]
     )
+  },
+  /** Combines a reducer hook result with `useMutate` in a single call.
+   * Eliminates the two-step `const raw = useReducer(r); const m = useMutate(raw, opts)` boilerplate.
+   * @param useReducerHook - Hook that returns a mutation function (e.g., from `spacetimedb/react`)
+   * @param reducer - Reducer descriptor to pass to the hook
+   * @param options - Same options as `useMutate`
+   * @returns Stable callback that executes the mutation
+   * @example
+   * ```ts
+   * const save = useMutation(useReducer, reducers.updateBlog, {
+   *   getName: () => 'blog.update',
+   *   onSuccess: () => toast.success('Saved')
+   * })
+   * ```
+   */
+  useMutation = <A extends Record<string, unknown>, R = void, D = unknown>(
+    useReducerHook: (desc: D) => (args: A) => Promise<R>,
+    reducer: D,
+    options?: MutateOptions<A, R>
+  ): ((args: A) => Promise<R>) => {
+    const raw = useReducerHook(reducer)
+    return useMutate(raw, options)
   }
 
 export type { MutateOptions }
-export { defaultOnError, useMutate }
+export { defaultOnError, useMutate, useMutation }
