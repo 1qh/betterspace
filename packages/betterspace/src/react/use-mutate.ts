@@ -8,7 +8,7 @@ import type { RetryOptions } from '../retry'
 import type { MutationType } from './optimistic-store'
 
 import { withRetry } from '../retry'
-import { extractErrorData, getErrorMessage, handleError } from '../server/helpers'
+import { extractErrorData, getErrorMessage, getFirstFieldError, handleError } from '../server/helpers'
 import { completeMutation, pushError, trackMutation } from './devtools'
 import { makeTempId, useOptimisticStore } from './optimistic-store'
 
@@ -21,7 +21,15 @@ interface MutateOptions<A extends Record<string, unknown>, R = void> {
   optimistic?: boolean
   resolveId?: (args: A) => string | undefined
   retry?: number | RetryOptions
+  toast?: MutateToast<A, R>
   type?: MutationType
+}
+
+/** Toast shorthand for mutation success/error messages. */
+interface MutateToast<A extends Record<string, unknown>, R = void> {
+  error?: ((error: unknown) => string) | string
+  fieldErrors?: boolean
+  success?: ((result: R, args: A) => string) | string
 }
 
 const isDev = typeof process !== 'undefined' && process.env.NODE_ENV !== 'production',
@@ -58,13 +66,49 @@ const isDev = typeof process !== 'undefined' && process.env.NODE_ENV !== 'produc
    * const save = useMutate(api.posts.update, { optimistic: true })
    * ```
    */
+  resolveToastError = <A extends Record<string, unknown>, R = void>(
+    opts?: MutateOptions<A, R>
+  ): ((error: unknown) => void) | undefined => {
+    const t = opts?.toast
+    if (opts?.onError === false) return
+    if (opts?.onError) return opts.onError
+    if (!t) return defaultOnError
+    const fieldErrors = t.fieldErrors !== false
+    return (error: unknown) => {
+      if (fieldErrors) {
+        const msg = getFirstFieldError(error)
+        if (msg) {
+          toast.error(msg)
+          return
+        }
+      }
+      const errMsg = t.error
+      if (errMsg) {
+        toast.error(typeof errMsg === 'function' ? errMsg(error) : errMsg)
+        return
+      }
+      defaultOnError(error)
+    }
+  },
+  resolveToastSuccess = <A extends Record<string, unknown>, R = void>(
+    opts?: MutateOptions<A, R>
+  ): ((result: R, args: A) => void) | undefined => {
+    const userCb = opts?.onSuccess,
+      successMsg = opts?.toast?.success
+    if (userCb || successMsg)
+      return (result: R, args: A) => {
+        userCb?.(result, args)
+        if (successMsg) toast.success(typeof successMsg === 'function' ? successMsg(result, args) : successMsg)
+      }
+  },
   useMutate = <A extends Record<string, unknown>, R = void>(
     mutate: (args: A) => Promise<R>,
     options?: MutateOptions<A, R>
   ): ((args: A) => Promise<R>) => {
     const store = useOptimisticStore(),
       isOptimistic = options?.optimistic !== false,
-      errorHandler = options?.onError === false ? undefined : (options?.onError ?? defaultOnError)
+      errorHandler = resolveToastError(options),
+      successHandler = resolveToastSuccess(options)
 
     return useCallback(
       async (args: A): Promise<R> => {
@@ -81,7 +125,7 @@ const isDev = typeof process !== 'undefined' && process.env.NODE_ENV !== 'produc
           try {
             const result = await exec()
             if (isDev && devId) completeMutation(devId, 'success')
-            options?.onSuccess?.(result, args)
+            successHandler?.(result, args)
             options?.onSettled?.(args, undefined, result)
             return result
           } catch (catchError) {
@@ -107,7 +151,7 @@ const isDev = typeof process !== 'undefined' && process.env.NODE_ENV !== 'produc
         try {
           const result = await exec()
           if (isDev && devId) completeMutation(devId, 'success')
-          options?.onSuccess?.(result, args)
+          successHandler?.(result, args)
           options?.onSettled?.(args, undefined, result)
           return result
         } catch (catchError) {
@@ -123,7 +167,7 @@ const isDev = typeof process !== 'undefined' && process.env.NODE_ENV !== 'produc
           if (id !== tempId) store.reconcileIds([id])
         }
       },
-      [errorHandler, isOptimistic, mutate, options, store]
+      [errorHandler, isOptimistic, mutate, options, store, successHandler]
     )
   },
   /** Combines a reducer hook result with `useMutate` in a single call.
@@ -135,8 +179,7 @@ const isDev = typeof process !== 'undefined' && process.env.NODE_ENV !== 'produc
    * @example
    * ```ts
    * const save = useMutation(useReducer, reducers.updateBlog, {
-   *   getName: () => 'blog.update',
-   *   onSuccess: () => toast.success('Saved')
+   *   toast: { success: 'Saved', error: 'Save failed' }
    * })
    * ```
    */
@@ -149,5 +192,5 @@ const isDev = typeof process !== 'undefined' && process.env.NODE_ENV !== 'produc
     return useMutate(raw, options)
   }
 
-export type { MutateOptions }
+export type { MutateOptions, MutateToast }
 export { defaultOnError, useMutate, useMutation }

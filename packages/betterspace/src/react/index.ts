@@ -77,7 +77,7 @@ export type { InfiniteListOptions, InfiniteListWhere } from './use-infinite-list
 export { useInfiniteList } from './use-infinite-list'
 export type { ListWhere, UseListOptions, WhereGroup } from './use-list'
 export { useList, useOwnRows } from './use-list'
-export type { MutateOptions } from './use-mutate'
+export type { MutateOptions, MutateToast } from './use-mutate'
 export { defaultOnError, useMutate, useMutation } from './use-mutate'
 export { default as useOnlineStatus } from './use-online-status'
 export type { OptimisticOptions } from './use-optimistic'
