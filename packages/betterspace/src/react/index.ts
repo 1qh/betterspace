@@ -45,6 +45,7 @@ export type { ErrorToastOptions, ToastFn } from './error-toast'
 export { makeErrorHandler, toastFieldError, useErrorToast } from './error-toast'
 export type { ConflictData, FieldKind, FieldMeta, FieldMetaMap, FormReturn, Widen } from './form'
 export { buildMeta, getMeta, useForm, useFormMutation } from './form'
+export type { SortDirection, SortMap, SortObject } from './list-utils'
 export type { MutationType, PendingMutation } from './optimistic-store'
 export { OptimisticProvider, usePendingMutations } from './optimistic-store'
 export {
@@ -73,9 +74,14 @@ export type { UseBulkSelectionOpts } from './use-bulk-selection'
 export { useBulkSelection } from './use-bulk-selection'
 export type { UseCacheEntryOptions, UseCacheEntryResult } from './use-cache'
 export { useCacheEntry } from './use-cache'
-export type { InfiniteListOptions, InfiniteListWhere } from './use-infinite-list'
+export type {
+  InfiniteListOptions,
+  InfiniteListResult,
+  InfiniteListWhere,
+  SkipInfiniteListResult
+} from './use-infinite-list'
 export { useInfiniteList } from './use-infinite-list'
-export type { ListWhere, UseListOptions, WhereGroup } from './use-list'
+export type { ListWhere, SkipListResult, UseListOptions, UseListResult, WhereGroup } from './use-list'
 export { useList, useOwnRows } from './use-list'
 export type { MutateOptions, MutateToast } from './use-mutate'
 export { defaultOnError, useMutate, useMutation } from './use-mutate'

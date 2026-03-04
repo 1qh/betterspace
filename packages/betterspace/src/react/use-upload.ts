@@ -90,7 +90,8 @@ const DEFAULT_API_ENDPOINT = '/api/upload/presign',
         method: 'POST'
       }),
       payload = (await response.json().catch(() => null)) as unknown
-    if (!response.ok) err('FILE_NOT_FOUND', { message: 'Failed to create upload URL' })
+    if (!response.ok) err('FILE_NOT_FOUND', { message: `Failed to create upload URL (HTTP ${response.status})` })
+    if (payload === null) err('VALIDATION_FAILED', { message: 'Upload presign endpoint returned non-JSON response' })
     return parsePresignedPayload(payload)
   },
   hasContentTypeHeader = (headers: Record<string, string>): boolean => {

@@ -67,7 +67,14 @@ const collectSettled = <R>(settled: PromiseSettledResult<R>[]): { errors: unknow
             for (const item of items) tasks.push(track(item))
             const settled = await Promise.allSettled(tasks),
               { errors, results } = collectSettled(settled)
-            if (errors.length > 0 && errorHandler) errorHandler(errors[0])
+            if (errors.length > 0 && errorHandler) {
+              errorHandler(errors[0])
+              if (errors.length > 1) {
+                // eslint-disable-next-line no-console
+                console.error(`[betterspace] Bulk operation: ${errors.length} of ${items.length} items failed`)
+                for (let i = 1; i < errors.length; i += 1) console.error(`[betterspace] Bulk error ${i + 1}:`, errors[i]) // eslint-disable-line no-console
+              }
+            }
             if (results.length > 0) options?.onSuccess?.(results.length)
             const bulkResult = { errors, results, settled }
             options?.onSettled?.(bulkResult)

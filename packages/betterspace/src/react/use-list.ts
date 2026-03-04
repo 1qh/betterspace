@@ -136,5 +136,25 @@ const DEFAULT_PAGE_SIZE = 50,
       return out
     }, [rows, isOwn])
 
-export type { ListWhere, UseListOptions, WhereGroup }
+/** Result shape returned when `useList` options is `'skip'`. */
+interface SkipListResult {
+  data: never[]
+  hasMore: false
+  isLoading: true
+  loadMore: () => void
+  page: 1
+  totalCount: 0
+}
+
+/** Result shape returned by `useList` with normal options. */
+interface UseListResult<T extends Rec> {
+  data: T[]
+  hasMore: boolean
+  isLoading: boolean
+  loadMore: () => void
+  page: number
+  totalCount: number
+}
+
+export type { ListWhere, SkipListResult, UseListOptions, UseListResult, WhereGroup }
 export { DEFAULT_PAGE_SIZE, useList, useOwnRows }

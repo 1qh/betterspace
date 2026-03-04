@@ -83,6 +83,7 @@ const isTestMode = () =>
       })
     if (!response.ok) return null
     const body = (await response.json().catch(() => null)) as unknown
+    if (body === null) return null
     return firstRow(body) as null | T
   },
   resolveActiveOrg = async <T>({

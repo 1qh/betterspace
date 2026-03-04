@@ -134,8 +134,10 @@ const HTTP_OK = 200,
           method: 'POST',
           signal: options?.signal
         })
-      if (!response.ok) err('FILE_NOT_FOUND', { message: 'Failed to get presigned URL' })
-      const payload = (await response.json().catch(() => null)) as unknown,
+      if (!response.ok) err('FILE_NOT_FOUND', { message: `Failed to get presigned URL (HTTP ${response.status})` })
+      const payload = (await response
+          .json()
+          .catch(() => err('VALIDATION_FAILED', { message: 'Presign endpoint returned non-JSON response' }))) as unknown,
         presigned = parsePresignPayload(payload)
       // eslint-disable-next-line max-statements
       return new Promise<UploadResponse>((resolve, reject) => {
@@ -168,9 +170,13 @@ const HTTP_OK = 200,
             resolveOnce({ storageId: presigned.storageKey, url })
             return
           }
-          rejectOnce(new Error(`Upload failed: ${xhr.status}`))
+          rejectOnce(new Error(`Upload failed with HTTP ${xhr.status} — check endpoint URL and CORS configuration`))
         })
-        xhr.addEventListener('error', () => rejectOnce(new Error('Upload network error')))
+        xhr.addEventListener('error', () =>
+          rejectOnce(
+            new Error('Upload network error — check CORS headers, network connectivity, and endpoint availability')
+          )
+        )
         xhr.addEventListener('abort', () => rejectOnce(new Error('Upload aborted')))
         if (signal) {
           if (signal.aborted) {

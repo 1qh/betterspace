@@ -95,13 +95,13 @@ const getMax = (schema: undefined | ZodSchema): number | undefined => {
   },
   /** Builds metadata for every field in an object schema.
    * @param schema - Form schema
-   * @returns Field metadata map
+   * @returns Field metadata map keyed by schema field names
    */
-  buildMeta = (schema: ZodObject<ZodRawShape>): FieldMetaMap => {
+  buildMeta = <S extends ZodObject<ZodRawShape>>(schema: S): { [K in keyof S['shape']]: FieldMeta } => {
     const meta: FieldMetaMap = {},
       keys = Object.keys(schema.shape)
     for (const key of keys) meta[key] = getMeta(schema.shape[key])
-    return meta
+    return meta as { [K in keyof S['shape']]: FieldMeta }
   }
 
 type Api<T extends Record<string, unknown>> = ReactFormExtendedApi<
@@ -135,7 +135,7 @@ interface FormReturn<T extends Record<string, unknown>, S extends ZodObject<ZodR
   isDirty: boolean
   isPending: boolean
   lastSaved: null | number
-  meta: FieldMetaMap
+  meta: { [K in keyof S['shape']]: FieldMeta }
   reset: (values?: T) => void
   resolveConflict: (action: 'cancel' | 'overwrite' | 'reload') => void
   schema: S

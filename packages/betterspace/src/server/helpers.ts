@@ -91,6 +91,7 @@ const TOKEN_BYTES = 24,
   identityFromHex = (hex: string): Identity => Identity.fromString(hex),
   idToWire = String as unknown as (id: number) => string,
   idFromWire = (str: string): number => {
+    if (!str.trim()) err('VALIDATION_FAILED', { message: 'Wire id must not be empty' })
     const id = Number(str)
     if (!Number.isFinite(id)) err('VALIDATION_FAILED', { message: `Invalid wire id: ${str}` })
     return id
@@ -207,7 +208,7 @@ const TOKEN_BYTES = 24,
       for (const id of ids) tasks.push(callStorageDelete(storage, id))
       const results = await Promise.allSettled(tasks)
       for (const r of results)
-        if (r.status === 'rejected') log('warn', 'file:cleanup_failed', { reason: String(r.reason) })
+        if (r.status === 'rejected') log('error', 'file:cleanup_failed', { reason: String(r.reason) })
     }
   },
   addUrls = async <D extends Record<string, unknown>>({

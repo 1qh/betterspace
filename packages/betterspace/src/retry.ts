@@ -33,7 +33,7 @@ const DEFAULT_OPTIONS: Required<RetryOptions> = {
         lastError = error instanceof Error ? error : new Error(String(error))
         if (attempt < opts.maxAttempts - 1) await sleep(calculateDelay(attempt, opts))
       }
-    throw lastError
+    throw new Error(`${lastError.message} (after ${opts.maxAttempts} attempts)`, { cause: lastError })
   },
   /** Fetches a URL with automatic retry on server errors. */
   fetchWithRetry = async (url: string, options?: RequestInit & { retry?: RetryOptions }): Promise<Response> => {

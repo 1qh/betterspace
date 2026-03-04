@@ -97,5 +97,23 @@ const DEFAULT_BATCH_SIZE = 50,
     }
   }
 
-export type { InfiniteListOptions, ListWhere as InfiniteListWhere }
+/** Result shape returned by `useInfiniteList` with normal options. */
+interface InfiniteListResult<T extends Rec> {
+  data: T[]
+  hasMore: boolean
+  isLoading: boolean
+  loadMore: () => void
+  totalCount: number
+}
+
+/** Result shape returned when `useInfiniteList` options is `'skip'`. */
+interface SkipInfiniteListResult {
+  data: never[]
+  hasMore: false
+  isLoading: true
+  loadMore: () => void
+  totalCount: 0
+}
+
+export type { InfiniteListOptions, InfiniteListResult, ListWhere as InfiniteListWhere, SkipInfiniteListResult }
 export { DEFAULT_BATCH_SIZE, useInfiniteList }

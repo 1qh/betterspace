@@ -12,11 +12,12 @@ import type { CheckResult } from '../doctor'
 import type { DevtoolsProps } from '../react/devtools-panel'
 import type { ConflictData } from '../react/form'
 import type * as ReactIndexTypes from '../react/index'
+import type { SortDirection, SortMap, SortObject } from '../react/list-utils'
 import type { MutationType, PendingMutation } from '../react/optimistic-store'
 import type { PlaygroundProps } from '../react/schema-playground'
 import type { BulkProgress, BulkResult, useBulkMutate, UseBulkMutateOptions } from '../react/use-bulk-mutate'
 import type { InfiniteListOptions, useInfiniteList } from '../react/use-infinite-list'
-import type { ListWhere, useList, UseListOptions, WhereGroup } from '../react/use-list'
+import type { ListWhere, SkipListResult, useList, UseListOptions, WhereGroup } from '../react/use-list'
 import type { MutateOptions } from '../react/use-mutate'
 import type { PresenceUser, UsePresenceOptions, UsePresenceResult } from '../react/use-presence'
 import type { useSearch, UseSearchOptions, UseSearchResult } from '../react/use-search'
@@ -152,6 +153,7 @@ import {
   getFirstFieldError,
   groupList,
   handleError,
+  idFromWire,
   isErrorCode,
   isMutationError,
   isRecord,
@@ -2404,7 +2406,9 @@ describe('withRetry', () => {
       )
     } catch (error) {
       threw = true
-      expect((error as Error).message).toBe('fail-3')
+      expect((error as Error).message).toBe('fail-3 (after 3 attempts)')
+      expect((error as Error).cause).toBeInstanceOf(Error)
+      expect(((error as Error).cause as Error).message).toBe('fail-3')
     }
     expect(threw).toBe(true)
     expect(calls).toBe(3)
@@ -2423,7 +2427,7 @@ describe('withRetry', () => {
       )
     } catch (error) {
       threw = true
-      expect((error as Error).message).toBe('once')
+      expect((error as Error).message).toBe('once (after 1 attempts)')
     }
     expect(threw).toBe(true)
     expect(calls).toBe(1)
@@ -2441,7 +2445,7 @@ describe('withRetry', () => {
     } catch (error) {
       threw = true
       expect(error).toBeInstanceOf(Error)
-      expect((error as Error).message).toBe('string-error')
+      expect((error as Error).message).toBe('string-error (after 2 attempts)')
     }
     expect(threw).toBe(true)
   })
@@ -8823,5 +8827,92 @@ describe('Sprint 6 Tier 3.1 defaultValue with prefault/default wrappers', () => 
       type: 'prefault'
     }
     expect(defaultValue(schema)).toBe('outer-prefault')
+  })
+})
+
+describe('Sprint 7 polish: idFromWire empty string guard', () => {
+  test('idFromWire rejects empty string', () => {
+    expect(() => idFromWire('')).toThrow()
+  })
+
+  test('idFromWire rejects whitespace-only string', () => {
+    expect(() => idFromWire('   ')).toThrow()
+  })
+
+  test('idFromWire still accepts valid numeric strings', () => {
+    expect(idFromWire('42')).toBe(42)
+    expect(idFromWire('0')).toBe(0)
+    expect(idFromWire('123456')).toBe(123_456)
+  })
+
+  test('idFromWire still rejects non-numeric strings', () => {
+    expect(() => idFromWire('abc')).toThrow()
+    expect(() => idFromWire('NaN')).toThrow()
+  })
+})
+
+describe('Sprint 7 polish: retry error includes attempt count', () => {
+  test('withRetry error message includes attempt count', async () => {
+    let threw = false
+    try {
+      await withRetry(
+        async () => {
+          throw new Error('boom')
+        },
+        { initialDelayMs: 1, maxAttempts: 2 }
+      )
+    } catch (error) {
+      threw = true
+      expect((error as Error).message).toContain('after 2 attempts')
+      expect((error as Error).message).toContain('boom')
+    }
+    expect(threw).toBe(true)
+  })
+
+  test('withRetry preserves original error as cause', async () => {
+    try {
+      await withRetry(
+        async () => {
+          throw new Error('root-cause')
+        },
+        { initialDelayMs: 1, maxAttempts: 1 }
+      )
+    } catch (error) {
+      expect((error as Error).cause).toBeInstanceOf(Error)
+      expect(((error as Error).cause as Error).message).toBe('root-cause')
+    }
+  })
+})
+
+describe('Sprint 7 polish: buildMeta preserves field names', () => {
+  test('buildMeta returns typed field names from schema', () => {
+    const schema = object({ content: string(), title: string() }),
+      meta = buildMeta(schema)
+    expect(meta.title.kind).toBe('string')
+    expect(meta.content.kind).toBe('string')
+    type Keys = keyof typeof meta
+    type _AssertTitle = 'title' extends Keys ? true : never
+    type _AssertContent = 'content' extends Keys ? true : never
+    const _checkTitle: _AssertTitle = true,
+      _checkContent: _AssertContent = true
+    expect(_checkTitle).toBe(true)
+    expect(_checkContent).toBe(true)
+  })
+})
+
+describe('Sprint 7 polish: type exports from betterspace/react', () => {
+  test('SortDirection, SortMap, SortObject types are usable', () => {
+    const dir: SortDirection = 'asc',
+      sortMap: SortMap<{ id: number; name: string }> = { name: 'desc' },
+      sortObj: SortObject<{ id: number; name: string }> = { direction: 'asc', field: 'name' }
+    expect(dir).toBe('asc')
+    expect(sortMap.name).toBe('desc')
+    expect(sortObj.field).toBe('name')
+  })
+
+  test('SkipListResult and UseListResult types exist', () => {
+    const skip: SkipListResult = { data: [], hasMore: false, isLoading: true, loadMore: noop, page: 1, totalCount: 0 }
+    expect(skip.isLoading).toBe(true)
+    expect(skip.hasMore).toBe(false)
   })
 })
