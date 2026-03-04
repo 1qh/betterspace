@@ -62,19 +62,19 @@
     "jsx-a11y/aria-proptypes": "off",
     "jsx-a11y/no-autofocus": "off",
     "jsx-a11y/prefer-tag-over-role": "off",
-    "complexity": "warn",
+    "complexity": "error",
     "max-depth": "off",
     "max-lines": "off",
     "max-lines-per-function": "off",
     "max-nested-callbacks": "off",
     "max-params": "warn",
     "max-statements": "off",
-    "new-cap": "warn",
-    "no-await-in-loop": "warn",
+    "new-cap": "error",
+    "no-await-in-loop": "error",
     "no-console": "off",
-    "no-cycle": "warn",
+    "no-cycle": "error",
     "no-duplicate-imports": "off",
-    "no-empty-function": "warn",
+    "no-empty-function": "error",
     "no-magic-numbers": "off",
     "no-nested-ternary": "off",
     "no-ternary": "off",
@@ -140,6 +140,14 @@
       "files": ["**/spacetimedb/blogProfile.ts", "**/spacetimedb/mobileAi.ts", "**/spacetimedb/orgProfile.ts"],
       "rules": {
         "unicorn/filename-case": "off"
+      }
+    },
+    {
+      "files": ["**/e2e/**"],
+      "rules": {
+        "complexity": "warn",
+        "no-await-in-loop": "warn",
+        "no-empty-function": "warn"
       }
     }
   ]

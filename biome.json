@@ -173,7 +173,7 @@
             "noAssignInExpressions": "off",
             "noConsole": "off",
             "noDocumentCookie": "off",
-            "noExplicitAny": "warn",
+            "noExplicitAny": "error",
             "noReactSpecificProps": "off",
             "noUnknownAtRules": "off",
             "useAwait": "warn"
