@@ -1,3 +1,4 @@
+// oxlint-disable no-await-in-loop complexity
 import type { api as BeApi } from '@a/be'
 import type { Id } from '@a/be/model'
 

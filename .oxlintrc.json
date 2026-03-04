@@ -141,14 +141,6 @@
       "rules": {
         "unicorn/filename-case": "off"
       }
-    },
-    {
-      "files": ["**/e2e/**"],
-      "rules": {
-        "complexity": "warn",
-        "no-await-in-loop": "warn",
-        "no-empty-function": "warn"
-      }
     }
   ]
 }

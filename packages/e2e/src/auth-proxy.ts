@@ -1,3 +1,4 @@
+// oxlint-disable no-empty-function
 import { serve } from 'bun'
 
 interface IdentityResponse {
