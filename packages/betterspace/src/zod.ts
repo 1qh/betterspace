@@ -173,14 +173,17 @@ const WRAPPERS: ReadonlySet<DefType> = new Set<DefType>([
    * @param requiredOnUpdate - Keys that remain required in the update variant
    * @returns Object with create (original) and update (partial) variants
    */
-  schemaVariants = <S extends ZodObject<ZodRawShape>>(
-    schema: S,
-    requiredOnUpdate?: (keyof output<S>)[]
-  ): { create: S; update: ZodObject<ZodRawShape> } => ({
+  schemaVariants: {
+    <S extends ZodObject<ZodRawShape>>(schema: S): { create: S; update: ReturnType<S['partial']> }
+    <S extends ZodObject<ZodRawShape>>(schema: S, requiredOnUpdate: (keyof output<S>)[]): {
+      create: S
+      update: ZodObject<ZodRawShape>
+    }
+  } = <S extends ZodObject<ZodRawShape>>(schema: S, requiredOnUpdate?: (keyof output<S>)[]) => ({
     create: schema,
     update: requiredOnUpdate?.length
       ? requiredPartial(schema, requiredOnUpdate as (keyof S['shape'])[])
-      : (schema.partial() as ZodObject<ZodRawShape>)
+      : schema.partial()
   })
 
 export type { CvMeta, DefType, ZodSchema }
