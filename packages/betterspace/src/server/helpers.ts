@@ -1,5 +1,5 @@
 /* eslint-disable max-depth, max-statements, @typescript-eslint/max-params */
-import type { ZodRawShape } from 'zod/v4'
+import type { ZodObject, output as ZodOutput, ZodRawShape } from 'zod/v4'
 
 import { Identity } from 'spacetimedb'
 import { number, object, string } from 'zod/v4'
@@ -410,6 +410,9 @@ interface MutationOk<T> {
 /** Discriminated union representing mutation success or failure. */
 type MutationResult<T> = MutationFail | MutationOk<T>
 
+/** Typed field errors narrowed to specific schema keys. */
+type TypedFieldErrors<S extends ZodObject<ZodRawShape>> = Partial<Record<keyof ZodOutput<S> & string, string>>
+
 const parseSenderMessage = (message: string): ErrorData | undefined => {
     const sep = message.indexOf(':')
     if (sep <= 0) return
@@ -515,6 +518,11 @@ const parseSenderMessage = (message: string): ErrorData | undefined => {
     }
     return handlers._?.(e)
   },
+  /** Extracts typed field-level validation errors from an error, narrowed to schema keys. */
+  getFieldErrors = <S extends ZodObject<ZodRawShape>>(e: unknown): TypedFieldErrors<S> | undefined => {
+    const d = extractErrorData(e)
+    return d?.fieldErrors as TypedFieldErrors<S> | undefined
+  },
   makeUnique = ({ field, index, pq, table }: { field: string; index?: string; pq: Qb; table: string }) =>
     typed(
       pq({
@@ -545,7 +553,7 @@ const parseSenderMessage = (message: string): ErrorData | undefined => {
       })
     )
 
-export type { ErrorData, ErrorHandler, MutationFail, MutationOk, MutationResult }
+export type { ErrorData, ErrorHandler, MutationFail, MutationOk, MutationResult, TypedFieldErrors }
 export {
   addUrls,
   checkRateLimit,
@@ -562,6 +570,7 @@ export {
   getErrorCode,
   getErrorDetail,
   getErrorMessage,
+  getFieldErrors,
   getUser,
   groupList,
   handleError,

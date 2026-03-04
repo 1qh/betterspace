@@ -1,10 +1,18 @@
-export type { ErrorData, ErrorHandler, MutationFail, MutationOk, MutationResult } from '../server/helpers'
+export type {
+  ErrorData,
+  ErrorHandler,
+  MutationFail,
+  MutationOk,
+  MutationResult,
+  TypedFieldErrors
+} from '../server/helpers'
 export {
   extractErrorData,
   fail,
   getErrorCode,
   getErrorDetail,
   getErrorMessage,
+  getFieldErrors,
   handleError,
   isErrorCode,
   isMutationError,
