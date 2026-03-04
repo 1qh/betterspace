@@ -367,6 +367,30 @@ const CreateProject = () => {
 }
 ```
 
+### Org-scoped queries
+
+`useOrgQuery` automatically injects `orgId` into query arguments:
+
+```typescript
+'use client'
+
+import { useOrgQuery } from 'betterspace/react'
+
+const ProjectList = () => {
+  const projects = useOrgQuery(queryProject, { status: 'active' })
+  // Calls queryProject({ status: 'active', orgId: '<current-org-id>' })
+}
+```
+
+Pass `'skip'` to skip the query (e.g. when required data isn’t ready):
+
+```typescript
+const details = useOrgQuery(
+  queryProject,
+  selectedId ? { id: selectedId } : 'skip'
+)
+```
+
 ## Read-side ACL with private tables and views
 
 For data that should only be visible to org members, use private tables with public

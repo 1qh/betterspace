@@ -1131,6 +1131,25 @@ const save = useMutate(api.post.create, {
 
 ## React components
 
+### useOrgQuery
+
+Wraps a query function and automatically injects `orgId` from the current org context.
+Pass `'skip'` as the second argument to skip the query.
+
+```typescript
+import { useOrgQuery } from 'betterspace/react'
+
+const projects = useOrgQuery(queryProject, { status: 'active' })
+// → queryProject({ status: 'active', orgId: '<current-org-id>' })
+
+const skipped = useOrgQuery(queryProject, 'skip')
+// → undefined (query not executed)
+```
+
+See [organizations](./organizations.md) for full usage.
+
+* * *
+
 ### OrgProvider
 
 Provides org context to child components.
@@ -2120,6 +2139,7 @@ metadata. The `FieldMeta` interface includes optional `title` and `description` 
 schema, so `meta.typo` is a type error:
 
 ```typescript
+import { buildMeta } from 'betterspace/react'
 import { z } from 'zod/v4'
 
 const postSchema = z.object({
