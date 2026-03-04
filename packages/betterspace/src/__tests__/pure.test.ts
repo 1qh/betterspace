@@ -3,7 +3,7 @@ import type { ComponentProps } from 'react'
 import type { z } from 'zod/v4'
 
 import { describe, expect, test } from 'bun:test'
-import { array, boolean, date, number, object, optional, string, enum as zenum } from 'zod/v4'
+import { array, boolean, date, globalRegistry, number, object, optional, string, enum as zenum } from 'zod/v4'
 
 import type { AccessEntry, FactoryCall } from '../check'
 import type BetterspaceErrorBoundary from '../components/error-boundary'
@@ -15,11 +15,11 @@ import type * as ReactIndexTypes from '../react/index'
 import type { MutationType, PendingMutation } from '../react/optimistic-store'
 import type { PlaygroundProps } from '../react/schema-playground'
 import type { BulkProgress, BulkResult, useBulkMutate, UseBulkMutateOptions } from '../react/use-bulk-mutate'
-import type { InfiniteListOptions } from '../react/use-infinite-list'
-import type { ListWhere, UseListOptions, WhereGroup } from '../react/use-list'
+import type { InfiniteListOptions, useInfiniteList } from '../react/use-infinite-list'
+import type { ListWhere, useList, UseListOptions, WhereGroup } from '../react/use-list'
 import type { MutateOptions } from '../react/use-mutate'
 import type { PresenceUser, UsePresenceOptions, UsePresenceResult } from '../react/use-presence'
-import type { UseSearchOptions, UseSearchResult } from '../react/use-search'
+import type { useSearch, UseSearchOptions, UseSearchResult } from '../react/use-search'
 import type { RetryOptions } from '../retry'
 import type { ErrorData, MutationFail, MutationOk, MutationResult } from '../server/helpers'
 import type {
@@ -122,12 +122,13 @@ import {
   updateSubscription,
   updateSubscriptionData
 } from '../react/devtools'
-import { makeErrorHandler } from '../react/error-toast'
+import { makeErrorHandler, toastFieldError } from '../react/error-toast'
 import { buildMeta, getMeta } from '../react/form'
 import { createOptimisticStore, makeTempId } from '../react/optimistic-store'
 import { canEditResource } from '../react/org'
 import { collectSettled } from '../react/use-bulk-mutate'
 import { DEFAULT_PAGE_SIZE, useOwnRows } from '../react/use-list'
+import { useMutation as useMutationDirect } from '../react/use-mutate'
 import { DEFAULT_DEBOUNCE_MS } from '../react/use-search'
 import { fetchWithRetry, withRetry } from '../retry'
 import { child, cvFile, cvFiles, makeBase, makeOrgScoped, makeOwned, makeSingleton } from '../schema'
@@ -146,6 +147,7 @@ import {
   getErrorDetail,
   getErrorMessage,
   getFieldErrors,
+  getFirstFieldError,
   groupList,
   handleError,
   isErrorCode,
@@ -8253,5 +8255,177 @@ describe('Sprint 4 Tier 3', () => {
     expect(props.className).toBe('devtools-shell')
     expect(props.buttonClassName).toBe('button-shell')
     expect(props.panelClassName).toBe('panel-shell')
+  })
+})
+
+describe('Sprint 5 getFirstFieldError', () => {
+  test('returns first field error string from Betterspace error', () => {
+    const error = makeSenderError({ code: 'VALIDATION_FAILED', fieldErrors: { title: 'Title is required' } })
+    expect(getFirstFieldError(error)).toBe('Title is required')
+  })
+
+  test('returns undefined when no field errors', () => {
+    const error = makeSenderError({ code: 'VALIDATION_FAILED', message: 'Validation failed' })
+    expect(getFirstFieldError(error)).toBeUndefined()
+  })
+
+  test('returns undefined for non-Betterspace errors', () => {
+    expect(getFirstFieldError(new Error('plain error'))).toBeUndefined()
+  })
+
+  test('returns undefined for null and undefined', () => {
+    expect(getFirstFieldError(null)).toBeUndefined()
+    expect(getFirstFieldError()).toBeUndefined()
+  })
+
+  test('returns first key value when multiple field errors exist', () => {
+    const error = makeSenderError({
+      code: 'VALIDATION_FAILED',
+      fieldErrors: { email: 'Email is invalid', title: 'Title is required' }
+    })
+    expect(getFirstFieldError(error)).toBe('Email is invalid')
+  })
+
+  test('works with SenderError serialized fieldErrors format', () => {
+    const error = new Error('VALIDATION_FAILED:{"fieldErrors":{"name":"Name is required"}}')
+    expect(getFirstFieldError(error)).toBe('Name is required')
+  })
+})
+
+describe('Sprint 5 toastFieldError', () => {
+  test('calls toast function with first field error and returns true', () => {
+    const messages: string[] = [],
+      toasted = toastFieldError(
+        makeSenderError({ code: 'VALIDATION_FAILED', fieldErrors: { title: 'Title is required' } }),
+        (message: string) => {
+          messages.push(message)
+        }
+      )
+    expect(toasted).toBe(true)
+    expect(messages).toEqual(['Title is required'])
+  })
+
+  test('returns false when no field error found', () => {
+    const messages: string[] = [],
+      toasted = toastFieldError(makeSenderError({ code: 'VALIDATION_FAILED' }), (message: string) => {
+        messages.push(message)
+      })
+    expect(toasted).toBe(false)
+  })
+
+  test('returns false for non-Betterspace errors', () => {
+    const messages: string[] = [],
+      toasted = toastFieldError(new Error('plain'), (message: string) => {
+        messages.push(message)
+      })
+    expect(toasted).toBe(false)
+  })
+
+  test('does not call toast when no field error', () => {
+    const messages: string[] = []
+    toastFieldError(makeSenderError({ code: 'NOT_FOUND', message: 'Missing' }), (message: string) => {
+      messages.push(message)
+    })
+    expect(messages).toEqual([])
+  })
+})
+
+describe('Sprint 5 FieldMeta globalRegistry metadata', () => {
+  test('getMeta returns title and description when schema meta is set', () => {
+    const schema = string().meta({ description: 'Public facing name', title: 'Display Name' }),
+      reg = globalRegistry.get(schema)
+    expect(reg?.title).toBe('Display Name')
+    expect(reg?.description).toBe('Public facing name')
+    expect(getMeta(schema)).toEqual({
+      description: 'Public facing name',
+      kind: 'string',
+      title: 'Display Name'
+    })
+  })
+
+  test('getMeta returns no title or description when schema has no meta', () => {
+    const meta = getMeta(number())
+    expect(meta.kind).toBe('number')
+    expect(meta.title).toBeUndefined()
+    expect(meta.description).toBeUndefined()
+  })
+
+  test('buildMeta includes title and description for fields with meta', () => {
+    const schema = object({
+        content: string(),
+        title: string().meta({ description: 'Name shown in lists', title: 'Title label' })
+      }),
+      meta = buildMeta(schema)
+    expect(meta.title).toEqual({ description: 'Name shown in lists', kind: 'string', title: 'Title label' })
+    expect(meta.content).toEqual({ kind: 'string' })
+  })
+
+  test('getMeta safely handles unknown input without _zod property', () => {
+    const input = { field: 'value' }
+    expect(getMeta(input)).toEqual({ kind: 'unknown' })
+  })
+
+  test('globalRegistry metadata merges with inferred kind and max', () => {
+    const schema = cvFiles().max(4).meta({ description: 'Attach up to four files', title: 'Attachments' })
+    expect(getMeta(schema)).toEqual({
+      description: 'Attach up to four files',
+      kind: 'files',
+      max: 4,
+      title: 'Attachments'
+    })
+  })
+})
+
+describe('Sprint 5 skip sentinel type options', () => {
+  test('useList options argument accepts skip sentinel', () => {
+    type ListOptionsArg = Parameters<typeof useList>[2]
+    type IncludesSkip = 'skip' extends Exclude<ListOptionsArg, undefined> ? true : false
+    const includesSkip: IncludesSkip = true,
+      opts: ListOptionsArg = 'skip'
+    expect(includesSkip).toBe(true)
+    expect(opts).toBe('skip')
+  })
+
+  test('useSearch options argument includes skip relationship', () => {
+    type SearchOptionsArg = Parameters<typeof useSearch>[2]
+    type IncludesSkip = 'skip' extends SearchOptionsArg ? true : false
+    type SearchConfig = Exclude<SearchOptionsArg, 'skip'>
+    const includesSkip: IncludesSkip = true,
+      skipOption: SearchOptionsArg = 'skip',
+      config: SearchConfig = { fields: ['title'], query: 'draft' }
+    expect(includesSkip).toBe(true)
+    expect(skipOption).toBe('skip')
+    expect(config.query).toBe('draft')
+  })
+
+  test('useInfiniteList options argument accepts skip sentinel', () => {
+    type InfiniteOptionsArg = Parameters<typeof useInfiniteList>[2]
+    type IncludesSkip = 'skip' extends Exclude<InfiniteOptionsArg, undefined> ? true : false
+    const includesSkip: IncludesSkip = true,
+      opts: InfiniteOptionsArg = 'skip'
+    expect(includesSkip).toBe(true)
+    expect(opts).toBe('skip')
+  })
+})
+
+describe('Sprint 5 useMutation exports', () => {
+  test('useMutation is exported from react index', async () => {
+    const mod = await import('../react/index')
+    expect(mod).toHaveProperty('useMutation')
+    expect(typeof mod.useMutation).toBe('function')
+    expect(mod.useMutation).toBe(useMutationDirect)
+  })
+
+  test('MutateOptions type is exported from react index', () => {
+    const opts: ReactIndexTypes.MutateOptions<{ id: string }, { ok: boolean }> = {
+      onSuccess: (result, args) => {
+        expect(result.ok).toBe(true)
+        expect(args.id).toBe('id-1')
+      },
+      optimistic: true,
+      retry: 2
+    }
+    opts.onSuccess?.({ ok: true }, { id: 'id-1' })
+    expect(opts.retry).toBe(2)
   })
 })

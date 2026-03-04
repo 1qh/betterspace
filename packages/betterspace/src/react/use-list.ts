@@ -98,8 +98,9 @@ const DEFAULT_PAGE_SIZE = 50,
    * })
    * ```
    */
+
   /** biome-ignore lint/suspicious/noEmptyBlockStatements: noop */
-  noop = () => {},
+  noop = () => {}, // eslint-disable-line @typescript-eslint/no-empty-function
   SKIP_RESULT = {
     data: [] as never[],
     hasMore: false,

@@ -532,7 +532,7 @@ const parseSenderMessage = (message: string): ErrorData | undefined => {
    * if (msg) toast.error(msg)
    * ```
    */
-  getFirstFieldError = (e: unknown): string | undefined => {
+  getFirstFieldError = (e?: unknown): string | undefined => {
     const d = extractErrorData(e)
     if (!d?.fieldErrors) return
     const keys = Object.keys(d.fieldErrors)
