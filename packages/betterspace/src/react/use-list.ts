@@ -16,6 +16,7 @@ interface SortObject<T extends Rec> {
   direction?: SortDirection
   field: keyof T & string
 }
+/** Client-side list options for filtering, sorting, and pagination. */
 interface UseListOptions {
   page?: number
   pageSize?: number
@@ -25,6 +26,7 @@ interface UseListOptions {
 
 type WhereGroup = Rec & { own?: boolean }
 
+/** Default page size used by `useList`. */
 const DEFAULT_PAGE_SIZE = 50,
   toSortableString = (value: unknown): string => {
     if (typeof value === 'string') return value
@@ -68,6 +70,16 @@ const DEFAULT_PAGE_SIZE = 50,
     out.sort((a, b) => compareValues(a[config.field], b[config.field]) * factor)
     return out
   },
+  /** Builds a paginated, filterable list view from in-memory rows.
+   * @param data - Source rows
+   * @param isReady - Subscription readiness state
+   * @param options - Pagination and filtering options
+   * @returns List state and pagination controls
+   * @example
+   * ```ts
+   * const list = useList(rows, ready, { pageSize: 20, where: { own: true } })
+   * ```
+   */
   useList = <T extends Rec>(data: T[], isReady: boolean, options?: UseListOptions) => {
     const pageSize = options?.pageSize ?? DEFAULT_PAGE_SIZE,
       [currentPage, setCurrentPage] = useState(options?.page ?? 1),

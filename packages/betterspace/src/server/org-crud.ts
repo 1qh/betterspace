@@ -31,6 +31,7 @@ const applyOrgPatch = <Row extends OrgCrudOwnedRow<OrgId>, OrgId>(
     nextRecord.updatedAt = timestamp
     return nextRecord as unknown as Row
   },
+  /** Looks up membership for a user within an organization. */
   checkMembership = <OrgId, Member extends OrgCrudMemberLike<OrgId>>(
     orgMemberTable: Iterable<Member>,
     orgId: OrgId,
@@ -105,6 +106,11 @@ const applyOrgPatch = <Row extends OrgCrudOwnedRow<OrgId>, OrgId>(
     requireCanMutate({ member, operation, row, sender, tableName })
     return { member, pk, row }
   },
+  /** Creates org-scoped CRUD reducers with membership and ACL checks.
+   * @param spacetimedb - SpacetimeDB reducer factory
+   * @param config - Org CRUD configuration
+   * @returns Reducer export map
+   */
   makeOrgCrud = <
     DB,
     F extends OrgCrudFieldBuilders,
@@ -264,6 +270,7 @@ const applyOrgPatch = <Row extends OrgCrudOwnedRow<OrgId>, OrgId>(
       exports: exportsRecord
     }
   },
+  /** Defines a cascade delete relation for org-scoped tables. */
   orgCascade = <S extends ZodRawShape>(
     _schema: ZodObject<S>,
     config: { foreignKey: keyof S & string; table: string }

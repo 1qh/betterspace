@@ -377,6 +377,7 @@ const TOKEN_BYTES = 24,
     await db.patch(existing._id as string, { count: (existing.count as number) + 1 })
   }
 
+/** Structured Betterspace error payload extracted from reducer failures. */
 interface ErrorData {
   code: ErrorCode
   debug?: string
@@ -389,20 +390,24 @@ interface ErrorData {
   table?: string
 }
 
+/** Error handler map keyed by Betterspace error codes. */
 type ErrorHandler = Partial<Record<ErrorCode, (data: ErrorData) => void>> & {
   default?: (error: unknown) => void
 }
 
+/** Failed mutation result wrapper. */
 interface MutationFail {
   error: ErrorData
   ok: false
 }
 
+/** Successful mutation result wrapper. */
 interface MutationOk<T> {
   ok: true
   value: T
 }
 
+/** Discriminated union representing mutation success or failure. */
 type MutationResult<T> = MutationFail | MutationOk<T>
 
 const parseSenderMessage = (message: string): ErrorData | undefined => {
@@ -432,6 +437,7 @@ const parseSenderMessage = (message: string): ErrorData | undefined => {
 
     return { ...data, message: rest }
   },
+  /** Extracts typed Betterspace error metadata from unknown error values. */
   extractErrorData = (e: unknown): ErrorData | undefined => {
     if (isRecord(e)) {
       const { data } = e as { data?: unknown }
@@ -453,13 +459,16 @@ const parseSenderMessage = (message: string): ErrorData | undefined => {
     }
     if (e instanceof Error) return parseSenderMessage(e.message)
   },
+  /** Returns an error code when the input is a Betterspace error payload. */
   getErrorCode = (e: unknown): ErrorCode | undefined => extractErrorData(e)?.code,
+  /** Returns a user-friendly error message for unknown error input. */
   getErrorMessage = (e: unknown): string => {
     const d = extractErrorData(e)
     if (d) return d.message ?? ERROR_MESSAGES[d.code]
     if (e instanceof Error) return e.message
     return 'Unknown error'
   },
+  /** Returns detailed error text including table/op metadata when available. */
   getErrorDetail = (e: unknown): string => {
     const d = extractErrorData(e)
     if (!d) return e instanceof Error ? e.message : 'Unknown error'
@@ -468,6 +477,7 @@ const parseSenderMessage = (message: string): ErrorData | undefined => {
     if (d.retryAfter !== undefined) detail += ` (retry after ${d.retryAfter}ms)`
     return detail
   },
+  /** Dispatches an error to code-specific handlers with default fallback. */
   handleError = (e: unknown, handlers: ErrorHandler): void => {
     const d = extractErrorData(e)
     if (d) {
@@ -479,16 +489,21 @@ const parseSenderMessage = (message: string): ErrorData | undefined => {
     }
     handlers.default?.(e)
   },
+  /** Wraps a successful mutation value in a typed result shape. */
   ok = <T>(value: T): MutationResult<T> => ({ ok: true, value }),
+  /** Creates a failed mutation result with optional detail metadata. */
   fail = (code: ErrorCode, detail?: Omit<ErrorData, 'code'>): MutationResult<never> => ({
     error: { code, message: ERROR_MESSAGES[code], ...detail },
     ok: false
   }),
+  /** Returns true when an error value contains Betterspace error metadata. */
   isMutationError = (e: unknown): e is ErrorData => extractErrorData(e) !== undefined,
+  /** Returns true when an error matches a specific Betterspace error code. */
   isErrorCode = (e: unknown, code: ErrorCode): boolean => {
     const d = extractErrorData(e)
     return d?.code === code
   },
+  /** Pattern-matches Betterspace errors to code-specific handlers. */
   matchError = <R>(
     e: unknown,
     handlers: Partial<Record<ErrorCode, (data: ErrorData) => R>> & { _?: (error: unknown) => R }

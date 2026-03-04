@@ -8,6 +8,7 @@ import type { OrgRole } from '../server/types'
 
 import { ACTIVE_ORG_COOKIE, ACTIVE_ORG_SLUG_COOKIE, ONE_YEAR_SECONDS } from '../constants'
 
+/** Active organization selection state exposed by `useActiveOrg`. */
 interface ActiveOrgState<O extends OrgDoc = OrgDoc> {
   activeOrg: null | O
   activeOrgId: null | string
@@ -16,6 +17,7 @@ interface ActiveOrgState<O extends OrgDoc = OrgDoc> {
   setActiveOrg: (org: O) => void
 }
 
+/** Organization context payload exposed by `useOrg`. */
 interface OrgContextValue<O extends OrgDoc = OrgDoc, M = unknown> {
   canDeleteOrg: boolean
   canManageAdmins: boolean
@@ -30,17 +32,20 @@ interface OrgContextValue<O extends OrgDoc = OrgDoc, M = unknown> {
   role: OrgRole
 }
 
+/** Minimal org document contract used by Betterspace org hooks. */
 interface OrgDoc {
   [key: string]: unknown
   _id: string
   slug: string
 }
 
+/** Membership entry pairing an org document with role information. */
 interface OrgMembership<O extends OrgDoc = OrgDoc> {
   org: O
   role: OrgRole
 }
 
+/** Props accepted by `OrgProvider`. */
 interface OrgProviderProps<O extends OrgDoc, M> {
   children: ReactNode
   membership: M | null
@@ -58,6 +63,7 @@ const EMPTY_ORGS: OrgMembership[] = [],
     for (const c of document.cookie.split('; ')) if (c.startsWith(COOKIE_PREFIX)) return c.slice(COOKIE_PREFIX.length)
     return null
   },
+  /** Persists active organization identifiers in client cookies. */
   setActiveOrgCookieClient = ({ orgId, slug }: { orgId: string; slug: string }) => {
     if (typeof document === 'undefined') return
     const maxAge = ONE_YEAR_SECONDS
@@ -89,6 +95,7 @@ const EMPTY_ORGS: OrgMembership[] = [],
       }, [setActiveOrgId])
     return { activeOrg, activeOrgId, clearActiveOrg, isLoading: false, setActiveOrg }
   },
+  /** Provides organization role state and active-org switching helpers. */
   OrgProvider = <O extends OrgDoc, M>({
     children,
     membership,
@@ -120,21 +127,25 @@ const EMPTY_ORGS: OrgMembership[] = [],
       </ActiveOrgContext>
     )
   },
+  /** Reads the organization context and throws outside `OrgProvider`. */
   useOrg = <O extends OrgDoc = OrgDoc, M = unknown>() => {
     const ctx = use(OrgContext)
     if (!ctx) throw new Error('useOrg must be used inside OrgProvider')
     return ctx as OrgContextValue<O, M>
   },
+  /** Reads active-org selection helpers and state. */
   useActiveOrg = <O extends OrgDoc = OrgDoc>() => {
     const ctx = use(ActiveOrgContext)
     if (!ctx) throw new Error('useActiveOrg must be used inside OrgProvider')
     return ctx as unknown as ActiveOrgState<O>
   },
+  /** Returns all org memberships for the current user context. */
   useMyOrgs = <O extends OrgDoc = OrgDoc>() => {
     const ctx = use(OrgContext)
     if (!ctx) return { isLoading: false, orgs: [] as OrgMembership<O>[] }
     return { isLoading: false, orgs: ctx.orgs as OrgMembership<O>[] }
   },
+  /** Injects the active org id into query args unless explicitly skipped. */
   useOrgQuery = (
     query: ((queryArgs: Record<string, unknown>) => unknown) | undefined,
     args?: 'skip' | Record<string, unknown>
@@ -143,6 +154,7 @@ const EMPTY_ORGS: OrgMembership[] = [],
     if (!(query && args !== 'skip')) return
     return query({ ...args, orgId })
   },
+  /** Wraps a mutation and automatically injects `orgId` into args. */
   useOrgMutation = (mutation: (args: Record<string, unknown>) => Promise<unknown>) => {
     const { orgId } = useOrg()
     return useCallback(
@@ -150,6 +162,7 @@ const EMPTY_ORGS: OrgMembership[] = [],
       [mutation, orgId]
     )
   },
+  /** Checks if a user can edit an org-owned resource. */
   canEditResource = ({
     editorsList,
     isAdmin,
@@ -165,6 +178,9 @@ const EMPTY_ORGS: OrgMembership[] = [],
     for (const editor of editorsList) if (editor.userId === userId) return true
     return false
   },
+  /** Creates pre-typed org hooks for app-specific org and membership shapes.
+   * @returns Typed wrappers around org context hooks
+   */
   createOrgHooks = <O extends OrgDoc = OrgDoc, M = unknown>() => ({
     useActiveOrg: () => useActiveOrg<O>(),
     useMyOrgs: () => useMyOrgs<O>(),

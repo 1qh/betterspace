@@ -1,12 +1,4 @@
-import {
-  makeCacheCrud,
-  makeChildCrud,
-  makeCrud,
-  makeFileUpload,
-  makeOrg,
-  makeOrgCrud,
-  makeSingletonCrud
-} from 'betterspace/server'
+import { makeOrg, setupCrud } from 'betterspace/server'
 import { schema, t, table } from 'spacetimedb/server'
 
 const messagePart = t.object('MessagePart', {
@@ -225,96 +217,66 @@ const messagePart = t.object('MessagePart', {
     task,
     wiki
   }),
-  blogCrud = makeCrud(spacetimedb, {
+  { cacheCrud, childCrud, crud, fileUpload, orgCrud, singletonCrud } = setupCrud(spacetimedb, {
     expectedUpdatedAtField: t.timestamp(),
-    fields: {
-      attachments: t.array(t.string()).optional(),
-      category: t.string(),
-      content: t.string(),
-      coverImage: t.string().optional(),
-      published: t.bool(),
-      tags: t.array(t.string()).optional(),
-      title: t.string()
-    },
+    foreignKeyField: t.u32(),
     idField: t.u32(),
-    pk: tbl => tbl.id,
-    table: db => db.blog,
-    tableName: 'blog'
+    orgIdField: t.u32()
   }),
-  chatCrud = makeCrud(spacetimedb, {
-    expectedUpdatedAtField: t.timestamp(),
-    fields: {
-      isPublic: t.bool(),
-      title: t.string()
-    },
-    idField: t.u32(),
-    pk: tbl => tbl.id,
-    table: db => db.chat,
-    tableName: 'chat'
+  blogCrud = crud('blog', {
+    attachments: t.array(t.string()).optional(),
+    category: t.string(),
+    content: t.string(),
+    coverImage: t.string().optional(),
+    published: t.bool(),
+    tags: t.array(t.string()).optional(),
+    title: t.string()
   }),
-  messageCrud = makeChildCrud(spacetimedb, {
-    expectedUpdatedAtField: t.timestamp(),
-    fields: {
+  chatCrud = crud('chat', {
+    isPublic: t.bool(),
+    title: t.string()
+  }),
+  messageCrud = childCrud(
+    'message',
+    { foreignKey: 'chatId', table: 'chat' },
+    {
       parts: t.array(messagePart),
       role: t.string()
-    },
-    foreignKeyField: t.u32(),
-    foreignKeyName: 'chatId',
-    idField: t.u32(),
-    parentPk: tbl => tbl.id,
-    parentTable: db => db.chat,
-    pk: tbl => tbl.id,
-    table: db => db.message,
-    tableName: 'message'
+    }
+  ),
+  movieCrud = cacheCrud('movie', 'tmdbId', {
+    backdropPath: t.string().optional(),
+    budget: t.number().optional(),
+    genres: t.array(
+      t.object('MovieGenreInput', {
+        id: t.number(),
+        name: t.string()
+      })
+    ),
+    originalTitle: t.string(),
+    overview: t.string(),
+    posterPath: t.string().optional(),
+    releaseDate: t.string(),
+    revenue: t.number().optional(),
+    runtime: t.number().optional(),
+    tagline: t.string().optional(),
+    title: t.string(),
+    voteAverage: t.number(),
+    voteCount: t.number()
   }),
-  movieCrud = makeCacheCrud(spacetimedb, {
-    fields: {
-      backdropPath: t.string().optional(),
-      budget: t.number().optional(),
-      genres: t.array(
-        t.object('MovieGenreInput', {
-          id: t.number(),
-          name: t.string()
-        })
-      ),
-      originalTitle: t.string(),
-      overview: t.string(),
-      posterPath: t.string().optional(),
-      releaseDate: t.string(),
-      revenue: t.number().optional(),
-      runtime: t.number().optional(),
-      tagline: t.string().optional(),
-      title: t.string(),
-      voteAverage: t.number(),
-      voteCount: t.number()
-    },
-    keyField: t.number(),
-    keyName: 'tmdbId',
-    pk: tbl => tbl.tmdbId,
-    table: db => db.movie,
-    tableName: 'movie'
+  blogProfileCrud = singletonCrud('blogProfile', {
+    avatar: t.string().optional(),
+    bio: t.string().optional(),
+    displayName: t.string(),
+    notifications: t.bool(),
+    theme: t.string()
   }),
-  blogProfileCrud = makeSingletonCrud(spacetimedb, {
-    fields: {
-      avatar: t.string().optional(),
-      bio: t.string().optional(),
-      displayName: t.string(),
-      notifications: t.bool(),
-      theme: t.string()
-    },
-    table: db => db.blogProfile,
-    tableName: 'blogProfile'
-  }),
-  orgProfileCrud = makeSingletonCrud(spacetimedb, {
-    fields: {
-      avatar: t.string().optional(),
-      bio: t.string().optional(),
-      displayName: t.string(),
-      notifications: t.bool(),
-      theme: t.string()
-    },
-    table: db => db.orgProfile,
-    tableName: 'orgProfile'
+  orgProfileCrud = singletonCrud('orgProfile', {
+    avatar: t.string().optional(),
+    bio: t.string().optional(),
+    displayName: t.string(),
+    notifications: t.bool(),
+    theme: t.string()
   }),
   orgFns = makeOrg(spacetimedb, {
     builders: {
@@ -392,40 +354,22 @@ const messagePart = t.object('MessagePart', {
     orgSlugIndex: tbl => tbl.slug,
     orgTable: db => db.org
   }),
-  projectCrud = makeOrgCrud(spacetimedb, {
-    expectedUpdatedAtField: t.timestamp(),
-    fields: {
-      description: t.string().optional(),
-      editors: t.array(t.identity()).optional(),
-      name: t.string(),
-      status: t.string().optional()
-    },
-    idField: t.u32(),
-    orgIdField: t.u32(),
-    orgMemberTable: db => db.orgMember,
-    pk: tbl => tbl.id,
-    table: db => db.project,
-    tableName: 'project'
+  projectCrud = orgCrud('project', {
+    description: t.string().optional(),
+    editors: t.array(t.identity()).optional(),
+    name: t.string(),
+    status: t.string().optional()
   }),
-  taskCrud = makeOrgCrud(spacetimedb, {
-    expectedUpdatedAtField: t.timestamp(),
-    fields: {
-      assigneeId: t.identity().optional(),
-      completed: t.bool().optional(),
-      priority: t.string().optional(),
-      projectId: t.u32(),
-      title: t.string()
-    },
-    idField: t.u32(),
-    orgIdField: t.u32(),
-    orgMemberTable: db => db.orgMember,
-    pk: tbl => tbl.id,
-    table: db => db.task,
-    tableName: 'task'
+  taskCrud = orgCrud('task', {
+    assigneeId: t.identity().optional(),
+    completed: t.bool().optional(),
+    priority: t.string().optional(),
+    projectId: t.u32(),
+    title: t.string()
   }),
-  wikiCrud = makeOrgCrud(spacetimedb, {
-    expectedUpdatedAtField: t.timestamp(),
-    fields: {
+  wikiCrud = orgCrud(
+    'wiki',
+    {
       content: t.string().optional(),
       deletedAt: t.timestamp().optional(),
       editors: t.array(t.identity()).optional(),
@@ -433,25 +377,13 @@ const messagePart = t.object('MessagePart', {
       status: t.string(),
       title: t.string()
     },
-    idField: t.u32(),
-    options: { softDelete: true },
-    orgIdField: t.u32(),
-    orgMemberTable: db => db.orgMember,
-    pk: tbl => tbl.id,
-    table: db => db.wiki,
-    tableName: 'wiki'
-  }),
-  fileCrud = makeFileUpload(spacetimedb, {
-    fields: {
-      contentType: t.string(),
-      filename: t.string(),
-      size: t.number(),
-      storageKey: t.string()
-    },
-    idField: t.u32(),
-    namespace: 'file',
-    pk: tbl => tbl.id,
-    table: db => db.file
+    { softDelete: true }
+  ),
+  fileCrud = fileUpload('file', 'file', {
+    contentType: t.string(),
+    filename: t.string(),
+    size: t.number(),
+    storageKey: t.string()
   }),
   reducers = spacetimedb.exportGroup({
     ...blogCrud.exports,

@@ -1,16 +1,27 @@
-import type { ReducerExport } from 'spacetimedb/server'
+import type { AlgebraicTypeType, ReducerExport, TypeBuilder } from 'spacetimedb/server'
 
 import type { GlobalHookCtx, GlobalHooks, Middleware, Rec } from './types'
-import type { CrudHooks } from './types/crud'
-import type { SingletonHooks } from './types/singleton'
+import type { CacheFieldBuilders, CacheOptions } from './types/cache'
+import type { CrudFieldBuilders, CrudHooks, CrudOptions } from './types/crud'
+import type { FileUploadFields } from './types/file'
+import type { OrgCrudFieldBuilders, OrgCrudOptions } from './types/org-crud'
+import type { SingletonFieldBuilders, SingletonHooks, SingletonOptions } from './types/singleton'
 
 import { makeCacheCrud } from './cache-crud'
 import { makeChildCrud } from './child'
 import { makeCrud } from './crud'
+import { makeFileUpload } from './file'
 import { composeMiddleware } from './middleware'
 import { makeOrg } from './org'
 import { makeOrgCrud } from './org-crud'
 import { makeSingletonCrud } from './singleton'
+
+interface CrudDefaults {
+  expectedUpdatedAtField: TypeBuilder<unknown, AlgebraicTypeType>
+  foreignKeyField?: TypeBuilder<unknown, AlgebraicTypeType>
+  idField: TypeBuilder<unknown, AlgebraicTypeType>
+  orgIdField?: TypeBuilder<unknown, AlgebraicTypeType>
+}
 
 type ReducerExportRecord = Record<string, ReducerExport<never, never>>
 
@@ -432,4 +443,123 @@ const isPromiseLike = (value: unknown): value is PromiseLike<unknown> => {
     }
   }
 
-export { setup }
+type TableAccessor = (db: unknown) => unknown
+
+const dbTable: (db: unknown, name: string) => unknown = (db, name) => (db as Record<string, unknown>)[name],
+  pkById = (tbl: unknown) => (tbl as Record<string, unknown>).id,
+  pkByKey = (name: string) => (tbl: unknown) => (tbl as Record<string, unknown>)[name],
+  tblOf =
+    (name: string): TableAccessor =>
+    db =>
+      dbTable(db, name),
+  setupCrud = (spacetimedb: SpacetimeDbLike, defaults: CrudDefaults, config?: SetupConfig) => {
+    const s = setup(spacetimedb, config),
+      { expectedUpdatedAtField, idField } = defaults,
+      fkField = defaults.foreignKeyField ?? idField,
+      oIdField = defaults.orgIdField ?? idField
+
+    return {
+      allExports: s.allExports,
+
+      cacheCrud: (
+        tableName: string,
+        keyName: string,
+        fields: CacheFieldBuilders,
+        options?: CacheOptions & {
+          keyField?: TypeBuilder<unknown, AlgebraicTypeType>
+        }
+      ) =>
+        s.cacheCrud({
+          fields,
+          keyField: (options?.keyField ?? idField) as never,
+          keyName,
+          options: options?.ttl === undefined ? undefined : { ttl: options.ttl },
+          pk: pkByKey(keyName) as never,
+          table: tblOf(tableName) as never,
+          tableName
+        }),
+
+      childCrud: (
+        tableName: string,
+        parent: { foreignKey: string; table: string },
+        fields: CrudFieldBuilders,
+        options?: CrudOptions
+      ) =>
+        s.childCrud({
+          expectedUpdatedAtField: expectedUpdatedAtField as never,
+          fields,
+          foreignKeyField: fkField as never,
+          foreignKeyName: parent.foreignKey,
+          idField: idField as never,
+          options: options as never,
+          parentPk: pkById as never,
+          parentTable: tblOf(parent.table) as never,
+          pk: pkById as never,
+          table: tblOf(tableName) as never,
+          tableName
+        }),
+
+      crud: (tableName: string, fields: CrudFieldBuilders, options?: CrudOptions) =>
+        s.crud({
+          expectedUpdatedAtField: expectedUpdatedAtField as never,
+          fields,
+          idField: idField as never,
+          options: options as never,
+          pk: pkById as never,
+          table: tblOf(tableName) as never,
+          tableName
+        }),
+
+      exports: s.exports,
+
+      fileUpload: (
+        namespace: string,
+        tableName: string,
+        fields: FileUploadFields,
+        options?: { allowedTypes?: Set<string>; maxFileSize?: number }
+      ) => {
+        const result = makeFileUpload(spacetimedb as Parameters<typeof makeFileUpload>[0], {
+          ...options,
+          fields,
+          idField: idField as never,
+          namespace,
+          pk: pkById as never,
+          table: tblOf(tableName) as never
+        })
+        registerExports(s.exports, result.exports)
+        return result
+      },
+
+      org: s.org,
+
+      orgCrud: (
+        tableName: string,
+        fields: OrgCrudFieldBuilders,
+        options?: OrgCrudOptions & {
+          orgMemberTable?: TableAccessor
+        }
+      ) =>
+        s.orgCrud({
+          expectedUpdatedAtField: expectedUpdatedAtField as never,
+          fields,
+          idField: idField as never,
+          options: options as never,
+          orgIdField: oIdField as never,
+          orgMemberTable: (options?.orgMemberTable ?? tblOf('orgMember')) as never,
+          pk: pkById as never,
+          table: tblOf(tableName) as never,
+          tableName
+        }),
+
+      singletonCrud: (tableName: string, fields: SingletonFieldBuilders, options?: SingletonOptions) =>
+        s.singletonCrud({
+          fields,
+          options: options as never,
+          table: tblOf(tableName) as never,
+          tableName
+        })
+    }
+  }
+
+export type { CrudDefaults }
+export { setup, setupCrud }

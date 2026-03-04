@@ -29,6 +29,7 @@ interface SenderLike {
   toString?: () => string
 }
 
+/** Default MIME types accepted by Betterspace file upload reducers. */
 const DEFAULT_ALLOWED_TYPES = new Set([
     'application/json',
     'application/msword',
@@ -197,10 +198,21 @@ const DEFAULT_ALLOWED_TYPES = new Set([
       url
     }
   },
+  /** Creates an S3 V4 presigned PUT URL for client uploads. */
   createS3UploadPresignedUrl = async (options: S3PresignUploadOptions): Promise<S3PresignedUrl> =>
     makePresignedRequest({ ...options, method: 'PUT' }),
+  /** Creates an S3 V4 presigned GET URL for client downloads. */
   createS3DownloadPresignedUrl = async (options: S3PresignDownloadOptions): Promise<S3PresignedUrl> =>
     makePresignedRequest({ ...options, method: 'GET' }),
+  /** Creates reducers that register and delete uploaded file metadata.
+   * @param spacetimedb - SpacetimeDB reducer factory
+   * @param config - File upload reducer configuration
+   * @returns Reducer export map
+   * @example
+   * ```ts
+   * const uploads = makeFileUpload(spacetimedb, { namespace: 'avatars', fields, idField, pk, table })
+   * ```
+   */
   makeFileUpload = <
     DB,
     Id,

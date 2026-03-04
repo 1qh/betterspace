@@ -10,6 +10,7 @@ import { extractErrorData, getErrorMessage, handleError } from '../server/helper
 import { completeMutation, pushError, trackMutation } from './devtools'
 import { makeTempId, useOptimisticStore } from './optimistic-store'
 
+/** Options for configuring mutation wrappers and optimistic behavior. */
 interface MutateOptions<A extends Record<string, unknown>> {
   getName?: (args: A) => string
   onError?: ((error: unknown) => void) | false
@@ -19,6 +20,7 @@ interface MutateOptions<A extends Record<string, unknown>> {
 }
 
 const isDev = typeof process !== 'undefined' && process.env.NODE_ENV !== 'production',
+  /** Default mutation error handler used by Betterspace hooks. */
   defaultOnError = (error: unknown) => {
     handleError(error, {
       default: () => {
@@ -42,6 +44,15 @@ const isDev = typeof process !== 'undefined' && process.env.NODE_ENV !== 'produc
     if (name.endsWith(':update') || name.endsWith('.update') || name.includes('patch')) return 'update'
     return 'create'
   },
+  /** Wraps a mutation with optimistic updates, devtools tracking, and toast errors.
+   * @param mutate - Mutation function to execute
+   * @param options - Optimistic and error-handling options
+   * @returns Stable callback that executes the mutation
+   * @example
+   * ```ts
+   * const save = useMutate(api.posts.update, { optimistic: true })
+   * ```
+   */
   useMutate = <A extends Record<string, unknown>, R = void>(
     mutate: (args: A) => Promise<R>,
     options?: MutateOptions<A>

@@ -5,6 +5,10 @@ import type { GlobalHookCtx, GlobalHooks, Middleware, MiddlewareCtx, Rec } from 
 import { log } from './helpers'
 
 const withOp = (ctx: GlobalHookCtx, op: MiddlewareCtx['operation']): MiddlewareCtx => ({ ...ctx, operation: op }),
+  /** Composes middleware hooks into a single global hook set.
+   * @param middlewares - Middleware chain to execute in order
+   * @returns Combined global hooks
+   */
   // oxlint-disable-next-line max-statements
   composeMiddleware = (...middlewares: Middleware[]): GlobalHooks => {
     const hooks: GlobalHooks = {},

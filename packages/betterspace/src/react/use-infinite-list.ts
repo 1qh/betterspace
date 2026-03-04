@@ -4,6 +4,7 @@ import { useCallback, useMemo, useState } from 'react'
 
 import { matchW } from '../server/helpers'
 
+/** Client-side infinite-list options for filtering and sorting. */
 interface InfiniteListOptions {
   batchSize?: number
   sort?: ListSort<Rec>
@@ -23,6 +24,7 @@ interface SortObject<T extends Rec> {
 
 type WhereGroup = Rec & { own?: boolean }
 
+/** Default batch size used by `useInfiniteList`. */
 const DEFAULT_BATCH_SIZE = 50,
   toSortableString = (value: unknown): string => {
     if (typeof value === 'string') return value
@@ -66,6 +68,16 @@ const DEFAULT_BATCH_SIZE = 50,
     out.sort((a, b) => compareValues(a[config.field], b[config.field]) * factor)
     return out
   },
+  /** Builds an infinite-scroll list from in-memory rows.
+   * @param data - Source rows
+   * @param isReady - Subscription readiness state
+   * @param options - Sorting and filter options
+   * @returns List slice and load-more controls
+   * @example
+   * ```ts
+   * const list = useInfiniteList(rows, ready, { batchSize: 25 })
+   * ```
+   */
   useInfiniteList = <T extends Rec>(data: T[], isReady: boolean, options?: InfiniteListOptions) => {
     const batchSize = Math.max(1, options?.batchSize ?? DEFAULT_BATCH_SIZE),
       [visibleCount, setVisibleCount] = useState(batchSize),
