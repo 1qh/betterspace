@@ -4,8 +4,10 @@
 import { useCallback } from 'react'
 import { toast } from 'sonner'
 
+import type { RetryOptions } from '../retry'
 import type { MutationType } from './optimistic-store'
 
+import { withRetry } from '../retry'
 import { extractErrorData, getErrorMessage, handleError } from '../server/helpers'
 import { completeMutation, pushError, trackMutation } from './devtools'
 import { makeTempId, useOptimisticStore } from './optimistic-store'
@@ -16,6 +18,7 @@ interface MutateOptions<A extends Record<string, unknown>> {
   onError?: ((error: unknown) => void) | false
   optimistic?: boolean
   resolveId?: (args: A) => string | undefined
+  retry?: number | RetryOptions
   type?: MutationType
 }
 
@@ -65,11 +68,16 @@ const isDev = typeof process !== 'undefined' && process.env.NODE_ENV !== 'produc
       async (args: A): Promise<R> => {
         const name = options?.getName?.(args) ?? (mutate.name || 'mutation'),
           type = options?.type ?? detectMutationType(name),
-          devId = isDev ? trackMutation(name, args) : 0
+          devId = isDev ? trackMutation(name, args) : 0,
+
+         retryOpt = options?.retry,
+          exec = retryOpt
+            ? async () => withRetry(async () => mutate(args), typeof retryOpt === 'number' ? { maxAttempts: retryOpt } : retryOpt)
+            : async () => mutate(args)
 
         if (!(store && isOptimistic))
           try {
-            const result = await mutate(args)
+            const result = await exec()
             if (isDev && devId) completeMutation(devId, 'success')
             return result
           } catch (error) {
@@ -92,7 +100,7 @@ const isDev = typeof process !== 'undefined' && process.env.NODE_ENV !== 'produc
         })
 
         try {
-          const result = await mutate(args)
+          const result = await exec()
           if (isDev && devId) completeMutation(devId, 'success')
           return result
         } catch (error) {

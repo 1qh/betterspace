@@ -47,4 +47,5 @@ const DEFAULT_OPTIONS: Required<RetryOptions> = {
     }, retry)
   }
 
+export type { RetryOptions }
 export { fetchWithRetry, withRetry }
