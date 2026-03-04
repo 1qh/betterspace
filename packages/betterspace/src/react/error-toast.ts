@@ -2,7 +2,7 @@
 
 import { useCallback } from 'react'
 
-import { extractErrorData, getErrorMessage, handleError } from '../server/helpers'
+import { extractErrorData, getErrorMessage, getFirstFieldError, handleError } from '../server/helpers'
 
 type ErrorCode = ErrorData['code']
 type ErrorData = NonNullable<ReturnType<typeof extractErrorData>>
@@ -58,7 +58,27 @@ const useErrorToast = ({ handlers, toast }: ErrorToastOptions) =>
       }
       toast(data?.message ?? getErrorMessage(error))
     }
+  },
+  /** Toasts the first field validation error from a Betterspace error.
+   * @param error - Unknown error value
+   * @param toastFn - Toast function to call with the error message
+   * @returns `true` if a field error was toasted, `false` otherwise
+   * @example
+   * ```ts
+   * catch (error) {
+   *   toastFieldError(error, toast.error)
+   *   throw error
+   * }
+   * ```
+   */
+  toastFieldError = (error: unknown, toastFn: ToastFn): boolean => {
+    const msg = getFirstFieldError(error)
+    if (msg) {
+      toastFn(msg)
+      return true
+    }
+    return false
   }
 
 export type { ErrorToastOptions, ToastFn }
-export { makeErrorHandler, useErrorToast }
+export { makeErrorHandler, toastFieldError, useErrorToast }

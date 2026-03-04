@@ -523,6 +523,24 @@ const parseSenderMessage = (message: string): ErrorData | undefined => {
     const d = extractErrorData(e)
     return d?.fieldErrors as TypedFieldErrors<S> | undefined
   },
+  /** Returns the first field error message from a Betterspace error, or `undefined` if none.
+   * @param e - Unknown error value
+   * @returns First field error string, or undefined
+   * @example
+   * ```ts
+   * const msg = getFirstFieldError(error)
+   * if (msg) toast.error(msg)
+   * ```
+   */
+  getFirstFieldError = (e: unknown): string | undefined => {
+    const d = extractErrorData(e)
+    if (!d?.fieldErrors) return
+    const keys = Object.keys(d.fieldErrors)
+    for (const k of keys) {
+      const v = d.fieldErrors[k]
+      if (v) return v
+    }
+  },
   makeUnique = ({ field, index, pq, table }: { field: string; index?: string; pq: Qb; table: string }) =>
     typed(
       pq({
@@ -571,6 +589,7 @@ export {
   getErrorDetail,
   getErrorMessage,
   getFieldErrors,
+  getFirstFieldError,
   getUser,
   groupList,
   handleError,

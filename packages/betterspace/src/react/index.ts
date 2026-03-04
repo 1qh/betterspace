@@ -13,6 +13,7 @@ export {
   getErrorDetail,
   getErrorMessage,
   getFieldErrors,
+  getFirstFieldError,
   handleError,
   isErrorCode,
   isMutationError,
@@ -41,7 +42,7 @@ export { DevtoolsAutoMount } from './devtools-panel'
 export { default as BetterspaceDevtools } from './devtools-panel'
 export type { DevtoolsProps } from './devtools-panel'
 export type { ErrorToastOptions, ToastFn } from './error-toast'
-export { makeErrorHandler, useErrorToast } from './error-toast'
+export { makeErrorHandler, toastFieldError, useErrorToast } from './error-toast'
 export type { ConflictData, FieldKind, FieldMeta, FieldMetaMap, FormReturn, Widen } from './form'
 export { buildMeta, getMeta, useForm, useFormMutation } from './form'
 export type { MutationType, PendingMutation } from './optimistic-store'
