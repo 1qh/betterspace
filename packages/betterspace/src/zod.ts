@@ -137,6 +137,23 @@ const WRAPPERS: ReadonlySet<DefType> = new Set<DefType>([
     for (const k of keys) result[k] = d[k] ?? defaultValue(schema.shape[k])
     return result as output<S>
   },
+  /** Creates an object with all schema keys, filling unspecified ones with `undefined`.
+   * Eliminates boilerplate when calling update reducers that require all fields.
+   * @param schema - Object schema defining the full set of keys
+   * @param values - Partial values to include
+   * @returns Full object with undefined for unspecified keys
+   * @example
+   * ```ts
+   * // Instead of: update({ title: undefined, content: undefined, id, published: true })
+   * update(partialValues(editSchema, { id, published: true }))
+   * ```
+   */
+  partialValues = <S extends ZodObject<ZodRawShape>>(schema: S, values: Partial<output<S>>): output<S> => {
+    const result: Record<string, unknown> = {},
+      keys = Object.keys(schema.shape)
+    for (const k of keys) result[k] = (values as Record<string, unknown>)[k]
+    return result as output<S>
+  },
   /** Converts blank optional strings into undefined before submission. */
   coerceOptionals = <S extends ZodObject<ZodRawShape>>(schema: S, data: output<S>): output<S> => {
     const result: Record<string, unknown> = { ...data }
@@ -167,6 +184,7 @@ export {
   isNumberType,
   isOptionalField,
   isStringType,
+  partialValues,
   pickValues,
   requiredPartial,
   unwrapZod
