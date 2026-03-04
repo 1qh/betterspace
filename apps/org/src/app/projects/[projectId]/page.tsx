@@ -18,7 +18,7 @@ import { Input } from '@a/ui/input'
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@a/ui/select'
 import { Skeleton } from '@a/ui/skeleton'
 import { EditorsSection } from 'betterspace/components'
-import { useBulkMutate } from 'betterspace/react'
+import { noop, useBulkMutate } from 'betterspace/react'
 import { enumToOptions } from 'betterspace/zod'
 import { Check, Pencil, Plus, Trash, X } from 'lucide-react'
 import Link from 'next/link'
@@ -33,8 +33,6 @@ type Priority = NonNullable<output<typeof orgScoped.task>['priority']>
 const priorityOptions = enumToOptions(orgScoped.task.shape.priority.unwrap()),
   asPriority = (value: string | undefined): Priority =>
     value === 'high' || value === 'low' || value === 'medium' ? value : 'medium',
-  /** biome-ignore lint/suspicious/noEmptyBlockStatements: noop */
-  noop: () => void = (): void => {}, // eslint-disable-line @typescript-eslint/no-empty-function
   PrioritySelect = ({ onValueChange, value }: { onValueChange: (v: Priority) => void; value: Priority }) => (
     <Select onValueChange={v => onValueChange(v as Priority)} value={value}>
       <SelectTrigger className='w-28'>
