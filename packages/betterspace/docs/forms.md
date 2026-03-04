@@ -281,6 +281,61 @@ const FileUploadForm = () => {
 This pattern works in local dev (MinIO) and production (S3, R2, etc.)
 without changing client code.
 
+## defaultValues and defaultValue
+
+`defaultValues` builds an initial values object from a Zod object schema.
+`defaultValue` computes the default for a single field.
+
+Both are imported from `betterspace/zod`.
+
+```typescript
+import { defaultValues } from 'betterspace/zod'
+import { z } from 'zod/v4'
+
+const schema = z.object({
+  title: z.string(),
+  count: z.number(),
+  published: z.boolean()
+})
+
+defaultValues(schema)
+// { title: '', count: 0, published: false }
+```
+
+### z.default() and z.prefault()
+
+`defaultValues` checks for `z.default()` and `z.prefault()` wrappers before falling back
+to type-based defaults.
+This lets you set field-specific initial values directly in the schema.
+
+`z.default()` sets a static default value:
+
+```typescript
+const schema = z.object({
+  status: z.enum(['draft', 'published']).default('draft'),
+  count: z.number().default(1)
+})
+
+defaultValues(schema)
+// { status: 'draft', count: 1 }
+```
+
+`z.prefault()` sets a factory function that runs each time defaults are computed:
+
+```typescript
+const schema = z.object({
+  title: z.string().prefault(() => 'Untitled'),
+  createdAt: z.number().prefault(() => Date.now())
+})
+
+defaultValues(schema)
+// { title: 'Untitled', createdAt: <current timestamp> }
+```
+
+`z.prefault()` takes priority over `z.default()` when both are present.
+Both wrappers are unwrapped before type-based fallbacks run, so they compose with
+`z.optional()`, `z.nullable()`, and other wrappers.
+
 ## Form utilities from betterspace/react
 
 ```typescript

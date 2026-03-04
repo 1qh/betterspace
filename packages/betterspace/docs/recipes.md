@@ -734,6 +734,56 @@ All `MutateOptions` work the same way — `onSuccess`, `onSettled`, `onError`, `
 
 * * *
 
+## Toast shorthand with useMutation
+
+The `toast` option on `useMutate`/`useMutation` replaces manual `onSuccess`/`onError`
+callbacks when all you need is a message.
+
+Before:
+
+```typescript
+import { useMutation } from 'betterspace/react'
+import { useReducer } from 'spacetimedb/react'
+import { reducers } from '@/generated/module_bindings'
+
+const save = useMutation(useReducer, reducers.update_blog, {
+  onSuccess: () => toast.success('Saved'),
+  onError: () => toast.error('Save failed')
+})
+```
+
+After:
+
+```typescript
+import { useMutation } from 'betterspace/react'
+import { useReducer } from 'spacetimedb/react'
+import { reducers } from '@/generated/module_bindings'
+
+const save = useMutation(useReducer, reducers.update_blog, {
+  toast: { success: 'Saved', error: 'Save failed' }
+})
+```
+
+`fieldErrors` defaults to `true` — if the server returns field validation errors, the
+first one is toasted before the generic `error` message.
+Set `fieldErrors: false` to skip that behavior.
+
+Dynamic messages work too:
+
+```typescript
+const save = useMutation(useReducer, reducers.update_blog, {
+  toast: {
+    success: (result, args) => `"${args.title}" saved`,
+    error: err =>
+      `Save failed: ${err instanceof Error ? err.message : 'unknown'}`
+  }
+})
+```
+
+`onSuccess` and `toast.success` compose — both run when provided.
+
+* * *
+
 ## Field validation error toasts
 
 Use `toastFieldError` to surface the first field validation error as a toast, then fall
@@ -768,3 +818,82 @@ const BlogEditor = () => {
 runs for other error types.
 Pair it with `getFieldErrors` when you need to display errors inline in the form rather
 than as toasts.
+
+* * *
+
+## Phantom type inference
+
+Branded schemas expose `$inferRow`, `$inferCreate`, and `$inferUpdate` as readable
+properties. No import needed — just use `typeof schema.$inferRow`.
+
+```typescript
+import { makeOwned } from 'betterspace/schema'
+import { z } from 'zod/v4'
+
+const postSchema = makeOwned(
+  z.object({
+    title: z.string(),
+    content: z.string(),
+    published: z.boolean()
+  })
+)
+
+type PostRow = typeof postSchema.$inferRow
+type PostCreate = typeof postSchema.$inferCreate
+type PostUpdate = typeof postSchema.$inferUpdate
+```
+
+`PostRow` includes the database-added fields (`_id`, `_creationTime`, `updatedAt`,
+`userId` for owned schemas).
+This is equivalent to `InferRow<typeof postSchema>` but skips the import.
+
+The `~types` accessor groups all three:
+
+```typescript
+type PostTypes = (typeof postSchema)['~types']
+type PostRow = PostTypes['row']
+type PostCreate = PostTypes['create']
+type PostUpdate = PostTypes['update']
+```
+
+Use these in component props to stay in sync with the schema without duplicating type
+definitions:
+
+```typescript
+const PostCard = ({ post }: { post: typeof postSchema.$inferRow }) => (
+  <div>
+    <h2>{post.title}</h2>
+    <p>{post.content}</p>
+  </div>
+)
+```
+
+* * *
+
+## Error discrimination with SenderError.\_tag
+
+`SenderError` carries `_tag: 'SenderError'` as a const property.
+Use it to narrow errors in catch blocks when you need to distinguish betterspace reducer
+errors from other thrown values.
+
+```typescript
+import { extractErrorData } from 'betterspace/server'
+
+try {
+  await save(data)
+} catch (e) {
+  if (e instanceof Error && '_tag' in e && e._tag === 'SenderError') {
+    const data = extractErrorData(e)
+    if (data?.code === 'CONFLICT') {
+      showConflictDialog(data)
+      return
+    }
+  }
+  throw e
+}
+```
+
+For most cases, `handleError` or `matchError` is simpler — they parse the error
+internally without the `_tag` check.
+Use `_tag` when you need to re-throw non-betterspace errors or integrate with an
+external error boundary that inspects error shape.

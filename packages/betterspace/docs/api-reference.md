@@ -750,7 +750,23 @@ When the mutation fails, `error` is the thrown value and `result` is `undefined`
 | `optimistic` | `boolean` | Enable optimistic updates (default: `true`) |
 | `resolveId` | `(args: A) => string \| undefined` | Resolve the row ID for optimistic reconciliation |
 | `retry` | `number \| RetryOptions` | Retry on failure. A number sets `maxAttempts`. An object gives full control. |
+| `toast` | `MutateToast<A, R>` | Toast shorthand — show success/error messages without `onSuccess`/`onError` callbacks |
 | `type` | `MutationType` | Override the detected mutation type (`'create'`, `'update'`, or `'delete'`) |
+
+**`MutateToast<A, R>`:**
+
+```typescript
+interface MutateToast<A extends Record<string, unknown>, R = void> {
+  error?: ((error: unknown) => string) | string
+  fieldErrors?: boolean
+  success?: ((result: R, args: A) => string) | string
+}
+```
+
+Pass `toast` to show success/error toasts without writing `onSuccess`/`onError`
+callbacks. `fieldErrors` defaults to `true` — field validation errors are toasted before
+the generic `error` message.
+`onSuccess` and `toast.success` compose: both run when provided.
 
 **`retry` with `RetryOptions`:**
 
@@ -1278,8 +1294,23 @@ drift before deployment.
 Reducers throw `SenderError('CODE: message')`. The client receives the error with the
 message intact.
 
+`SenderError` carries a `_tag` property set to `'SenderError'` as a const.
+Use it to narrow errors in catch blocks without an `instanceof` check:
+
+```typescript
+try {
+  await save(data)
+} catch (e) {
+  if (e instanceof Error && '_tag' in e && e._tag === 'SenderError') {
+    // narrowed to SenderError
+  }
+}
+```
+
 betterspace currently ships **36 structured error codes** (`ErrorCode`), defined in
-`ERROR_MESSAGES`.
+`ERROR_MESSAGES`. Each code maps to a descriptive message with enough context to surface
+directly to users (e.g., `CONFLICT` reads “This record was modified by someone else —
+please review and try again” rather than a bare “Conflict”).
 
 | Code | Description |
 | --- | --- |
@@ -1355,6 +1386,7 @@ import type {
   InfiniteListWhere,
   ListWhere,
   MutateOptions,
+  MutateToast,
   MutationType,
   OptimisticOptions,
   PendingMutation,
@@ -1470,6 +1502,56 @@ const schemas = {
 type Rows = InferRows<typeof schemas>
 // { post: PostRow; profile: ProfileRow }
 ```
+
+* * *
+
+### SchemaPhantoms and phantom type accessors
+
+`SchemaPhantoms<C, R, U>` is the interface that branded schemas implement to expose
+their inferred types as readable properties.
+You don’t construct it directly — it’s already on every schema returned by `makeOwned`,
+`makeOrgScoped`, `makeBase`, and `makeSingleton`.
+
+```typescript
+interface SchemaPhantoms<C, R, U> {
+  readonly $inferCreate: C
+  readonly $inferRow: R
+  readonly $inferUpdate: U
+  readonly '~types': {
+    readonly create: C
+    readonly row: R
+    readonly update: U
+  }
+}
+```
+
+Access types via `typeof schema.$inferRow` (no import needed):
+
+```typescript
+import { makeOwned } from 'betterspace/schema'
+import { z } from 'zod/v4'
+
+const postSchema = makeOwned(
+  z.object({
+    title: z.string(),
+    published: z.boolean()
+  })
+)
+
+type PostRow = typeof postSchema.$inferRow
+type PostCreate = typeof postSchema.$inferCreate
+type PostUpdate = typeof postSchema.$inferUpdate
+```
+
+The `~types` accessor groups all three under one namespace:
+
+```typescript
+type PostTypes = (typeof postSchema)['~types']
+type PostRow = PostTypes['row']
+```
+
+These are equivalent to `InferRow<typeof postSchema>` but don’t require importing the
+utility type.
 
 * * *
 
