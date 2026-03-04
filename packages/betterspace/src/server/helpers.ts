@@ -24,7 +24,8 @@ import { identityEquals } from './reducer-utils'
 import { ERROR_MESSAGES } from './types'
 
 class SenderError extends Error {
-  readonly _tag = 'SenderError' as const
+  /** biome-ignore lint/style/useConsistentMemberAccessibility: biome+eslint conflict */
+  public readonly _tag = 'SenderError' as const
   /** biome-ignore lint/style/useConsistentMemberAccessibility: biome+eslint conflict */
   public constructor(message: string) {
     super(message)

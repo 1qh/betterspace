@@ -81,16 +81,16 @@ interface OrgCrudMemberLike<OrgId> {
 
 interface OrgCrudOptions<
   DB = unknown,
-  Row = Record<string, unknown>,
-  CreateArgs = Record<string, unknown>,
-  UpdatePatch = Record<string, unknown>
+  Row extends Record<string, unknown> = Record<string, unknown>,
+  CreateArgs extends Record<string, unknown> = Record<string, unknown>,
+  UpdatePatch extends Record<string, unknown> = Record<string, unknown>
 > {
   acl?: boolean
   hooks?: CrudHooks<DB, Row, CreateArgs, UpdatePatch>
   softDelete?: boolean
 }
 
-interface OrgCrudOwnedRow<OrgId> {
+interface OrgCrudOwnedRow<OrgId> extends Record<string, unknown> {
   orgId: OrgId
   updatedAt: Timestamp
   userId: Identity

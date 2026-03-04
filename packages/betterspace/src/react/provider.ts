@@ -60,11 +60,11 @@ const HTTP_OK = 200,
   },
   parsePresignPayload = (payload: unknown): ParsedPresignPayload => {
     const record = toRecord(payload)
-    if (!record) err('VALIDATION_FAILED', { message: 'Invalid presign payload' })
+    if (!record) return err('VALIDATION_FAILED', { message: 'Invalid presign payload' })
     const uploadUrl = getString(record, 'uploadUrl'),
       storageKey = getString(record, 'storageKey'),
       method = getString(record, 'method')
-    if (!(uploadUrl && storageKey)) err('VALIDATION_FAILED', { message: 'Invalid presign payload' })
+    if (!(uploadUrl && storageKey)) return err('VALIDATION_FAILED', { message: 'Invalid presign payload' })
     return {
       headers: parseHeaders(record.headers),
       method,

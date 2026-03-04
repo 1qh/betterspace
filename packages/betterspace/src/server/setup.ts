@@ -42,7 +42,7 @@ const isPromiseLike = (value: unknown): value is PromiseLike<unknown> => {
   },
   requireSync = <T>(value: Promise<T> | T, hookName: string): T => {
     if (isPromiseLike(value))
-      err('VALIDATION_FAILED', { message: `Hook "${hookName}" must be synchronous in SpacetimeDB reducers` })
+      return err('VALIDATION_FAILED', { message: `Hook "${hookName}" must be synchronous in SpacetimeDB reducers` })
     return value
   },
   toGlobalCtx = (

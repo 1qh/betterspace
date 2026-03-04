@@ -14,7 +14,7 @@ type CrudBuilders = never
 interface CrudConfig<
   DB,
   F extends CrudFieldBuilders,
-  Row extends { updatedAt: Timestamp; userId: Identity },
+  Row extends Record<string, unknown> & { updatedAt: Timestamp; userId: Identity },
   Id,
   Tbl extends CrudTableLike<Row>,
   Pk extends CrudPkLike<Row, Id>
@@ -59,7 +59,7 @@ interface CrudHooks<
 type CrudMakeFn = <
   DB,
   F extends CrudFieldBuilders,
-  Row extends { updatedAt: Timestamp; userId: Identity },
+  Row extends Record<string, unknown> & { updatedAt: Timestamp; userId: Identity },
   Id,
   Tbl extends CrudTableLike<Row>,
   Pk extends CrudPkLike<Row, Id>
@@ -76,9 +76,9 @@ type CrudMakeFn = <
 
 interface CrudOptions<
   DB = unknown,
-  Row = Record<string, unknown>,
-  CreateArgs = Record<string, unknown>,
-  UpdatePatch = Record<string, unknown>
+  Row extends Record<string, unknown> = Record<string, unknown>,
+  CreateArgs extends Record<string, unknown> = Record<string, unknown>,
+  UpdatePatch extends Record<string, unknown> = Record<string, unknown>
 > {
   cascade?: CascadeOption[]
   hooks?: CrudHooks<DB, Row, CreateArgs, UpdatePatch>

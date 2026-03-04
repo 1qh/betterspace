@@ -12,7 +12,7 @@ interface OptionalBuilder {
     | TypeBuilder<unknown, AlgebraicTypeType>
 }
 
-interface OwnedRow {
+interface OwnedRow extends Record<string, unknown> {
   updatedAt: Timestamp
   userId: Identity
 }

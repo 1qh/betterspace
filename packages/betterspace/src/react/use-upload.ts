@@ -67,11 +67,11 @@ const DEFAULT_API_ENDPOINT = '/api/upload/presign',
   },
   parsePresignedPayload = (payload: unknown): PresignedUpload => {
     if (!(typeof payload === 'object' && payload !== null))
-      err('VALIDATION_FAILED', { message: 'Invalid upload URL payload' })
+      return err('VALIDATION_FAILED', { message: 'Invalid upload URL payload' })
     const obj = payload as Record<string, unknown>,
       uploadUrl = toStringField(obj, 'uploadUrl'),
       storageKey = toStringField(obj, 'storageKey')
-    if (!(uploadUrl && storageKey)) err('VALIDATION_FAILED', { message: 'Invalid upload URL payload' })
+    if (!(uploadUrl && storageKey)) return err('VALIDATION_FAILED', { message: 'Invalid upload URL payload' })
     return {
       headers: toHeadersField(obj),
       method: toMethodField(obj),

@@ -66,7 +66,8 @@ import type {
   RegisteredDefaultError,
   RegisteredMeta,
   RegisteredMutation,
-  RegisteredQuery
+  RegisteredQuery,
+  SchemaPhantoms
 } from '../server/types/common'
 
 import {
@@ -124,6 +125,7 @@ import {
 } from '../react/devtools'
 import { makeErrorHandler, toastFieldError } from '../react/error-toast'
 import { buildMeta, getMeta } from '../react/form'
+import { compareValues, getSortConfig, noop, searchMatches, sortData, toSortableString } from '../react/list-utils'
 import { createOptimisticStore, makeTempId } from '../react/optimistic-store'
 import { canEditResource } from '../react/org'
 import { collectSettled } from '../react/use-bulk-mutate'
@@ -179,6 +181,7 @@ import { extractChildren, extractFieldType, extractWrapperTables, generateMermai
 import {
   coerceOptionals,
   cvFileKindOf,
+  defaultValue,
   defaultValues,
   enumToOptions,
   isArrayType,
@@ -189,6 +192,7 @@ import {
   isStringType,
   partialValues,
   pickValues,
+  requiredPartial,
   schemaVariants,
   unwrapZod
 } from '../zod'
@@ -6773,7 +6777,7 @@ describe('typed error handling (R10.5)', () => {
           _: () => 'Unknown error',
           NOT_FOUND: d => `Item not found: ${d.message}`
         })
-      expect(msg).toBe('Item not found: Not found')
+      expect(msg).toBe(`Item not found: ${ERROR_MESSAGES.NOT_FOUND}`)
     })
 
     test('ok result does not need error handling', () => {
@@ -8427,5 +8431,397 @@ describe('Sprint 5 useMutation exports', () => {
     }
     opts.onSuccess?.({ ok: true }, { id: 'id-1' })
     expect(opts.retry).toBe(2)
+  })
+})
+
+describe('Sprint 6 Tier 1.1 list-utils exports and behavior', () => {
+  test('exports all Sprint 6 list utility functions', async () => {
+    const mod = await import('../react/list-utils')
+    expect(mod.searchMatches).toBe(searchMatches)
+    expect(mod.sortData).toBe(sortData)
+    expect(mod.getSortConfig).toBe(getSortConfig)
+    expect(mod.compareValues).toBe(compareValues)
+    expect(mod.toSortableString).toBe(toSortableString)
+    expect(mod.noop).toBe(noop)
+  })
+
+  test('searchMatches supports string, array, case-insensitive, no-match, and empty query', () => {
+    const row = {
+      id: '1',
+      tags: ['TypeScript', 'Bun'],
+      title: 'Hello World'
+    }
+    expect(searchMatches(row, 'hello', ['title'])).toBe(true)
+    expect(searchMatches(row, 'script', ['tags'])).toBe(true)
+    expect(searchMatches(row, 'WORLD', ['title'])).toBe(true)
+    expect(searchMatches(row, 'rust', ['title', 'tags'])).toBe(false)
+    expect(searchMatches(row, '', ['title'])).toBe(true)
+  })
+
+  test('sortData sorts asc and desc by string, number, and date', () => {
+    const rows = [
+      { createdAt: new Date('2024-03-02T00:00:00.000Z'), name: 'charlie', score: 20 },
+      { createdAt: new Date('2024-03-01T00:00:00.000Z'), name: 'alpha', score: 10 },
+      { createdAt: new Date('2024-03-03T00:00:00.000Z'), name: 'bravo', score: 15 }
+    ]
+    expect(sortData(rows, { name: 'asc' }).map(r => r.name)).toEqual(['alpha', 'bravo', 'charlie'])
+    expect(sortData(rows, { score: 'desc' }).map(r => r.score)).toEqual([20, 15, 10])
+    expect(sortData(rows, { direction: 'asc', field: 'createdAt' }).map(r => r.createdAt.toISOString())).toEqual([
+      '2024-03-01T00:00:00.000Z',
+      '2024-03-02T00:00:00.000Z',
+      '2024-03-03T00:00:00.000Z'
+    ])
+  })
+
+  test('sortData with no sort returns copied array and handles empty array', () => {
+    const rows = [{ name: 'a' }, { name: 'b' }],
+      out = sortData(rows)
+    expect(out).toEqual(rows)
+    expect(out).not.toBe(rows)
+    expect(sortData([])).toEqual([])
+  })
+
+  test('getSortConfig handles SortMap, SortObject, empty map, and undefined', () => {
+    expect(getSortConfig<{ name: string }>({ name: 'asc' })).toEqual({ direction: 'asc', field: 'name' })
+    expect(getSortConfig<{ score: number }>({ direction: 'desc', field: 'score' })).toEqual({
+      direction: 'desc',
+      field: 'score'
+    })
+    expect(getSortConfig<{ title: string }>({})).toBeNull()
+    expect(getSortConfig<{ title: string }>()).toBeNull()
+  })
+
+  test('compareValues handles numbers, strings, booleans, dates, nullish, and equal values', () => {
+    expect(compareValues(1, 2)).toBeLessThan(0)
+    expect(compareValues('abc', 'abd')).toBeLessThan(0)
+    expect(compareValues(false, true)).toBeLessThan(0)
+    expect(compareValues(new Date('2024-01-01T00:00:00.000Z'), new Date('2024-01-02T00:00:00.000Z'))).toBeLessThan(0)
+    expect(compareValues(null, 'x')).toBeLessThan(0)
+    expect(compareValues(undefined, 'x')).toBeLessThan(0)
+    expect(compareValues('same', 'same')).toBe(0)
+  })
+
+  test('toSortableString handles primitive values, objects, and nullish', () => {
+    expect(toSortableString('abc')).toBe('abc')
+    expect(toSortableString(42)).toBe('42')
+    expect(toSortableString(true)).toBe('true')
+    expect(toSortableString(42n)).toBe('42')
+    expect(toSortableString({ k: 'v' })).toBe('{"k":"v"}')
+    expect(toSortableString(null)).toBe('')
+    const undef: unknown = VOID
+    expect(toSortableString(undef)).toBe('')
+  })
+
+  test('noop is function and returns undefined', () => {
+    expect(typeof noop).toBe('function')
+    expect(noop()).toBeUndefined()
+  })
+})
+
+describe('Sprint 6 Tier 1.2 MutateToast typing and options', () => {
+  test('MutateToast type from react index accepts string success/error shape', () => {
+    const toastConfig: ReactIndexTypes.MutateToast<{ id: string }, { ok: boolean }> = {
+      error: 'Save failed',
+      success: 'Saved'
+    }
+    expect(toastConfig.success).toBe('Saved')
+    expect(toastConfig.error).toBe('Save failed')
+  })
+
+  test('MutateToast type accepts success function shape', () => {
+    const toastConfig: ReactIndexTypes.MutateToast<{ id: string }, { ok: boolean }> = {
+        success: (result, args) => `${args.id}:${String(result.ok)}`
+      },
+      { success } = toastConfig
+    expect(typeof success).toBe('function')
+    if (typeof success === 'function') expect(success({ ok: true }, { id: 'abc' })).toBe('abc:true')
+  })
+
+  test('MutateToast type accepts fieldErrors false and fieldErrors optional', () => {
+    const disabledFieldErrors: ReactIndexTypes.MutateToast<{ id: string }, { ok: boolean }> = {
+        fieldErrors: false,
+        success: 'Saved'
+      },
+      optionalFieldErrors: ReactIndexTypes.MutateToast<{ id: string }, { ok: boolean }> = {
+        success: 'Saved'
+      }
+    expect(disabledFieldErrors.fieldErrors).toBe(false)
+    expect(optionalFieldErrors.fieldErrors).toBeUndefined()
+  })
+
+  test('MutateOptions accepts toast field', () => {
+    const opts: MutateOptions<{ id: string }, { ok: boolean }> = {
+      toast: {
+        error: 'Save failed',
+        success: (result, args) => `${args.id}:${String(result.ok)}`
+      }
+    }
+    expect(typeof opts.toast?.success).toBe('function')
+    expect(opts.toast?.error).toBe('Save failed')
+  })
+})
+
+describe('Sprint 6 Tier 1.3 SchemaPhantoms and infer accessors', () => {
+  test('SchemaPhantoms is exported and usable as a type', () => {
+    type Phantom = SchemaPhantoms<{ title: string }, { _id: string }, { title?: string }>
+    const check: Phantom = null as unknown as Phantom
+    expect(check).toBeNull()
+  })
+
+  test('OwnedSchema infer types align with zod output and row fields', () => {
+    const owned = makeOwned({
+      post: object({
+        title: string(),
+        views: number()
+      })
+    })
+    expect(owned).toBeDefined()
+    type Schema = (typeof owned)['post']
+    type Create = Schema extends { readonly $inferCreate: infer C } ? C : never
+    type Row = Schema extends { readonly $inferRow: infer R } ? R : never
+    type Update = Schema extends { readonly $inferUpdate: infer U } ? U : never
+
+    const createCheck: z.output<Schema> = null as unknown as Create
+    expect(createCheck).toBeNull()
+
+    const rowCheck: {
+      _creationTime: number
+      _id: number | string
+      title: string
+      updatedAt: number
+      userId: string
+      views: number
+    } = null as unknown as Row
+    expect(rowCheck).toBeNull()
+
+    const updateCheck: Partial<z.output<Schema>> = null as unknown as Update
+    expect(updateCheck).toBeNull()
+  })
+
+  test('OrgSchema, SingletonSchema, and BaseSchema infer rows include expected platform fields', () => {
+    const org = makeOrgScoped({ item: object({ name: string() }) }),
+      singleton = makeSingleton({ prefs: object({ theme: string() }) }),
+      base = makeBase({ movie: object({ label: string() }) })
+    expect(org).toBeDefined()
+    expect(singleton).toBeDefined()
+    expect(base).toBeDefined()
+
+    type OrgSchemaType = (typeof org)['item']
+    type SingletonSchemaType = (typeof singleton)['prefs']
+    type BaseSchemaType = (typeof base)['movie']
+
+    type OrgRow = OrgSchemaType extends { readonly $inferRow: infer R } ? R : never
+    type SingletonRow = SingletonSchemaType extends { readonly $inferRow: infer R } ? R : never
+    type BaseRow = BaseSchemaType extends { readonly $inferRow: infer R } ? R : never
+
+    const orgRowCheck: { orgId: number | string; userId: string } = null as unknown as OrgRow,
+      singletonRowCheck: { updatedAt: number; userId: string } = null as unknown as SingletonRow,
+      baseRowCheck: { _creationTime: number; _id: number | string; updatedAt: number } = null as unknown as BaseRow
+
+    expect(orgRowCheck).toBeNull()
+    expect(singletonRowCheck).toBeNull()
+    expect(baseRowCheck).toBeNull()
+  })
+
+  test('~types accessor mirrors $inferCreate/$inferRow/$inferUpdate', () => {
+    const owned = makeOwned({ post: object({ title: string() }) })
+    expect(owned).toBeDefined()
+
+    type Schema = (typeof owned)['post']
+    type Create = Schema extends { readonly $inferCreate: infer C } ? C : never
+    type Row = Schema extends { readonly $inferRow: infer R } ? R : never
+    type Update = Schema extends { readonly $inferUpdate: infer U } ? U : never
+    type Types = Schema extends { readonly '~types': infer T } ? T : never
+    type TypesCreate = Types extends { readonly create: infer C } ? C : never
+    type TypesRow = Types extends { readonly row: infer R } ? R : never
+    type TypesUpdate = Types extends { readonly update: infer U } ? U : never
+
+    const createCheck: TypesCreate = null as unknown as Create,
+      rowCheck: TypesRow = null as unknown as Row,
+      updateCheck: TypesUpdate = null as unknown as Update
+    expect(createCheck).toBeNull()
+    expect(rowCheck).toBeNull()
+    expect(updateCheck).toBeNull()
+  })
+})
+
+describe('Sprint 6 Tier 1.4 and 2.3 SenderError _tag', () => {
+  test('err throws SenderError with _tag set to SenderError', () => {
+    let thrown: unknown
+    try {
+      err('NOT_FOUND')
+    } catch (error) {
+      thrown = error
+    }
+    const tagged = thrown as Error & { _tag: 'SenderError' }
+    expect(tagged.name).toBe('SenderError')
+    expect(tagged._tag).toBe('SenderError')
+  })
+
+  test('SenderError _tag is a literal type', () => {
+    let thrown: unknown
+    try {
+      err('FORBIDDEN')
+    } catch (error) {
+      thrown = error
+    }
+    const tagged = thrown as Error & { _tag: 'SenderError' },
+      literalTag: 'SenderError' = tagged._tag
+    expect(literalTag).toBe('SenderError')
+  })
+
+  test('discriminated union pattern narrows on _tag', () => {
+    type Tagged = Error & { _tag: 'SenderError' }
+    type Untagged = Error & { _tag?: 'OtherError' }
+    const getTag = (e: Tagged | Untagged): string => {
+      if (e._tag === 'SenderError') {
+        const literal: 'SenderError' = e._tag
+        return literal
+      }
+      return 'other'
+    }
+
+    let thrown: unknown
+    try {
+      err('NOT_AUTHENTICATED')
+    } catch (error) {
+      thrown = error
+    }
+    expect(getTag(thrown as Tagged | Untagged)).toBe('SenderError')
+  })
+})
+
+describe('Sprint 6 Tier 2.1 ConflictData code narrowing', () => {
+  test('ConflictData code is literal CONFLICT', () => {
+    const conflict: ConflictData<{ title: string }> = {
+        code: 'CONFLICT',
+        current: { title: 'before' },
+        incoming: { title: 'after' }
+      },
+      { code } = conflict
+    expect(code).toBe('CONFLICT')
+  })
+})
+
+describe('Sprint 6 Tier 2.2 requiredPartial and schemaVariants shape preservation', () => {
+  test('requiredPartial preserves ZodObject shape access', () => {
+    const schema = object({
+        slug: string(),
+        title: string(),
+        views: number()
+      }),
+      update = requiredPartial(schema, ['slug'])
+    expect(Object.keys(update.shape)).toEqual(['slug', 'title', 'views'])
+    expect(update.shape.slug.safeParse('x').success).toBe(true)
+  })
+
+  test('schemaVariants requiredOnUpdate keeps update as shape-accessible object', () => {
+    const schema = object({
+        slug: string(),
+        title: string()
+      }),
+      variants = schemaVariants(schema, ['slug'])
+    expect(Object.keys(variants.update.shape)).toEqual(['slug', 'title'])
+    expect(variants.update.shape.slug.safeParse('a').success).toBe(true)
+  })
+
+  test('schemaVariants without requiredOnUpdate matches create and partial update return type', () => {
+    const schema = object({
+        slug: string(),
+        title: string()
+      }),
+      variants = schemaVariants(schema),
+      typedVariants: { create: typeof schema; update: ReturnType<typeof schema.partial> } = variants
+    expect(Object.keys(typedVariants.create.shape)).toEqual(['slug', 'title'])
+    expect(Object.keys(typedVariants.update.shape)).toEqual(['slug', 'title'])
+  })
+})
+
+describe('Sprint 6 Tier 2.4 ERROR_MESSAGES enhancements', () => {
+  test('all ERROR_MESSAGES entries are descriptive', () => {
+    for (const key of Object.keys(ERROR_MESSAGES)) {
+      const message = ERROR_MESSAGES[key as keyof typeof ERROR_MESSAGES]
+      expect(message.length).toBeGreaterThanOrEqual(14)
+      expect(message.trim().includes(' ')).toBe(true)
+    }
+  })
+
+  test('ERROR_MESSAGES count matches expected codes', () => {
+    expect(Object.keys(ERROR_MESSAGES)).toHaveLength(36)
+  })
+
+  test('specific improved messages contain required wording', () => {
+    expect(ERROR_MESSAGES.NOT_FOUND.includes('could not be found')).toBe(true)
+    expect(ERROR_MESSAGES.RATE_LIMITED.includes('wait')).toBe(true)
+    expect(ERROR_MESSAGES.VALIDATION_FAILED.toLowerCase().includes('validation')).toBe(true)
+  })
+})
+
+describe('Sprint 6 Tier 3.1 defaultValue with prefault/default wrappers', () => {
+  test('defaultValue returns prefault string value', () => {
+    const prefaultSchema = {
+      def: {
+        factory: () => 'hello',
+        innerType: string()
+      },
+      type: 'prefault'
+    }
+    expect(defaultValue(prefaultSchema)).toBe('hello')
+  })
+
+  test('defaultValue returns zod default string value', () => {
+    expect(defaultValue(string().default('world'))).toBe('world')
+  })
+
+  test('defaultValue returns prefault number value', () => {
+    const prefaultSchema = {
+      def: {
+        factory: () => 42,
+        innerType: number()
+      },
+      type: 'prefault'
+    }
+    expect(defaultValue(prefaultSchema)).toBe(42)
+  })
+
+  test('defaultValues uses prefault values from wrapped fields', () => {
+    const schema = object({
+      count: {
+        def: {
+          factory: () => 7,
+          innerType: number()
+        },
+        type: 'prefault'
+      } as unknown as ReturnType<typeof number>,
+      title: {
+        def: {
+          factory: () => 'prefault-title',
+          innerType: string()
+        },
+        type: 'prefault'
+      } as unknown as ReturnType<typeof string>
+    })
+    expect(defaultValues(schema)).toEqual({ count: 7, title: 'prefault-title' })
+  })
+
+  test('defaultValue falls back to base defaults for regular schemas', () => {
+    expect(defaultValue(string())).toBe('')
+  })
+
+  test('prefault is checked before default in wrapper chain', () => {
+    const schema = {
+      def: {
+        factory: () => 'outer-prefault',
+        innerType: {
+          def: {
+            defaultValue: 'inner-default',
+            innerType: string()
+          },
+          type: 'default'
+        }
+      },
+      type: 'prefault'
+    }
+    expect(defaultValue(schema)).toBe('outer-prefault')
   })
 })

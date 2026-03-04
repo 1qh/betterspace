@@ -9,9 +9,9 @@ const orgTeamSchema = org.team.omit({ avatarId: true }),
   projectVariants = schemaVariants(orgScoped.project, ['name']),
   wikiVariants = schemaVariants(wikiSchema, ['slug', 'status', 'title']),
   orgTeam = orgTeamVariants.create,
-  orgTeamUpdate = orgTeamVariants.update as ReturnType<typeof orgTeamSchema.partial>,
+  orgTeamUpdate = orgTeamVariants.update,
   project = projectVariants.create,
-  projectUpdate = projectVariants.update as ReturnType<typeof orgScoped.project.partial>,
+  projectUpdate = projectVariants.update,
   invite = object({ email: email(), isAdmin: boolean() }),
   joinRequest = object({ message: string().optional() }),
   profileStep = singleton.orgProfile.pick({ avatar: true, bio: true, displayName: true }),
@@ -25,7 +25,7 @@ const orgTeamSchema = org.team.omit({ avatarId: true }),
     orgAvatar: cvFile().nullable().optional()
   }),
   wiki = wikiVariants.create,
-  wikiUpdate = wikiVariants.update as ReturnType<typeof wikiSchema.partial>,
+  wikiUpdate = wikiVariants.update,
   preferencesStep = singleton.orgProfile.pick({ notifications: true, theme: true })
 
 export {

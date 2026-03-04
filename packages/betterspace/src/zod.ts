@@ -1,4 +1,4 @@
-/* eslint-disable max-statements */
+/* eslint-disable max-statements, complexity */
 import type { core, output, ZodObject, ZodRawShape, ZodType } from 'zod/v4'
 
 /** Marks Betterspace file metadata on Zod fields. */
