@@ -804,6 +804,10 @@ When all attempts fail, the thrown error includes the attempt count (e.g.
 `"Connection refused (after 3 attempts)"`) and preserves the original error as `cause`
 for debugging.
 
+Options are validated at call time: `maxAttempts` must be >= 1, `initialDelayMs` and
+`maxDelayMs` must be >= 0, and `base` must be >= 1. Invalid values throw immediately
+with a descriptive error message.
+
 * * *
 
 ### useMutation

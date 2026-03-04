@@ -126,9 +126,11 @@ All list-related types are exported from `betterspace/react`:
 
 ```typescript
 import type {
+  ListSort,
   SortDirection,
   SortMap,
   SortObject,
+  WhereFieldValue,
   UseListResult,
   SkipListResult,
   InfiniteListResult,
@@ -138,7 +140,12 @@ import type {
 
 `UseListResult<T>` and `InfiniteListResult<T>` are the return types of `useList` and
 `useInfiniteList`. `SkipListResult` and `SkipInfiniteListResult` are the placeholder
-values returned when the hook is skipped (e.g. data not yet ready).
+values returned when the hook is skipped — they have `isLoading: false` since data is
+intentionally not being fetched.
+
+`WhereFieldValue<V>` is the type for individual filter values in `where` clauses —
+either a direct value or a comparison operator (`$gt`, `$gte`, `$lt`, `$lte`,
+`$between`). `ListSort<T>` is the union of `SortMap<T>` and `SortObject<T>`.
 
 ## Comparison operators in where
 
