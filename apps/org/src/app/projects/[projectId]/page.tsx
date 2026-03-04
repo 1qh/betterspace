@@ -162,14 +162,22 @@ const TaskRow = ({ canAssign, canEdit, members, onAssign, onDelete, onToggle, on
       [selected, setSelected] = useState<Set<number>>(new Set()),
       bulkDelete = useBulkMutate(removeTask, {
         onError: fail,
+        onProgress: p => {
+          toast.loading(`Deleting tasks: ${p.succeeded + p.failed}/${p.total}`, { id: 'bulk-delete' })
+        },
         onSuccess: count => {
+          toast.dismiss('bulk-delete')
           toast.success(`${count} task(s) deleted`)
           setSelected(new Set())
         }
       }),
       bulkUpdate = useBulkMutate(updateTask, {
         onError: fail,
+        onProgress: p => {
+          toast.loading(`Updating tasks: ${p.succeeded + p.failed}/${p.total}`, { id: 'bulk-update' })
+        },
         onSuccess: count => {
+          toast.dismiss('bulk-update')
           toast.success(`${count} task(s) updated`)
           setSelected(new Set())
         }

@@ -2,9 +2,9 @@
 
 import { tables } from '@a/be/spacetimedb'
 import { Spinner } from '@a/ui/spinner'
-import { useList } from 'betterspace/react'
+import { useList, useOwnRows } from 'betterspace/react'
 import { Check } from 'lucide-react'
-import { useEffect, useMemo } from 'react'
+import { useEffect } from 'react'
 import { useInView } from 'react-intersection-observer'
 import { useSpacetimeDB, useTable } from 'spacetimedb/react'
 
@@ -14,10 +14,7 @@ const Page = () => {
   const { inView, ref } = useInView(),
     [allBlogs, isReady] = useTable(tables.blog),
     { identity } = useSpacetimeDB(),
-    blogs = useMemo(
-      () => allBlogs.map(b => ({ ...b, own: identity ? b.userId.isEqual(identity) : false })),
-      [allBlogs, identity]
-    ),
+    blogs = useOwnRows(allBlogs, identity ? (b: (typeof allBlogs)[number]) => b.userId.isEqual(identity) : null),
     { data, hasMore, isLoading, loadMore } = useList(blogs, isReady, {
       sort: { direction: 'desc', field: 'id' },
       where: { or: [{ published: true }, { own: true }] }

@@ -2,9 +2,9 @@
 
 import { tables } from '@a/be/spacetimedb'
 import { Input } from '@a/ui/input'
-import { useList } from 'betterspace/react'
+import { useList, useOwnRows } from 'betterspace/react'
 import { Search } from 'lucide-react'
-import { useCallback, useDeferredValue, useMemo, useState } from 'react'
+import { useCallback, useMemo, useState } from 'react'
 import { useSpacetimeDB, useTable } from 'spacetimedb/react'
 
 import { Create, List } from './common'
@@ -12,15 +12,11 @@ import { Create, List } from './common'
 const Page = () => {
   const [allBlogs, isReady] = useTable(tables.blog),
     { identity } = useSpacetimeDB(),
-    blogs = useMemo(
-      () => allBlogs.map(b => ({ ...b, own: identity ? b.userId.isEqual(identity) : false })),
-      [allBlogs, identity]
-    ),
+    blogs = useOwnRows(allBlogs, identity ? (b: (typeof allBlogs)[number]) => b.userId.isEqual(identity) : null),
     [removedIds, setRemovedIds] = useState<Set<number>>(new Set()),
     [query, setQuery] = useState(''),
-    deferredQuery = useDeferredValue(query),
     { data, hasMore, isLoading, loadMore } = useList(blogs, isReady, {
-      search: { fields: ['title', 'content', 'tags'], query: deferredQuery },
+      search: { debounceMs: 200, fields: ['title', 'content', 'tags'], query },
       sort: { direction: 'desc', field: 'id' },
       where: { or: [{ published: true }, { own: true }] }
     }),
@@ -48,7 +44,7 @@ const Page = () => {
         />
       </div>
       <List blogs={filtered} onRemove={handleRemove} />
-      {!deferredQuery && hasMore && !isLoading ? (
+      {!query && hasMore && !isLoading ? (
         <button
           className='mx-auto mt-4 block text-sm text-muted-foreground hover:text-foreground'
           onClick={() => loadMore()}
