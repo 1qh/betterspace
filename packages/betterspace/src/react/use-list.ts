@@ -1,6 +1,6 @@
 'use client'
 
-import { useCallback, useEffect, useMemo, useState } from 'react'
+import { useCallback, useEffect, useMemo, useRef, useState } from 'react'
 
 import type { ComparisonOp } from '../server/types'
 
@@ -103,7 +103,9 @@ const DEFAULT_PAGE_SIZE = 50,
       rawQuery = options?.search?.query ?? '',
       debounceMs = options?.search?.debounceMs,
       [debouncedQuery, setDebouncedQuery] = useState(rawQuery),
-      [currentPage, setCurrentPage] = useState(options?.page ?? 1)
+      [currentPage, setCurrentPage] = useState(options?.page ?? 1),
+      whereRef = useRef(options?.where),
+      searchQueryRef = useRef(rawQuery)
 
     useEffect(() => {
       if (!debounceMs) {
@@ -114,8 +116,17 @@ const DEFAULT_PAGE_SIZE = 50,
       return () => clearTimeout(id)
     }, [debounceMs, rawQuery])
 
-    const searchQuery = debounceMs ? debouncedQuery : rawQuery,
-      filtered = useMemo(() => {
+    const searchQuery = debounceMs ? debouncedQuery : rawQuery
+
+    useEffect(() => {
+      const whereChanged = whereRef.current !== options?.where,
+        searchChanged = searchQueryRef.current !== searchQuery
+      whereRef.current = options?.where
+      searchQueryRef.current = searchQuery
+      if (whereChanged || searchChanged) setCurrentPage(1)
+    }, [options?.where, searchQuery])
+
+    const filtered = useMemo(() => {
         if (!options?.where) return data
         const out: T[] = []
         for (const row of data) if (matchW(row, options.where)) out.push(row)
