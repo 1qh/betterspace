@@ -72,8 +72,9 @@ const isPlaywrightTest = process.env.NEXT_PUBLIC_PLAYWRIGHT === '1',
             <AlertDialogCancel data-testid='delete-cancel'>Cancel</AlertDialogCancel>
             <AlertDialogAction
               data-testid='delete-confirm'
-              // eslint-disable-next-line @typescript-eslint/strict-void-return
-              onClick={async () => execute({ id })}>
+              onClick={() => {
+                execute({ id })
+              }}>
               Delete
             </AlertDialogAction>
           </AlertDialogFooter>

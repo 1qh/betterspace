@@ -30,7 +30,9 @@ import type { Api, FieldKind, FieldMetaMap } from '../react/form'
 
 import { unwrapZod } from '../zod'
 
-const CAMEL_RE = /(?<lower>[a-z\d])(?<upper>[A-Z])/gu,
+const DEFAULT_ASYNC_DEBOUNCE_MS = 300,
+  DEFAULT_RATING_MAX = 5,
+  CAMEL_RE = /(?<lower>[a-z\d])(?<upper>[A-Z])/gu,
   FIRST_CHAR_RE = /^./u,
   Calendar = dynamic(async () => import('@a/ui/calendar').then(m => ({ default: m.Calendar })), {
     loading: () => <div className='h-64 w-full animate-pulse rounded-md bg-muted' />,
@@ -789,7 +791,7 @@ const CAMEL_RE = /(?<lower>[a-z\d])(?<upper>[A-Z])/gu,
       disabled,
       helpText,
       label,
-      max = 5, // eslint-disable-line @typescript-eslint/no-magic-numbers
+      max = DEFAULT_RATING_MAX,
       name,
       required,
       ...props
@@ -922,7 +924,7 @@ const CAMEL_RE = /(?<lower>[a-z\d])(?<upper>[A-Z])/gu,
       )
     },
     Text: ({
-      asyncDebounceMs = 300, // eslint-disable-line @typescript-eslint/no-magic-numbers
+      asyncDebounceMs = DEFAULT_ASYNC_DEBOUNCE_MS,
       asyncValidate,
       'data-testid': testId,
       disabled,

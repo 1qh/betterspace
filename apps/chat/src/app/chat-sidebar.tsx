@@ -67,10 +67,12 @@ const ChatSidebar = <T extends Thread>({ basePath, getTitle, onDelete, threads }
                   <span
                     className='flex size-6 cursor-pointer items-center justify-center rounded-sm opacity-0 transition-opacity group-hover/item:opacity-100 hover:bg-accent'
                     data-testid='delete-thread-button'
-                    // eslint-disable-next-line @typescript-eslint/strict-void-return
-                    onClick={async e => handleDelete(e, t.id)}
-                    // eslint-disable-next-line @typescript-eslint/strict-void-return
-                    onKeyDown={async e => e.key === 'Enter' && handleDelete(e, t.id)}
+                    onClick={e => {
+                      handleDelete(e, t.id)
+                    }}
+                    onKeyDown={e => {
+                      if (e.key === 'Enter') handleDelete(e, t.id)
+                    }}
                     role='button'
                     tabIndex={0}>
                     <Trash2Icon className='size-3' />
