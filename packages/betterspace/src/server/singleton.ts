@@ -33,6 +33,7 @@ const findByUser = (table: SingletonTableLike<SingletonRow>, sender: Identity): 
     nextRecord.updatedAt = opts.timestamp
     return nextRecord as unknown as Row
   },
+  /** Generates get and upsert reducers for a per-user singleton table. */
   makeSingletonCrud = <
     DB,
     F extends SingletonFieldBuilders,

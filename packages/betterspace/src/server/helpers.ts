@@ -68,11 +68,7 @@ const TOKEN_BYTES = 24,
       })
     }
   },
-  /**
-   * Checks whether a value is a non-null record object.
-   * @param v Value to inspect.
-   * @returns `true` when the value is a record.
-   */
+  /** Type guard that checks if a value is a non-null object. */
   isRecord = (v: unknown): v is Record<string, unknown> => Boolean(v) && typeof v === 'object',
   isComparisonOp = (val: unknown): val is ComparisonOp<unknown> =>
     typeof val === 'object' &&
@@ -90,6 +86,7 @@ const TOKEN_BYTES = 24,
     return out
   },
   serializeError = (data: ErrorData) => `${data.code}:${JSON.stringify(data)}`,
+  /** Throws a SenderError with a typed error code and optional debug context. */
   err = (code: ErrorCode, opts?: Record<string, unknown> | string | { message: string }): never => {
     if (!opts) throw new SenderError(serializeError({ code }))
     if (typeof opts !== 'string') throw new SenderError(serializeError({ code, ...opts }))
@@ -98,11 +95,7 @@ const TOKEN_BYTES = 24,
     throw new SenderError(serializeError(data))
   },
   noFetcher = (): never => err('NO_FETCHER'),
-  /**
-   * Builds a timestamp payload used on created/updated docs.
-   * @param timestamp Optional timestamp override.
-   * @returns Object containing `updatedAt`.
-   */
+  /** Returns an object with updatedAt set to Date.now(). */
   time = (timestamp?: number) => ({ updatedAt: timestamp ?? Date.now() }),
   /**
    * Converts a Spacetime identity into its hex string form.
@@ -324,6 +317,7 @@ const TOKEN_BYTES = 24,
     for (const k of keys) if (k in data) result[k] = data[k]
     return result
   },
+  /** Throws a SenderError with VALIDATION_FAILED code and per-field errors. */
   errValidation = (
     code: ErrorCode,
     zodError: { flatten: () => { fieldErrors: Record<string, string[] | undefined> } }
@@ -376,12 +370,7 @@ const TOKEN_BYTES = 24,
   dbDelete = async (db: DbLike, id: string) => {
     await db.delete(id)
   },
-  /**
-   * Enforces per-key mutation rate limits using a backing `rateLimit` table.
-   * @param db Database adapter.
-   * @param opts Rate-limit configuration and key context.
-   * @returns Nothing.
-   */
+  /** Enforces a per-caller rate limit, throwing RATE_LIMITED on excess. */
   checkRateLimit = async (
     db: DbLike,
     opts: { config: RateLimitConfig; key: string; table: string; timestamp?: number }
@@ -534,11 +523,7 @@ const parseSenderMessage = (message: string): ErrorData | undefined => {
     if (e instanceof Error) return e.message
     return 'Unknown error'
   },
-  /**
-   * Returns detailed error text including table/op metadata when available.
-   * @param e Unknown error input.
-   * @returns Detailed diagnostic error message.
-   */
+  /** Extracts the debug detail string from a SenderError. */
   getErrorDetail = (e: unknown): string => {
     const d = extractErrorData(e)
     if (!d) return e instanceof Error ? e.message : 'Unknown error'
@@ -564,44 +549,21 @@ const parseSenderMessage = (message: string): ErrorData | undefined => {
     }
     handlers.default?.(e)
   },
-  /**
-   * Wraps a successful mutation value in a typed result shape.
-   * @param value Mutation return value.
-   * @returns Successful mutation result wrapper.
-   */
+  /** Wraps a value in a successful MutationResult. */
   ok = <T>(value: T): MutationResult<T> => ({ ok: true, value }),
-  /**
-   * Creates a failed mutation result with optional detail metadata.
-   * @param code Betterspace error code.
-   * @param detail Optional additional error details.
-   * @returns Failed mutation result wrapper.
-   */
+  /** Wraps an error in a failed MutationResult. */
   fail = (code: ErrorCode, detail?: Omit<ErrorData, 'code'>): MutationResult<never> => ({
     error: { code, message: ERROR_MESSAGES[code], ...detail },
     ok: false
   }),
-  /**
-   * Returns true when an error value contains Betterspace error metadata.
-   * @param e Unknown error input.
-   * @returns `true` when Betterspace error data is present.
-   */
+  /** Type guard that checks if an error is a SenderError from a mutation. */
   isMutationError = (e: unknown): e is ErrorData => extractErrorData(e) !== undefined,
-  /**
-   * Returns true when an error matches a specific Betterspace error code.
-   * @param e Unknown error input.
-   * @param code Betterspace error code to compare.
-   * @returns `true` when the error has the provided code.
-   */
+  /** Type guard that checks if a string is a valid ErrorCode. */
   isErrorCode = (e: unknown, code: ErrorCode): boolean => {
     const d = extractErrorData(e)
     return d?.code === code
   },
-  /**
-   * Pattern-matches Betterspace errors to code-specific handlers.
-   * @param e Unknown error input.
-   * @param handlers Error handlers keyed by code plus fallback `_`.
-   * @returns Handler return value when a match exists.
-   */
+  /** Matches an error against a record of error code handlers. */
   matchError = <R>(
     e: unknown,
     handlers: Partial<Record<ErrorCode, (data: ErrorData) => R>> & { _?: (error: unknown) => R }

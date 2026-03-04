@@ -38,6 +38,7 @@ const asRecord = (value: unknown): null | Record<string, unknown> => {
     return 'Unknown error'
   }
 
+/** React error boundary that catches render errors and shows a fallback UI. */
 class BetterspaceErrorBoundary extends Component<ErrorBoundaryProps, ErrorBoundaryState> {
   constructor(props: ErrorBoundaryProps) {
     super(props)

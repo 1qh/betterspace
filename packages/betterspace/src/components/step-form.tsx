@@ -85,6 +85,7 @@ interface UseStepperOpts<Defs extends readonly StepDef[]> {
   values?: Partial<{ [D in Defs[number] as D['id']]?: output<D['schema']> }>
 }
 
+/** Creates a type-safe multi-step form with per-step schemas and a stepper hook. */
 const defineSteps = <const Defs extends readonly [StepDef, ...StepDef[]]>(...defs: Defs) => {
   const internalSteps = defs.map(d => ({ id: d.id, label: d.label, schema: d.schema })) as unknown as InternalStep[],
     stepperFactory = defineStepper(...internalSteps),

@@ -41,6 +41,7 @@ const CAMEL_RE = /(?<lower>[a-z\d])(?<upper>[A-Z])/gu,
     loading: () => <div className='h-32 w-full animate-pulse rounded-lg bg-muted' />,
     ssr: false
   }),
+  /** React context providing form state to nested field components. */
   FormContext = createContext<null | {
     form: Api<Record<string, unknown>>
     meta: FieldMetaMap
@@ -68,11 +69,7 @@ const CAMEL_RE = /(?<lower>[a-z\d])(?<upper>[A-Z])/gu,
       )
     return { form: ctx.form, info, schema: ctx.schema, serverErrors: ctx.serverErrors }
   },
-  /**
-   * Converts a camelCase field name into a human-readable label.
-   * @param name Field key name.
-   * @returns Generated label text.
-   */
+  /** Derives a human-readable label from a camelCase field name. */
   deriveLabel = (name: string): string => name.replace(CAMEL_RE, '$1 $2').replace(FIRST_CHAR_RE, c => c.toUpperCase()),
   defaultEnumOptions = (schema: ZodObject<ZodRawShape>, name: string): { label: string; value: string }[] => {
     const { schema: inner } = unwrapZod(schema.shape[name])
@@ -103,6 +100,7 @@ const CAMEL_RE = /(?<lower>[a-z\d])(?<upper>[A-Z])/gu,
       </div>
     )
   },
+  /** Collection of 14 typed field components for use inside Form render callbacks. */
   fields = {
     Arr: ({
       containerClassName,

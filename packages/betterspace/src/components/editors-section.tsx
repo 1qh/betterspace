@@ -20,6 +20,7 @@ interface MemberInfo {
   userId: string
 }
 
+/** Renders an editor management panel for org-scoped resources. */
 const EditorsSection = ({
   editorsList,
   members,
@@ -86,5 +87,4 @@ const EditorsSection = ({
   )
 }
 
-/** Exports EditorsSection component. */
 export default EditorsSection

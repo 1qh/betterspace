@@ -399,6 +399,7 @@ const POSITION_CLASSES: Record<Position, string> = {
 
 let autoMounted = false
 
+/** Auto-mounts the devtools panel when the provider is active. */
 const DevtoolsAutoMount = (props: DevtoolsProps) => {
   const containerRef = useRef<HTMLDivElement | null>(null),
     [mounted, setMounted] = useState(false)

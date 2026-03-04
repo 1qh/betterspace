@@ -112,6 +112,7 @@ const listeners: (() => void)[] = [],
     }
     if (changed) notify()
   },
+  /** Records a reducer error in the devtools store. */
   pushError = (e: unknown) => {
     const data = extractErrorData(e),
       entry: DevError = {
@@ -126,10 +127,7 @@ const listeners: (() => void)[] = [],
     if (errorStore.length > MAX_ERRORS) errorStore.length = MAX_ERRORS
     notify()
   },
-  /**
-   * Clears stored devtool errors.
-   * @returns Nothing.
-   */
+  /** Clears all tracked errors from the devtools store. */
   clearErrors = () => {
     errorStore.length = 0
     notify()
@@ -224,16 +222,12 @@ const listeners: (() => void)[] = [],
     if (opts.stale !== undefined) entry.stale = opts.stale
     notify()
   },
+  /** Clears all tracked mutations from the devtools store. */
   clearMutations = () => {
     mutationStore.length = 0
     notify()
   },
-  /**
-   * Adds a synthetic Betterspace error to the devtools store.
-   * @param code Error code to inject.
-   * @param opts Optional message and metadata payload.
-   * @returns Nothing.
-   */
+  /** Injects a synthetic error into the devtools error panel for testing. */
   injectError = (code: ErrorCode, opts?: { detail?: string; message?: string; op?: string; table?: string }) => {
     const data: ErrorData = { code, ...opts },
       entry: DevError = {
@@ -248,10 +242,7 @@ const listeners: (() => void)[] = [],
     if (errorStore.length > MAX_ERRORS) errorStore.length = MAX_ERRORS
     notify()
   },
-  /**
-   * Subscribes React components to Betterspace devtools state.
-   * @returns Snapshot of errors, mutations, subscriptions, cache, and connection state.
-   */
+  /** Subscribes to the devtools error store for rendering error UI. */
   useDevErrors = () => {
     const [, setTick] = useState(0),
       spacetime = useSpacetimeDB(),

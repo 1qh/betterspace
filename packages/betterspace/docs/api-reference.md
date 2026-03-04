@@ -1239,6 +1239,250 @@ schema.
 
 * * *
 
+### AutoSaveIndicator
+
+Displays the current auto-save status when using `useForm` with `autoSave: true`. Shows
+“Saving…”, “Saved”, or an error state.
+
+```typescript
+import { AutoSaveIndicator } from 'betterspace/components'
+
+<AutoSaveIndicator className="text-sm text-muted-foreground" />
+```
+
+Place it inside a `<Form>` to pick up auto-save state automatically.
+
+* * *
+
+### ConflictDialog
+
+Modal dialog for resolving concurrent edit conflicts.
+Shows a diff between the server version and local changes with three resolution options:
+**Reload** (use server version), **Overwrite** (force local changes), or **Cancel**.
+
+```typescript
+import { ConflictDialog } from 'betterspace/components'
+
+<ConflictDialog
+  conflict={form.conflict}
+  onResolve={action => form.resolveConflict(action)}
+  className="max-w-lg"
+/>
+```
+
+**Props:**
+
+| Prop | Type | Description |
+| --- | --- | --- |
+| `conflict` | `ConflictData \| null` | Conflict payload from `useForm`. `null` hides the dialog. |
+| `onResolve` | `(action: 'cancel' \| 'overwrite' \| 'reload') => void` | Called when the user picks a resolution |
+| `className` | `string` | Applied to the dialog content container |
+
+* * *
+
+### OfflineIndicator
+
+Renders a fixed-position banner when the SpacetimeDB connection is inactive.
+Automatically hides when the connection is restored.
+
+```typescript
+import { OfflineIndicator } from 'betterspace/components'
+
+// Add to your layout
+<OfflineIndicator className="z-50" />
+```
+
+Accepts all `<p>` element props.
+Renders nothing when connected.
+
+* * *
+
+### OrgAvatar
+
+Renders an organization avatar with image support and fallback initials.
+
+```typescript
+import { OrgAvatar } from 'betterspace/components'
+
+<OrgAvatar name="Acme Corp" src={org.avatarUrl} className="size-8" />
+```
+
+**Props:**
+
+| Prop | Type | Description |
+| --- | --- | --- |
+| `name` | `string` | Organization name (first 2 chars used as fallback) |
+| `src` | `string` | Optional avatar image URL |
+
+Accepts all props from the underlying `Avatar` component.
+
+* * *
+
+### RoleBadge
+
+Displays a styled badge for a user’s organization role.
+
+```typescript
+import { RoleBadge } from 'betterspace/components'
+
+<RoleBadge role="admin" />
+```
+
+Role → variant mapping: `owner` = default, `admin` = secondary, `member` = outline.
+Accepts all `Badge` component props.
+
+* * *
+
+### EditorsSection
+
+Renders a card with the current editors list and a dropdown to add/remove editors.
+Designed for org-scoped resources with ACL.
+
+```typescript
+import { EditorsSection } from 'betterspace/components'
+
+<EditorsSection
+  editorsList={editors}
+  members={orgMembers}
+  onAdd={userId => addEditor({ id: resourceId, editorId: userId })}
+  onRemove={userId => removeEditor({ id: resourceId, editorId: userId })}
+/>
+```
+
+**Props:**
+
+| Prop | Type | Description |
+| --- | --- | --- |
+| `editorsList` | `{ email: string; name: string; userId: string }[]` | Current editors |
+| `members` | `{ user: { email?: string; name?: string } \| null; userId: string }[]` | All org members (non-editors shown in add dropdown) |
+| `onAdd` | `(userId: string) => void` | Called when adding an editor |
+| `onRemove` | `(userId: string) => void` | Called when removing an editor |
+
+Accepts all `Card` component props.
+
+* * *
+
+### PermissionGuard
+
+Conditionally renders children based on org role or a custom access check.
+Shows a “view only” fallback with a back link when access is denied.
+
+```typescript
+import { PermissionGuard } from 'betterspace/components'
+
+<PermissionGuard
+  role={membership.role}
+  allowedRoles={['owner', 'admin']}
+  resource="wiki page"
+  backHref="/wiki"
+  backLabel="wiki"
+>
+  <EditForm />
+</PermissionGuard>
+```
+
+**Props:**
+
+| Prop | Type | Description |
+| --- | --- | --- |
+| `role` | `OrgRole` | Current user’s role |
+| `allowedRoles` | `OrgRole[]` | Roles that can access the content |
+| `canAccess` | `boolean` | Direct override (takes precedence over role check) |
+| `resource` | `string` | Display name for the “no permission” message |
+| `backHref` | `string` | URL for the back button |
+| `backLabel` | `string` | Label for the back button |
+| `className` | `string` | Applied to the fallback container |
+
+* * *
+
+### defineSteps
+
+Creates a type-safe multi-step form with per-step Zod schemas, navigation guards, and a
+stepper hook. Each step has its own schema and typed field accessors.
+
+```typescript
+import { defineSteps } from 'betterspace/components'
+
+const { StepForm, useStepper, steps } = defineSteps([
+  { id: 'profile', label: 'Profile', schema: profileSchema },
+  { id: 'org', label: 'Organization', schema: orgSchema },
+  { id: 'prefs', label: 'Preferences', schema: prefsSchema }
+] as const)
+
+const Onboarding = () => {
+  const stepper = useStepper({
+    onSubmit: async data => {
+      // data.profile, data.org, data.prefs — all typed
+      await createAccount(data)
+    }
+  })
+
+  return (
+    <StepForm stepper={stepper}>
+      <StepForm.Step id="profile" render={f => (
+        <>
+          <f.Text name="displayName" />
+          <f.Text name="bio" />
+        </>
+      )} />
+      <StepForm.Step id="org" render={f => (
+        <>
+          <f.Text name="name" />
+          <f.Text name="slug" />
+        </>
+      )} />
+      <StepForm.Step id="prefs" render={f => (
+        <f.Choose name="theme" />
+      )} />
+    </StepForm>
+  )
+}
+```
+
+**Step IDs are type-checked** — misspelling a step ID or accessing the wrong field for a
+step is a compile-time error.
+
+**`useStepper` return value:**
+
+| Field | Type | Description |
+| --- | --- | --- |
+| `error` | `Error \| null` | Error from the `onSubmit` callback |
+| `isCompleted` | `boolean` | `true` after all steps submitted |
+| `isPending` | `boolean` | `true` while `onSubmit` is running |
+| `values` | `Partial<StepDataMap>` | Collected values from completed steps |
+
+**`StepForm` props:**
+
+| Prop | Type | Description |
+| --- | --- | --- |
+| `stepper` | `StepperReturn` | Return value from `useStepper` |
+| `indicator` | `boolean` | Show step progress indicator (default: `true`) |
+| `nextLabel` | `string` | Custom “Next” button text |
+| `prevLabel` | `string` | Custom “Back” button text |
+| `submitLabel` | `string` | Custom “Submit” button text |
+
+* * *
+
+### FileApiProvider
+
+Provides file upload configuration to nested `File` and `Files` field components.
+Wrap your form with this provider when using file fields.
+
+```typescript
+import { FileApiProvider } from 'betterspace/components'
+import { createFileUploader } from 'betterspace/react'
+
+const uploader = createFileUploader('/api/upload/presign')
+
+<FileApiProvider value={{ upload: uploader }}>
+  <Form form={form} render={f => (
+    <f.File name="avatar" />
+  )} />
+</FileApiProvider>
+```
+
+* * *
+
 ### Provider utilities
 
 Provider setup helpers are exported from `betterspace/react`:

@@ -33,7 +33,7 @@ interface MutateToast<A extends Record<string, unknown>, R = void> {
 }
 
 const isDev = typeof process !== 'undefined' && process.env.NODE_ENV !== 'production',
-  /** Default mutation error handler used by Betterspace hooks. */
+  /** Default mutation error handler. Toasts NOT_AUTHENTICATED and RATE_LIMITED with user-friendly messages, falls back to error message for other codes. */
   defaultOnError = (error: unknown) => {
     handleError(error, {
       default: () => {
@@ -101,6 +101,7 @@ const isDev = typeof process !== 'undefined' && process.env.NODE_ENV !== 'produc
         if (successMsg) toast.success(typeof successMsg === 'function' ? successMsg(result, args) : successMsg)
       }
   },
+  /** Wraps a mutation function with devtools tracking, error toasting, and optional retry. */
   useMutate = <A extends Record<string, unknown>, R = void>(
     mutate: (args: A) => Promise<R>,
     options?: MutateOptions<A, R>
@@ -170,19 +171,7 @@ const isDev = typeof process !== 'undefined' && process.env.NODE_ENV !== 'produc
       [errorHandler, isOptimistic, mutate, options, store, successHandler]
     )
   },
-  /** Combines a reducer hook result with `useMutate` in a single call.
-   * Eliminates the two-step `const raw = useReducer(r); const m = useMutate(raw, opts)` boilerplate.
-   * @param useReducerHook - Hook that returns a mutation function (e.g., from `spacetimedb/react`)
-   * @param reducer - Reducer descriptor to pass to the hook
-   * @param options - Same options as `useMutate`
-   * @returns Stable callback that executes the mutation
-   * @example
-   * ```ts
-   * const save = useMutation(useReducer, reducers.updateBlog, {
-   *   toast: { success: 'Saved', error: 'Save failed' }
-   * })
-   * ```
-   */
+  /** Combines useReducer and useMutate into a single call. */
   useMutation = <A extends Record<string, unknown>, R = void, D = unknown>(
     useReducerHook: (desc: D) => (args: A) => Promise<R>,
     reducer: D,

@@ -18,6 +18,7 @@ import { useForm as useBaseForm } from '../react/form'
 import { fields, FormContext } from './fields'
 import { FileApiContext } from './file-field'
 
+/** Modal that shows concurrent edit conflicts with diff and resolution options. */
 const ConflictDialog = ({
   className,
   conflict,
@@ -182,6 +183,7 @@ const useWithGuard = <T extends Record<string, unknown>, S extends ZodObject<Zod
       )
     return null
   },
+  /** Typed form component that renders fields via a render callback with typed accessors. */
   Form = <T extends Record<string, unknown>, S extends ZodObject<ZodRawShape>>({
     form: { conflict, error, fieldErrors, guard, instance, meta, resolveConflict, schema },
     render,
@@ -224,6 +226,7 @@ const useWithGuard = <T extends Record<string, unknown>, S extends ZodObject<Zod
       <DevtoolsAutoMount />
     </FormContext>
   ),
+  /** Displays form auto-save status (saving, saved, error). */
   AutoSaveIndicator = ({ className, lastSaved, ...props }: ComponentProps<'span'> & { lastSaved: null | number }) => {
     const MS_PER_SECOND = 1000,
       JUST_SAVED_THRESHOLD = 5,
@@ -246,7 +249,6 @@ const useWithGuard = <T extends Record<string, unknown>, S extends ZodObject<Zod
     )
   }
 
-/** Exports form components and hooks. */
 export type { TypedFields }
 
 export { AutoSaveIndicator, ConflictDialog, Form, useForm, useFormMutation }

@@ -341,6 +341,7 @@ const isPromiseLike = (value: unknown): value is PromiseLike<unknown> => {
       if (reducer) target[name] = reducer
     }
   },
+  /** Low-level factory that creates CRUD builders from shared SpacetimeDB config. */
   setup = (spacetimedb: SpacetimeDbLike, config: SetupConfig = {}) => {
     const middlewareHooks = config.middleware?.length ? composeMiddleware(...config.middleware) : undefined,
       globalHooks = mergeGlobalHooks(config.hooks, middlewareHooks),
@@ -454,6 +455,7 @@ const dbTable: (db: unknown, name: string) => unknown = (db, name) => (db as Rec
     (name: string): TableAccessor =>
     db =>
       dbTable(db, name),
+  /** Convenience wrapper around setup with shared field defaults. */
   setupCrud = (spacetimedb: SpacetimeDbLike, defaults: CrudDefaults, config?: SetupConfig) => {
     const s = setup(spacetimedb, config),
       { expectedUpdatedAtField, idField } = defaults,
