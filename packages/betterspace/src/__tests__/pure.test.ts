@@ -6,14 +6,16 @@ import type { AccessEntry, FactoryCall } from '../check'
 import type { CheckResult } from '../doctor'
 import type { DevtoolsProps } from '../react/devtools-panel'
 import type { ConflictData } from '../react/form'
+import type * as ReactIndexTypes from '../react/index'
 import type { MutationType, PendingMutation } from '../react/optimistic-store'
 import type { PlaygroundProps } from '../react/schema-playground'
-import type { BulkResult } from '../react/use-bulk-mutate'
+import type { BulkProgress, BulkResult, useBulkMutate, UseBulkMutateOptions } from '../react/use-bulk-mutate'
 import type { InfiniteListOptions } from '../react/use-infinite-list'
 import type { ListWhere, UseListOptions, WhereGroup } from '../react/use-list'
 import type { MutateOptions } from '../react/use-mutate'
 import type { PresenceUser, UsePresenceOptions, UsePresenceResult } from '../react/use-presence'
 import type { UseSearchOptions, UseSearchResult } from '../react/use-search'
+import type { RetryOptions } from '../retry'
 import type { ErrorData, MutationFail, MutationOk, MutationResult } from '../server/helpers'
 import type {
   AssertSchema,
@@ -105,7 +107,7 @@ import { buildMeta, getMeta } from '../react/form'
 import { createOptimisticStore, makeTempId } from '../react/optimistic-store'
 import { canEditResource } from '../react/org'
 import { collectSettled } from '../react/use-bulk-mutate'
-import { DEFAULT_PAGE_SIZE } from '../react/use-list'
+import { DEFAULT_PAGE_SIZE, useOwnRows } from '../react/use-list'
 import { DEFAULT_DEBOUNCE_MS } from '../react/use-search'
 import { fetchWithRetry, withRetry } from '../retry'
 import { child, cvFile, cvFiles, makeBase, makeOrgScoped, makeOwned, makeSingleton } from '../schema'
@@ -162,6 +164,7 @@ import {
   isNumberType,
   isOptionalField,
   isStringType,
+  partialValues,
   pickValues,
   unwrapZod
 } from '../zod'
@@ -7773,5 +7776,173 @@ describe('doctor', () => {
     const fails: CheckResult[] = []
     for (let i = 0; i < 10; i += 1) fails.push({ details: [], status: 'fail', title: `F${i}` })
     expect(calcHealthScore(fails)).toBe(0)
+  })
+
+  test('partialValues fills all schema keys at runtime', () => {
+    const schema = object({ content: string(), published: boolean(), title: string() }),
+      values = partialValues(schema, { published: true, title: 'Sprint 3' })
+    expect((values as Record<string, unknown>).content).toBeUndefined()
+    expect(values.published).toBe(true)
+    expect(values.title).toBe('Sprint 3')
+  })
+
+  test('useOwnRows is exported from use-list with expected type', async () => {
+    const mod = await import('../react/use-list')
+    expect(mod).toHaveProperty('useOwnRows')
+    expect(typeof mod.useOwnRows).toBe('function')
+    const fn: typeof useOwnRows = mod.useOwnRows
+    expect(typeof fn).toBe('function')
+    expect(mod.useOwnRows).toBe(useOwnRows)
+  })
+
+  test('UseListOptions search.debounceMs accepts number | undefined', () => {
+    type DebounceMs = NonNullable<UseListOptions<{ title: string }>['search']>['debounceMs']
+    const debounceNum: DebounceMs = 200,
+      debounceUnset: DebounceMs = undefined,
+      optsWithDebounce = {
+        search: { debounceMs: debounceNum, fields: ['title'], query: 'hello' }
+      } satisfies UseListOptions<{ title: string }>,
+      optsWithoutDebounce: UseListOptions<{ title: string }> = {
+        search: { fields: ['title'], query: 'hello' }
+      }
+    expect(optsWithDebounce.search?.debounceMs).toBe(200)
+    expect(optsWithoutDebounce.search?.debounceMs).toBeUndefined()
+    expect(debounceUnset).toBeUndefined()
+  })
+
+  test('MutateOptions retry accepts number | RetryOptions', () => {
+    type RetrySetting = MutateOptions<Record<string, unknown>>['retry']
+    const retryCount: RetrySetting = 3,
+      retryConfig: RetryOptions = { base: 2, maxAttempts: 4 },
+      retryOpts: RetrySetting = retryConfig,
+      withCount = { retry: retryCount } satisfies MutateOptions<Record<string, unknown>>,
+      withConfig = { retry: retryOpts } satisfies MutateOptions<Record<string, unknown>>
+    expect(withCount.retry).toBe(3)
+    if (typeof withConfig.retry === 'object' && withConfig.retry) expect(withConfig.retry.maxAttempts).toBe(4)
+  })
+
+  test('useBulkMutate progress types support BulkProgress, onProgress, and progress state', () => {
+    type ProgressState = ReturnType<typeof useBulkMutate>['progress']
+    const progress: BulkProgress = { failed: 1, pending: 2, succeeded: 3, total: 6 },
+      captured: BulkProgress[] = [],
+      options: UseBulkMutateOptions = {
+        onProgress: p => {
+          captured.push(p)
+        }
+      },
+      stateValue: ProgressState = progress,
+      clearedState: ProgressState = null
+    options.onProgress?.(progress)
+    expect(progress).toEqual({ failed: 1, pending: 2, succeeded: 3, total: 6 })
+    expect(captured[0]).toEqual(progress)
+    expect(stateValue?.total).toBe(6)
+    expect(clearedState).toBeNull()
+  })
+
+  test('new react index exports are importable and surfaced on module checks', async () => {
+    const mod = await import('../react/index'),
+      conflictType: ReactIndexTypes.ConflictData<{ title: string }> = { code: 'CONFLICT' },
+      mutateType: ReactIndexTypes.MutateOptions<{ id: string }> = { retry: 2 },
+      bulkProgressType: ReactIndexTypes.BulkProgress = { failed: 0, pending: 1, succeeded: 0, total: 1 },
+      bulkResultType: ReactIndexTypes.BulkResult<string> = {
+        errors: [],
+        results: ['ok'],
+        settled: [{ status: 'fulfilled', value: 'ok' }]
+      },
+      bulkMutateOptionsType: ReactIndexTypes.UseBulkMutateOptions = {
+        onProgress: p => {
+          const next = p.total
+          expect(next).toBe(1)
+        }
+      },
+      bulkSelectionType: ReactIndexTypes.UseBulkSelectionOpts = {
+        bulkRm: async () => {
+          String(0)
+        },
+        items: [{ _id: '1' }],
+        orgId: 'org_1'
+      },
+      cacheEntryOptionsType: ReactIndexTypes.UseCacheEntryOptions<{ id: string }, { _id: string; stale?: boolean }> = {
+        args: { id: '1' },
+        data: null,
+        load: async () => {
+          String(0)
+        },
+        table: 'post'
+      },
+      cacheEntryResultType: ReactIndexTypes.UseCacheEntryResult<{ _id: string }> = {
+        data: null,
+        isLoading: false,
+        isStale: false,
+        refresh: () => {
+          String(0)
+        }
+      },
+      optimisticType: ReactIndexTypes.OptimisticOptions<{ id: string }, string> = {
+        mutate: async () => 'ok'
+      },
+      searchOptionsType: ReactIndexTypes.UseSearchOptions = { fields: ['title'], query: 'hello' },
+      searchResultType: ReactIndexTypes.UseSearchResult<{ title: string }> = {
+        isSearching: false,
+        results: [{ title: 'x' }]
+      },
+      softDeleteType: ReactIndexTypes.SoftDeleteOpts<{ id: string }> = {
+        restore: async () => 0,
+        rm: async () => 0,
+        toast: () => {
+          String(0)
+        }
+      },
+      infiniteWhereType: ReactIndexTypes.InfiniteListWhere<{ title: string }> = { own: true, title: 'x' },
+      fieldKindType: ReactIndexTypes.FieldKind = 'string',
+      fieldMetaType: ReactIndexTypes.FieldMeta = { kind: 'string' },
+      fieldMetaMapType: ReactIndexTypes.FieldMetaMap = { title: { kind: 'string' } },
+      widenType: ReactIndexTypes.Widen<{ count: 1; tags: ['a'] }> = { count: 1, tags: ['a'] },
+      formReturnType = null as null | ReactIndexTypes.FormReturn<{ title: string }, ReturnType<typeof object>>,
+      probe = {
+        ...mod,
+        BulkProgress: bulkProgressType,
+        BulkResult: bulkResultType,
+        ConflictData: conflictType,
+        FieldKind: fieldKindType,
+        FieldMeta: fieldMetaType,
+        FieldMetaMap: fieldMetaMapType,
+        FormReturn: formReturnType,
+        InfiniteListWhere: infiniteWhereType,
+        MutateOptions: mutateType,
+        OptimisticOptions: optimisticType,
+        SoftDeleteOpts: softDeleteType,
+        UseBulkMutateOptions: bulkMutateOptionsType,
+        UseBulkSelectionOpts: bulkSelectionType,
+        UseCacheEntryOptions: cacheEntryOptionsType,
+        UseCacheEntryResult: cacheEntryResultType,
+        UseSearchOptions: searchOptionsType,
+        UseSearchResult: searchResultType,
+        Widen: widenType
+      }
+    bulkMutateOptionsType.onProgress?.(bulkProgressType)
+    expect(probe).toHaveProperty('ConflictData')
+    expect(probe).toHaveProperty('FormReturn')
+    expect(probe).toHaveProperty('MutateOptions')
+    expect(probe).toHaveProperty('BulkProgress')
+    expect(probe).toHaveProperty('BulkResult')
+    expect(probe).toHaveProperty('UseBulkMutateOptions')
+    expect(probe).toHaveProperty('UseBulkSelectionOpts')
+    expect(probe).toHaveProperty('UseCacheEntryOptions')
+    expect(probe).toHaveProperty('UseCacheEntryResult')
+    expect(probe).toHaveProperty('OptimisticOptions')
+    expect(probe).toHaveProperty('UseSearchOptions')
+    expect(probe).toHaveProperty('UseSearchResult')
+    expect(probe).toHaveProperty('SoftDeleteOpts')
+    expect(probe).toHaveProperty('InfiniteListWhere')
+    expect(probe).toHaveProperty('FieldKind')
+    expect(probe).toHaveProperty('FieldMeta')
+    expect(probe).toHaveProperty('FieldMetaMap')
+    expect(probe).toHaveProperty('Widen')
+    expect(probe).toHaveProperty('useOwnRows')
+    expect(cacheEntryResultType.isLoading).toBe(false)
+    expect(searchResultType.results).toHaveLength(1)
+    expect(fieldMetaMapType.title?.kind).toBe('string')
+    expect(widenType.count).toBe(1)
   })
 })
