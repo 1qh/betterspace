@@ -1,16 +1,16 @@
 'use client'
 
-import type { Chat } from '@a/be/spacetimedb/types'
-
 import { tables } from '@a/be/spacetimedb'
+import { useList } from 'betterspace/react'
 import Link from 'next/link'
 import { useTable } from 'spacetimedb/react'
 
 const Page = () => {
-  const [allChats] = useTable(tables.chat),
-    chats: Chat[] = allChats
-      .filter(c => c.isPublic)
-      .toSorted((a, b) => (a.updatedAt > b.updatedAt ? -1 : a.updatedAt < b.updatedAt ? 1 : 0))
+  const [allChats, isReady] = useTable(tables.chat),
+    { data: chats } = useList(allChats, isReady, {
+      sort: { direction: 'desc', field: 'updatedAt' },
+      where: { isPublic: true }
+    })
   return (
     <div className='mx-auto max-w-3xl p-4' data-testid='public-chats-page'>
       <h1 className='mb-4 text-xl font-semibold'>Public Chats</h1>

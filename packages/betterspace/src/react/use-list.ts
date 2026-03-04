@@ -73,9 +73,9 @@ const DEFAULT_PAGE_SIZE = 50,
     if (left instanceof Date && right instanceof Date) return left.getTime() - right.getTime()
     return toSortableString(left).localeCompare(toSortableString(right))
   },
-  sortData = <T extends Rec>(rows: T[], sort?: ListSort<T>): T[] => {
+  sortData = <T extends Rec>(rows: readonly T[], sort?: ListSort<T>): T[] => {
     const config = getSortConfig(sort)
-    if (!config) return rows
+    if (!config) return [...rows]
     const factor = config.direction === 'asc' ? 1 : -1,
       out = [...rows]
     out.sort((a, b) => compareValues(a[config.field], b[config.field]) * factor)
@@ -95,7 +95,7 @@ const DEFAULT_PAGE_SIZE = 50,
    * })
    * ```
    */
-  useList = <T extends Rec>(data: T[], isReady: boolean, options?: UseListOptions<T>) => {
+  useList = <T extends Rec>(data: readonly T[], isReady: boolean, options?: UseListOptions<T>) => {
     const pageSize = options?.pageSize ?? DEFAULT_PAGE_SIZE,
       [currentPage, setCurrentPage] = useState(options?.page ?? 1),
       filtered = useMemo(() => {
