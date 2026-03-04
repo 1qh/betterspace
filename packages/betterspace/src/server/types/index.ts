@@ -65,6 +65,7 @@ export type {
   RegisteredQuery,
   SchemaBrand,
   SchemaHintMap,
+  SchemaPhantoms,
   SchemaTypeError,
   SearchLike,
   SetupConfig,

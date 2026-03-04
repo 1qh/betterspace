@@ -330,7 +330,9 @@ declare const __brand: unique symbol
 type AssertSchema<T, Expected extends keyof BrandLabelMap> =
   DetectBrand<T> extends Expected ? T : SchemaTypeError<Expected, DetectBrand<T> & keyof BrandLabelMap>
 
-type BaseSchema<T extends ZodRawShape> = SchemaBrand<'base'> & ZodObject<T>
+type BaseSchema<T extends ZodRawShape> = SchemaBrand<'base'> &
+  SchemaPhantoms<_.output<ZodObject<T>>, DocBase<T>, Partial<_.output<ZodObject<T>>>> &
+  ZodObject<T>
 
 interface BrandLabelMap {
   base: 'BaseSchema (from makeBase())'
@@ -353,6 +355,7 @@ type InferReducerInputs<T> = {
 type InferReducerOutputs<T> = {
   [K in keyof T]: InferReducerReturn<T[K]>
 }
+
 type InferReducerReturn<R> = R extends { __return: infer O } ? O : never
 type InferRow<S> =
   S extends OwnedSchema<infer T>
@@ -369,12 +372,19 @@ type InferRow<S> =
 type InferRows<T extends Record<string, unknown>> = {
   [K in keyof T]: InferRow<T[K]>
 }
-
 type InferUpdate<S> = S extends ZodObject<infer T> ? Partial<_.output<ZodObject<T>>> : never
 
-type OrgSchema<T extends ZodRawShape> = SchemaBrand<'org'> & ZodObject<T>
+type OrgSchema<T extends ZodRawShape> = SchemaBrand<'org'> &
+  SchemaPhantoms<
+    _.output<ZodObject<T>>,
+    DocBase<T> & { orgId: number | string; userId: string },
+    Partial<_.output<ZodObject<T>>>
+  > &
+  ZodObject<T>
 
-type OwnedSchema<T extends ZodRawShape> = SchemaBrand<'owned'> & ZodObject<T>
+type OwnedSchema<T extends ZodRawShape> = SchemaBrand<'owned'> &
+  SchemaPhantoms<_.output<ZodObject<T>>, DocBase<T> & { userId: string }, Partial<_.output<ZodObject<T>>>> &
+  ZodObject<T>
 
 interface Register {
   _?: never
@@ -398,12 +408,29 @@ interface SchemaHintMap {
   singleton: 'Created by makeSingleton() → use singletonCrud() + singletonTable()'
 }
 
+interface SchemaPhantoms<C, R, U> {
+  readonly $inferCreate: C
+  readonly $inferRow: R
+  readonly $inferUpdate: U
+  readonly '~types': {
+    readonly create: C
+    readonly row: R
+    readonly update: U
+  }
+}
+
 type SchemaTypeError<
   Expected extends keyof BrandLabelMap,
   Got extends keyof BrandLabelMap
 > = `Schema mismatch: expected ${BrandLabelMap[Expected]}, got ${BrandLabelMap[Got]}. ${Expected extends keyof SchemaHintMap ? SchemaHintMap[Expected] : ''}`
 
-type SingletonSchema<T extends ZodRawShape> = SchemaBrand<'singleton'> & ZodObject<T>
+type SingletonSchema<T extends ZodRawShape> = SchemaBrand<'singleton'> &
+  SchemaPhantoms<
+    _.output<ZodObject<T>>,
+    _.output<ZodObject<T>> & { updatedAt: number; userId: string },
+    Partial<_.output<ZodObject<T>>>
+  > &
+  ZodObject<T>
 
 export type {
   Ab,
@@ -463,6 +490,7 @@ export type {
   RegisteredQuery,
   SchemaBrand,
   SchemaHintMap,
+  SchemaPhantoms,
   SchemaTypeError,
   SearchLike,
   SetupConfig,
