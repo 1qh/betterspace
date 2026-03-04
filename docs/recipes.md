@@ -443,3 +443,258 @@ const restore = async (id: number) => {
   await updateWiki({ id, deletedAt: null })
 }
 ```
+
+* * *
+
+## Post-mutation workflows with onSuccess and onSettled
+
+Run side effects after a mutation completes — redirect, reset form state, show a toast.
+
+```typescript
+'use client'
+
+import { useMutate } from 'betterspace/react'
+import { useReducer } from 'spacetimedb/react'
+import { useRouter } from 'next/navigation'
+import { reducers } from '@/generated/module_bindings'
+
+const CreatePostForm = () => {
+  const router = useRouter()
+  const createPost = useReducer(reducers.create_post)
+
+  const save = useMutate(createPost, {
+    onSuccess: (_result, args) => {
+      // Redirect after successful create
+      router.push('/posts')
+    },
+    onSettled: (_args, error) => {
+      // Always runs — clean up loading state
+      setSubmitting(false)
+      if (error) console.error('Create failed:', error)
+    }
+  })
+
+  return (
+    <form onSubmit={async e => {
+      e.preventDefault()
+      const form = new FormData(e.currentTarget)
+      await save({
+        title: form.get('title') as string,
+        content: form.get('content') as string,
+        published: false
+      })
+    }}>
+      <input name="title" required />
+      <textarea name="content" required />
+      <button type="submit">Create</button>
+    </form>
+  )
+}
+```
+
+`onSettled` fires whether the mutation succeeds or fails.
+Use it for cleanup that must always happen (clearing spinners, resetting flags).
+Use `onSuccess` for actions that only make sense on success (redirects, toasts).
+
+* * *
+
+## Typing components with InferRow, InferCreate, InferUpdate
+
+Derive prop types from your schema brands instead of duplicating type definitions.
+
+```typescript
+import type { InferRow, InferCreate, InferUpdate } from 'betterspace/server'
+import { makeOwned } from 'betterspace/schema'
+import { z } from 'zod/v4'
+
+const postSchema = makeOwned(z.object({
+  title: z.string(),
+  content: z.string(),
+  published: z.boolean()
+}))
+
+type PostRow = InferRow<typeof postSchema>
+type PostCreate = InferCreate<typeof postSchema>
+type PostUpdate = InferUpdate<typeof postSchema>
+
+// Use in component props
+const PostCard = ({ post }: { post: PostRow }) => (
+  <div>
+    <h2>{post.title}</h2>
+    <p>{post.content}</p>
+    <span>{post.published ? 'Published' : 'Draft'}</span>
+  </div>
+)
+
+const CreatePostForm = ({ onSubmit }: { onSubmit: (data: PostCreate) => void }) => {
+  // ...
+}
+
+const EditPostForm = ({ post, onSubmit }: { post: PostRow; onSubmit: (data: PostUpdate) => void }) => {
+  // ...
+}
+```
+
+`InferRow` includes the database-added fields (`_id`, `_creationTime`, `updatedAt`,
+`userId` for owned schemas).
+`InferCreate` is the raw field shape — what you pass to the create reducer.
+`InferUpdate` makes all fields optional — what you pass to the update reducer.
+
+* * *
+
+## Global error type with Register
+
+Use declaration merging to set a project-wide default error type.
+All betterspace hooks and utilities will use your type instead of the default `Error`.
+
+```typescript
+// types/betterspace.d.ts
+declare module 'betterspace/server' {
+  interface Register {
+    defaultError: AppError
+  }
+}
+
+// Your error type
+interface AppError {
+  code: string
+  message: string
+  requestId?: string
+}
+```
+
+After augmenting `Register`, `RegisteredDefaultError` resolves to `AppError`:
+
+```typescript
+import type { RegisteredDefaultError } from 'betterspace/server'
+
+const handleError = (error: RegisteredDefaultError) => {
+  // error.code, error.message, error.requestId are all typed
+  console.error(`[${error.requestId}] ${error.code}: ${error.message}`)
+}
+```
+
+* * *
+
+## Create and update forms with schemaVariants
+
+Define one base schema and derive both create and update variants from it.
+
+```typescript
+import { schemaVariants } from 'betterspace/zod'
+import { z } from 'zod/v4'
+
+const postSchema = z.object({
+  title: z.string().min(1, 'Title is required'),
+  content: z.string().min(10, 'Content must be at least 10 characters'),
+  published: z.boolean()
+})
+
+// create: all fields required
+// update: all fields optional (title stays required here)
+const { create: createSchema, update: updateSchema } = schemaVariants(postSchema, ['title'])
+
+// Create form
+const CreatePost = () => {
+  const createPost = useReducer(reducers.create_post)
+  const form = useForm({
+    schema: createSchema,
+    onSubmit: async ({ value }) => {
+      await createPost(value)
+    }
+  })
+  return (
+    <Form form={form}>
+      <fields.Text name="title" required />
+      <fields.Text name="content" multiline required />
+      <fields.Toggle name="published" trueLabel="Published" />
+      <fields.Submit>Create</fields.Submit>
+    </Form>
+  )
+}
+
+// Edit form — same schema, update variant
+const EditPost = ({ post }: { post: PostRow }) => {
+  const updatePost = useReducer(reducers.update_post)
+  const form = useForm({
+    schema: updateSchema,
+    defaultValues: { title: post.title, content: post.content, published: post.published },
+    onSubmit: async ({ value }) => {
+      await updatePost({ id: post.id, ...value })
+    }
+  })
+  return (
+    <Form form={form}>
+      <fields.Text name="title" required />
+      <fields.Text name="content" multiline />
+      <fields.Toggle name="published" trueLabel="Published" />
+      <fields.Submit>Save</fields.Submit>
+    </Form>
+  )
+}
+```
+
+* * *
+
+## Typed form validation errors with getFieldErrors
+
+Surface server-side field validation errors back into your form UI.
+
+```typescript
+'use client'
+
+import { getFieldErrors } from 'betterspace/server'
+import { useMutate } from 'betterspace/react'
+import { useReducer } from 'spacetimedb/react'
+import { useState } from 'react'
+import { reducers } from '@/generated/module_bindings'
+import { z } from 'zod/v4'
+
+const postSchema = z.object({
+  title: z.string().min(1),
+  content: z.string().min(10),
+  published: z.boolean()
+})
+
+const CreatePost = () => {
+  const createPost = useReducer(reducers.create_post)
+  const [fieldErrors, setFieldErrors] = useState<Partial<{ title: string; content: string }>>({})
+
+  const save = useMutate(createPost, {
+    onError: error => {
+      const errors = getFieldErrors<typeof postSchema>(error)
+      if (errors) {
+        setFieldErrors(errors)
+        return
+      }
+      // Fall through to default toast for non-field errors
+    }
+  })
+
+  return (
+    <form onSubmit={async e => {
+      e.preventDefault()
+      setFieldErrors({})
+      const form = new FormData(e.currentTarget)
+      await save({
+        title: form.get('title') as string,
+        content: form.get('content') as string,
+        published: false
+      })
+    }}>
+      <div>
+        <input name="title" />
+        {fieldErrors.title && <p className="text-red-500">{fieldErrors.title}</p>}
+      </div>
+      <div>
+        <textarea name="content" />
+        {fieldErrors.content && <p className="text-red-500">{fieldErrors.content}</p>}
+      </div>
+      <button type="submit">Create</button>
+    </form>
+  )
+}
+```
+
+`getFieldErrors` returns `undefined` when the error has no field-level data, so you can
+safely fall through to a generic error handler.

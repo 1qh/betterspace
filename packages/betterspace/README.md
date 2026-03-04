@@ -127,7 +127,7 @@ all generated.
 | External API cache with TTL + auto-refresh | 0 |
 | Branded types — compile-time factory mismatch prevention | 0 |
 | Typed error handling with discriminated result unions | 0 |
-| Unified CLI — 10 commands (`init`, `add`, `check`, `dev`, `docs`, `doctor`, `generate`, `migrate`, `use`, `viz`) | 0 |
+| Unified CLI — 11 commands (`init`, `add`, `check`, `dev`, `docs`, `doctor`, `generate`, `migrate`, `use`, `validate`, `viz`) | 0 |
 | Project health score (`betterspace check --health`) | 0 |
 | Schema preview (`betterspace check --schema`) | 0 |
 | Browser devtools panel (subscriptions, mutations, cache, errors) | 0 |
@@ -164,6 +164,20 @@ all generated.
 | Client-safe Zod schemas (`@a/be/z`) — single source of truth for forms | 0 |
 | Identity helpers (`identityEquals`, `identityFromHex`, `identityToHex`) | 0 |
 | `zodFromTable` — bridge SpacetimeDB types to Zod schemas | 0 |
+| `useMutate` `onSuccess`/`onSettled` callbacks for post-mutation workflows | 0 |
+| `useBulkMutate`/`useOptimisticMutation` `onSettled` callbacks | 0 |
+| `useList` auto-reset pagination on filter/search change | 0 |
+| `useInfiniteList` search support (`search` option with `debounceMs`) | 0 |
+| `disabled`/`helpText`/`required` props on all 14 field components | 0 |
+| `TypedFieldErrors<S>` and `getFieldErrors<S>()` for typed form validation | 0 |
+| `className` prop on `ErrorBoundary` | 0 |
+| `betterspace validate` CLI command (alias for `check --health`) | 0 |
+| `Register` interface with declaration merging for global error/meta types | 0 |
+| `InferRow<S>`, `InferCreate<S>`, `InferUpdate<S>` — brand-aware type inference | 0 |
+| `InferRows<T>` mapped type over schema records | 0 |
+| `InferReducerArgs`, `InferReducerReturn`, `InferReducerInputs`, `InferReducerOutputs` | 0 |
+| `schemaVariants()` — derive create/update schemas from one base schema | 0 |
+| `injectError()` devtools function + error injection dropdown in devtools panel | 0 |
 
 ## Developer Tools
 

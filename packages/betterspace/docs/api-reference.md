@@ -335,6 +335,11 @@ const { data, hasMore, isLoading, loadMore, page, totalCount } = useList(
 )
 ```
 
+**Auto-reset pagination:**
+
+When `where` or `search.query` changes, `useList` automatically resets to page 1. This
+prevents stale pagination state when filters change.
+
 **Type-safe `where`:**
 
 The `where` option is generic over `T` — field names are checked against the row type at
@@ -474,17 +479,29 @@ const result = await upload(file, { signal: abortController.signal })
 ### useInfiniteList
 
 Like `useList` but designed for infinite scroll with intersection observer integration.
-Accepts the same type-safe `where` option as `useList`.
+Accepts the same type-safe `where` option as `useList`. Supports the `search` option
+with `debounceMs`. When `where` or `search.query` changes, the visible count resets to
+`batchSize` automatically.
 
 ```typescript
 import { useInfiniteList } from 'betterspace/react'
 
 const { data, hasMore, loadMore, totalCount } = useInfiniteList(rows, isReady, {
-  pageSize: 20,
+  batchSize: 20,
   sort: { updatedAt: 'desc' },
-  where: { published: true }
+  where: { published: true },
+  search: { query: searchInput, fields: ['title', 'content'], debounceMs: 300 }
 })
 ```
+
+**Options (`InfiniteListOptions<T>`):**
+
+| Option | Type | Description |
+| --- | --- | --- |
+| `batchSize` | `number` | Items to load per batch (default: 50) |
+| `sort` | `ListSort<T>` | Sort field and direction |
+| `where` | `ListWhere<T>` | Filter predicate |
+| `search` | `{ query, fields, debounceMs? }` | Full-text search with optional debounce |
 
 * * *
 
@@ -524,18 +541,27 @@ settle.
 import { useBulkMutate } from 'betterspace/react'
 
 const bulk = useBulkMutate(removeTask, {
-  onSuccess: count => toast(`${count} deleted`)
+  onSuccess: count => toast(`${count} deleted`),
+  onSettled: result => {
+    // Called once all items have settled
+    console.log(result.errors, result.results)
+  }
 })
 bulk.run([{ id: 1 }, { id: 2 }, { id: 3 }])
 ```
+
+**`onSettled` signature:** `(result: BulkResult<unknown>) => void`
+
+`BulkResult` contains `errors`, `results`, and `settled` (raw `PromiseSettledResult[]`).
 
 **Options:**
 
 | Option | Type | Description |
 | --- | --- | --- |
-| `onSuccess` | `(count: number) => void` | Called when all mutations succeed |
 | `onError` | `((error: unknown) => void) \| false` | Called if any mutation fails. Pass `false` to suppress the default error toast. |
 | `onProgress` | `(progress: BulkProgress) => void` | Called after each item settles with live progress counts |
+| `onSettled` | `(result: BulkResult<unknown>) => void` | Called once all items have settled |
+| `onSuccess` | `(count: number) => void` | Called when all mutations succeed |
 
 **`BulkProgress` type:**
 
@@ -578,16 +604,39 @@ Wraps a mutation function with optimistic updates, devtools tracking, and toast 
 ```typescript
 import { useMutate } from 'betterspace/react'
 
-const save = useMutate(api.posts.update, { optimistic: true })
+const save = useMutate(updatePost, { optimistic: true })
 await save({ id: 1, title: 'Updated' })
 ```
 
-**Options (`MutateOptions<A>`):**
+**`onSuccess` and `onSettled` callbacks:**
+
+```typescript
+const save = useMutate(updatePost, {
+  onSuccess: (result, args) => {
+    // Called when the mutation resolves successfully
+    router.push(`/posts/${args.id}`)
+  },
+  onSettled: (args, error, result) => {
+    // Called after every mutation, success or failure
+    setSubmitting(false)
+  }
+})
+```
+
+**`onSuccess` signature:** `(result: R, args: A) => void` **`onSettled` signature:**
+`(args: A, error: unknown, result?: R) => void`
+
+`onSettled` always fires.
+When the mutation fails, `error` is the thrown value and `result` is `undefined`.
+
+**Options (`MutateOptions<A, R>`):**
 
 | Option | Type | Description |
 | --- | --- | --- |
 | `getName` | `(args: A) => string` | Custom name for devtools tracking |
 | `onError` | `((error: unknown) => void) \| false` | Override or suppress the default error toast |
+| `onSettled` | `(args: A, error: unknown, result?: R) => void` | Called after every mutation |
+| `onSuccess` | `(result: R, args: A) => void` | Called when the mutation succeeds |
 | `optimistic` | `boolean` | Enable optimistic updates (default: `true`) |
 | `resolveId` | `(args: A) => string \| undefined` | Resolve the row ID for optimistic reconciliation |
 | `retry` | `number \| RetryOptions` | Retry on failure. A number sets `maxAttempts`. An object gives full control. |
@@ -628,6 +677,45 @@ Retries use exponential backoff with jitter.
 
 * * *
 
+### useOptimisticMutation
+
+Low-level optimistic mutation hook with rollback support.
+
+```typescript
+import { useOptimisticMutation } from 'betterspace/react'
+
+const { execute, isPending, error } = useOptimisticMutation({
+  mutate: updatePost,
+  onOptimistic: args => {
+    // Apply optimistic update to local state
+  },
+  onRollback: (args, err) => {
+    // Revert optimistic update on failure
+  },
+  onSuccess: (result, args) => {
+    // Called when mutation resolves
+  },
+  onSettled: (args, error, result) => {
+    // Called after every mutation, success or failure
+    setSubmitting(false)
+  }
+})
+```
+
+**`onSettled` signature:** `(args: A, error: unknown, result?: R) => void`
+
+**Options (`OptimisticOptions<A, R>`):**
+
+| Option | Type | Description |
+| --- | --- | --- |
+| `mutate` | `(args: A) => Promise<R>` | The mutation function to execute |
+| `onOptimistic` | `(args: A) => void` | Called before the mutation to apply optimistic state |
+| `onRollback` | `(args: A, error: Error) => void` | Called on failure to revert optimistic state |
+| `onSettled` | `(args: A, error: unknown, result?: R) => void` | Called after every mutation |
+| `onSuccess` | `(result: R, args: A) => void` | Called when the mutation succeeds |
+
+* * *
+
 ### useOnlineStatus
 
 Tracks browser online/offline state.
@@ -655,6 +743,43 @@ import { OrgProvider } from 'betterspace/react'
 </OrgProvider>
 ```
 
+### ErrorBoundary
+
+Catches React render errors and displays a fallback UI. Accepts a `className` prop to
+style the fallback container.
+
+```typescript
+import { ErrorBoundary } from 'betterspace/components'
+
+<ErrorBoundary className="min-h-screen">
+  <MyPage />
+</ErrorBoundary>
+
+// Custom fallback
+<ErrorBoundary
+  className="p-8"
+  fallback={({ error, resetErrorBoundary }) => (
+    <div>
+      <p>{error.message}</p>
+      <button onClick={resetErrorBoundary}>Retry</button>
+    </div>
+  )}
+>
+  <MyPage />
+</ErrorBoundary>
+```
+
+**Props:**
+
+| Prop | Type | Description |
+| --- | --- | --- |
+| `children` | `ReactNode` | Content to protect |
+| `className` | `string` | Applied to the fallback container `div` |
+| `fallback` | `(props: { error: Error; resetErrorBoundary: () => void }) => ReactNode` | Custom fallback renderer |
+| `onError` | `(error: Error, errorInfo: ErrorInfo) => void` | Called when an error is caught |
+
+* * *
+
 ### BetterspaceDevtools
 
 Development panel showing active subscriptions, pending mutations, and errors.
@@ -675,6 +800,43 @@ import { SchemaPlayground } from 'betterspace/react'
 
 <SchemaPlayground tables={tables} />
 ```
+
+### Form field components
+
+All 14 field components (`Arr`, `Choose`, `Colorpick`, `Combobox`, `Datepick`, `File`,
+`Files`, `MultiSelect`, `Num`, `Rating`, `Slider`, `Text`, `Timepick`, `Toggle`) accept
+three shared accessibility props:
+
+| Prop | Type | Description |
+| --- | --- | --- |
+| `disabled` | `boolean` | Disables the input and prevents interaction |
+| `helpText` | `string` | Renders a hint below the field |
+| `required` | `boolean` | Appends a red `*` to the field label |
+
+```typescript
+import { fields } from 'betterspace/components'
+const { Text, Toggle, Choose, Num } = fields
+
+// disabled
+<Text name="title" disabled />
+
+// helpText
+<Text name="slug" helpText="Used in the URL. Lowercase letters and hyphens only." />
+
+// required
+<Text name="title" required />
+<Toggle name="published" trueLabel="Published" required />
+<Choose name="category" required />
+<Num name="price" required helpText="Enter price in USD" />
+```
+
+These props work on every field component.
+`disabled` propagates to the underlying input element.
+`helpText` renders as a `<p>` below the input.
+`required` adds a visual indicator only — actual validation is enforced by the Zod
+schema.
+
+* * *
 
 ### Provider utilities
 
@@ -854,6 +1016,31 @@ The warnings tell you what to fix before running `spacetime publish`.
 
 * * *
 
+### `betterspace validate`
+
+Lint schema, reducers, indexes, and access control in one command.
+An alias for `betterspace check --health`.
+
+```bash
+betterspace validate
+betterspace validate --schema-file=t.ts
+```
+
+Output:
+
+```
+Schema: 4 tables, 3 owned, 1 org
+Reducers: 12 generated, 0 custom
+Indexes: all covered
+Access: all tables have ACL
+Health: 100/100
+```
+
+Runs the same 7-category checks as `betterspace doctor`. Use it in CI to catch schema
+drift before deployment.
+
+* * *
+
 ## Error codes
 
 Reducers throw `SenderError('CODE: message')`. The client receives the error with the
@@ -960,3 +1147,216 @@ import type {
   Widen
 } from 'betterspace/react'
 ```
+
+* * *
+
+### Register interface
+
+`Register` is an empty interface you can augment via declaration merging to configure
+global betterspace types.
+This lets you set a project-wide default error type and metadata type without touching
+library source.
+
+```typescript
+// In your project (e.g., types/betterspace.d.ts)
+import type { MyError } from './errors'
+import type { MyMeta } from './meta'
+
+declare module 'betterspace/server' {
+  interface Register {
+    defaultError: MyError
+    meta: MyMeta
+  }
+}
+```
+
+After augmenting `Register`, two derived types update automatically:
+
+```typescript
+import type { RegisteredDefaultError, RegisteredMeta } from 'betterspace/server'
+
+// RegisteredDefaultError resolves to MyError (or Error if not set)
+// RegisteredMeta resolves to MyMeta (or Record<string, unknown> if not set)
+```
+
+* * *
+
+### InferRow, InferCreate, InferUpdate
+
+Derive TypeScript types from betterspace schema brands.
+
+```typescript
+import type { InferRow, InferCreate, InferUpdate } from 'betterspace/server'
+import { makeOwned, makeOrgScoped } from 'betterspace/schema'
+import { z } from 'zod/v4'
+
+const postSchema = makeOwned(
+  z.object({
+    title: z.string(),
+    content: z.string(),
+    published: z.boolean()
+  })
+)
+
+// InferRow: the full row as stored in the database
+// Includes _id, _creationTime, updatedAt, userId (for owned)
+type PostRow = InferRow<typeof postSchema>
+// { title: string; content: string; published: boolean; _id: number | string; _creationTime: number; updatedAt: number; userId: string }
+
+// InferCreate: the shape for creating a new row (all fields required)
+type PostCreate = InferCreate<typeof postSchema>
+// { title: string; content: string; published: boolean }
+
+// InferUpdate: the shape for updating a row (all fields optional)
+type PostUpdate = InferUpdate<typeof postSchema>
+// { title?: string; content?: string; published?: boolean }
+```
+
+`InferRow` is brand-aware:
+
+| Schema brand | Extra fields on `InferRow` |
+| --- | --- |
+| `OwnedSchema` | `userId: string` |
+| `OrgSchema` | `userId: string`, `orgId: number \| string` |
+| `BaseSchema` | none |
+| `SingletonSchema` | `userId: string`, `updatedAt: number` |
+
+* * *
+
+### InferRows
+
+Maps `InferRow` over a record of schemas, producing a typed row map.
+
+```typescript
+import type { InferRows } from 'betterspace/server'
+
+const schemas = {
+  post: postSchema,
+  profile: profileSchema
+}
+
+type Rows = InferRows<typeof schemas>
+// { post: PostRow; profile: ProfileRow }
+```
+
+* * *
+
+### InferReducerArgs, InferReducerReturn, InferReducerInputs, InferReducerOutputs
+
+Extract argument and return types from generated reducer objects.
+
+```typescript
+import type {
+  InferReducerArgs,
+  InferReducerReturn,
+  InferReducerInputs,
+  InferReducerOutputs
+} from 'betterspace/server'
+import { reducers } from '@/generated/module_bindings'
+
+// Single reducer
+type CreatePostArgs = InferReducerArgs<typeof reducers.create_post>
+type CreatePostReturn = InferReducerReturn<typeof reducers.create_post>
+
+// All reducers at once
+type AllArgs = InferReducerInputs<typeof reducers>
+type AllReturns = InferReducerOutputs<typeof reducers>
+```
+
+Use these when writing typed wrappers around generated reducers.
+
+* * *
+
+### TypedFieldErrors and getFieldErrors
+
+`TypedFieldErrors<S>` is a partial record of field names from a Zod schema to error
+strings. `getFieldErrors<S>(error)` extracts field-level validation errors from a
+betterspace error, narrowed to the schema’s keys.
+
+```typescript
+import type { TypedFieldErrors } from 'betterspace/server'
+import { getFieldErrors } from 'betterspace/server'
+import { z } from 'zod/v4'
+
+const postSchema = z.object({
+  title: z.string().min(1),
+  content: z.string().min(10)
+})
+
+type PostFieldErrors = TypedFieldErrors<typeof postSchema>
+// Partial<{ title: string; content: string }>
+
+try {
+  await createPost(data)
+} catch (error) {
+  const fieldErrors = getFieldErrors<typeof postSchema>(error)
+  // fieldErrors?.title — type-safe, only valid field names
+  // fieldErrors?.content
+}
+```
+
+`getFieldErrors` returns `undefined` when the error has no field-level data.
+
+* * *
+
+### schemaVariants
+
+Generates create and update schema variants from a single base schema.
+The create variant is the original schema.
+The update variant makes all fields optional, with selected keys kept required.
+
+```typescript
+import { schemaVariants } from 'betterspace/zod'
+import { z } from 'zod/v4'
+
+const postSchema = z.object({
+  title: z.string().min(1),
+  content: z.string(),
+  published: z.boolean()
+})
+
+const { create, update } = schemaVariants(postSchema, ['title'])
+// create: { title: string; content: string; published: boolean }
+// update: { title: string; content?: string; published?: boolean }
+// 'title' stays required in the update variant
+
+// Without requiredOnUpdate — all fields become optional
+const { create: c2, update: u2 } = schemaVariants(postSchema)
+// update: { title?: string; content?: string; published?: boolean }
+```
+
+Use `schemaVariants` to avoid duplicating schema definitions for create and edit forms.
+
+* * *
+
+### injectError (devtools)
+
+Programmatically inject a fake error into the devtools error panel.
+Useful for testing error UI without triggering real server errors.
+
+```typescript
+import { injectError } from 'betterspace/react'
+
+// Inject a NOT_FOUND error
+injectError('NOT_FOUND')
+
+// Inject with extra detail
+injectError('FORBIDDEN', {
+  message: 'You do not own this post',
+  table: 'post',
+  op: 'update'
+})
+```
+
+**Signature:**
+
+```typescript
+injectError = (
+  code: ErrorCode,
+  opts?: { detail?: string; message?: string; op?: string; table?: string }
+) => void
+```
+
+The injected error appears in the devtools **Errors** tab immediately.
+The devtools panel also includes an error injection dropdown in development mode,
+letting you trigger any error code without writing code.

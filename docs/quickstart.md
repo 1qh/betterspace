@@ -388,6 +388,36 @@ export default BlogApp
 
 Updates from any client appear in all connected clients within ~39ms (local Docker).
 
+## TypeScript type inference
+
+betterspace exports utility types that derive TypeScript types directly from your schema
+brands. No manual type duplication needed.
+
+```typescript
+import type { InferRow, InferCreate, InferUpdate } from 'betterspace/server'
+
+// Derive types from your schema
+type PostRow = InferRow<typeof postSchema>     // full row with _id, updatedAt, userId
+type PostCreate = InferCreate<typeof postSchema> // create args (all required)
+type PostUpdate = InferUpdate<typeof postSchema> // update args (all optional)
+
+// Use in component props
+const PostCard = ({ post }: { post: PostRow }) => <h2>{post.title}</h2>
+```
+
+For reducer types:
+
+```typescript
+import type { InferReducerArgs, InferReducerReturn } from 'betterspace/server'
+import { reducers } from '@/generated/module_bindings'
+
+type CreateArgs = InferReducerArgs<typeof reducers.create_post>
+type CreateReturn = InferReducerReturn<typeof reducers.create_post>
+```
+
+See [API reference](./api-reference.md#inferrow-infercreate-inferupdate) for the full
+type reference.
+
 ## Next steps
 
 - [Data fetching](./data-fetching.md) for filtering, pagination, and SSR
