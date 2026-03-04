@@ -117,7 +117,7 @@ type Api<T extends Record<string, unknown>> = ReactFormExtendedApi<
 
 /** Conflict payload returned by optimistic concurrency checks. */
 interface ConflictData<T = unknown> {
-  code: string
+  code: 'CONFLICT'
   current?: T
   incoming?: T
 }

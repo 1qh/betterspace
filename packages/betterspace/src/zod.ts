@@ -93,11 +93,11 @@ const WRAPPERS: ReadonlySet<DefType> = new Set<DefType>([
   requiredPartial = <S extends ZodObject<ZodRawShape>>(
     schema: S,
     requiredKeys: (keyof S['shape'])[]
-  ): ZodObject<ZodRawShape> => {
+  ): ZodObject<S['shape']> => {
     const partial = schema.partial(),
       required: Record<string, true> = {}
     for (const k of requiredKeys) required[k as string] = true
-    return partial.required(required) as ZodObject<ZodRawShape>
+    return partial.required(required) as ZodObject<S['shape']>
   },
   /** Computes a default value for a single schema field. */
   defaultValue = (schema: unknown): unknown => {
@@ -180,7 +180,7 @@ const WRAPPERS: ReadonlySet<DefType> = new Set<DefType>([
       requiredOnUpdate: (keyof output<S>)[]
     ): {
       create: S
-      update: ZodObject<ZodRawShape>
+      update: ZodObject<S['shape']>
     }
   } = <S extends ZodObject<ZodRawShape>>(schema: S, requiredOnUpdate?: (keyof output<S>)[]) => ({
     create: schema,

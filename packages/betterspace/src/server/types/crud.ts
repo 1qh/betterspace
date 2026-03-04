@@ -44,9 +44,9 @@ type CrudFieldValues<F extends CrudFieldBuilders> = {
 
 interface CrudHooks<
   DB = unknown,
-  Row = Record<string, unknown>,
-  CreateArgs = Record<string, unknown>,
-  UpdatePatch = Record<string, unknown>
+  Row extends Record<string, unknown> = Record<string, unknown>,
+  CreateArgs extends Record<string, unknown> = Record<string, unknown>,
+  UpdatePatch extends Record<string, unknown> = Record<string, unknown>
 > {
   afterCreate?: (ctx: HookCtx<DB>, args: { data: CreateArgs; row: Row }) => Promise<void> | void
   afterDelete?: (ctx: HookCtx<DB>, args: { row: Row }) => Promise<void> | void
