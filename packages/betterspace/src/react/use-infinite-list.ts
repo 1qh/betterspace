@@ -1,14 +1,15 @@
 'use client'
 
-import { useCallback, useMemo, useState } from 'react'
+import { useCallback, useEffect, useMemo, useRef, useState } from 'react'
 
 import type { ComparisonOp } from '../server/types'
 
 import { matchW } from '../server/helpers'
 
-/** Client-side infinite-list options for filtering and sorting. */
+/** Client-side infinite-list options for filtering, sorting, and searching. */
 interface InfiniteListOptions<T extends Rec = Rec> {
   batchSize?: number
+  search?: { debounceMs?: number; fields: (keyof T & string)[]; query: string }
   sort?: ListSort<T>
   where?: ListWhere<T>
 }
@@ -81,16 +82,58 @@ const DEFAULT_BATCH_SIZE = 50,
    * const list = useInfiniteList(rows, ready, { batchSize: 25 })
    * ```
    */
+  searchMatches = <T extends Rec>(row: T, query: string, fields: (keyof T & string)[]): boolean => {
+    const lower = query.toLowerCase()
+    for (const field of fields) {
+      const val = row[field]
+      if (typeof val === 'string' && val.toLowerCase().includes(lower)) return true
+      if (Array.isArray(val))
+        for (const item of val) if (typeof item === 'string' && item.toLowerCase().includes(lower)) return true
+    }
+    return false
+  },
   useInfiniteList = <T extends Rec>(data: T[], isReady: boolean, options?: InfiniteListOptions<T>) => {
     const batchSize = Math.max(1, options?.batchSize ?? DEFAULT_BATCH_SIZE),
+      rawQuery = options?.search?.query ?? '',
+      debounceMs = options?.search?.debounceMs,
+      [debouncedQuery, setDebouncedQuery] = useState(rawQuery),
       [visibleCount, setVisibleCount] = useState(batchSize),
-      filtered = useMemo(() => {
+      whereRef = useRef(options?.where),
+      searchQueryRef = useRef(rawQuery)
+
+    useEffect(() => {
+      if (!debounceMs) {
+        setDebouncedQuery(rawQuery)
+        return
+      }
+      const id = setTimeout(() => setDebouncedQuery(rawQuery), debounceMs)
+      return () => clearTimeout(id)
+    }, [debounceMs, rawQuery])
+
+    const searchQuery = debounceMs ? debouncedQuery : rawQuery
+
+    useEffect(() => {
+      const whereChanged = whereRef.current !== options?.where,
+        searchChanged = searchQueryRef.current !== searchQuery
+      whereRef.current = options?.where
+      searchQueryRef.current = searchQuery
+      if (whereChanged || searchChanged) setVisibleCount(batchSize)
+    }, [batchSize, options?.where, searchQuery])
+
+    const filtered = useMemo(() => {
         if (!options?.where) return data
         const out: T[] = []
         for (const row of data) if (matchW(row, options.where)) out.push(row)
         return out
       }, [data, options?.where]),
-      sorted = useMemo(() => sortData(filtered, options?.sort), [filtered, options?.sort]),
+      searched = useMemo(() => {
+        const fields = options?.search?.fields ?? []
+        if (searchQuery === '' || fields.length === 0) return filtered
+        const out: T[] = []
+        for (const row of filtered) if (searchMatches(row, searchQuery, fields)) out.push(row)
+        return out
+      }, [filtered, searchQuery, options?.search?.fields]),
+      sorted = useMemo(() => sortData(searched, options?.sort), [searched, options?.sort]),
       hasMore = visibleCount < sorted.length,
       sliced = useMemo(() => sorted.slice(0, visibleCount), [sorted, visibleCount]),
       loadMore = useCallback(() => {
@@ -102,7 +145,8 @@ const DEFAULT_BATCH_SIZE = 50,
       data: sliced,
       hasMore,
       isLoading: !isReady,
-      loadMore
+      loadMore,
+      totalCount: sorted.length
     }
   }
 
