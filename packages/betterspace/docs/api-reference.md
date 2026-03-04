@@ -346,6 +346,18 @@ useList(blogs, ready, { where: { published: true } }) // OK
 useList(items, ready, { where: { price: { $gt: 10 } } }) // OK
 ```
 
+**`search.debounceMs`:**
+
+Pass `debounceMs` inside the `search` option to debounce the search query.
+The filter only re-runs after the user stops typing for the specified number of
+milliseconds.
+
+```typescript
+useList(posts, isReady, {
+  search: { query: searchInput, fields: ['title', 'content'], debounceMs: 300 }
+})
+```
+
 **Return value:**
 
 | Field | Type | Description |
@@ -356,6 +368,43 @@ useList(items, ready, { where: { price: { $gt: 10 } } }) // OK
 | `loadMore` | `() => void` | Load the next page |
 | `page` | `number` | Current page number |
 | `totalCount` | `number` | Total filtered row count |
+
+* * *
+
+### useOwnRows
+
+Computes an `own` boolean on each row using a predicate function.
+Pass `null` or `undefined` when the current user’s identity is not yet known — all rows
+will have `own: false`.
+
+```typescript
+import { useOwnRows } from 'betterspace/react'
+
+const blogs = useOwnRows(
+  allBlogs,
+  identity ? b => b.userId.isEqual(identity) : null
+)
+```
+
+**Signature:**
+
+```typescript
+useOwnRows = <T extends Record<string, unknown>>(
+  rows: readonly T[],
+  isOwn: ((row: T) => boolean) | null | undefined
+): (T & { own: boolean })[]
+```
+
+The returned rows are memoized.
+Combine with `useList` and `where: { own: true }` to show only the current user’s rows:
+
+```typescript
+const ownedBlogs = useOwnRows(
+  allBlogs,
+  identity ? b => b.userId.isEqual(identity) : null
+)
+const { data } = useList(ownedBlogs, isReady, { where: { own: true } })
+```
 
 * * *
 
@@ -485,8 +534,97 @@ bulk.run([{ id: 1 }, { id: 2 }, { id: 3 }])
 | Option | Type | Description |
 | --- | --- | --- |
 | `onSuccess` | `(count: number) => void` | Called when all mutations succeed |
-| `onError` | `(errors: unknown[]) => void` | Called if any mutation fails |
-| `onSettled` | `(results: SettledResult[]) => void` | Called after all mutations settle |
+| `onError` | `((error: unknown) => void) \| false` | Called if any mutation fails. Pass `false` to suppress the default error toast. |
+| `onProgress` | `(progress: BulkProgress) => void` | Called after each item settles with live progress counts |
+
+**`BulkProgress` type:**
+
+```typescript
+interface BulkProgress {
+  failed: number
+  pending: number
+  succeeded: number
+  total: number
+}
+```
+
+**Return value:**
+
+| Field | Type | Description |
+| --- | --- | --- |
+| `isPending` | `boolean` | `true` while any item is still in flight |
+| `progress` | `BulkProgress \| null` | Live progress counts, or `null` when idle |
+| `run` | `(items: A[]) => Promise<BulkResult<R>>` | Start the bulk operation |
+
+Use `progress` to render a progress bar:
+
+```typescript
+const bulk = useBulkMutate(removeTask, {
+  onProgress: p => console.log(`${p.succeeded}/${p.total} done`),
+  onSuccess: count => toast(`${count} deleted`)
+})
+
+bulk.run(selectedIds.map(id => ({ id })))
+
+// bulk.progress: { total: 3, succeeded: 1, failed: 0, pending: 2 }
+```
+
+* * *
+
+### useMutate
+
+Wraps a mutation function with optimistic updates, devtools tracking, and toast errors.
+
+```typescript
+import { useMutate } from 'betterspace/react'
+
+const save = useMutate(api.posts.update, { optimistic: true })
+await save({ id: 1, title: 'Updated' })
+```
+
+**Options (`MutateOptions<A>`):**
+
+| Option | Type | Description |
+| --- | --- | --- |
+| `getName` | `(args: A) => string` | Custom name for devtools tracking |
+| `onError` | `((error: unknown) => void) \| false` | Override or suppress the default error toast |
+| `optimistic` | `boolean` | Enable optimistic updates (default: `true`) |
+| `resolveId` | `(args: A) => string \| undefined` | Resolve the row ID for optimistic reconciliation |
+| `retry` | `number \| RetryOptions` | Retry on failure. A number sets `maxAttempts`. An object gives full control. |
+| `type` | `MutationType` | Override the detected mutation type (`'create'`, `'update'`, or `'delete'`) |
+
+**`retry` with `RetryOptions`:**
+
+```typescript
+import type { RetryOptions } from 'betterspace/retry'
+
+const save = useMutate(updatePost, {
+  retry: 3
+})
+
+const saveWithBackoff = useMutate(updatePost, {
+  retry: {
+    maxAttempts: 5,
+    initialDelayMs: 200,
+    maxDelayMs: 5_000,
+    base: 2
+  }
+})
+```
+
+**`RetryOptions` type:**
+
+```typescript
+interface RetryOptions {
+  base?: number
+  initialDelayMs?: number
+  maxAttempts?: number
+  maxDelayMs?: number
+}
+```
+
+Defaults: `maxAttempts: 3`, `initialDelayMs: 500`, `maxDelayMs: 10_000`, `base: 2`.
+Retries use exponential backoff with jitter.
 
 * * *
 
@@ -602,6 +740,41 @@ const wire = idToWire(42) // '42'
 const id = idFromWire('42') // 42
 ```
 
+### partialValues
+
+Creates an object with all keys from a Zod schema, filling unspecified ones with
+`undefined`. Eliminates the boilerplate of passing every optional field explicitly when
+calling update reducers.
+
+```typescript
+import { partialValues } from 'betterspace/zod'
+
+update(partialValues(editSchema, { id, published: true }))
+```
+
+**Signature:**
+
+```typescript
+partialValues = <S extends ZodObject<ZodRawShape>>(
+  schema: S,
+  values: Partial<output<S>>
+): output<S>
+```
+
+Without `partialValues` you’d write:
+
+```typescript
+update({ title: undefined, content: undefined, id, published: true })
+```
+
+With it:
+
+```typescript
+update(partialValues(editSchema, { id, published: true }))
+```
+
+* * *
+
 ### zodFromTable
 
 Convert SpacetimeDB column definitions to a Zod schema.
@@ -637,6 +810,47 @@ const uploadUrl = await createS3UploadPresignedUrl({
   expiresInSeconds: 900 // 15 minutes
 })
 ```
+
+* * *
+
+## CLI
+
+### `betterspace init` pre-flight checks
+
+Before scaffolding, `betterspace init` runs pre-flight checks to catch missing
+dependencies early:
+
+```bash
+bunx betterspace init
+```
+
+Output:
+
+```
+Pre-flight checks:
+  ✓ spacetime CLI
+  ✓ Docker running
+
+Scaffolding betterspace project...
+```
+
+The checks verify:
+
+| Check | Pass | Warn |
+| --- | --- | --- |
+| SpacetimeDB CLI | `spacetime` found in PATH | Install command printed |
+| Docker | `docker` found and daemon running | Install or start instructions printed |
+
+Warnings don’t abort the scaffold — files are still written.
+The warnings tell you what to fix before running `spacetime publish`.
+
+**Options:**
+
+| Flag | Default | Description |
+| --- | --- | --- |
+| `--module-dir=DIR` | `module` | SpacetimeDB module directory |
+| `--app-dir=DIR` | `src/app` | Next.js app directory |
+| `--help`, `-h` |  | Print help and exit |
 
 * * *
 
@@ -701,3 +915,48 @@ try {
 **Recommendation:** Use `t.u32()` for all auto-increment IDs.
 `u32` maps to `number` and works everywhere.
 `u64` maps to `bigint` and breaks JSON serialization.
+
+### Type exports from `betterspace/react`
+
+All types are importable directly:
+
+```typescript
+import type {
+  BulkProgress,
+  BulkResult,
+  ConflictData,
+  CreateSpacetimeClientOptions,
+  DevtoolsProps,
+  ErrorToastOptions,
+  FieldKind,
+  FieldMeta,
+  FieldMetaMap,
+  FormReturn,
+  InfiniteListOptions,
+  InfiniteListWhere,
+  ListWhere,
+  MutateOptions,
+  MutationType,
+  OptimisticOptions,
+  PendingMutation,
+  PlaygroundProps,
+  PresenceRefs,
+  PresenceUser,
+  SoftDeleteOpts,
+  SpacetimeConnectionBuilder,
+  SpacetimeConnectionFactory,
+  ToastFn,
+  TokenStore,
+  UseBulkMutateOptions,
+  UseBulkSelectionOpts,
+  UseCacheEntryOptions,
+  UseCacheEntryResult,
+  UseListOptions,
+  UsePresenceOptions,
+  UsePresenceResult,
+  UseSearchOptions,
+  UseSearchResult,
+  WhereGroup,
+  Widen
+} from 'betterspace/react'
+```

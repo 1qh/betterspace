@@ -142,6 +142,13 @@ all generated.
 | CLI table scaffolding (`betterspace add`) + interactive mode | 0 |
 | `setupCrud()` convenience wrapper for CRUD boilerplate reduction | 0 |
 | `useList` text search (`search: { query, fields }`) | 0 |
+| `useList` debounced search (`search: { debounceMs }`) | 0 |
+| `useOwnRows` — per-row ownership flag with memoized predicate | 0 |
+| `useMutate` retry with exponential backoff (`retry: number \| RetryOptions`) | 0 |
+| `useBulkMutate` live progress tracking (`onProgress`, `BulkProgress`, `progress`) | 0 |
+| `partialValues(schema, values)` — fill update args without listing every field | 0 |
+| CLI `betterspace init` pre-flight checks (SpacetimeDB CLI + Docker) | 0 |
+| 15+ named type exports from `betterspace/react` | 0 |
 | Provider utilities (`toWsUri`, `createTokenStore`, `createFileUploader`, `createSpacetimeClient`) | 0 |
 | Live subscription data tracking in devtools | 0 |
 | Descriptive branded type error messages (`AssertSchema`, `SchemaTypeError`) | 0 |
@@ -311,11 +318,11 @@ bun add betterspace
 | `betterspace` | `guardApi`, `strictApi`, `zodFromTable`, identity helpers |
 | `betterspace/schema` | `makeOwned`, `makeOrgScoped`, `makeBase`, `makeSingleton`, `child`, `cvFile`, `cvFiles`, `orgSchema` |
 | `betterspace/server` | `setupCrud`, `setup`, `makeCrud`, `makeChildCrud`, `makeOrgCrud`, `makeSingletonCrud`, `makeCacheCrud`, `makeOrg`, `makeFileUpload`, `makePresence`, table helpers, middleware, error handling, test utilities |
-| `betterspace/react` | `useList`, `useSearch`, `usePresence`, `useBulkSelection`, `useMutate`, `useInfiniteList`, `useUpload`, `useSoftDelete`, `useCacheEntry`, `useOptimisticMutation`, `useErrorToast`, `toWsUri`, `createTokenStore`, `createFileUploader`, `createSpacetimeClient`, `BetterspaceDevtools`, `SchemaPlayground`, org hooks |
+| `betterspace/react` | `useList`, `useOwnRows`, `useSearch`, `usePresence`, `useBulkSelection`, `useMutate`, `useBulkMutate`, `useInfiniteList`, `useUpload`, `useSoftDelete`, `useCacheEntry`, `useOptimisticMutation`, `useErrorToast`, `toWsUri`, `createTokenStore`, `createFileUploader`, `createSpacetimeClient`, `BetterspaceDevtools`, `SchemaPlayground`, org hooks, 15+ named types |
 | `betterspace/components` | `Form`, `ConflictDialog`, `AutoSaveIndicator`, `OfflineIndicator`, `PermissionGuard`, `ErrorBoundary`, `FileApiProvider`, `OrgAvatar`, `RoleBadge`, `EditorsSection`, `defineSteps` |
 | `betterspace/next` | `getToken`, `isAuthenticated`, `setActiveOrgCookie`, `clearActiveOrgCookie`, `getActiveOrg`, `makeImageRoute` |
 | `betterspace/eslint` | `plugin`, `recommended`, 16 lint rules |
-| `betterspace/zod` | `unwrapZod`, `cvFileKindOf`, `defaultValues`, `enumToOptions`, `pickValues`, `coerceOptionals` |
+| `betterspace/zod` | `unwrapZod`, `cvFileKindOf`, `defaultValues`, `enumToOptions`, `pickValues`, `coerceOptionals`, `partialValues` |
 | `betterspace/test` | `createTestContext`, `asUser`, `callReducer`, `queryTable`, `isTestMode` |
 | `betterspace/test/discover` | `discoverModules` |
 | `betterspace/seed` | `generateOne`, `generateSeed`, `generateFieldValue` |

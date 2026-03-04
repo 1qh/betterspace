@@ -265,6 +265,47 @@ const PostList = () => {
 export default PostList
 ```
 
+### Filtering and search
+
+`useList` supports client-side filtering, sorting, and debounced search:
+
+```typescript
+'use client'
+
+import { useState } from 'react'
+import { useTable } from 'spacetimedb/react'
+import { tables } from '@/generated/module_bindings'
+import { useList } from 'betterspace/react'
+
+const PostSearch = () => {
+  const [posts, isReady] = useTable(tables.post)
+  const [query, setQuery] = useState('')
+
+  const { data, totalCount } = useList(posts, isReady, {
+    search: { query, fields: ['title', 'content'], debounceMs: 300 },
+    where: { published: true },
+    sort: { field: 'updatedAt', direction: 'desc' },
+  })
+
+  return (
+    <div>
+      <input value={query} onChange={e => setQuery(e.target.value)} placeholder="Search posts..." />
+      <p>{totalCount} results</p>
+      <ul>
+        {data.map(post => (
+          <li key={post.id}>{post.title}</li>
+        ))}
+      </ul>
+    </div>
+  )
+}
+
+export default PostSearch
+```
+
+The `debounceMs: 300` option delays the search filter until the user stops typing for
+300ms, avoiding unnecessary re-renders on every keystroke.
+
 ### Writing data
 
 `useReducer` returns a function that calls a server-side reducer:
@@ -309,13 +350,18 @@ Here’s a complete working component with create, update, and delete:
 
 import { useReducer, useTable } from 'spacetimedb/react'
 import { reducers, tables } from '@/generated/module_bindings'
-import { useList } from 'betterspace/react'
+import { useList, useOwnRows } from 'betterspace/react'
 
 const BlogApp = () => {
   const [posts, isReady] = useTable(tables.post)
-  const { data, hasMore, loadMore, totalCount } = useList(posts, isReady, {
+  const [identity] = useIdentity()
+
+  const ownedPosts = useOwnRows(posts, identity ? p => p.userId.isEqual(identity) : null)
+
+  const { data, hasMore, loadMore, totalCount } = useList(ownedPosts, isReady, {
     sort: { field: 'updatedAt', direction: 'desc' },
     pageSize: 20,
+    where: { own: true },
   })
 
   const createPost = useReducer(reducers.create_post)
