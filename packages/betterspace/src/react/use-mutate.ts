@@ -13,9 +13,11 @@ import { completeMutation, pushError, trackMutation } from './devtools'
 import { makeTempId, useOptimisticStore } from './optimistic-store'
 
 /** Options for configuring mutation wrappers and optimistic behavior. */
-interface MutateOptions<A extends Record<string, unknown>> {
+interface MutateOptions<A extends Record<string, unknown>, R = void> {
   getName?: (args: A) => string
   onError?: ((error: unknown) => void) | false
+  onSettled?: (args: A, error: unknown, result?: R) => void
+  onSuccess?: (result: R, args: A) => void
   optimistic?: boolean
   resolveId?: (args: A) => string | undefined
   retry?: number | RetryOptions
@@ -58,7 +60,7 @@ const isDev = typeof process !== 'undefined' && process.env.NODE_ENV !== 'produc
    */
   useMutate = <A extends Record<string, unknown>, R = void>(
     mutate: (args: A) => Promise<R>,
-    options?: MutateOptions<A>
+    options?: MutateOptions<A, R>
   ): ((args: A) => Promise<R>) => {
     const store = useOptimisticStore(),
       isOptimistic = options?.optimistic !== false,
@@ -79,14 +81,17 @@ const isDev = typeof process !== 'undefined' && process.env.NODE_ENV !== 'produc
           try {
             const result = await exec()
             if (isDev && devId) completeMutation(devId, 'success')
+            options?.onSuccess?.(result, args)
+            options?.onSettled?.(args, undefined, result)
             return result
-          } catch (error) {
+          } catch (catchError) {
             if (isDev) {
               if (devId) completeMutation(devId, 'error')
-              pushError(error)
+              pushError(catchError)
             }
-            if (errorHandler) errorHandler(error)
-            throw error
+            if (errorHandler) errorHandler(catchError)
+            options?.onSettled?.(args, catchError)
+            throw catchError
           }
 
         const tempId = makeTempId(),
@@ -102,14 +107,17 @@ const isDev = typeof process !== 'undefined' && process.env.NODE_ENV !== 'produc
         try {
           const result = await exec()
           if (isDev && devId) completeMutation(devId, 'success')
+          options?.onSuccess?.(result, args)
+          options?.onSettled?.(args, undefined, result)
           return result
-        } catch (error) {
+        } catch (catchError) {
           if (isDev) {
             if (devId) completeMutation(devId, 'error')
-            pushError(error)
+            pushError(catchError)
           }
-          if (errorHandler) errorHandler(error)
-          throw error
+          if (errorHandler) errorHandler(catchError)
+          options?.onSettled?.(args, catchError)
+          throw catchError
         } finally {
           store.remove(tempId)
           if (id !== tempId) store.reconcileIds([id])
