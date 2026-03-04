@@ -257,7 +257,7 @@ const submitError = (error: unknown): Error => new Error(getErrorMessage(error),
    * const form = useFormMutation({ schema, mutate: api.posts.create })
    * ```
    */
-  useFormMutation = <S extends ZodObject<ZodRawShape>>({
+  useFormMutation = <S extends ZodObject<ZodRawShape>, M = output<S>>({
     autoSave,
     mutate,
     onConflict,
@@ -269,13 +269,13 @@ const submitError = (error: unknown): Error => new Error(getErrorMessage(error),
     values
   }: {
     autoSave?: { debounceMs: number; enabled: boolean }
-    mutate: (args: Record<string, unknown>) => Promise<void>
+    mutate: (args: M) => Promise<void>
     onConflict?: (data: ConflictData<output<S>>) => void
     onError?: ((e: unknown) => void) | false
     onSuccess?: () => void
     resetOnSuccess?: boolean
     schema: S
-    transform?: (d: output<S>) => Record<string, unknown>
+    transform?: (d: output<S>) => M
     values?: Widen<output<S>>
   }) =>
     useForm({
@@ -283,7 +283,7 @@ const submitError = (error: unknown): Error => new Error(getErrorMessage(error),
       onConflict,
       onError,
       onSubmit: async (d: output<S>) => {
-        const args = transform ? transform(d) : d
+        const args = transform ? transform(d) : (d as unknown as M)
         await mutate(args)
         return d
       },
