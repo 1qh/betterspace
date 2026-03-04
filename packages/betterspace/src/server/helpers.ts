@@ -24,6 +24,7 @@ import { identityEquals } from './reducer-utils'
 import { ERROR_MESSAGES } from './types'
 
 class SenderError extends Error {
+  readonly _tag = 'SenderError' as const
   /** biome-ignore lint/style/useConsistentMemberAccessibility: biome+eslint conflict */
   public constructor(message: string) {
     super(message)
@@ -90,7 +91,7 @@ const TOKEN_BYTES = 24,
   idToWire = String as unknown as (id: number) => string,
   idFromWire = (str: string): number => {
     const id = Number(str)
-    if (!Number.isFinite(id)) throw new Error(`Invalid wire id: ${str}`)
+    if (!Number.isFinite(id)) err('VALIDATION_FAILED', { message: `Invalid wire id: ${str}` })
     return id
   },
   getUser = async ({

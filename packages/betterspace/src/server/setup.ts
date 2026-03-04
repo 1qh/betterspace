@@ -11,6 +11,7 @@ import { makeCacheCrud } from './cache-crud'
 import { makeChildCrud } from './child'
 import { makeCrud } from './crud'
 import { makeFileUpload } from './file'
+import { err } from './helpers'
 import { composeMiddleware } from './middleware'
 import { makeOrg } from './org'
 import { makeOrgCrud } from './org-crud'
@@ -40,7 +41,8 @@ const isPromiseLike = (value: unknown): value is PromiseLike<unknown> => {
     return typeof then === 'function'
   },
   requireSync = <T>(value: Promise<T> | T, hookName: string): T => {
-    if (isPromiseLike(value)) throw new Error(`Hook "${hookName}" must be synchronous in SpacetimeDB reducers`)
+    if (isPromiseLike(value))
+      err('VALIDATION_FAILED', { message: `Hook "${hookName}" must be synchronous in SpacetimeDB reducers` })
     return value
   },
   toGlobalCtx = (

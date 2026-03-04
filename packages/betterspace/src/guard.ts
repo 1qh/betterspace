@@ -1,3 +1,5 @@
+import { err } from './server/helpers'
+
 type AnyApi = Record<string, Record<string, unknown>>
 
 const GUARD_ACTIVE = typeof process !== 'undefined' && process.env.NODE_ENV !== 'production',
@@ -22,7 +24,7 @@ const GUARD_ACTIVE = typeof process !== 'undefined' && process.env.NODE_ENV !== 
           msg = suggestion
             ? `guardApi: module ${prop} does not exist. Did you mean ${suggestion}?`
             : `guardApi: module ${prop} does not match any reducer/table module. Valid modules: ${modules.join(', ')}`
-        throw new Error(msg)
+        err('FORBIDDEN', { message: msg })
       }
     })
   },

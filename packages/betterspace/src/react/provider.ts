@@ -1,5 +1,7 @@
 import type { UploadOptions, UploadResponse } from '../components'
 
+import { err } from '../server/helpers'
+
 interface CreateSpacetimeClientOptions<
   TBuilder extends SpacetimeConnectionBuilder<TBuilder, TConnection, TIdentity>,
   TConnection = unknown,
@@ -58,11 +60,11 @@ const HTTP_OK = 200,
   },
   parsePresignPayload = (payload: unknown): ParsedPresignPayload => {
     const record = toRecord(payload)
-    if (!record) throw new Error('Invalid presign payload')
+    if (!record) err('VALIDATION_FAILED', { message: 'Invalid presign payload' })
     const uploadUrl = getString(record, 'uploadUrl'),
       storageKey = getString(record, 'storageKey'),
       method = getString(record, 'method')
-    if (!(uploadUrl && storageKey)) throw new Error('Invalid presign payload')
+    if (!(uploadUrl && storageKey)) err('VALIDATION_FAILED', { message: 'Invalid presign payload' })
     return {
       headers: parseHeaders(record.headers),
       method,
@@ -132,7 +134,7 @@ const HTTP_OK = 200,
           method: 'POST',
           signal: options?.signal
         })
-      if (!response.ok) throw new Error('Failed to get presigned URL')
+      if (!response.ok) err('FILE_NOT_FOUND', { message: 'Failed to get presigned URL' })
       const payload = (await response.json().catch(() => null)) as unknown,
         presigned = parsePresignPayload(payload)
       // eslint-disable-next-line max-statements

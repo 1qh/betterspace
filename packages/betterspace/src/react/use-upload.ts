@@ -3,6 +3,8 @@
 
 import { useRef, useState } from 'react'
 
+import { err } from '../server/helpers'
+
 interface PresignedUpload {
   headers?: Record<string, string>
   method?: 'POST' | 'PUT'
@@ -64,11 +66,12 @@ const DEFAULT_API_ENDPOINT = '/api/upload/presign',
     return headers
   },
   parsePresignedPayload = (payload: unknown): PresignedUpload => {
-    if (!(typeof payload === 'object' && payload !== null)) throw new Error('Invalid upload URL payload')
+    if (!(typeof payload === 'object' && payload !== null))
+      err('VALIDATION_FAILED', { message: 'Invalid upload URL payload' })
     const obj = payload as Record<string, unknown>,
       uploadUrl = toStringField(obj, 'uploadUrl'),
       storageKey = toStringField(obj, 'storageKey')
-    if (!(uploadUrl && storageKey)) throw new Error('Invalid upload URL payload')
+    if (!(uploadUrl && storageKey)) err('VALIDATION_FAILED', { message: 'Invalid upload URL payload' })
     return {
       headers: toHeadersField(obj),
       method: toMethodField(obj),
@@ -87,7 +90,7 @@ const DEFAULT_API_ENDPOINT = '/api/upload/presign',
         method: 'POST'
       }),
       payload = (await response.json().catch(() => null)) as unknown
-    if (!response.ok) throw new Error('Failed to create upload URL')
+    if (!response.ok) err('FILE_NOT_FOUND', { message: 'Failed to create upload URL' })
     return parsePresignedPayload(payload)
   },
   hasContentTypeHeader = (headers: Record<string, string>): boolean => {
