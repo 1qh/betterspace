@@ -8,6 +8,7 @@
   ],
   "scripts": {
     "build:ts": "turbo run build",
+    "ci": "bun tsc && bun format:check && bun lint:ts && bun build:ts",
     "clean": "git clean -xdf node_modules .turbo bun.lock",
     "clean:workspaces": "turbo run clean",
     "dev:web": "f() { turbo watch dev -F @a/$1 -F @a/be; }; f",
