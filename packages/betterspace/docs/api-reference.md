@@ -552,6 +552,44 @@ const results = useSearch(
 
 * * *
 
+### useCacheEntry
+
+Manages a single cache entry with automatic stale detection and refresh.
+Designed for use with `makeCacheCrud` tables where entries may become stale.
+
+```typescript
+import { useCacheEntry } from 'betterspace/react'
+
+const { data, isLoading, isStale, refresh } = useCacheEntry({
+  args: { tmdbId: movieId },
+  data: cachedMovie,
+  load: async args => {
+    await loadMovie(args)
+  },
+  table: 'movie'
+})
+```
+
+**Options (`UseCacheEntryOptions<A, T>`):**
+
+| Option | Type | Description |
+| --- | --- | --- |
+| `args` | `A` | Arguments passed to the `load` function |
+| `data` | `null \| T \| undefined` | Current cached data (`undefined` = not yet loaded, `null` = miss) |
+| `load` | `(args: A) => Promise<void>` | Function to refresh the cache entry |
+| `table` | `string` | Table name for devtools tracking |
+
+**Return value (`UseCacheEntryResult<T>`):**
+
+| Field | Type | Description |
+| --- | --- | --- |
+| `data` | `null \| T` | Cached data, or `null` if not loaded |
+| `isLoading` | `boolean` | `true` while loading or refreshing |
+| `isStale` | `boolean` | `true` when the entry has `stale: true` |
+| `refresh` | `() => void` | Manually trigger a refresh |
+
+* * *
+
 ### useBulkSelection
 
 Multi-select state management for list UIs.
@@ -627,6 +665,45 @@ bulk.run(selectedIds.map(id => ({ id })))
 
 // bulk.progress: { total: 3, succeeded: 1, failed: 0, pending: 2 }
 ```
+
+* * *
+
+### useSoftDelete
+
+Wraps a delete+restore reducer pair with an undo toast pattern.
+When the user deletes an item, a toast appears with an “Undo” action that restores it.
+
+```typescript
+import { useSoftDelete } from 'betterspace/react'
+
+const { remove } = useSoftDelete({
+  rm: removeWiki,
+  restore: restoreWiki,
+  toast: toast,
+  label: 'Wiki page',
+  undoMs: 5000
+})
+
+await remove({ id: wikiId })
+```
+
+**Options (`SoftDeleteOpts<A>`):**
+
+| Option | Type | Default | Description |
+| --- | --- | --- | --- |
+| `rm` | `(args: A) => Promise<unknown>` | required | Delete reducer |
+| `restore` | `(args: A) => Promise<unknown>` | required | Restore reducer |
+| `toast` | `ToastFn` | required | Toast function with action support |
+| `label` | `string` | `'Item'` | Display name for toast messages |
+| `undoMs` | `number` | `5000` | Duration the undo toast stays visible |
+| `onError` | `(error: unknown) => void` | — | Called if restore fails |
+| `onRestore` | `() => void` | — | Called after successful restore |
+
+**Return value:**
+
+| Field | Type | Description |
+| --- | --- | --- |
+| `remove` | `(args: A) => Promise<void>` | Delete with undo toast |
 
 * * *
 
@@ -826,6 +903,42 @@ try {
   }
 }
 ```
+
+* * *
+
+### makeErrorHandler
+
+Creates a reusable error handler that toasts error messages with optional per-code
+overrides.
+
+```typescript
+import { makeErrorHandler } from 'betterspace/react'
+
+const handleError = makeErrorHandler(toast.error, {
+  FORBIDDEN: () => toast.error('You do not have permission'),
+  RATE_LIMITED: data =>
+    toast.error(`Too many requests. Retry in ${data?.retryAfter}ms`)
+})
+
+try {
+  await save(data)
+} catch (error) {
+  handleError(error)
+}
+```
+
+**Signature:**
+
+```typescript
+makeErrorHandler = (
+  toast: ToastFn,
+  overrides?: Partial<Record<string, (data?: ErrorData) => void>>
+) => (error: unknown) => void
+```
+
+When an error matches a code in `overrides`, that handler runs instead of the default
+toast. For unmatched codes, the error message is toasted via the provided `toast`
+function.
 
 * * *
 
