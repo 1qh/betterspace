@@ -335,6 +335,17 @@ const { data, hasMore, isLoading, loadMore, page, totalCount } = useList(
 )
 ```
 
+**Type-safe `where`:**
+
+The `where` option is generic over `T` — field names are checked against the row type at
+compile time:
+
+```typescript
+useList(blogs, ready, { where: { publishd: true } }) // TS error: 'publishd' doesn't exist
+useList(blogs, ready, { where: { published: true } }) // OK
+useList(items, ready, { where: { price: { $gt: 10 } } }) // OK
+```
+
 **Return value:**
 
 | Field | Type | Description |
@@ -414,13 +425,15 @@ const result = await upload(file, { signal: abortController.signal })
 ### useInfiniteList
 
 Like `useList` but designed for infinite scroll with intersection observer integration.
+Accepts the same type-safe `where` option as `useList`.
 
 ```typescript
 import { useInfiniteList } from 'betterspace/react'
 
 const { data, hasMore, loadMore, totalCount } = useInfiniteList(rows, isReady, {
   pageSize: 20,
-  sort: { updatedAt: 'desc' }
+  sort: { updatedAt: 'desc' },
+  where: { published: true }
 })
 ```
 
@@ -450,6 +463,30 @@ import { useBulkSelection } from 'betterspace/react'
 const { selected, toggle, toggleAll, clear, isSelected, isAllSelected, count } =
   useBulkSelection(posts.map(p => p.id))
 ```
+
+* * *
+
+### useBulkMutate
+
+Run a reducer against multiple rows, collecting results and calling a callback when all
+settle.
+
+```typescript
+import { useBulkMutate } from 'betterspace/react'
+
+const bulk = useBulkMutate(removeTask, {
+  onSuccess: count => toast(`${count} deleted`)
+})
+bulk.run([{ id: 1 }, { id: 2 }, { id: 3 }])
+```
+
+**Options:**
+
+| Option | Type | Description |
+| --- | --- | --- |
+| `onSuccess` | `(count: number) => void` | Called when all mutations succeed |
+| `onError` | `(errors: unknown[]) => void` | Called if any mutation fails |
+| `onSettled` | `(results: SettledResult[]) => void` | Called after all mutations settle |
 
 * * *
 

@@ -75,6 +75,74 @@ const org = table(
   })
 ```
 
+## makeOrgTables
+
+`makeOrgTables` is a convenience helper that creates all four org tables (`org`,
+`orgMember`, `orgInvite`, `orgJoinRequest`) with the standard field layout in one call.
+
+Before:
+
+```typescript
+const org = table(
+    { public: true },
+    {
+      id: t.u32().autoInc().primaryKey(),
+      name: t.string(),
+      slug: t.string().unique(),
+      avatarId: t.string().optional(),
+      updatedAt: t.timestamp(),
+      userId: t.identity().index()
+    }
+  ),
+  orgMember = table(
+    { public: true },
+    {
+      id: t.u32().autoInc().primaryKey(),
+      orgId: t.u32().index(),
+      userId: t.identity().index(),
+      isAdmin: t.bool(),
+      updatedAt: t.timestamp()
+    }
+  ),
+  orgInvite = table(
+    { public: true },
+    {
+      id: t.u32().autoInc().primaryKey(),
+      orgId: t.u32().index(),
+      email: t.string(),
+      token: t.string().unique(),
+      isAdmin: t.bool(),
+      expiresAt: t.number()
+    }
+  ),
+  orgJoinRequest = table(
+    { public: true },
+    {
+      id: t.u32().autoInc().primaryKey(),
+      orgId: t.u32().index(),
+      userId: t.identity().index(),
+      status: t.string().index(),
+      message: t.string().optional()
+    }
+  )
+```
+
+After:
+
+```typescript
+import { makeOrgTables } from 'betterspace/server'
+
+const { org, orgMember, orgInvite, orgJoinRequest } = makeOrgTables()
+```
+
+Pass the result directly into `schema()`:
+
+```typescript
+const spacetimedb = schema({ ...makeOrgTables(), project })
+```
+
+* * *
+
 ## makeOrg factory
 
 ```typescript

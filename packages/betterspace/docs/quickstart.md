@@ -17,21 +17,14 @@ curl -sSf https://install.spacetimedb.com | sh
 
 ## Project setup
 
-Create a new project manually (a `bun create betterspace` template is coming):
-
 ```bash
 mkdir my-app && cd my-app
-bun init -y
-bun add betterspace spacetimedb
-bun add -d typescript @types/bun
+bunx betterspace init
 ```
 
-For a Next.js frontend:
-
-```bash
-bun add next react react-dom
-bun add -d @types/react @types/react-dom
-```
+`betterspace init` auto-installs all required dependencies and creates a `tsconfig.json`
+with the right settings.
+No manual `bun add` step needed.
 
 ## Start the local backend
 

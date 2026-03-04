@@ -454,6 +454,7 @@ Opt out only when needed.
 
 `bunx betterspace init` scaffolds new projects with all defaults pre-configured: guarded
 API wrapper, `FileApiProvider`, `ErrorBoundary`, and commented middleware examples.
+It also auto-installs dependencies and creates `tsconfig.json` — no manual setup needed.
 
 ## 5 Table Types
 

@@ -165,6 +165,23 @@ const form = useForm({
 })
 ```
 
+## ConflictData\<T\>
+
+`ConflictData` is generic — `conflict.current` and `conflict.incoming` are typed to
+match your form schema, so you get full autocomplete and type checking in conflict
+resolution handlers:
+
+```typescript
+import type { ConflictData } from 'betterspace/react'
+
+const handleConflict = (conflict: ConflictData<typeof postSchema>) => {
+  conflict.current.title // string
+  conflict.incoming.title // string
+}
+```
+
+* * *
+
 ## File uploads
 
 File uploads go through a Next.js API route that generates S3/MinIO pre-signed URLs.
