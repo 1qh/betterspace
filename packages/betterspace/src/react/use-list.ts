@@ -98,13 +98,24 @@ const DEFAULT_PAGE_SIZE = 50,
    * })
    * ```
    */
-  useList = <T extends Rec>(data: readonly T[], isReady: boolean, options?: UseListOptions<T>) => {
-    const pageSize = options?.pageSize ?? DEFAULT_PAGE_SIZE,
-      rawQuery = options?.search?.query ?? '',
-      debounceMs = options?.search?.debounceMs,
+  noop = () => {},
+  SKIP_RESULT = {
+    data: [] as never[],
+    hasMore: false,
+    isLoading: true,
+    loadMore: noop,
+    page: 1,
+    totalCount: 0
+  },
+  useList = <T extends Rec>(data: readonly T[], isReady: boolean, options?: 'skip' | UseListOptions<T>) => {
+    const skipped = options === 'skip',
+      opts = skipped ? undefined : options,
+      pageSize = opts?.pageSize ?? DEFAULT_PAGE_SIZE,
+      rawQuery = opts?.search?.query ?? '',
+      debounceMs = opts?.search?.debounceMs,
       [debouncedQuery, setDebouncedQuery] = useState(rawQuery),
-      [currentPage, setCurrentPage] = useState(options?.page ?? 1),
-      whereRef = useRef(options?.where),
+      [currentPage, setCurrentPage] = useState(opts?.page ?? 1),
+      whereRef = useRef(opts?.where),
       searchQueryRef = useRef(rawQuery)
 
     useEffect(() => {
@@ -119,27 +130,28 @@ const DEFAULT_PAGE_SIZE = 50,
     const searchQuery = debounceMs ? debouncedQuery : rawQuery
 
     useEffect(() => {
-      const whereChanged = whereRef.current !== options?.where,
+      const whereChanged = whereRef.current !== opts?.where,
         searchChanged = searchQueryRef.current !== searchQuery
-      whereRef.current = options?.where
+      whereRef.current = opts?.where
       searchQueryRef.current = searchQuery
       if (whereChanged || searchChanged) setCurrentPage(1)
-    }, [options?.where, searchQuery])
+    }, [opts?.where, searchQuery])
 
     const filtered = useMemo(() => {
-        if (!options?.where) return data
+        if (skipped || !opts?.where) return skipped ? [] : data
         const out: T[] = []
-        for (const row of data) if (matchW(row, options.where)) out.push(row)
+        for (const row of data) if (matchW(row, opts.where)) out.push(row)
         return out
-      }, [data, options?.where]),
+      }, [data, opts?.where, skipped]),
       searched = useMemo(() => {
-        const fields = options?.search?.fields ?? []
+        if (skipped) return []
+        const fields = opts?.search?.fields ?? []
         if (searchQuery === '' || fields.length === 0) return filtered
         const out: T[] = []
         for (const row of filtered) if (searchMatches(row, searchQuery, fields)) out.push(row)
         return out
-      }, [filtered, searchQuery, options?.search?.fields]),
-      sorted = useMemo(() => sortData(searched, options?.sort), [searched, options?.sort]),
+      }, [filtered, searchQuery, opts?.search?.fields, skipped]),
+      sorted = useMemo(() => (skipped ? [] : sortData(searched, opts?.sort)), [searched, opts?.sort, skipped]),
       totalCount = sorted.length,
       cappedPageSize = Math.max(1, pageSize),
       visibleCount = currentPage * cappedPageSize,
@@ -151,14 +163,16 @@ const DEFAULT_PAGE_SIZE = 50,
       }, [hasMore])
 
     useEffect(() => {
-      if (options?.page === undefined) return
-      setCurrentPage(Math.max(1, options.page))
-    }, [options?.page])
+      if (opts?.page === undefined) return
+      setCurrentPage(Math.max(1, opts.page))
+    }, [opts?.page])
 
     useEffect(() => {
       const maxPage = Math.max(1, Math.ceil(totalCount / cappedPageSize))
       if (currentPage > maxPage) setCurrentPage(maxPage)
     }, [cappedPageSize, currentPage, totalCount])
+
+    if (skipped) return SKIP_RESULT
 
     return {
       data: pagedData,

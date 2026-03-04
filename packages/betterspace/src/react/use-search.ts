@@ -30,20 +30,26 @@ const normalizeQuery = (query: string): string => query.trim().toLowerCase(),
     return out
   },
   DEFAULT_DEBOUNCE_MS = 300,
-  useSearch = <T extends Rec>(data: T[], isReady: boolean, options: UseSearchOptions): UseSearchResult<T> => {
-    const debounceMs = options.debounceMs ?? DEFAULT_DEBOUNCE_MS,
-      [debouncedQuery, setDebouncedQuery] = useState(options.query)
+  SKIP_SEARCH: UseSearchResult<never> = { isSearching: true, results: [] },
+  useSearch = <T extends Rec>(data: T[], isReady: boolean, options: 'skip' | UseSearchOptions): UseSearchResult<T> => {
+    const skipped = options === 'skip',
+      opts = skipped ? { debounceMs: DEFAULT_DEBOUNCE_MS, fields: [] as string[], query: '' } : options,
+      debounceMs = opts.debounceMs ?? DEFAULT_DEBOUNCE_MS,
+      [debouncedQuery, setDebouncedQuery] = useState(opts.query)
 
     useEffect(() => {
-      const id = setTimeout(() => setDebouncedQuery(options.query), debounceMs)
+      if (skipped) return
+      const id = setTimeout(() => setDebouncedQuery(opts.query), debounceMs)
       return () => clearTimeout(id)
-    }, [debounceMs, options.query])
+    }, [debounceMs, opts.query, skipped])
 
     const results = useMemo(() => {
-        if (!isReady) return []
-        return filterSearchData(data, options.fields, normalizeQuery(debouncedQuery))
-      }, [data, debouncedQuery, isReady, options.fields]),
-      isSearching = options.query !== debouncedQuery || !isReady
+        if (skipped || !isReady) return []
+        return filterSearchData(data, opts.fields, normalizeQuery(debouncedQuery))
+      }, [data, debouncedQuery, isReady, opts.fields, skipped]),
+      isSearching = skipped || opts.query !== debouncedQuery || !isReady
+
+    if (skipped) return SKIP_SEARCH as UseSearchResult<T>
 
     return { isSearching, results }
   }

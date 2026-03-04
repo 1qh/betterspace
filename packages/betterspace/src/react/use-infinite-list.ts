@@ -92,13 +92,23 @@ const DEFAULT_BATCH_SIZE = 50,
     }
     return false
   },
-  useInfiniteList = <T extends Rec>(data: T[], isReady: boolean, options?: InfiniteListOptions<T>) => {
-    const batchSize = Math.max(1, options?.batchSize ?? DEFAULT_BATCH_SIZE),
-      rawQuery = options?.search?.query ?? '',
-      debounceMs = options?.search?.debounceMs,
+  noop = () => {},
+  SKIP_RESULT = {
+    data: [] as never[],
+    hasMore: false,
+    isLoading: true,
+    loadMore: noop,
+    totalCount: 0
+  },
+  useInfiniteList = <T extends Rec>(data: T[], isReady: boolean, options?: 'skip' | InfiniteListOptions<T>) => {
+    const skipped = options === 'skip',
+      opts = skipped ? undefined : options,
+      batchSize = Math.max(1, opts?.batchSize ?? DEFAULT_BATCH_SIZE),
+      rawQuery = opts?.search?.query ?? '',
+      debounceMs = opts?.search?.debounceMs,
       [debouncedQuery, setDebouncedQuery] = useState(rawQuery),
       [visibleCount, setVisibleCount] = useState(batchSize),
-      whereRef = useRef(options?.where),
+      whereRef = useRef(opts?.where),
       searchQueryRef = useRef(rawQuery)
 
     useEffect(() => {
@@ -113,33 +123,36 @@ const DEFAULT_BATCH_SIZE = 50,
     const searchQuery = debounceMs ? debouncedQuery : rawQuery
 
     useEffect(() => {
-      const whereChanged = whereRef.current !== options?.where,
+      const whereChanged = whereRef.current !== opts?.where,
         searchChanged = searchQueryRef.current !== searchQuery
-      whereRef.current = options?.where
+      whereRef.current = opts?.where
       searchQueryRef.current = searchQuery
       if (whereChanged || searchChanged) setVisibleCount(batchSize)
-    }, [batchSize, options?.where, searchQuery])
+    }, [batchSize, opts?.where, searchQuery])
 
     const filtered = useMemo(() => {
-        if (!options?.where) return data
+        if (skipped || !opts?.where) return skipped ? [] : data
         const out: T[] = []
-        for (const row of data) if (matchW(row, options.where)) out.push(row)
+        for (const row of data) if (matchW(row, opts.where)) out.push(row)
         return out
-      }, [data, options?.where]),
+      }, [data, opts?.where, skipped]),
       searched = useMemo(() => {
-        const fields = options?.search?.fields ?? []
+        if (skipped) return []
+        const fields = opts?.search?.fields ?? []
         if (searchQuery === '' || fields.length === 0) return filtered
         const out: T[] = []
         for (const row of filtered) if (searchMatches(row, searchQuery, fields)) out.push(row)
         return out
-      }, [filtered, searchQuery, options?.search?.fields]),
-      sorted = useMemo(() => sortData(searched, options?.sort), [searched, options?.sort]),
+      }, [filtered, searchQuery, opts?.search?.fields, skipped]),
+      sorted = useMemo(() => (skipped ? [] : sortData(searched, opts?.sort)), [searched, opts?.sort, skipped]),
       hasMore = visibleCount < sorted.length,
       sliced = useMemo(() => sorted.slice(0, visibleCount), [sorted, visibleCount]),
       loadMore = useCallback(() => {
         if (!hasMore) return
         setVisibleCount(v => v + batchSize)
       }, [batchSize, hasMore])
+
+    if (skipped) return SKIP_RESULT
 
     return {
       data: sliced,
