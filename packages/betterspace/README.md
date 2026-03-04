@@ -174,10 +174,17 @@ all generated.
 | `betterspace validate` CLI command (alias for `check --health`) | 0 |
 | `Register` interface with declaration merging for global error/meta types | 0 |
 | `InferRow<S>`, `InferCreate<S>`, `InferUpdate<S>` — brand-aware type inference | 0 |
+| Phantom types on branded schemas (`schema.$inferRow`, `schema.$inferCreate`, `schema.$inferUpdate`, `schema['~types']`) | 0 |
 | `InferRows<T>` mapped type over schema records | 0 |
 | `InferReducerArgs`, `InferReducerReturn`, `InferReducerInputs`, `InferReducerOutputs` | 0 |
 | `schemaVariants()` — derive create/update schemas from one base schema | 0 |
 | `injectError()` devtools function + error injection dropdown in devtools panel | 0 |
+| `useMutation` toast shorthand (`toast: { success, error }`) — eliminates mutation+toast boilerplate | 0 |
+| Phantom type inference (`$inferRow`, `$inferCreate`, `$inferUpdate`, `~types`) on branded schemas | 0 |
+| `SenderError._tag` discriminator for `instanceof`-free error discrimination | 0 |
+| `z.prefault()`/`z.default()` integration in `defaultValues()` for smarter form defaults | 0 |
+| Structured error codes with descriptive `ERROR_MESSAGES` context | 0 |
+| Shared list utilities (sort, search, filter) across `useList` and `useInfiniteList` | 0 |
 
 ## Developer Tools
 
@@ -332,7 +339,7 @@ bun add betterspace
 | `betterspace` | `guardApi`, `strictApi`, `zodFromTable`, identity helpers |
 | `betterspace/schema` | `makeOwned`, `makeOrgScoped`, `makeBase`, `makeSingleton`, `child`, `cvFile`, `cvFiles`, `orgSchema` |
 | `betterspace/server` | `setupCrud`, `setup`, `makeCrud`, `makeChildCrud`, `makeOrgCrud`, `makeSingletonCrud`, `makeCacheCrud`, `makeOrg`, `makeFileUpload`, `makePresence`, table helpers, middleware, error handling, test utilities |
-| `betterspace/react` | `useList`, `useOwnRows`, `useSearch`, `usePresence`, `useBulkSelection`, `useMutate`, `useBulkMutate`, `useInfiniteList`, `useUpload`, `useSoftDelete`, `useCacheEntry`, `useOptimisticMutation`, `useErrorToast`, `toWsUri`, `createTokenStore`, `createFileUploader`, `createSpacetimeClient`, `BetterspaceDevtools`, `SchemaPlayground`, org hooks, 15+ named types |
+| `betterspace/react` | `useList`, `useOwnRows`, `useSearch`, `usePresence`, `useBulkSelection`, `useMutate`, `useMutation`, `useBulkMutate`, `useInfiniteList`, `useUpload`, `useSoftDelete`, `useCacheEntry`, `useOptimisticMutation`, `useForm`, `useFormMutation`, `useErrorToast`, `toWsUri`, `createTokenStore`, `createFileUploader`, `createSpacetimeClient`, `BetterspaceDevtools`, `SchemaPlayground`, org hooks, 15+ named types |
 | `betterspace/components` | `Form`, `ConflictDialog`, `AutoSaveIndicator`, `OfflineIndicator`, `PermissionGuard`, `ErrorBoundary`, `FileApiProvider`, `OrgAvatar`, `RoleBadge`, `EditorsSection`, `defineSteps` |
 | `betterspace/next` | `getToken`, `isAuthenticated`, `setActiveOrgCookie`, `clearActiveOrgCookie`, `getActiveOrg`, `makeImageRoute` |
 | `betterspace/eslint` | `plugin`, `recommended`, 16 lint rules |
@@ -468,6 +475,7 @@ Opt out only when needed.
 | --- | --- | --- |
 | Auto-derived labels | `coverImage` renders as “Cover Image” | `label={false}` or `label="Custom"` |
 | Error toasts | `useMutate` and forms show toast on error | `onError: false` |
+| Toast shorthand | `useMutation(useReducer, reducers.create, { toast: { success: 'Created', error: 'Failed' } })` | Omit `toast` |
 | Devtools panel | Auto-mounts in dev mode inside forms | Manual `<BetterspaceDevtools>` for customization |
 | File upload warning | Console warning if file fields lack `<FileApiProvider>` | Add the provider |
 | Form data return | Forms auto-return submitted data for reset | Return custom data from `onSubmit` |
@@ -504,7 +512,7 @@ It also auto-installs dependencies and creates `tsconfig.json` — no manual set
 | --- | --- | ---: |
 | Web | Playwright E2E | 220 |
 | Backend | SpacetimeDB test utilities | 219 |
-| Library | bun:test (`src/__tests__/`) | 906 |
+| Library | bun:test (`src/__tests__/`) | 990 |
 
 ## Documentation
 
@@ -520,7 +528,7 @@ It also auto-installs dependencies and creates `tsconfig.json` — no manual set
 | [Migration](docs/migration.md) | Coming from lazyconvex — concept mapping and incremental adoption |
 | [Schema Evolution](docs/schema-evolution.md) | Adding, renaming, removing fields, type changes, deployment strategies |
 | [Ejecting](docs/ejecting.md) | Gradual replacement of factories with raw SpacetimeDB, what you lose/keep |
-| [Recipes](docs/recipes.md) | 7 real-world composition patterns: blog+files, org+ACL, custom queries, presence, multi-step forms |
+| [Recipes](docs/recipes.md) | 15 real-world composition patterns: chat, file upload, org+ACL, caching, soft delete, mutation workflows, typed components, global error types, schemaVariants, field validation, useMutation, toast shorthand, field error toasts, phantom types, error discrimination |
 
 ## Contributing
 
@@ -528,7 +536,7 @@ The library is independently testable without the demo apps:
 
 ```bash
 cd packages/betterspace
-bun test src/__tests__/  # 906 library-only tests, no SpacetimeDB needed
+bun test src/__tests__/  # 990 library-only tests, no SpacetimeDB needed
 bun lint          # library-scoped linting
 bun typecheck     # library-only type checking
 ```

@@ -890,6 +890,40 @@ import { useOnlineStatus } from 'betterspace/react'
 const isOnline = useOnlineStatus()
 ```
 
+### useForm
+
+Form state management hook that integrates Zod schemas with react-hook-form.
+Provides auto-derived field labels, conflict detection, and typed field errors.
+See [Forms guide](forms.md) for full usage.
+
+```typescript
+import { useForm } from 'betterspace/react'
+
+const form = useForm({
+  schema: blogSchema,
+  values: existingData,
+  onSubmit: async data => {
+    await save(data)
+    return data
+  }
+})
+```
+
+### useFormMutation
+
+Combines `useForm` with `useMutation` for forms that submit via SpacetimeDB reducers.
+Handles loading state, error toasts, and field validation automatically.
+
+```typescript
+import { useFormMutation } from 'betterspace/react'
+
+const { form, isPending } = useFormMutation({
+  schema: blogSchema,
+  reducer: reducers.blogCreate,
+  toast: { success: 'Created', error: 'Failed' }
+})
+```
+
 * * *
 
 ## React utilities
@@ -1219,6 +1253,38 @@ import { getFirstFieldError } from 'betterspace/server'
 
 const msg = getFirstFieldError(error)
 if (msg) toast.error(msg)
+```
+
+### err
+
+Throws a `SenderError` with a typed error code and optional debug message.
+Use inside reducers and server logic.
+
+```typescript
+import { err } from 'betterspace/server'
+
+err('NOT_FOUND')
+err('FORBIDDEN', 'User does not own this resource')
+err('VALIDATION_FAILED', 'Title must be non-empty')
+```
+
+`SenderError` has a `_tag` discriminator for `instanceof`-free error matching:
+
+```typescript
+import { SenderError } from 'betterspace/server'
+
+if (error instanceof SenderError) { ... }
+if (error._tag === 'SenderError') { ... }
+```
+
+### errValidation
+
+Throws a `SenderError` with `VALIDATION_FAILED` code and field-level errors.
+
+```typescript
+import { errValidation } from 'betterspace/server'
+
+errValidation({ title: 'Required', slug: 'Already taken' })
 ```
 
 * * *

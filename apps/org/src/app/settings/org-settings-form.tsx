@@ -27,9 +27,9 @@ const OrgSettingsForm = ({ org: o }: OrgSettingsFormProps) => {
       onSubmit: async d => {
         await update({
           avatarId: undefined,
-          name: d.name ?? undefined,
+          name: d.name,
           orgId: Number(o._id),
-          slug: d.slug ?? undefined
+          slug: d.slug
         })
         if (typeof d.slug === 'string' && d.slug !== o.slug) setActiveOrgCookieClient({ orgId: o._id, slug: d.slug })
 
