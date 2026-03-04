@@ -51,9 +51,11 @@ const IMAGE_TYPES = new Set(['image/gif', 'image/jpeg', 'image/png', 'image/svg+
         headers: { 'Content-Type': 'application/json' },
         method: 'POST'
       }),
-      body = (await response.json().catch(() => ({}))) as { url?: string }
-    if (!response.ok) return { error: 'File not found', status: 404 } as const
-    if (!body.url) return { error: 'File not found', status: 404 } as const
+      body = (await response.json().catch(() => ({ _parseError: true }))) as { _parseError?: boolean; url?: string }
+    if (!response.ok)
+      return { error: `File info endpoint returned HTTP ${response.status}`, status: response.status } as const
+    if (body._parseError) return { error: 'File info endpoint returned non-JSON response', status: 502 } as const
+    if (!body.url) return { error: 'File info endpoint response missing url field', status: 502 } as const
     return body.url
   },
   applyFormat = ({ contentType, format, pipeline, quality }: FormatOpts & { pipeline: Sharp }): Sharp => {

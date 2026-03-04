@@ -12,11 +12,11 @@ import type { CheckResult } from '../doctor'
 import type { DevtoolsProps } from '../react/devtools-panel'
 import type { ConflictData } from '../react/form'
 import type * as ReactIndexTypes from '../react/index'
-import type { SortDirection, SortMap, SortObject } from '../react/list-utils'
+import type { ListSort, SortDirection, SortMap, SortObject, WhereFieldValue } from '../react/list-utils'
 import type { MutationType, PendingMutation } from '../react/optimistic-store'
 import type { PlaygroundProps } from '../react/schema-playground'
 import type { BulkProgress, BulkResult, useBulkMutate, UseBulkMutateOptions } from '../react/use-bulk-mutate'
-import type { InfiniteListOptions, useInfiniteList } from '../react/use-infinite-list'
+import type { InfiniteListOptions, SkipInfiniteListResult, useInfiniteList } from '../react/use-infinite-list'
 import type { ListWhere, SkipListResult, useList, UseListOptions, WhereGroup } from '../react/use-list'
 import type { MutateOptions } from '../react/use-mutate'
 import type { PresenceUser, UsePresenceOptions, UsePresenceResult } from '../react/use-presence'
@@ -161,6 +161,7 @@ import {
   matchError,
   matchW,
   ok,
+  parseSenderMessage,
   RUNTIME_FILTER_WARN_THRESHOLD,
   SEVEN_DAYS_MS,
   time,
@@ -8911,8 +8912,130 @@ describe('Sprint 7 polish: type exports from betterspace/react', () => {
   })
 
   test('SkipListResult and UseListResult types exist', () => {
-    const skip: SkipListResult = { data: [], hasMore: false, isLoading: true, loadMore: noop, page: 1, totalCount: 0 }
-    expect(skip.isLoading).toBe(true)
+    const skip: SkipListResult = { data: [], hasMore: false, isLoading: false, loadMore: noop, page: 1, totalCount: 0 }
+    expect(skip.isLoading).toBe(false)
     expect(skip.hasMore).toBe(false)
+  })
+})
+
+describe('Sprint 8 polish: export WhereFieldValue and ListSort types', () => {
+  test('WhereFieldValue allows direct values', () => {
+    const filter: WhereFieldValue<string> = 'hello'
+    expect(filter).toBe('hello')
+  })
+
+  test('WhereFieldValue allows comparison operators', () => {
+    const filter: WhereFieldValue<number> = { $gte: 10 }
+    expect(filter).toEqual({ $gte: 10 })
+  })
+
+  test('WhereFieldValue allows $between operator', () => {
+    const filter: WhereFieldValue<number> = { $between: [1, 100] }
+    expect(filter).toEqual({ $between: [1, 100] })
+  })
+
+  test('ListSort accepts SortMap', () => {
+    const sort: ListSort<{ id: number; name: string }> = { name: 'desc' }
+    expect(sort).toEqual({ name: 'desc' })
+  })
+
+  test('ListSort accepts SortObject', () => {
+    const sort: ListSort<{ id: number; name: string }> = { direction: 'asc', field: 'name' }
+    expect(sort).toEqual({ direction: 'asc', field: 'name' })
+  })
+})
+
+describe('Sprint 8 polish: retry validates options', () => {
+  test('rejects maxAttempts < 1', () => {
+    expect(async () => withRetry(async () => 'ok', { maxAttempts: 0 })).toThrow('maxAttempts must be >= 1')
+  })
+
+  test('rejects maxAttempts = -1', () => {
+    expect(async () => withRetry(async () => 'ok', { maxAttempts: -1 })).toThrow('maxAttempts must be >= 1')
+  })
+
+  test('rejects negative initialDelayMs', () => {
+    expect(async () => withRetry(async () => 'ok', { initialDelayMs: -100 })).toThrow('initialDelayMs must be >= 0')
+  })
+
+  test('rejects negative maxDelayMs', () => {
+    expect(async () => withRetry(async () => 'ok', { maxDelayMs: -1 })).toThrow('maxDelayMs must be >= 0')
+  })
+
+  test('rejects base < 1', () => {
+    expect(async () => withRetry(async () => 'ok', { base: 0 })).toThrow('base must be >= 1')
+  })
+
+  test('rejects base = 0.5', () => {
+    expect(async () => withRetry(async () => 'ok', { base: 0.5 })).toThrow('base must be >= 1')
+  })
+
+  test('allows maxAttempts = 1 (single attempt, no retry)', async () => {
+    const result = await withRetry(async () => 'success', { maxAttempts: 1 })
+    expect(result).toBe('success')
+  })
+
+  test('allows initialDelayMs = 0 (no delay between retries)', async () => {
+    let count = 0
+    const result = await withRetry(
+      async () => {
+        count += 1
+        if (count < 2) throw new Error('fail')
+        return 'ok'
+      },
+      { initialDelayMs: 0, maxAttempts: 2 }
+    )
+    expect(result).toBe('ok')
+    expect(count).toBe(2)
+  })
+
+  test('allows base = 1 (constant delay)', async () => {
+    let count = 0
+    const result = await withRetry(
+      async () => {
+        count += 1
+        if (count < 2) throw new Error('fail')
+        return 'ok'
+      },
+      { base: 1, initialDelayMs: 0, maxAttempts: 2 }
+    )
+    expect(result).toBe('ok')
+  })
+})
+
+describe('Sprint 8 polish: useList skip returns isLoading false', () => {
+  test('SkipListResult has isLoading: false', () => {
+    const skip: SkipListResult = { data: [], hasMore: false, isLoading: false, loadMore: noop, page: 1, totalCount: 0 }
+    expect(skip.isLoading).toBe(false)
+  })
+
+  test('SkipInfiniteListResult has isLoading: false', () => {
+    const skip: SkipInfiniteListResult = { data: [], hasMore: false, isLoading: false, loadMore: noop, totalCount: 0 }
+    expect(skip.isLoading).toBe(false)
+  })
+})
+
+describe('Sprint 8 polish: parseSenderMessage adds debug on JSON parse failure', () => {
+  test('returns debug hint when JSON is malformed', () => {
+    const result = parseSenderMessage('VALIDATION_FAILED:{not valid json}')
+    expect(result).toBeDefined()
+    expect(result?.code).toBe('VALIDATION_FAILED')
+    expect(result?.debug).toBe('Error payload was not valid JSON')
+    expect(result?.message).toBe('{not valid json}')
+  })
+
+  test('returns normal result for valid JSON', () => {
+    const result = parseSenderMessage('VALIDATION_FAILED:{"message":"bad input"}')
+    expect(result).toBeDefined()
+    expect(result?.code).toBe('VALIDATION_FAILED')
+    expect(result?.message).toBe('bad input')
+    expect(result?.debug).toBeUndefined()
+  })
+
+  test('returns normal result for non-JSON message', () => {
+    const result = parseSenderMessage('NOT_FOUND:resource missing')
+    expect(result).toBeDefined()
+    expect(result?.code).toBe('NOT_FOUND')
+    expect(result?.message).toBe('resource missing')
   })
 })

@@ -36,7 +36,7 @@ const DEFAULT_PAGE_SIZE = 50,
   SKIP_RESULT = {
     data: [] as never[],
     hasMore: false,
-    isLoading: true,
+    isLoading: false,
     loadMore: noop,
     page: 1,
     totalCount: 0
@@ -140,7 +140,7 @@ const DEFAULT_PAGE_SIZE = 50,
 interface SkipListResult {
   data: never[]
   hasMore: false
-  isLoading: true
+  isLoading: false
   loadMore: () => void
   page: 1
   totalCount: 0

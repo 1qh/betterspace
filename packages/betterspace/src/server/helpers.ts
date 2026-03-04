@@ -438,7 +438,7 @@ const parseSenderMessage = (message: string): ErrorData | undefined => {
           table: typeof parsed.table === 'string' ? parsed.table : undefined
         }
       } catch {
-        return { ...data, message: rest }
+        return { ...data, debug: 'Error payload was not valid JSON', message: rest }
       }
 
     return { ...data, message: rest }
@@ -612,6 +612,7 @@ export {
   noFetcher,
   ok,
   ownGet,
+  parseSenderMessage,
   pgOpts,
   pickFields,
   readCtx,

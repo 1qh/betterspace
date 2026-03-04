@@ -177,7 +177,7 @@ const useWithGuard = <T extends Record<string, unknown>, S extends ZodObject<Zod
     const fileCtx = use(FileApiContext)
     if (isDev && hasFileFields(meta) && !fileCtx)
       // eslint-disable-next-line no-console
-      console.warn(
+      console.error(
         '[betterspace] Form schema has file fields but no FileApiProvider found. Wrap your app in <FileApiProvider> for file uploads to work.'
       )
     return null

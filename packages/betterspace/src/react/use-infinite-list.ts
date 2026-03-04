@@ -30,7 +30,7 @@ const DEFAULT_BATCH_SIZE = 50,
   SKIP_RESULT = {
     data: [] as never[],
     hasMore: false,
-    isLoading: true,
+    isLoading: false,
     loadMore: noop,
     totalCount: 0
   },
@@ -110,7 +110,7 @@ interface InfiniteListResult<T extends Rec> {
 interface SkipInfiniteListResult {
   data: never[]
   hasMore: false
-  isLoading: true
+  isLoading: false
   loadMore: () => void
   totalCount: 0
 }
