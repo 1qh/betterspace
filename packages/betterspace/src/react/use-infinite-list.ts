@@ -92,6 +92,7 @@ const DEFAULT_BATCH_SIZE = 50,
     }
     return false
   },
+  /** biome-ignore lint/suspicious/noEmptyBlockStatements: noop */
   noop = () => {},
   SKIP_RESULT = {
     data: [] as never[],

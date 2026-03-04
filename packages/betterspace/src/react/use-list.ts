@@ -98,6 +98,7 @@ const DEFAULT_PAGE_SIZE = 50,
    * })
    * ```
    */
+  /** biome-ignore lint/suspicious/noEmptyBlockStatements: noop */
   noop = () => {},
   SKIP_RESULT = {
     data: [] as never[],

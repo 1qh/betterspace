@@ -2,7 +2,7 @@
 'use client'
 import type { StandardSchemaV1 } from '@tanstack/form-core'
 import type { FormValidateOrFn, ReactFormExtendedApi } from '@tanstack/react-form'
-import type { output, ZodObject, ZodRawShape } from 'zod/v4'
+import type { output, ZodObject, ZodRawShape, ZodType } from 'zod/v4'
 
 /** Supported UI field kinds inferred from Zod schemas. */
 type FieldKind = 'boolean' | 'date' | 'file' | 'files' | 'number' | 'string' | 'stringArray' | 'unknown'
@@ -10,6 +10,7 @@ type FieldKind = 'boolean' | 'date' | 'file' | 'files' | 'number' | 'string' | '
 import { useForm as useTanStackForm } from '@tanstack/react-form'
 import { useStore } from '@tanstack/react-store'
 import { useEffect, useMemo, useRef, useState } from 'react'
+import { globalRegistry } from 'zod/v4'
 
 import type { ZodSchema } from '../zod'
 
@@ -30,8 +31,10 @@ import { defaultOnError } from './use-mutate'
 
 /** Metadata describing how a form field should be rendered. */
 interface FieldMeta {
+  description?: string
   kind: FieldKind
   max?: number
+  title?: string
 }
 /** Lookup table of field metadata keyed by field name. */
 type FieldMetaMap = Record<string, FieldMeta>
@@ -57,20 +60,34 @@ const getMax = (schema: undefined | ZodSchema): number | undefined => {
    * @param schema - Zod field schema
    * @returns Derived field metadata
    */
+  readRegistryMeta = (schema: unknown): { description?: string; title?: string } => {
+    if (!schema || typeof schema !== 'object' || !('_zod' in schema)) return {}
+    try {
+      const reg = globalRegistry.get(schema as ZodType)
+      if (!reg) return {}
+      const out: { description?: string; title?: string } = {}
+      if (typeof reg.title === 'string') out.title = reg.title
+      if (typeof reg.description === 'string') out.description = reg.description
+      return out
+    } catch {
+      return {}
+    }
+  },
   getMeta = (schema: unknown): FieldMeta => {
     const { schema: base, type } = unwrapZod(schema),
-      fileKind = cvFileKindOf(schema)
-    if (fileKind === 'file') return { kind: 'file' }
-    if (fileKind === 'files') return { kind: 'files', max: getMax(base) }
+      fileKind = cvFileKindOf(schema),
+      reg = readRegistryMeta(schema)
+    if (fileKind === 'file') return { kind: 'file', ...reg }
+    if (fileKind === 'files') return { kind: 'files', max: getMax(base), ...reg }
     if (isArrayType(type)) {
       const el = unwrapZod(elementOf(base))
-      return { kind: isStringType(el.type) ? 'stringArray' : 'unknown', max: getMax(base) }
+      return { kind: isStringType(el.type) ? 'stringArray' : 'unknown', max: getMax(base), ...reg }
     }
-    if (isStringType(type)) return { kind: 'string' }
-    if (isNumberType(type)) return { kind: 'number' }
-    if (isBooleanType(type)) return { kind: 'boolean' }
-    if (isDateType(type)) return { kind: 'date' }
-    return { kind: 'unknown' }
+    if (isStringType(type)) return { kind: 'string', ...reg }
+    if (isNumberType(type)) return { kind: 'number', ...reg }
+    if (isBooleanType(type)) return { kind: 'boolean', ...reg }
+    if (isDateType(type)) return { kind: 'date', ...reg }
+    return { kind: 'unknown', ...reg }
   },
   /** Builds metadata for every field in an object schema.
    * @param schema - Form schema
