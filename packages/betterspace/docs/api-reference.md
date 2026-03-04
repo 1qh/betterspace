@@ -335,6 +335,19 @@ const { data, hasMore, isLoading, loadMore, page, totalCount } = useList(
 )
 ```
 
+**`'skip'` sentinel:**
+
+Pass `'skip'` as the options argument to disable execution.
+The hook returns a loading state with empty data and does not filter or paginate.
+
+```typescript
+const list = useList(
+  rows,
+  ready,
+  someCondition ? { where: { published: true } } : 'skip'
+)
+```
+
 **Auto-reset pagination:**
 
 When `where` or `search.query` changes, `useList` automatically resets to page 1. This
@@ -483,6 +496,16 @@ Accepts the same type-safe `where` option as `useList`. Supports the `search` op
 with `debounceMs`. When `where` or `search.query` changes, the visible count resets to
 `batchSize` automatically.
 
+Pass `'skip'` as the options argument to disable execution:
+
+```typescript
+const list = useInfiniteList(
+  rows,
+  ready,
+  someCondition ? { batchSize: 20 } : 'skip'
+)
+```
+
 ```typescript
 import { useInfiniteList } from 'betterspace/react'
 
@@ -515,6 +538,16 @@ import { useSearch } from 'betterspace/react'
 const results = useSearch(posts, query, {
   fields: ['title', 'content']
 })
+```
+
+Pass `'skip'` as the options argument to disable execution:
+
+```typescript
+const results = useSearch(
+  posts,
+  ready,
+  someCondition ? { query, fields: ['title'] } : 'skip'
+)
 ```
 
 * * *
@@ -677,6 +710,44 @@ Retries use exponential backoff with jitter.
 
 * * *
 
+### useMutation
+
+Combines `useReducer` + `useMutate` into a single call.
+Import from `betterspace/react`.
+
+```typescript
+import { useMutation } from 'betterspace/react'
+```
+
+**Signature:**
+
+```typescript
+const useMutation = <A extends Record<string, unknown>, R = void, D = unknown>(
+  useReducerHook: (desc: D) => (args: A) => Promise<R>,
+  reducer: D,
+  options?: MutateOptions<A, R>
+): ((args: A) => Promise<R>)
+```
+
+Instead of:
+
+```typescript
+const raw = useReducer(reducers.update_blog)
+const save = useMutate(raw, { onSuccess: () => toast.success('Saved') })
+```
+
+Write:
+
+```typescript
+const save = useMutation(useReducer, reducers.update_blog, {
+  onSuccess: () => toast.success('Saved')
+})
+```
+
+Accepts the same `MutateOptions` as `useMutate`.
+
+* * *
+
 ### useOptimisticMutation
 
 Low-level optimistic mutation hook with rollback support.
@@ -724,6 +795,36 @@ Tracks browser online/offline state.
 import { useOnlineStatus } from 'betterspace/react'
 
 const isOnline = useOnlineStatus()
+```
+
+* * *
+
+## React utilities
+
+### toastFieldError
+
+Toasts the first field validation error from a Betterspace error.
+Returns `true` if a field error was toasted, `false` otherwise.
+Import from `betterspace/react`.
+
+**Signature:**
+
+```typescript
+const toastFieldError = (error: unknown, toastFn: ToastFn): boolean
+```
+
+`ToastFn` is `(message: string) => void`.
+
+```typescript
+import { toastFieldError } from 'betterspace/react'
+
+try {
+  await save(data)
+} catch (error) {
+  if (!toastFieldError(error, toast.error)) {
+    toast.error('Something went wrong')
+  }
+}
 ```
 
 * * *
@@ -971,6 +1072,24 @@ const uploadUrl = await createS3UploadPresignedUrl({
   contentType: 'image/jpeg',
   expiresInSeconds: 900 // 15 minutes
 })
+```
+
+### getFirstFieldError
+
+Returns the first field error message from a Betterspace error, or `undefined` if none.
+Import from `betterspace/server`.
+
+**Signature:**
+
+```typescript
+const getFirstFieldError = (e?: unknown): string | undefined
+```
+
+```typescript
+import { getFirstFieldError } from 'betterspace/server'
+
+const msg = getFirstFieldError(error)
+if (msg) toast.error(msg)
 ```
 
 * * *
@@ -1326,6 +1445,33 @@ const { create: c2, update: u2 } = schemaVariants(postSchema)
 ```
 
 Use `schemaVariants` to avoid duplicating schema definitions for create and edit forms.
+
+`schemaVariants().update` now preserves full field type information rather than widening
+to `ZodObject<ZodRawShape>`.
+
+* * *
+
+### buildMeta / getMeta with Zod v4 globalRegistry
+
+`buildMeta` and `getMeta` read Zod v4’s `globalRegistry` for `title` and `description`
+metadata. The `FieldMeta` interface includes optional `title` and `description` fields.
+
+```typescript
+import { z } from 'zod/v4'
+
+const postSchema = z.object({
+  title: z
+    .string()
+    .meta({ title: 'Post Title', description: 'The main heading' }),
+  content: z.string().meta({ description: 'Markdown content' })
+})
+
+const meta = buildMeta(postSchema)
+// meta.title  → { kind: 'string', title: 'Post Title', description: 'The main heading' }
+// meta.content → { kind: 'string', description: 'Markdown content' }
+```
+
+When a field has no `.meta()` call, `title` and `description` are `undefined`.
 
 * * *
 

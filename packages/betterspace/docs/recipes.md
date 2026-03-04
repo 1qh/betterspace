@@ -698,3 +698,73 @@ const CreatePost = () => {
 
 `getFieldErrors` returns `undefined` when the error has no field-level data, so you can
 safely fall through to a generic error handler.
+
+* * *
+
+## Reducing mutation boilerplate with useMutation
+
+`useMutation` combines `useReducer` + `useMutate` into one call, removing the
+intermediate variable.
+
+Before:
+
+```typescript
+import { useMutate } from 'betterspace/react'
+import { useReducer } from 'spacetimedb/react'
+import { reducers } from '@/generated/module_bindings'
+
+const raw = useReducer(reducers.update_blog)
+const save = useMutate(raw, { onSuccess: () => toast.success('Saved') })
+```
+
+After:
+
+```typescript
+import { useMutation } from 'betterspace/react'
+import { useReducer } from 'spacetimedb/react'
+import { reducers } from '@/generated/module_bindings'
+
+const save = useMutation(useReducer, reducers.update_blog, {
+  onSuccess: () => toast.success('Saved')
+})
+```
+
+All `MutateOptions` work the same way — `onSuccess`, `onSettled`, `onError`, `retry`,
+`optimistic`, etc.
+
+* * *
+
+## Field validation error toasts
+
+Use `toastFieldError` to surface the first field validation error as a toast, then fall
+back to a generic message for non-field errors.
+
+```typescript
+'use client'
+
+import { toastFieldError } from 'betterspace/react'
+import { useMutation } from 'betterspace/react'
+import { useReducer } from 'spacetimedb/react'
+import { reducers } from '@/generated/module_bindings'
+
+const BlogEditor = () => {
+  const save = useMutation(useReducer, reducers.update_blog, {
+    onError: error => {
+      if (!toastFieldError(error, toast.error)) {
+        toast.error('Something went wrong')
+      }
+    }
+  })
+
+  const handleSubmit = async (data: { id: number; title: string; content: string }) => {
+    await save(data)
+  }
+
+  return <form onSubmit={...}>{...}</form>
+}
+```
+
+`toastFieldError` returns `true` when it toasted a field error, so the `if` block only
+runs for other error types.
+Pair it with `getFieldErrors` when you need to display errors inline in the form rather
+than as toasts.
