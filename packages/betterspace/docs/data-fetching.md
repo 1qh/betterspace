@@ -120,6 +120,26 @@ The return value:
 It doesn’t make any network requests.
 All filtering and sorting happens over the in-memory subscription data.
 
+### List type exports
+
+All list-related types are exported from `betterspace/react`:
+
+```typescript
+import type {
+  SortDirection,
+  SortMap,
+  SortObject,
+  UseListResult,
+  SkipListResult,
+  InfiniteListResult,
+  SkipInfiniteListResult
+} from 'betterspace/react'
+```
+
+`UseListResult<T>` and `InfiniteListResult<T>` are the return types of `useList` and
+`useInfiniteList`. `SkipListResult` and `SkipInfiniteListResult` are the placeholder
+values returned when the hook is skipped (e.g. data not yet ready).
+
 ## Comparison operators in where
 
 ```typescript

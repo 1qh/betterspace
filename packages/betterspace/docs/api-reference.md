@@ -800,6 +800,9 @@ interface RetryOptions {
 
 Defaults: `maxAttempts: 3`, `initialDelayMs: 500`, `maxDelayMs: 10_000`, `base: 2`.
 Retries use exponential backoff with jitter.
+When all attempts fail, the thrown error includes the attempt count (e.g.
+`"Connection refused (after 3 attempts)"`) and preserves the original error as `cause`
+for debugging.
 
 * * *
 
@@ -1165,6 +1168,9 @@ import { idToWire, idFromWire } from 'betterspace'
 const wire = idToWire(42) // '42'
 const id = idFromWire('42') // 42
 ```
+
+`idFromWire` rejects empty and whitespace-only strings with an `Err` result instead of
+silently returning `0` (which `Number('')` would produce).
 
 ### partialValues
 
@@ -1717,6 +1723,9 @@ to `ZodObject<ZodRawShape>`.
 `buildMeta` and `getMeta` read Zod v4’s `globalRegistry` for `title` and `description`
 metadata. The `FieldMeta` interface includes optional `title` and `description` fields.
 
+`buildMeta` is generic — the return type preserves the exact field names from your Zod
+schema, so `meta.typo` is a type error:
+
 ```typescript
 import { z } from 'zod/v4'
 
@@ -1730,6 +1739,7 @@ const postSchema = z.object({
 const meta = buildMeta(postSchema)
 // meta.title  → { kind: 'string', title: 'Post Title', description: 'The main heading' }
 // meta.content → { kind: 'string', description: 'Markdown content' }
+// meta.typo   → TS error: Property 'typo' does not exist
 ```
 
 When a field has no `.meta()` call, `title` and `description` are `undefined`.
