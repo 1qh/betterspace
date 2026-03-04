@@ -2,6 +2,7 @@
 /* eslint-disable no-console, max-depth, max-statements */
 /** biome-ignore-all lint/style/noProcessEnv: cli */
 /** biome-ignore-all lint/performance/noAwaitInLoops: sequential */
+// biome-ignore-all lint/nursery/noUnnecessaryConditions: type narrowing
 import { existsSync, readdirSync, readFileSync } from 'node:fs'
 import { dirname, join } from 'node:path'
 

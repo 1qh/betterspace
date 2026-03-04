@@ -1,6 +1,3 @@
-/* eslint-disable prefer-named-capture-group */
-/* eslint-disable max-statements */
-// oxlint-disable import/exports-last, import/group-exports
 'use client'
 
 import type { ComponentProps, ReactNode } from 'react'

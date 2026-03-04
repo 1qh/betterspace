@@ -1,3 +1,4 @@
+// biome-ignore-all lint/style/noProcessEnv: intentional process.env access
 import { err } from './server/helpers'
 
 type AnyApi = Record<string, Record<string, unknown>>

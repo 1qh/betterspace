@@ -1,4 +1,3 @@
-// oxlint-disable import/exports-last, import/group-exports
 'use client'
 
 import type { UIMessage } from 'ai'

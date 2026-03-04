@@ -1,3 +1,4 @@
+// biome-ignore-all lint/style/noProcessEnv: intentional process.env access
 /* eslint-disable max-statements, complexity */
 'use client'
 

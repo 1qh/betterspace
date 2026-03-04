@@ -20,7 +20,6 @@
     "@next/eslint-plugin-next": "latest",
     "eslint": "9",
     "eslint-plugin-better-tailwindcss": "latest",
-    "eslint-plugin-import": "latest",
     "eslint-plugin-jsx-a11y": "latest",
     "eslint-plugin-perfectionist": "latest",
     "eslint-plugin-prefer-arrow-functions": "latest",

@@ -1,3 +1,6 @@
+// biome-ignore-all lint/security/noDangerouslySetInnerHtml: controlled redirect
+// biome-ignore-all lint/nursery/useGlobalThis: browser API
+// biome-ignore-all lint/style/noProcessEnv: intentional process.env access
 'use client'
 
 import type { Org, OrgMember } from '@a/be/spacetimedb/types'

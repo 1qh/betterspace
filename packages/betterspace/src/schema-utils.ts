@@ -1,3 +1,4 @@
+// biome-ignore-all lint/nursery/noUnnecessaryConditions: type narrowing
 /* eslint-disable max-depth, max-statements */
 /* oxlint-disable eslint/max-statements, eslint/complexity */
 interface FactoryCall {

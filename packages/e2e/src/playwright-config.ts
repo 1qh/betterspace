@@ -1,3 +1,4 @@
+// biome-ignore-all lint/style/noProcessEnv: config env
 import { defineConfig, devices } from '@playwright/test'
 
 interface PlaywrightOptions {

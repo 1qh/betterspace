@@ -1,3 +1,4 @@
+// oxlint-disable max-params
 import { callReducer, cleanup, createTestContext, queryTable } from 'betterspace/server'
 
 import type { TestContext, TestUser } from 'betterspace/server'

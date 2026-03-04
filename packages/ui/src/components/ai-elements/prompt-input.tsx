@@ -1,6 +1,3 @@
-/* eslint-disable max-statements */
-// oxlint-disable unicorn/no-typeof-undefined, prefer-await-to-then, always-return, no-nesting, exports-last, group-exports, prefer-add-event-listener
-// biome-ignore-all lint/nursery/noFloatingPromises: x
 'use client'
 
 import type { ChatStatus, FileUIPart, SourceDocumentUIPart } from 'ai'

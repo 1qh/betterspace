@@ -1,3 +1,4 @@
+// biome-ignore-all lint/suspicious/useAwait: async without await
 'use server'
 
 import type { NextRequest } from 'next/server'

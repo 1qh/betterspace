@@ -1,5 +1,8 @@
 #!/usr/bin/env bun
 /* eslint-disable no-console, max-statements */
+// biome-ignore-all lint/style/noProcessEnv: intentional process.env access
+// biome-ignore-all lint/suspicious/useAwait: async without await
+// oxlint-disable promise/avoid-new
 
 import type { ChildProcess, SpawnSyncReturns } from 'node:child_process'
 import type { FSWatcher } from 'node:fs'

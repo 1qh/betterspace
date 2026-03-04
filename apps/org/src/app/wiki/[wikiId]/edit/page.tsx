@@ -1,4 +1,5 @@
 /* oxlint-disable promise/prefer-await-to-then, promise/always-return, promise/catch-or-return */
+// biome-ignore-all lint/nursery/noFloatingPromises: event handler
 'use client'
 
 import type { Wiki } from '@a/be/spacetimedb/types'

@@ -1,4 +1,5 @@
 // biome-ignore-all lint/performance/useTopLevelRegex: test file
+// biome-ignore-all lint/nursery/useGlobalThis: browser API
 /* eslint-disable max-statements */
 import path from 'node:path'
 

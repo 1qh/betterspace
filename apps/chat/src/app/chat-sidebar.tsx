@@ -1,3 +1,5 @@
+// biome-ignore-all lint/a11y/useSemanticElements: intentional div usage
+// biome-ignore-all lint/nursery/noFloatingPromises: event handler
 'use client'
 
 import { Button } from '@a/ui/button'

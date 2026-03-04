@@ -1,3 +1,5 @@
+// biome-ignore-all lint/style/noProcessEnv: test env
+// biome-ignore-all lint/suspicious/useAwait: test async
 /* eslint-disable @typescript-eslint/naming-convention, @typescript-eslint/no-magic-numbers, @typescript-eslint/no-unnecessary-condition, max-statements */
 import type { ComponentProps } from 'react'
 import type { z } from 'zod/v4'

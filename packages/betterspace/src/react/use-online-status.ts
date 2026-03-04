@@ -1,3 +1,4 @@
+// biome-ignore-all lint/nursery/useGlobalThis: browser API
 'use client'
 
 import { useSyncExternalStore } from 'react'

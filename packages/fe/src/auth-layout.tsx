@@ -1,3 +1,4 @@
+// oxlint-disable no-unassigned-import
 import '@a/ui/globals.css'
 import type { ReactNode } from 'react'
 

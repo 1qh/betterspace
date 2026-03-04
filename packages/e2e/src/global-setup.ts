@@ -1,3 +1,4 @@
+// biome-ignore-all lint/style/noProcessEnv: e2e env
 import { execSync } from 'node:child_process'
 
 import { ensureTestUser } from './org-helpers'

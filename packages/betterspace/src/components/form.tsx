@@ -1,5 +1,6 @@
 // biome-ignore-all lint/suspicious/noExplicitAny: x
 // biome-ignore-all lint/correctness/useHookAtTopLevel: watch hook is called inside component render context
+// biome-ignore-all lint/style/noProcessEnv: intentional process.env access
 'use client'
 import type { ComponentProps, ReactNode } from 'react'
 import type { infer as zinfer, ZodObject, ZodRawShape } from 'zod/v4'

@@ -1,4 +1,6 @@
 // biome-ignore-all lint/performance/noImgElement: x
+// biome-ignore-all lint/style/noProcessEnv: intentional process.env access
+// biome-ignore-all lint/correctness/useImageSize: dynamic images
 'use client'
 
 import { Input } from '@a/ui/input'

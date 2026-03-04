@@ -1,3 +1,4 @@
+// oxlint-disable no-await-expression-member
 import type { Popover as PopoverPrimitive } from 'radix-ui'
 import type { ComponentProps } from 'react'
 

@@ -1,6 +1,3 @@
-// oxlint-disable unicorn/prefer-add-event-listener
-/* eslint-disable max-statements */
-// oxlint-disable import/exports-last, import/group-exports
 'use client'
 
 import type { ComponentProps } from 'react'

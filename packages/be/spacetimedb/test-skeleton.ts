@@ -1,3 +1,4 @@
+// oxlint-disable promise/avoid-new
 import { callReducer, cleanup, createTestContext, queryTable } from 'betterspace/server'
 
 interface BlogRow {

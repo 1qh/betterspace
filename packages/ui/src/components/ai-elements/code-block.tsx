@@ -1,6 +1,3 @@
-/* eslint-disable no-bitwise */
-// oxlint-disable promise/always-return, promise/prefer-await-to-then, promise/prefer-await-to-callbacks
-// oxlint-disable import/exports-last, import/group-exports
 'use client'
 
 import type { ComponentProps, CSSProperties, HTMLAttributes } from 'react'

@@ -1,3 +1,5 @@
+// biome-ignore-all lint/nursery/useGlobalThis: browser API
+// oxlint-disable no-document-cookie
 import type { Page } from '@playwright/test'
 
 import { api, ensureTestUser, extractErrorCode, getTestToken, tc } from './org-helpers'

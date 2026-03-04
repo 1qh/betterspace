@@ -1,4 +1,5 @@
 /* oxlint-disable promise/prefer-await-to-then */
+// biome-ignore-all lint/nursery/useGlobalThis: browser API
 'use client'
 
 import type { OrgInvite } from '@a/be/spacetimedb/types'

@@ -4,9 +4,6 @@ import type { StandardSchemaV1 } from '@tanstack/form-core'
 import type { FormValidateOrFn, ReactFormExtendedApi } from '@tanstack/react-form'
 import type { output, ZodObject, ZodRawShape, ZodType } from 'zod/v4'
 
-/** Supported UI field kinds inferred from Zod schemas. */
-type FieldKind = 'boolean' | 'date' | 'file' | 'files' | 'number' | 'string' | 'stringArray' | 'unknown'
-
 import { useForm as useTanStackForm } from '@tanstack/react-form'
 import { useStore } from '@tanstack/react-store'
 import { useEffect, useMemo, useRef, useState } from 'react'
@@ -28,6 +25,8 @@ import {
   unwrapZod
 } from '../zod'
 import { defaultOnError } from './use-mutate'
+
+type FieldKind = 'boolean' | 'date' | 'file' | 'files' | 'number' | 'string' | 'stringArray' | 'unknown'
 
 /** Metadata describing how a form field should be rendered. */
 interface FieldMeta {

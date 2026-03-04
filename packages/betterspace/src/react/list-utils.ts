@@ -97,7 +97,6 @@ const searchMatches = <T extends Rec>(row: T, query: string, fields: (keyof T & 
     out.sort((a, b) => compareValues(a[config.field], b[config.field]) * factor)
     return out
   },
-  /** biome-ignore lint/suspicious/noEmptyBlockStatements: noop */
   noop = () => {} // eslint-disable-line @typescript-eslint/no-empty-function
 
 export type { ListSort, ListWhere, Rec, SortDirection, SortMap, SortObject, WhereFieldValue, WhereGroup }

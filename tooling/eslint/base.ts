@@ -3,7 +3,6 @@
 import eslintReact from '@eslint-react/eslint-plugin'
 import { includeIgnoreFile } from '@eslint/compat'
 import eslint from '@eslint/js'
-import importPlugin from 'eslint-plugin-import'
 import { configs as perfectionist } from 'eslint-plugin-perfectionist'
 import preferArrow from 'eslint-plugin-prefer-arrow-functions'
 import turbo from 'eslint-plugin-turbo'
@@ -29,25 +28,24 @@ export default defineConfig(
     ],
     files: ['**/*.js', '**/*.ts', '**/*.tsx'],
     plugins: {
-      import: importPlugin,
       preferArrow,
       turbo
     },
     rules: {
       '@eslint-react/avoid-shorthand-boolean': 'off',
       '@eslint-react/avoid-shorthand-fragment': 'off',
-      '@eslint-react/no-implicit-key': 'warn',
+      '@eslint-react/no-implicit-key': 'error',
       '@eslint-react/no-missing-context-display-name': 'off',
       '@typescript-eslint/consistent-return': 'off',
       '@typescript-eslint/consistent-type-imports': [
-        'warn',
+        'error',
         { fixStyle: 'separate-type-imports', prefer: 'type-imports' }
       ],
       '@typescript-eslint/explicit-function-return-type': 'off',
       '@typescript-eslint/explicit-module-boundary-types': 'off',
       '@typescript-eslint/init-declarations': 'off',
       '@typescript-eslint/naming-convention': [
-        'warn',
+        'error',
         { format: ['camelCase', 'UPPER_CASE', 'PascalCase'], selector: 'variable' }
       ],
       '@typescript-eslint/no-confusing-void-expression': 'off',
@@ -63,18 +61,17 @@ export default defineConfig(
       'capitalized-comments': ['error', 'always', { ignorePattern: 'oxlint|biome|console|let|const|return|if|for|throw' }],
       curly: ['error', 'multi'],
       'id-length': 'off',
-      'import/consistent-type-specifier-style': ['error', 'prefer-top-level'],
       'max-lines': 'off',
       'max-lines-per-function': 'off',
       'new-cap': ['error', { capIsNewExceptionPattern: 'Inter|JetBrains_Mono' }],
-      'no-console': 'warn',
+      'no-console': 'error',
       'no-duplicate-imports': ['error', { allowSeparateTypeImports: true }],
       'no-nested-ternary': 'off',
       'no-promise-executor-return': 'off',
       'no-ternary': 'off',
       'no-undefined': 'off',
       'no-underscore-dangle': 'off',
-      'one-var': ['warn', 'consecutive'],
+      'one-var': ['error', 'consecutive'],
       'perfectionist/sort-variable-declarations': 'off',
       'preferArrow/prefer-arrow-functions': ['error', { returnStyle: 'implicit' }],
       'sort-imports': 'off',

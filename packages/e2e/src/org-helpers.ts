@@ -1,6 +1,10 @@
 // biome-ignore-all lint/performance/noAwaitInLoops: e2e sequential
+// biome-ignore-all lint/nursery/useNamedCaptureGroup: regex patterns
+// biome-ignore-all lint/style/noProcessEnv: e2e env
+// biome-ignore-all lint/suspicious/useAwait: async without await
 // oxlint-disable no-await-in-loop
 // oxlint-disable complexity
+// oxlint-disable no-await-expression-member
 import type { api as BeApi } from '@a/be'
 import type { Id } from '@a/be/model'
 

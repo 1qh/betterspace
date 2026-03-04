@@ -1,5 +1,3 @@
-// oxlint-disable import/exports-last, import/group-exports
-/* eslint-disable react/iframe-missing-sandbox */
 'use client'
 
 import type { ComponentProps, ReactNode } from 'react'

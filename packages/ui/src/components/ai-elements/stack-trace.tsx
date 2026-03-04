@@ -1,5 +1,3 @@
-/* eslint-disable prefer-named-capture-group, complexity */
-// oxlint-disable import/exports-last, import/group-exports
 'use client'
 
 import type { ComponentProps } from 'react'

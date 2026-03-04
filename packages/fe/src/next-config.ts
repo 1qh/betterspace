@@ -1,3 +1,4 @@
+// biome-ignore-all lint/style/noProcessEnv: config env
 import type { NextConfig } from 'next'
 
 interface CreateNextConfigOptions {

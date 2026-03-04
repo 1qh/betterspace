@@ -1,4 +1,5 @@
 // biome-ignore-all lint/suspicious/noEmptyBlockStatements: intentional swallow
+// biome-ignore-all lint/style/noProcessEnv: e2e env
 // oxlint-disable no-empty-function
 import { serve } from 'bun'
 

@@ -31,7 +31,26 @@ export default defineConfig(reactHooks.configs.flat['recommended-latest'] as { r
     'better-tailwindcss/enforce-consistent-variable-syntax': 'error',
     'better-tailwindcss/enforce-shorthand-classes': 'error',
     'better-tailwindcss/no-deprecated-classes': 'error',
-    'better-tailwindcss/no-unknown-classes': ['warn', { ignore: ['group', 'peer', 'nodrag', 'nopan', 'nowheel'] }],
+    'better-tailwindcss/no-unknown-classes': [
+      'error',
+      {
+        ignore: [
+          'group',
+          'peer',
+          'nodrag',
+          'nopan',
+          'nowheel',
+          'not-prose',
+          'is-user',
+          'is-assistant',
+          'is-user:dark',
+          'animated',
+          'node-container',
+          'origin-top-center',
+          'toaster'
+        ]
+      }
+    ],
     'react-hooks/preserve-manual-memoization': 'warn',
     'react-hooks/set-state-in-effect': 'warn',
     'react/button-has-type': 'off',

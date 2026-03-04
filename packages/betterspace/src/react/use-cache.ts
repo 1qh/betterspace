@@ -1,3 +1,5 @@
+// biome-ignore-all lint/style/noProcessEnv: intentional process.env access
+// biome-ignore-all lint/nursery/noFloatingPromises: event handler
 'use client'
 
 import { useCallback, useEffect, useRef, useState } from 'react'

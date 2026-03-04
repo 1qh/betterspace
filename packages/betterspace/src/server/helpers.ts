@@ -1,3 +1,4 @@
+// biome-ignore-all lint/suspicious/useAwait: async without await
 /* eslint-disable max-depth, max-statements, @typescript-eslint/max-params */
 import type { ZodObject, output as ZodOutput, ZodRawShape } from 'zod/v4'
 
@@ -377,6 +378,7 @@ const TOKEN_BYTES = 24,
   ) => {
     const { config, key, table } = opts,
       now = opts.timestamp ?? Date.now(),
+      // biome-ignore lint/nursery/noPlaywrightUselessAwait: .first() returns thenable, await needed for cross-package tsc
       existing = await db
         .query('rateLimit')
         .withIndex(
@@ -609,15 +611,15 @@ const parseSenderMessage = (message: string): ErrorData | undefined => {
         args: { exclude: string().optional(), value: string() },
         handler: typed(async (c: QueryCtxLike, { exclude, value }: { exclude?: string; value: string }) => {
           const q = c.db.query(table),
-            existing = index
-              ? await q
+            existing = await (index
+              ? q
                   .withIndex(
                     index,
 
                     idx((i: unknown) => (i as { eq: (name: string, v: string) => unknown }).eq(field, value))
                   )
                   .first()
-              : await q
+              : q
 
                   .filter(
                     flt((f: unknown) =>
@@ -627,7 +629,7 @@ const parseSenderMessage = (message: string): ErrorData | undefined => {
                       )
                     )
                   )
-                  .first()
+                  .first())
           return !(existing as null | Record<string, unknown>) || (existing as Record<string, unknown>)._id === exclude
         })
       })

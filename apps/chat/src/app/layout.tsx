@@ -1,3 +1,5 @@
+// oxlint-disable no-await-expression-member
+// biome-ignore-all lint/style/noProcessEnv: intentional process.env access
 import type { Metadata } from 'next'
 import type { ReactNode } from 'react'
 

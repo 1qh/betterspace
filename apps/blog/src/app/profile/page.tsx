@@ -1,3 +1,4 @@
+// biome-ignore-all lint/style/noProcessEnv: intentional process.env access
 'use client'
 
 import { reducers, tables } from '@a/be/spacetimedb'

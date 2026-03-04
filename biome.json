@@ -80,6 +80,12 @@
   },
   "overrides": [
     {
+      "includes": ["packages/ui/**"],
+      "linter": {
+        "enabled": false
+      }
+    },
+    {
       "css": {
         "parser": {
           "tailwindDirectives": true
@@ -89,25 +95,25 @@
       "linter": {
         "rules": {
           "a11y": {
-            "noNoninteractiveElementInteractions": "warn",
-            "noSvgWithoutTitle": "off",
-            "useAriaPropsForRole": "off",
-            "useFocusableInteractive": "off",
-            "useSemanticElements": "off"
+            "noNoninteractiveElementInteractions": "error",
+            "noSvgWithoutTitle": "error",
+            "useAriaPropsForRole": "error",
+            "useFocusableInteractive": "error",
+            "useSemanticElements": "error"
           },
           "complexity": {
             "noExcessiveCognitiveComplexity": "off",
             "noExcessiveLinesPerFunction": "off"
           },
           "correctness": {
-            "noNestedComponentDefinitions": "off",
+            "noNestedComponentDefinitions": "error",
             "noNodejsModules": "off",
             "noProcessGlobal": "off",
             "noSolidDestructuredProps": "off",
             "noUndeclaredDependencies": "off",
             "useQwikValidLexicalScope": "off",
             "useExhaustiveDependencies": "off",
-            "useImageSize": "warn",
+            "useImageSize": "error",
             "noUnresolvedImports": "off",
             "useImportExtensions": "off",
             "useUniqueElementIds": "off"
@@ -115,28 +121,28 @@
           "nursery": {
             "noConditionalExpect": "off",
             "noExcessiveLinesPerFile": "off",
-            "noFloatingPromises": "warn",
+            "noFloatingPromises": "error",
             "noJsxPropsBind": "off",
-            "noLeakedRender": "off",
-            "noPlaywrightUselessAwait": "off",
+            "noLeakedRender": "error",
+            "noPlaywrightUselessAwait": "error",
             "noTernary": "off",
-            "noUnnecessaryConditions": "warn",
+            "noUnnecessaryConditions": "error",
             "useAwaitThenable": "off",
-            "useErrorCause": "warn",
+            "useErrorCause": "error",
             "useExplicitType": "off",
-            "useGlobalThis": "warn",
-            "useNamedCaptureGroup": "warn",
+            "useGlobalThis": "error",
+            "useNamedCaptureGroup": "error",
             "useSortedClasses": "off"
           },
           "performance": {
             "noBarrelFile": "off",
-            "noImgElement": "warn",
+            "noImgElement": "error",
             "noNamespaceImport": "off",
-            "noReExportAll": "off",
+            "noReExportAll": "error",
             "useSolidForComponent": "off"
           },
           "security": {
-            "noDangerouslySetInnerHtml": "off",
+            "noDangerouslySetInnerHtml": "error",
             "noSecrets": "off"
           },
           "style": {
@@ -146,24 +152,24 @@
             "noMagicNumbers": "off",
             "noNestedTernary": "off",
             "noJsxLiterals": "off",
-            "noProcessEnv": "warn",
+            "noProcessEnv": "error",
             "useBlockStatements": "off",
             "useComponentExportOnlyModules": "off",
             "useExplicitLengthCheck": "off",
-            "useExportsLast": "warn",
+            "useExportsLast": "error",
             "useImportType": "off",
             "useNamingConvention": "off",
             "useSingleVarDeclarator": "off"
           },
           "suspicious": {
             "noArrayIndexKey": "off",
-            "noAssignInExpressions": "off",
+            "noAssignInExpressions": "error",
             "noConsole": "off",
             "noDocumentCookie": "off",
             "noExplicitAny": "error",
             "noReactSpecificProps": "off",
             "noUnknownAtRules": "off",
-            "useAwait": "warn"
+            "useAwait": "error"
           }
         }
       }
