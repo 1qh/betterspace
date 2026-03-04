@@ -4,6 +4,7 @@ import type { ReactNode } from 'react'
 import AuthLayout from '@a/fe/auth-layout'
 import SpacetimeProvider from '@a/fe/spacetimedb-provider'
 import { SidebarInset, SidebarProvider } from '@a/ui/sidebar'
+import { BetterspaceDevtools } from 'betterspace/react'
 import { cookies, headers } from 'next/headers'
 import { redirect } from 'next/navigation'
 
@@ -35,6 +36,7 @@ const metadata: Metadata = { description: 'betterspace chat demo', title: 'Chat'
         ) : (
           children
         )}
+        <BetterspaceDevtools position='bottom-right' />
       </AuthLayout>
     )
   }

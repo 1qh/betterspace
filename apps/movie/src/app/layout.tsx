@@ -4,6 +4,7 @@ import type { ReactNode } from 'react'
 import SpacetimeProvider from '@a/fe/spacetimedb-provider'
 import { Toaster } from '@a/ui/sonner'
 import { ErrorBoundary } from 'betterspace/components'
+import { BetterspaceDevtools } from 'betterspace/react'
 import { ThemeProvider } from 'next-themes'
 import { Suspense } from 'react'
 
@@ -16,6 +17,7 @@ const Layout = ({ children }: { children: ReactNode }) => (
             <ThemeProvider attribute='class' defaultTheme='system' enableSystem>
               {children}
             </ThemeProvider>
+            <BetterspaceDevtools position='bottom-right' />
           </SpacetimeProvider>
           <Toaster duration={1000} />
         </ErrorBoundary>

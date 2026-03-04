@@ -8,6 +8,7 @@ import { tables } from '@a/be/spacetimedb'
 import AuthLayout from '@a/fe/auth-layout'
 import SpacetimeProvider from '@a/fe/spacetimedb-provider'
 import { sameIdentity } from '@a/fe/utils'
+import { BetterspaceDevtools } from 'betterspace/react'
 import { usePathname, useRouter } from 'next/navigation'
 import { useEffect, useState } from 'react'
 import { useSpacetimeDB, useTable } from 'spacetimedb/react'
@@ -100,6 +101,7 @@ const ORG_PATHS = ['/dashboard', '/members', '/projects', '/wiki', '/settings'],
   Layout = ({ children }: { children: ReactNode }) => (
     <AuthLayout provider={inner => <SpacetimeProvider fileApi>{inner}</SpacetimeProvider>}>
       <OrgLayoutInner>{children}</OrgLayoutInner>
+      <BetterspaceDevtools position='bottom-right' />
     </AuthLayout>
   )
 

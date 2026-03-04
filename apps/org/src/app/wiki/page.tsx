@@ -10,8 +10,9 @@ import { Badge } from '@a/ui/badge'
 import { Button } from '@a/ui/button'
 import { Card, CardContent, CardHeader, CardTitle } from '@a/ui/card'
 import { Checkbox } from '@a/ui/checkbox'
-import { useBulkSelection } from 'betterspace/react'
-import { FileText, Plus, RotateCcw, Trash2 } from 'lucide-react'
+import { Input } from '@a/ui/input'
+import { useBulkSelection, useSearch } from 'betterspace/react'
+import { FileText, Plus, RotateCcw, Search, Trash2 } from 'lucide-react'
 import Link from 'next/link'
 import { useState } from 'react'
 import { toast } from 'sonner'
@@ -22,11 +23,16 @@ import { useOrg } from '~/hook/use-org'
 const WikiPage = () => {
   const { isAdmin, org } = useOrg(),
     [showDeleted, setShowDeleted] = useState(false),
-    [allWikis] = useTable(tables.wiki),
-    wikis = allWikis
+    [query, setQuery] = useState(''),
+    [allWikis, isWikisReady] = useTable(tables.wiki),
+    orgWikis = allWikis
 
       .filter((w: Wiki) => w.orgId === Number(org._id) && w.deletedAt === undefined)
       .map((w: Wiki) => ({ ...w, _id: `${w.id}` })),
+    { results: wikis } = useSearch(orgWikis, isWikisReady, {
+      fields: ['title', 'slug'],
+      query
+    }),
     deletedWikis = allWikis
 
       .filter((w: Wiki) => w.orgId === Number(org._id) && w.deletedAt !== undefined)
@@ -116,6 +122,20 @@ const WikiPage = () => {
           )}
         </div>
       </div>
+
+      {showDeleted ? null : (
+        <div className='relative'>
+          <Search className='absolute top-1/2 left-3 size-4 -translate-y-1/2 text-muted-foreground' />
+          <Input
+            className='pl-9'
+            data-testid='wiki-search-input'
+            onChange={e => setQuery(e.target.value)}
+            placeholder='Search wiki pages...'
+            type='search'
+            value={query}
+          />
+        </div>
+      )}
 
       {showDeleted ? (
         deletedItems.length === 0 ? (

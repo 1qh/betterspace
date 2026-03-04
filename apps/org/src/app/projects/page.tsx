@@ -8,9 +8,11 @@ import { fail } from '@a/fe/utils'
 import { Button } from '@a/ui/button'
 import { Card, CardContent, CardHeader, CardTitle } from '@a/ui/card'
 import { Checkbox } from '@a/ui/checkbox'
-import { useBulkSelection } from 'betterspace/react'
-import { FolderOpen, Plus } from 'lucide-react'
+import { Input } from '@a/ui/input'
+import { useBulkSelection, useSearch } from 'betterspace/react'
+import { FolderOpen, Plus, Search } from 'lucide-react'
 import Link from 'next/link'
+import { useState } from 'react'
 import { toast } from 'sonner'
 import { useReducer, useTable } from 'spacetimedb/react'
 
@@ -18,10 +20,15 @@ import { useOrg } from '~/hook/use-org'
 
 const ProjectsPage = () => {
   const { isAdmin, org } = useOrg(),
-    [allProjects] = useTable(tables.project),
-    projects = allProjects
+    [allProjects, isProjectsReady] = useTable(tables.project),
+    orgProjects = allProjects
       .filter((p: Project) => p.orgId === Number(org._id))
       .map((p: Project) => ({ ...p, _id: `${p.id}` })),
+    [query, setQuery] = useState(''),
+    { results: projects } = useSearch(orgProjects, isProjectsReady, {
+      fields: ['name', 'description'],
+      query
+    }),
     rmProject = useReducer(reducers.rmProject),
     bulkRm = async ({ ids }: { ids: string[]; orgId: string }) => {
       const tasks: Promise<void>[] = []
@@ -68,6 +75,18 @@ const ProjectsPage = () => {
             New project
           </Link>
         </Button>
+      </div>
+
+      <div className='relative'>
+        <Search className='absolute top-1/2 left-3 size-4 -translate-y-1/2 text-muted-foreground' />
+        <Input
+          className='pl-9'
+          data-testid='project-search-input'
+          onChange={e => setQuery(e.target.value)}
+          placeholder='Search projects...'
+          type='search'
+          value={query}
+        />
       </div>
 
       {projects.length === 0 ? (

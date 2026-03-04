@@ -4,6 +4,7 @@ import type { ReactNode } from 'react'
 import AuthLayout from '@a/fe/auth-layout'
 import SpacetimeProvider from '@a/fe/spacetimedb-provider'
 import Logout from '@a/fe/user-menu'
+import { BetterspaceDevtools } from 'betterspace/react'
 import { UserRound } from 'lucide-react'
 import { headers } from 'next/headers'
 import Link from 'next/link'
@@ -27,6 +28,7 @@ const metadata: Metadata = { description: 'betterspace blog demo', title: 'Blog'
             </Link>
             <Logout className='fixed bottom-2 left-2' />
             {children}
+            <BetterspaceDevtools position='bottom-right' />
           </div>
         )}
       </AuthLayout>
