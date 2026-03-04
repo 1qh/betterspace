@@ -69,10 +69,10 @@ const isDev = typeof process !== 'undefined' && process.env.NODE_ENV !== 'produc
         const name = options?.getName?.(args) ?? (mutate.name || 'mutation'),
           type = options?.type ?? detectMutationType(name),
           devId = isDev ? trackMutation(name, args) : 0,
-
-         retryOpt = options?.retry,
+          retryOpt = options?.retry,
           exec = retryOpt
-            ? async () => withRetry(async () => mutate(args), typeof retryOpt === 'number' ? { maxAttempts: retryOpt } : retryOpt)
+            ? async () =>
+                withRetry(async () => mutate(args), typeof retryOpt === 'number' ? { maxAttempts: retryOpt } : retryOpt)
             : async () => mutate(args)
 
         if (!(store && isOptimistic))

@@ -158,25 +158,24 @@ const DEFAULT_PAGE_SIZE = 50,
       totalCount
     }
   },
-
-/** Computes an `own` boolean on each row using a predicate function.
- * @param rows - Source rows
- * @param isOwn - Predicate returning true for owned rows, or null/undefined to mark all false
- * @returns Rows augmented with `own` field
- * @example
- * ```ts
- * const blogs = useOwnRows(allBlogs, identity ? b => b.userId.isEqual(identity) : null)
- * ```
- */
- useOwnRows = <T extends Rec>(
-  rows: readonly T[],
-  isOwn: ((row: T) => boolean) | null | undefined
-): (T & { own: boolean })[] =>
-  useMemo(() => {
-    const out: (T & { own: boolean })[] = []
-    for (const row of rows) out.push({ ...row, own: isOwn ? isOwn(row) : false })
-    return out
-  }, [rows, isOwn])
+  /** Computes an `own` boolean on each row using a predicate function.
+   * @param rows - Source rows
+   * @param isOwn - Predicate returning true for owned rows, or null/undefined to mark all false
+   * @returns Rows augmented with `own` field
+   * @example
+   * ```ts
+   * const blogs = useOwnRows(allBlogs, identity ? b => b.userId.isEqual(identity) : null)
+   * ```
+   */
+  useOwnRows = <T extends Rec>(
+    rows: readonly T[],
+    isOwn: ((row: T) => boolean) | null | undefined
+  ): (T & { own: boolean })[] =>
+    useMemo(() => {
+      const out: (T & { own: boolean })[] = []
+      for (const row of rows) out.push({ ...row, own: isOwn ? isOwn(row) : false })
+      return out
+    }, [rows, isOwn])
 
 export type { ListWhere, UseListOptions, WhereGroup }
 export { DEFAULT_PAGE_SIZE, useList, useOwnRows }

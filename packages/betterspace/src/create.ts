@@ -260,6 +260,30 @@ NEXT_PUBLIC_SPACETIME_SERVER_URL=http://localhost:3000
       console.log(`  ${yellow('⚠')} no package.json — run ${dim('bun init && bun add betterspace spacetimedb zod')} first`)
     return { created: b.created + f.created, skipped: b.skipped + f.skipped }
   },
+  cmdExists = (cmd: string): boolean => {
+    try {
+      execSync(`command -v ${cmd}`, { stdio: 'pipe' })
+      return true
+    } catch {
+      return false
+    }
+  },
+  preflight = () => {
+    console.log(bold('Pre-flight checks:'))
+    const warnings: string[] = []
+    if (cmdExists('spacetime')) console.log(`  ${green('✓')} spacetime CLI`)
+    else warnings.push(`spacetime CLI not found — ${dim('curl -sSf https://install.spacetimedb.com | sh')}`)
+    if (cmdExists('docker'))
+      try {
+        execSync('docker info', { stdio: 'pipe' })
+        console.log(`  ${green('✓')} Docker running`)
+      } catch {
+        warnings.push(`Docker installed but not running — ${dim('start Docker Desktop or systemctl start docker')}`)
+      }
+    else warnings.push(`Docker not found — ${dim('https://docs.docker.com/get-docker/')}`)
+    for (const w of warnings) console.log(`  ${yellow('⚠')} ${w}`)
+    console.log('')
+  },
   init = (args: string[] = []) => {
     const { appDir, help, moduleDir } = parseFlags(args)
     if (help) {
@@ -267,6 +291,7 @@ NEXT_PUBLIC_SPACETIME_SERVER_URL=http://localhost:3000
       return
     }
     console.log(`\n${bold('Scaffolding betterspace project...')}\n`)
+    preflight()
     const { created, skipped } = scaffold(process.cwd(), moduleDir, appDir)
     printSummary(created, skipped)
   }
