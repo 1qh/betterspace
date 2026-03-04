@@ -17,6 +17,7 @@ const bold = (s: string) => `\u001B[1m${s}\u001B[0m`,
     init: { description: 'Scaffold a new betterspace project', script: '' },
     migrate: { description: 'Schema diff and publish migration plans', script: 'migrate.ts' },
     use: { description: 'Switch SpacetimeDB target (local / cloud)', script: '' },
+    validate: { description: 'Lint schema, reducers, indexes, and access control', script: 'check.ts' },
     viz: { description: 'Visualize schema relationships', script: 'viz.ts' }
   },
   printHelp = () => {
@@ -52,7 +53,8 @@ else if (!(cmd in COMMANDS)) {
 } else {
   const entry = COMMANDS[cmd]
   if (!entry) process.exit(1)
-  const script = fileURLToPath(new URL(entry.script, import.meta.url)),
-    result = spawnSync('bun', [script, ...rest], { stdio: 'inherit' })
+  const args = cmd === 'validate' && rest.length === 0 ? ['--health'] : rest,
+    script = fileURLToPath(new URL(entry.script, import.meta.url)),
+    result = spawnSync('bun', [script, ...args], { stdio: 'inherit' })
   process.exit(result.status ?? 1)
 }
