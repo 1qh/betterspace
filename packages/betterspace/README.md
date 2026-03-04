@@ -204,7 +204,6 @@ For standalone usage or customization:
 
 ```tsx
 import { BetterspaceDevtools } from 'betterspace/react'
-
 ;<BetterspaceDevtools position="bottom-right" defaultTab="subs" />
 ```
 
@@ -214,7 +213,6 @@ Interactive component for previewing how schemas map to generated endpoints:
 
 ```tsx
 import { SchemaPlayground } from 'betterspace/react'
-
 ;<SchemaPlayground className="my-8" />
 ```
 

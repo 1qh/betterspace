@@ -52,6 +52,7 @@
   "scripts": {
     "build": "tsdown",
     "clean": "git clean -xdf dist node_modules",
+    "format:md": "bunx prettier --single-quote --no-semi --trailing-comma none --print-width 80 --arrow-parens avoid --tab-width 2 --prose-wrap preserve --write '**/*.md' && flowmark --auto .",
     "lint": "bun test src/__tests__ && eslint",
     "test": "bun test",
     "typecheck": "tsc --noEmit"
