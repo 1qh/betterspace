@@ -87,10 +87,12 @@ const CAMEL_RE = /(?<lower>[a-z\d])(?<upper>[A-Z])/gu,
       containerClassName,
       'data-testid': testId,
       disabled,
+      helpText,
       inputClassName,
       label,
       name,
       placeholder,
+      required,
       tagClassName,
       transform,
       ...props
@@ -98,10 +100,12 @@ const CAMEL_RE = /(?<lower>[a-z\d])(?<upper>[A-Z])/gu,
       containerClassName?: string
       'data-testid'?: string
       disabled?: boolean
+      helpText?: string
       inputClassName?: string
       label?: false | string
       name: string
       placeholder?: string
+      required?: boolean
       tagClassName?: string
       transform?: (v: string) => string
     }) => {
@@ -116,7 +120,12 @@ const CAMEL_RE = /(?<lower>[a-z\d])(?<upper>[A-Z])/gu,
               errorId = `${f.name}-error`
             return (
               <Field {...props} data-invalid={inv} data-testid={tid}>
-                {label === false ? null : <FieldLabel htmlFor={f.name}>{label ?? deriveLabel(name)}</FieldLabel>}
+                {label === false ? null : (
+                  <FieldLabel htmlFor={f.name}>
+                    {label ?? deriveLabel(name)}
+                    {required ? <span className='text-destructive'> *</span> : null}
+                  </FieldLabel>
+                )}
                 <div
                   className={cn(
                     'relative flex min-h-10 w-full flex-wrap items-center gap-0.75 rounded-md border border-input bg-transparent p-1 text-sm transition-[color,box-shadow] disabled:cursor-not-allowed disabled:opacity-50 has-[input:focus-visible]:border-ring has-[input:focus-visible]:ring-[3px] has-[input:focus-visible]:ring-ring/50 dark:bg-background',
@@ -176,6 +185,7 @@ const CAMEL_RE = /(?<lower>[a-z\d])(?<upper>[A-Z])/gu,
                     placeholder={tags.length ? undefined : placeholder}
                   />
                 </div>
+                {helpText ? <p className='text-sm text-muted-foreground'>{helpText}</p> : null}
                 {inv ? <FieldError errors={f.state.meta.errors} id={errorId} /> : null}
                 <ServerFieldError name={name} />
               </Field>
@@ -186,17 +196,23 @@ const CAMEL_RE = /(?<lower>[a-z\d])(?<upper>[A-Z])/gu,
     },
     Choose: ({
       'data-testid': testId,
+      disabled,
+      helpText,
       label,
       name,
       options: explicitOptions,
       placeholder,
+      required,
       ...props
     }: Omit<ComponentProps<typeof Field>, 'children'> & {
       'data-testid'?: string
+      disabled?: boolean
+      helpText?: string
       label?: false | string
       name: string
       options?: readonly { label: string; value: string }[]
       placeholder?: string
+      required?: boolean
     }) => {
       const { form, schema } = useField(name, 'string'),
         options = explicitOptions ?? defaultEnumOptions(schema, name)
@@ -208,11 +224,21 @@ const CAMEL_RE = /(?<lower>[a-z\d])(?<upper>[A-Z])/gu,
               errorId = `${f.name}-error`
             return (
               <Field {...props} data-invalid={inv} data-testid={tid}>
-                {label === false ? null : <FieldLabel htmlFor={f.name}>{label ?? deriveLabel(name)}</FieldLabel>}
-                <Select name={f.name} onValueChange={v => f.handleChange(v)} value={f.state.value ?? ''}>
+                {label === false ? null : (
+                  <FieldLabel htmlFor={f.name}>
+                    {label ?? deriveLabel(name)}
+                    {required ? <span className='text-destructive'> *</span> : null}
+                  </FieldLabel>
+                )}
+                <Select
+                  disabled={disabled}
+                  name={f.name}
+                  onValueChange={v => f.handleChange(v)}
+                  value={f.state.value ?? ''}>
                   <SelectTrigger
                     aria-describedby={inv ? errorId : undefined}
                     aria-invalid={inv}
+                    disabled={disabled}
                     id={f.name}
                     onBlur={f.handleBlur}>
                     <SelectValue placeholder={placeholder} />
@@ -225,6 +251,7 @@ const CAMEL_RE = /(?<lower>[a-z\d])(?<upper>[A-Z])/gu,
                     ))}
                   </SelectContent>
                 </Select>
+                {helpText ? <p className='text-sm text-muted-foreground'>{helpText}</p> : null}
                 {inv ? <FieldError errors={f.state.meta.errors} id={errorId} /> : null}
                 <ServerFieldError name={name} />
               </Field>
@@ -235,13 +262,19 @@ const CAMEL_RE = /(?<lower>[a-z\d])(?<upper>[A-Z])/gu,
     },
     Colorpick: ({
       'data-testid': testId,
+      disabled,
+      helpText,
       label,
       name,
+      required,
       ...props
     }: Omit<ComponentProps<typeof Field>, 'children'> & {
       'data-testid'?: string
+      disabled?: boolean
+      helpText?: string
       label?: false | string
       name: string
+      required?: boolean
     }) => {
       const { form } = useField(name, 'string')
       return (
@@ -253,12 +286,18 @@ const CAMEL_RE = /(?<lower>[a-z\d])(?<upper>[A-Z])/gu,
               val = f.state.value ?? '#000000'
             return (
               <Field {...props} data-invalid={inv} data-testid={tid}>
-                {label === false ? null : <FieldLabel htmlFor={f.name}>{label ?? deriveLabel(name)}</FieldLabel>}
+                {label === false ? null : (
+                  <FieldLabel htmlFor={f.name}>
+                    {label ?? deriveLabel(name)}
+                    {required ? <span className='text-destructive'> *</span> : null}
+                  </FieldLabel>
+                )}
                 <div className='flex gap-2'>
                   <input
                     aria-describedby={inv ? errorId : undefined}
                     aria-invalid={inv}
                     className='size-10 cursor-pointer rounded-md border border-input'
+                    disabled={disabled}
                     id={f.name}
                     name={f.name}
                     onBlur={f.handleBlur}
@@ -268,6 +307,7 @@ const CAMEL_RE = /(?<lower>[a-z\d])(?<upper>[A-Z])/gu,
                   />
                   <Input
                     className='flex-1 font-mono'
+                    disabled={disabled}
                     onBlur={f.handleBlur}
                     onChange={e => {
                       const v = e.target.value
@@ -277,6 +317,7 @@ const CAMEL_RE = /(?<lower>[a-z\d])(?<upper>[A-Z])/gu,
                     value={val}
                   />
                 </div>
+                {helpText ? <p className='text-sm text-muted-foreground'>{helpText}</p> : null}
                 {inv ? <FieldError errors={f.state.meta.errors} id={errorId} /> : null}
                 <ServerFieldError name={name} />
               </Field>
@@ -287,20 +328,26 @@ const CAMEL_RE = /(?<lower>[a-z\d])(?<upper>[A-Z])/gu,
     },
     Combobox: ({
       'data-testid': testId,
+      disabled,
       emptyText = 'No results found.',
+      helpText,
       label,
       name,
       options,
       placeholder = 'Select...',
+      required,
       searchPlaceholder = 'Search...',
       ...props
     }: Omit<ComponentProps<typeof Field>, 'children'> & {
       'data-testid'?: string
+      disabled?: boolean
       emptyText?: string
+      helpText?: string
       label?: false | string
       name: string
       options: readonly { label: string; value: string }[]
       placeholder?: string
+      required?: boolean
       searchPlaceholder?: string
     }) => {
       const { form } = useField(name, 'string'),
@@ -315,7 +362,12 @@ const CAMEL_RE = /(?<lower>[a-z\d])(?<upper>[A-Z])/gu,
               listId = `${f.name}-listbox`
             return (
               <Field {...props} data-invalid={inv} data-testid={tid}>
-                {label === false ? null : <FieldLabel htmlFor={f.name}>{label ?? deriveLabel(name)}</FieldLabel>}
+                {label === false ? null : (
+                  <FieldLabel htmlFor={f.name}>
+                    {label ?? deriveLabel(name)}
+                    {required ? <span className='text-destructive'> *</span> : null}
+                  </FieldLabel>
+                )}
                 <Popover onOpenChange={setOpen} open={open}>
                   <PopoverTrigger asChild>
                     <Button
@@ -324,6 +376,7 @@ const CAMEL_RE = /(?<lower>[a-z\d])(?<upper>[A-Z])/gu,
                       aria-expanded={open}
                       aria-invalid={inv}
                       className='w-full justify-between font-normal'
+                      disabled={disabled}
                       id={f.name}
                       onBlur={f.handleBlur}
                       role='combobox'
@@ -357,6 +410,7 @@ const CAMEL_RE = /(?<lower>[a-z\d])(?<upper>[A-Z])/gu,
                     </Command>
                   </PopoverContent>
                 </Popover>
+                {helpText ? <p className='text-sm text-muted-foreground'>{helpText}</p> : null}
                 {inv ? <FieldError errors={f.state.meta.errors} id={errorId} /> : null}
                 <ServerFieldError name={name} />
               </Field>
@@ -369,17 +423,21 @@ const CAMEL_RE = /(?<lower>[a-z\d])(?<upper>[A-Z])/gu,
       clearable = true,
       'data-testid': testId,
       disabled,
+      helpText,
       label,
       name,
       placeholder = 'Pick a date',
+      required,
       ...props
     }: Omit<ComponentProps<typeof Field>, 'children'> & {
       clearable?: boolean
       'data-testid'?: string
       disabled?: boolean
+      helpText?: string
       label?: false | string
       name: string
       placeholder?: string
+      required?: boolean
     }) => {
       const { form } = useField(name, 'number')
       return (
@@ -392,7 +450,12 @@ const CAMEL_RE = /(?<lower>[a-z\d])(?<upper>[A-Z])/gu,
               errorId = `${f.name}-error`
             return (
               <Field {...props} data-invalid={inv} data-testid={tid}>
-                {label === false ? null : <FieldLabel htmlFor={f.name}>{label ?? deriveLabel(name)}</FieldLabel>}
+                {label === false ? null : (
+                  <FieldLabel htmlFor={f.name}>
+                    {label ?? deriveLabel(name)}
+                    {required ? <span className='text-destructive'> *</span> : null}
+                  </FieldLabel>
+                )}
                 <div className='flex gap-1'>
                   <Popover>
                     <PopoverTrigger asChild>
@@ -434,6 +497,7 @@ const CAMEL_RE = /(?<lower>[a-z\d])(?<upper>[A-Z])/gu,
                     </Button>
                   ) : null}
                 </div>
+                {helpText ? <p className='text-sm text-muted-foreground'>{helpText}</p> : null}
                 {inv ? <FieldError errors={f.state.meta.errors} id={errorId} /> : null}
                 <ServerFieldError name={name} />
               </Field>
@@ -454,9 +518,11 @@ const CAMEL_RE = /(?<lower>[a-z\d])(?<upper>[A-Z])/gu,
       'data-testid': testId,
       disabled,
       dropClassName,
+      helpText,
       label,
       maxSize,
       name,
+      required,
       ...props
     }: Omit<ComponentProps<typeof Field>, 'children'> & {
       accept?: string
@@ -464,25 +530,31 @@ const CAMEL_RE = /(?<lower>[a-z\d])(?<upper>[A-Z])/gu,
       'data-testid'?: string
       disabled?: boolean
       dropClassName?: string
+      helpText?: string
       label?: false | string
       maxSize?: number
       name: string
+      required?: boolean
     }) => {
       const { form } = useField(name, 'file')
       return (
         <form.Field name={name}>
           {(f: AnyFieldApi) => (
-            <DynamicFileField
-              accept={accept}
-              compressImg={compressImg}
-              data-testid={testId}
-              disabled={disabled}
-              dropClassName={dropClassName}
-              field={f}
-              label={label === false ? undefined : (label ?? deriveLabel(name))}
-              maxSize={maxSize}
-              {...props}
-            />
+            <>
+              <DynamicFileField
+                accept={accept}
+                compressImg={compressImg}
+                data-testid={testId}
+                disabled={disabled}
+                dropClassName={dropClassName}
+                field={f}
+                label={label === false ? undefined : `${label ?? deriveLabel(name)}${required ? ' *' : ''}`}
+                maxSize={maxSize}
+                {...props}
+              />
+              {helpText ? <p className='text-sm text-muted-foreground'>{helpText}</p> : null}
+              <ServerFieldError name={name} />
+            </>
           )}
         </form.Field>
       )
@@ -493,10 +565,12 @@ const CAMEL_RE = /(?<lower>[a-z\d])(?<upper>[A-Z])/gu,
       'data-testid': testId,
       disabled,
       dropClassName,
+      helpText,
       label,
       max,
       maxSize,
       name,
+      required,
       ...props
     }: Omit<ComponentProps<typeof Field>, 'children'> & {
       accept?: string
@@ -504,45 +578,57 @@ const CAMEL_RE = /(?<lower>[a-z\d])(?<upper>[A-Z])/gu,
       'data-testid'?: string
       disabled?: boolean
       dropClassName?: string
+      helpText?: string
       label?: false | string
       max?: number
       maxSize?: number
       name: string
+      required?: boolean
     }) => {
       const { form, info } = useField(name, 'files')
       return (
         <form.Field mode='array' name={name}>
           {(f: AnyFieldApi) => (
-            <DynamicFileField
-              accept={accept}
-              compressImg={compressImg}
-              data-testid={testId}
-              disabled={disabled}
-              dropClassName={dropClassName}
-              field={f}
-              label={label === false ? undefined : (label ?? deriveLabel(name))}
-              max={max ?? info.max}
-              maxSize={maxSize}
-              multiple
-              {...props}
-            />
+            <>
+              <DynamicFileField
+                accept={accept}
+                compressImg={compressImg}
+                data-testid={testId}
+                disabled={disabled}
+                dropClassName={dropClassName}
+                field={f}
+                label={label === false ? undefined : `${label ?? deriveLabel(name)}${required ? ' *' : ''}`}
+                max={max ?? info.max}
+                maxSize={maxSize}
+                multiple
+                {...props}
+              />
+              {helpText ? <p className='text-sm text-muted-foreground'>{helpText}</p> : null}
+              <ServerFieldError name={name} />
+            </>
           )}
         </form.Field>
       )
     },
     MultiSelect: ({
       'data-testid': testId,
+      disabled,
+      helpText,
       label,
       name,
       options,
       placeholder,
+      required,
       ...props
     }: Omit<ComponentProps<typeof Field>, 'children'> & {
       'data-testid'?: string
+      disabled?: boolean
+      helpText?: string
       label?: false | string
       name: string
       options: readonly { label: string; value: string }[]
       placeholder?: string
+      required?: boolean
     }) => {
       const { form, info } = useField(name, 'stringArray')
       return (
@@ -555,10 +641,17 @@ const CAMEL_RE = /(?<lower>[a-z\d])(?<upper>[A-Z])/gu,
               errorId = `${f.name}-error`
             return (
               <Field {...props} data-invalid={inv} data-testid={tid}>
-                {label === false ? null : <FieldLabel htmlFor={f.name}>{label ?? deriveLabel(name)}</FieldLabel>}
+                {label === false ? null : (
+                  <FieldLabel htmlFor={f.name}>
+                    {label ?? deriveLabel(name)}
+                    {required ? <span className='text-destructive'> *</span> : null}
+                  </FieldLabel>
+                )}
                 <Select
+                  disabled={disabled}
                   name={f.name}
                   onValueChange={v => {
+                    if (disabled) return
                     if (selected.includes(v)) f.handleChange(selected.filter(x => x !== v))
                     else {
                       if (mx && selected.length >= mx) {
@@ -572,6 +665,7 @@ const CAMEL_RE = /(?<lower>[a-z\d])(?<upper>[A-Z])/gu,
                   <SelectTrigger
                     aria-describedby={inv ? errorId : undefined}
                     aria-invalid={inv}
+                    disabled={disabled}
                     id={f.name}
                     onBlur={f.handleBlur}>
                     <SelectValue placeholder={selected.length ? `${selected.length} selected` : placeholder} />
@@ -590,18 +684,24 @@ const CAMEL_RE = /(?<lower>[a-z\d])(?<upper>[A-Z])/gu,
                       const opt = options.find(o => o.value === v)
                       return (
                         <p
-                          className='flex h-7 items-center gap-0.5 rounded-full bg-muted pr-1.5 pl-3 text-sm transition-all duration-300 hover:bg-input'
+                          className={cn(
+                            'flex h-7 items-center gap-0.5 rounded-full bg-muted pr-1.5 pl-3 text-sm transition-all duration-300 hover:bg-input',
+                            disabled && 'cursor-not-allowed opacity-50 *:cursor-not-allowed'
+                          )}
                           key={v}>
                           <span className='mb-px'>{opt?.label ?? v}</span>
                           <X
                             className='size-4 cursor-pointer rounded-full stroke-1 p-0.5 text-muted-foreground transition-all duration-300 hover:scale-110 hover:bg-background hover:stroke-2 hover:text-destructive active:scale-75'
-                            onClick={() => f.handleChange(selected.filter(x => x !== v))}
+                            onClick={() => {
+                              if (!disabled) f.handleChange(selected.filter(x => x !== v))
+                            }}
                           />
                         </p>
                       )
                     })}
                   </div>
                 ) : null}
+                {helpText ? <p className='text-sm text-muted-foreground'>{helpText}</p> : null}
                 {inv ? <FieldError errors={f.state.meta.errors} id={errorId} /> : null}
                 <ServerFieldError name={name} />
               </Field>
@@ -612,13 +712,19 @@ const CAMEL_RE = /(?<lower>[a-z\d])(?<upper>[A-Z])/gu,
     },
     Num: ({
       'data-testid': testId,
+      disabled,
+      helpText,
       label,
       name,
+      required,
       ...props
     }: Omit<ComponentProps<'input'>, 'form' | 'id' | 'key' | 'name' | 'onBlur' | 'onChange' | 'type' | 'value'> & {
       'data-testid'?: string
+      disabled?: boolean
+      helpText?: string
       label?: false | string
       name: string
+      required?: boolean
     }) => {
       const { form } = useField(name, 'number')
       return (
@@ -629,10 +735,16 @@ const CAMEL_RE = /(?<lower>[a-z\d])(?<upper>[A-Z])/gu,
               errorId = `${f.name}-error`
             return (
               <Field data-invalid={inv} data-testid={tid}>
-                {label === false ? null : <FieldLabel htmlFor={f.name}>{label ?? deriveLabel(name)}</FieldLabel>}
+                {label === false ? null : (
+                  <FieldLabel htmlFor={f.name}>
+                    {label ?? deriveLabel(name)}
+                    {required ? <span className='text-destructive'> *</span> : null}
+                  </FieldLabel>
+                )}
                 <Input
                   aria-describedby={inv ? errorId : undefined}
                   aria-invalid={inv}
+                  disabled={disabled}
                   id={f.name}
                   name={f.name}
                   onBlur={f.handleBlur}
@@ -644,6 +756,7 @@ const CAMEL_RE = /(?<lower>[a-z\d])(?<upper>[A-Z])/gu,
                   value={f.state.value ?? ''}
                   {...props}
                 />
+                {helpText ? <p className='text-sm text-muted-foreground'>{helpText}</p> : null}
                 {inv ? <FieldError errors={f.state.meta.errors} id={errorId} /> : null}
                 <ServerFieldError name={name} />
               </Field>
@@ -654,15 +767,21 @@ const CAMEL_RE = /(?<lower>[a-z\d])(?<upper>[A-Z])/gu,
     },
     Rating: ({
       'data-testid': testId,
+      disabled,
+      helpText,
       label,
       max = 5, // eslint-disable-line @typescript-eslint/no-magic-numbers
       name,
+      required,
       ...props
     }: Omit<ComponentProps<typeof Field>, 'children'> & {
       'data-testid'?: string
+      disabled?: boolean
+      helpText?: string
       label?: false | string
       max?: number
       name: string
+      required?: boolean
     }) => {
       const { form } = useField(name, 'number')
       return (
@@ -674,8 +793,13 @@ const CAMEL_RE = /(?<lower>[a-z\d])(?<upper>[A-Z])/gu,
               val = f.state.value ?? 0
             return (
               <Field {...props} data-invalid={inv} data-testid={tid}>
-                {label === false ? null : <FieldLabel htmlFor={f.name}>{label ?? deriveLabel(name)}</FieldLabel>}
-                <div className='flex gap-1'>
+                {label === false ? null : (
+                  <FieldLabel htmlFor={f.name}>
+                    {label ?? deriveLabel(name)}
+                    {required ? <span className='text-destructive'> *</span> : null}
+                  </FieldLabel>
+                )}
+                <div className={cn('flex gap-1', disabled && 'pointer-events-none opacity-50')}>
                   {Array.from({ length: max }, (_, i) => i + 1).map(i => (
                     <Star
                       className={cn(
@@ -688,6 +812,7 @@ const CAMEL_RE = /(?<lower>[a-z\d])(?<upper>[A-Z])/gu,
                     />
                   ))}
                 </div>
+                {helpText ? <p className='text-sm text-muted-foreground'>{helpText}</p> : null}
                 {inv ? <FieldError errors={f.state.meta.errors} id={errorId} /> : null}
                 <ServerFieldError name={name} />
               </Field>
@@ -698,18 +823,24 @@ const CAMEL_RE = /(?<lower>[a-z\d])(?<upper>[A-Z])/gu,
     },
     Slider: ({
       'data-testid': testId,
+      disabled,
+      helpText,
       label,
       max = 100,
       min = 0,
       name,
+      required,
       step = 1,
       ...props
     }: Omit<ComponentProps<typeof Field>, 'children'> & {
       'data-testid'?: string
+      disabled?: boolean
+      helpText?: string
       label?: false | string
       max?: number
       min?: number
       name: string
+      required?: boolean
       step?: number
     }) => {
       const { form } = useField(name, 'number')
@@ -723,12 +854,18 @@ const CAMEL_RE = /(?<lower>[a-z\d])(?<upper>[A-Z])/gu,
             return (
               <Field {...props} data-invalid={inv} data-testid={tid}>
                 <div className='flex items-center justify-between'>
-                  {label === false ? null : <FieldLabel htmlFor={f.name}>{label ?? deriveLabel(name)}</FieldLabel>}
+                  {label === false ? null : (
+                    <FieldLabel htmlFor={f.name}>
+                      {label ?? deriveLabel(name)}
+                      {required ? <span className='text-destructive'> *</span> : null}
+                    </FieldLabel>
+                  )}
                   <span className='text-sm text-muted-foreground'>{val}</span>
                 </div>
                 <UISlider
                   aria-describedby={inv ? errorId : undefined}
                   aria-invalid={inv}
+                  disabled={disabled}
                   id={f.name}
                   max={max}
                   min={min}
@@ -738,6 +875,7 @@ const CAMEL_RE = /(?<lower>[a-z\d])(?<upper>[A-Z])/gu,
                   step={step}
                   value={[val]}
                 />
+                {helpText ? <p className='text-sm text-muted-foreground'>{helpText}</p> : null}
                 {inv ? <FieldError errors={f.state.meta.errors} id={errorId} /> : null}
                 <ServerFieldError name={name} />
               </Field>
@@ -768,10 +906,13 @@ const CAMEL_RE = /(?<lower>[a-z\d])(?<upper>[A-Z])/gu,
       asyncDebounceMs = 300, // eslint-disable-line @typescript-eslint/no-magic-numbers
       asyncValidate,
       'data-testid': testId,
+      disabled,
+      helpText,
       label,
       maxLength,
       multiline,
       name,
+      required,
       ...props
     }: Omit<
       ComponentProps<'input'> & ComponentProps<'textarea'>,
@@ -780,10 +921,13 @@ const CAMEL_RE = /(?<lower>[a-z\d])(?<upper>[A-Z])/gu,
       asyncDebounceMs?: number
       asyncValidate?: (value: string) => Promise<string | undefined>
       'data-testid'?: string
+      disabled?: boolean
+      helpText?: string
       label?: false | string
       maxLength?: number
       multiline?: boolean
       name: string
+      required?: boolean
     }) => {
       const { form } = useField(name, 'string')
       return (
@@ -811,7 +955,12 @@ const CAMEL_RE = /(?<lower>[a-z\d])(?<upper>[A-Z])/gu,
             return (
               <Field data-invalid={inv} data-testid={tid}>
                 <div className='flex items-center justify-between'>
-                  {label === false ? null : <FieldLabel htmlFor={f.name}>{label ?? deriveLabel(name)}</FieldLabel>}
+                  {label === false ? null : (
+                    <FieldLabel htmlFor={f.name}>
+                      {label ?? deriveLabel(name)}
+                      {required ? <span className='text-destructive'> *</span> : null}
+                    </FieldLabel>
+                  )}
                   <div className='flex items-center gap-2'>
                     {validating ? (
                       <div className='flex items-center gap-1 text-xs text-muted-foreground'>
@@ -829,6 +978,7 @@ const CAMEL_RE = /(?<lower>[a-z\d])(?<upper>[A-Z])/gu,
                 <C
                   aria-describedby={inv ? errorId : undefined}
                   aria-invalid={inv}
+                  disabled={disabled}
                   id={f.name}
                   maxLength={maxLength}
                   name={f.name}
@@ -837,6 +987,7 @@ const CAMEL_RE = /(?<lower>[a-z\d])(?<upper>[A-Z])/gu,
                   value={val}
                   {...props}
                 />
+                {helpText ? <p className='text-sm text-muted-foreground'>{helpText}</p> : null}
                 {inv ? <FieldError errors={f.state.meta.errors} id={errorId} /> : null}
                 <ServerFieldError name={name} />
               </Field>
@@ -847,15 +998,21 @@ const CAMEL_RE = /(?<lower>[a-z\d])(?<upper>[A-Z])/gu,
     },
     Timepick: ({
       'data-testid': testId,
+      disabled,
+      helpText,
       label,
       name,
       placeholder = 'HH:MM',
+      required,
       ...props
     }: Omit<ComponentProps<typeof Field>, 'children'> & {
       'data-testid'?: string
+      disabled?: boolean
+      helpText?: string
       label?: false | string
       name: string
       placeholder?: string
+      required?: boolean
     }) => {
       const { form } = useField(name, 'string')
       return (
@@ -866,10 +1023,16 @@ const CAMEL_RE = /(?<lower>[a-z\d])(?<upper>[A-Z])/gu,
               errorId = `${f.name}-error`
             return (
               <Field {...props} data-invalid={inv} data-testid={tid}>
-                {label === false ? null : <FieldLabel htmlFor={f.name}>{label ?? deriveLabel(name)}</FieldLabel>}
+                {label === false ? null : (
+                  <FieldLabel htmlFor={f.name}>
+                    {label ?? deriveLabel(name)}
+                    {required ? <span className='text-destructive'> *</span> : null}
+                  </FieldLabel>
+                )}
                 <Input
                   aria-describedby={inv ? errorId : undefined}
                   aria-invalid={inv}
+                  disabled={disabled}
                   id={f.name}
                   name={f.name}
                   onBlur={f.handleBlur}
@@ -878,6 +1041,7 @@ const CAMEL_RE = /(?<lower>[a-z\d])(?<upper>[A-Z])/gu,
                   type='time'
                   value={f.state.value ?? ''}
                 />
+                {helpText ? <p className='text-sm text-muted-foreground'>{helpText}</p> : null}
                 {inv ? <FieldError errors={f.state.meta.errors} id={errorId} /> : null}
                 <ServerFieldError name={name} />
               </Field>
@@ -888,14 +1052,20 @@ const CAMEL_RE = /(?<lower>[a-z\d])(?<upper>[A-Z])/gu,
     },
     Toggle: ({
       'data-testid': testId,
+      disabled,
       falseLabel,
+      helpText,
       name,
+      required,
       trueLabel,
       ...props
     }: Omit<ComponentProps<typeof Field>, 'children'> & {
       'data-testid'?: string
+      disabled?: boolean
       falseLabel?: string
+      helpText?: string
       name: string
+      required?: boolean
       trueLabel: string
     }) => {
       const { form } = useField(name, 'boolean')
@@ -912,13 +1082,18 @@ const CAMEL_RE = /(?<lower>[a-z\d])(?<upper>[A-Z])/gu,
                     aria-describedby={inv ? errorId : undefined}
                     aria-invalid={inv}
                     checked={f.state.value ?? false}
+                    disabled={disabled}
                     id={f.name}
                     name={f.name}
                     onBlur={f.handleBlur}
                     onCheckedChange={v => f.handleChange(v)}
                   />
-                  <FieldLabel htmlFor={f.name}>{f.state.value ? trueLabel : (falseLabel ?? trueLabel)}</FieldLabel>
+                  <FieldLabel htmlFor={f.name}>
+                    {f.state.value ? trueLabel : (falseLabel ?? trueLabel)}
+                    {required ? <span className='text-destructive'> *</span> : null}
+                  </FieldLabel>
                 </div>
+                {helpText ? <p className='text-sm text-muted-foreground'>{helpText}</p> : null}
                 {inv ? <FieldError errors={f.state.meta.errors} id={errorId} /> : null}
                 <ServerFieldError name={name} />
               </Field>
