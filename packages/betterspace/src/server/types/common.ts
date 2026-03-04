@@ -346,11 +346,11 @@ type InferCreate<S> = S extends ZodObject<infer T> ? _.output<ZodObject<T>> : ne
 
 type InferReducerArgs<R> = R extends { __args: infer A } ? A : never
 
-type InferReducerInputs<T extends Record<string, unknown>> = {
+type InferReducerInputs<T> = {
   [K in keyof T]: InferReducerArgs<T[K]>
 }
 
-type InferReducerOutputs<T extends Record<string, unknown>> = {
+type InferReducerOutputs<T> = {
   [K in keyof T]: InferReducerReturn<T[K]>
 }
 type InferReducerReturn<R> = R extends { __return: infer O } ? O : never

@@ -1,8 +1,13 @@
 /* eslint-disable @typescript-eslint/naming-convention, @typescript-eslint/no-magic-numbers, @typescript-eslint/no-unnecessary-condition, max-statements */
+import type { ComponentProps } from 'react'
+import type { z } from 'zod/v4'
+
 import { describe, expect, test } from 'bun:test'
 import { array, boolean, date, number, object, optional, string, enum as zenum } from 'zod/v4'
 
 import type { AccessEntry, FactoryCall } from '../check'
+import type BetterspaceErrorBoundary from '../components/error-boundary'
+import type * as FieldsModule from '../components/fields'
 import type { CheckResult } from '../doctor'
 import type { DevtoolsProps } from '../react/devtools-panel'
 import type { ConflictData } from '../react/form'
@@ -49,6 +54,20 @@ import type {
   SingletonSchema,
   WhereOf
 } from '../server/types'
+import type {
+  InferCreate,
+  InferReducerArgs,
+  InferReducerInputs,
+  InferReducerOutputs,
+  InferReducerReturn,
+  InferRow,
+  InferRows,
+  InferUpdate,
+  RegisteredDefaultError,
+  RegisteredMeta,
+  RegisteredMutation,
+  RegisteredQuery
+} from '../server/types/common'
 
 import {
   add,
@@ -93,6 +112,7 @@ import { diffSnapshots, isOptionalField as isOptionalRaw, parseFieldsFromBlock, 
 import {
   clearMutations,
   completeMutation,
+  injectError,
   SLOW_THRESHOLD_MS,
   STALE_THRESHOLD_MS,
   trackCacheAccess,
@@ -125,6 +145,7 @@ import {
   getErrorCode,
   getErrorDetail,
   getErrorMessage,
+  getFieldErrors,
   groupList,
   handleError,
   isErrorCode,
@@ -166,8 +187,17 @@ import {
   isStringType,
   partialValues,
   pickValues,
+  schemaVariants,
   unwrapZod
 } from '../zod'
+
+declare module '../server/types/common' {
+  interface Register {
+    meta: {
+      traceId: string
+    }
+  }
+}
 
 const VOID = undefined,
   makeSenderError = (data: unknown): Error => {
@@ -7944,5 +7974,284 @@ describe('doctor', () => {
     expect(searchResultType.results).toHaveLength(1)
     expect(fieldMetaMapType.title?.kind).toBe('string')
     expect(widenType.count).toBe(1)
+  })
+})
+
+/* eslint-disable @typescript-eslint/no-unnecessary-type-parameters */
+type Equal<A, B> =
+  (<T>() => T extends A ? 1 : 2) extends <T>() => T extends B ? 1 : 2
+    ? (<T>() => T extends B ? 1 : 2) extends <T>() => T extends A ? 1 : 2
+      ? true
+      : false
+    : false
+/* eslint-enable @typescript-eslint/no-unnecessary-type-parameters */
+type Expect<T extends true> = T
+
+describe('Sprint 4 Tier 1', () => {
+  test('MutateOptions callbacks type signatures include onSuccess and onSettled', () => {
+    const events: string[] = [],
+      opts: MutateOptions<{ id: string }, { saved: boolean }> = {
+        onSettled: (args, error, result) => {
+          const argId: string = args.id,
+            maybeResult: undefined | { saved: boolean } = result,
+            unknownError: unknown = error
+          events.push(`${argId}:${String(maybeResult?.saved ?? false)}:${String(Boolean(unknownError))}`)
+        },
+        onSuccess: (result, args) => {
+          const { saved } = result,
+            argId: string = args.id
+          events.push(`${argId}:${String(saved)}`)
+        }
+      }
+    opts.onSuccess?.({ saved: true }, { id: 'x' })
+    opts.onSettled?.({ id: 'x' }, undefined, { saved: true })
+    opts.onSettled?.({ id: 'x' }, new Error('boom'))
+    expect(events).toEqual(['x:true', 'x:true:false', 'x:false:true'])
+  })
+
+  test('UseListOptions includes where and search query typing', () => {
+    type HasWhere = 'where' extends keyof UseListOptions<{ title: string }> ? true : false
+    type SearchQuery = NonNullable<UseListOptions<{ title: string }>['search']>['query']
+    const hasWhere: HasWhere = true,
+      query: SearchQuery = 'hello',
+      opts: UseListOptions<{ title: string }> = {
+        search: { fields: ['title'], query },
+        where: { title: 'hello' }
+      }
+    expect(hasWhere).toBe(true)
+    expect(opts.search?.query).toBe('hello')
+    expect(opts.where?.title).toBe('hello')
+  })
+
+  test('InfiniteListOptions search field type is keyed by row shape', () => {
+    const opts: InfiniteListOptions<{ body: string; title: string }> = {
+      search: { fields: ['title', 'body'], query: 'draft' }
+    }
+    expect(opts.search?.fields).toEqual(['title', 'body'])
+    expect(opts.search?.query).toBe('draft')
+  })
+
+  test('react index exports MutationResult family and helper types', () => {
+    const okResult: ReactIndexTypes.MutationResult<number> = { ok: true, value: 1 },
+      failResult: ReactIndexTypes.MutationResult<number> = { error: { code: 'NOT_FOUND' }, ok: false },
+      okShape: ReactIndexTypes.MutationOk<string> = { ok: true, value: 'done' },
+      failShape: ReactIndexTypes.MutationFail = { error: { code: 'FORBIDDEN' }, ok: false },
+      data: ReactIndexTypes.ErrorData = { code: 'VALIDATION_FAILED', fieldErrors: { title: 'Required' } },
+      schema = object({ title: string() }),
+      typedErrors: ReactIndexTypes.TypedFieldErrors<typeof schema> = { title: 'Required' }
+    expect(okResult.ok).toBe(true)
+    expect(failResult.ok).toBe(false)
+    expect(okShape.value).toBe('done')
+    expect(failShape.error.code).toBe('FORBIDDEN')
+    expect(data.code).toBe('VALIDATION_FAILED')
+    expect(schema.safeParse({ title: 'x' }).success).toBe(true)
+    expect(typedErrors.title).toBe('Required')
+  })
+
+  test('field component props include disabled, helpText, and required', () => {
+    const textProps: Parameters<(typeof FieldsModule.fields)['Text']>[0] = {
+        disabled: true,
+        helpText: 'x',
+        name: 'title',
+        required: true
+      },
+      chooseProps: Parameters<(typeof FieldsModule.fields)['Choose']>[0] = {
+        disabled: false,
+        helpText: 'y',
+        name: 'status',
+        required: true
+      },
+      toggleProps: Parameters<(typeof FieldsModule.fields)['Toggle']>[0] = {
+        disabled: true,
+        helpText: 'z',
+        name: 'published',
+        required: true,
+        trueLabel: 'On'
+      }
+    expect(textProps.disabled).toBe(true)
+    expect(chooseProps.helpText).toBe('y')
+    expect(toggleProps.required).toBe(true)
+  })
+})
+
+describe('Sprint 4 Tier 2', () => {
+  test('getFieldErrors infers schema keys and returns runtime field errors from Zod validation', () => {
+    // eslint-disable-next-line @typescript-eslint/no-deprecated
+    const schema = object({ email: string().email(), title: string().min(3) }),
+      parsed = schema.safeParse({ email: 'invalid', title: '' })
+    expect(parsed.success).toBe(false)
+    if (parsed.success) return
+    try {
+      errValidation('VALIDATION_FAILED', parsed.error)
+    } catch (error) {
+      const fieldErrors = getFieldErrors<typeof schema>(error),
+        emailError: string | undefined = fieldErrors?.email,
+        titleError: string | undefined = fieldErrors?.title
+      type HasEmail = 'email' extends keyof ReactIndexTypes.TypedFieldErrors<typeof schema> ? true : false
+      type HasMissing = 'missing' extends keyof ReactIndexTypes.TypedFieldErrors<typeof schema> ? true : false
+      const hasEmail: HasEmail = true,
+        hasMissing: HasMissing = false
+      expect(hasEmail).toBe(true)
+      expect(hasMissing).toBe(false)
+      expect(typeof emailError).toBe('string')
+      expect(typeof titleError).toBe('string')
+      expect(fieldErrors).toEqual({
+        email: 'Invalid email address',
+        title: 'Too small: expected string to have >=3 characters'
+      })
+    }
+  })
+
+  test('ErrorBoundary props include className', () => {
+    const props: ComponentProps<typeof BetterspaceErrorBoundary> = {
+      children: null,
+      className: 'boundary-shell'
+    }
+    expect(props.className).toBe('boundary-shell')
+  })
+})
+
+describe('Sprint 4 Tier 3', () => {
+  test('Register declaration merging works and RegisteredDefaultError defaults to Error', () => {
+    const meta: RegisteredMeta = { traceId: 'trace-1' },
+      isError: Equal<RegisteredDefaultError, Error> = true
+    expect(meta.traceId).toBe('trace-1')
+    expect(isError).toBe(true)
+  })
+
+  test('InferRow resolves branded schema system fields for owned, org, base, and singleton', () => {
+    const owned = makeOwned({ post: object({ title: string() }) }),
+      org = makeOrgScoped({ note: object({ body: string() }) }),
+      base = makeBase({ movie: object({ name: string() }) }),
+      singleton = makeSingleton({ profile: object({ displayName: string() }) }),
+      ownedRow: InferRow<typeof owned.post> = {
+        _creationTime: 1,
+        _id: '1',
+        title: 't',
+        updatedAt: 2,
+        userId: 'u'
+      },
+      orgRow: InferRow<typeof org.note> = {
+        _creationTime: 1,
+        _id: '1',
+        body: 'b',
+        orgId: 'org-1',
+        updatedAt: 2,
+        userId: 'u'
+      },
+      baseRow: InferRow<typeof base.movie> = {
+        _creationTime: 1,
+        _id: '1',
+        name: 'n',
+        updatedAt: 2
+      },
+      singletonRow: InferRow<typeof singleton.profile> = {
+        displayName: 'n',
+        updatedAt: 2,
+        userId: 'u'
+      }
+    expect(owned.post).toBeDefined()
+    expect(org.note).toBeDefined()
+    expect(base.movie).toBeDefined()
+    expect(singleton.profile).toBeDefined()
+    expect(ownedRow.userId).toBe('u')
+    expect(orgRow.orgId).toBe('org-1')
+    expect(baseRow._id).toBe('1')
+    expect(singletonRow.updatedAt).toBe(2)
+  })
+
+  test('InferCreate equals z.output<S> and InferUpdate equals Partial<z.output<S>>', () => {
+    const schema = object({ count: number(), title: string() })
+    type CheckCreate = Expect<Equal<InferCreate<typeof schema>, z.output<typeof schema>>>
+    type CheckUpdate = Expect<Equal<InferUpdate<typeof schema>, Partial<z.output<typeof schema>>>>
+    const createOk: CheckCreate = true,
+      updateOk: CheckUpdate = true
+    expect(schema.safeParse({ count: 1, title: 'x' }).success).toBe(true)
+    expect(createOk).toBe(true)
+    expect(updateOk).toBe(true)
+  })
+
+  test('InferReducerArgs and InferReducerReturn extract from RegisteredMutation and RegisteredQuery', () => {
+    type M = RegisteredMutation<'public', { id: string }, { ok: true }>
+    type Q = RegisteredQuery<'public', { slug: string }, { found: boolean }>
+    type ArgsOk = Expect<Equal<InferReducerArgs<M>, { id: string }>>
+    type ReturnOk = Expect<Equal<InferReducerReturn<Q>, { found: boolean }>>
+    const argsOk: ArgsOk = true,
+      returnOk: ReturnOk = true
+    expect(argsOk).toBe(true)
+    expect(returnOk).toBe(true)
+  })
+
+  test('InferReducerInputs and InferReducerOutputs map records of reducers', () => {
+    interface Reducers {
+      createPost: RegisteredMutation<'public', { title: string }, { id: string }>
+      listPosts: RegisteredQuery<'public', { limit: number }, { rows: string[] }>
+    }
+    type InputsOk = Expect<
+      Equal<InferReducerInputs<Reducers>, { createPost: { title: string }; listPosts: { limit: number } }>
+    >
+    type OutputsOk = Expect<
+      Equal<InferReducerOutputs<Reducers>, { createPost: { id: string }; listPosts: { rows: string[] } }>
+    >
+    const inputsOk: InputsOk = true,
+      outputsOk: OutputsOk = true
+    expect(inputsOk).toBe(true)
+    expect(outputsOk).toBe(true)
+  })
+
+  test('InferRows maps a record of branded schemas', () => {
+    const owned = makeOwned({ post: object({ title: string() }) }),
+      org = makeOrgScoped({ note: object({ body: string() }) }),
+      base = makeBase({ movie: object({ name: string() }) }),
+      singleton = makeSingleton({ profile: object({ displayName: string() }) }),
+      rows: InferRows<{
+        movie: typeof base.movie
+        note: typeof org.note
+        post: typeof owned.post
+        profile: typeof singleton.profile
+      }> = {
+        movie: { _creationTime: 1, _id: '1', name: 'movie', updatedAt: 1 },
+        note: { _creationTime: 1, _id: '2', body: 'body', orgId: 'o', updatedAt: 1, userId: 'u' },
+        post: { _creationTime: 1, _id: '3', title: 'title', updatedAt: 1, userId: 'u' },
+        profile: { displayName: 'name', updatedAt: 1, userId: 'u' }
+      }
+    expect(owned.post).toBeDefined()
+    expect(org.note).toBeDefined()
+    expect(base.movie).toBeDefined()
+    expect(singleton.profile).toBeDefined()
+    expect(rows.post.title).toBe('title')
+    expect(rows.note.orgId).toBe('o')
+    expect(rows.movie.name).toBe('movie')
+    expect(rows.profile.displayName).toBe('name')
+  })
+
+  test('schemaVariants create returns original, update is partial, and requiredOnUpdate keeps selected keys required', () => {
+    const schema = object({ count: number(), slug: string(), title: string() }),
+      normal = schemaVariants(schema),
+      required = schemaVariants(schema, ['slug'])
+    expect(normal.create).toBe(schema)
+    expect(normal.update.safeParse({}).success).toBe(true)
+    expect(normal.update.safeParse({ title: 'x' }).success).toBe(true)
+    expect(required.update.safeParse({}).success).toBe(false)
+    expect(required.update.safeParse({ slug: 's' }).success).toBe(true)
+  })
+
+  test('injectError accepts ErrorCode and optional opts', () => {
+    const code: ErrorCode = 'NOT_FOUND'
+    expect(() => injectError(code)).not.toThrow()
+    expect(() =>
+      injectError('RATE_LIMITED', { detail: 'rate-limit', message: 'Too many', op: 'create', table: 'post' })
+    ).not.toThrow()
+  })
+
+  test('DevtoolsProps includes className, buttonClassName, and panelClassName', () => {
+    const props: DevtoolsProps = {
+      buttonClassName: 'button-shell',
+      className: 'devtools-shell',
+      panelClassName: 'panel-shell'
+    }
+    expect(props.className).toBe('devtools-shell')
+    expect(props.buttonClassName).toBe('button-shell')
+    expect(props.panelClassName).toBe('panel-shell')
   })
 })
