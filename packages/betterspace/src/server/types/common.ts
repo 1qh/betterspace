@@ -342,9 +342,47 @@ interface BrandLabelMap {
 
 type DetectBrand<T> = T extends SchemaBrand<infer K> ? K : 'unbranded'
 
+type InferCreate<S> = S extends ZodObject<infer T> ? _.output<ZodObject<T>> : never
+
+type InferReducerArgs<R> = R extends { __args: infer A } ? A : never
+
+type InferReducerInputs<T extends Record<string, unknown>> = {
+  [K in keyof T]: InferReducerArgs<T[K]>
+}
+
+type InferReducerOutputs<T extends Record<string, unknown>> = {
+  [K in keyof T]: InferReducerReturn<T[K]>
+}
+type InferReducerReturn<R> = R extends { __return: infer O } ? O : never
+type InferRow<S> =
+  S extends OwnedSchema<infer T>
+    ? DocBase<T> & { userId: string }
+    : S extends OrgSchema<infer T>
+      ? DocBase<T> & { orgId: number | string; userId: string }
+      : S extends BaseSchema<infer T>
+        ? DocBase<T>
+        : S extends SingletonSchema<infer T>
+          ? _.output<ZodObject<T>> & { updatedAt: number; userId: string }
+          : S extends ZodObject<infer T>
+            ? _.output<ZodObject<T>>
+            : never
+type InferRows<T extends Record<string, unknown>> = {
+  [K in keyof T]: InferRow<T[K]>
+}
+
+type InferUpdate<S> = S extends ZodObject<infer T> ? Partial<_.output<ZodObject<T>>> : never
+
 type OrgSchema<T extends ZodRawShape> = SchemaBrand<'org'> & ZodObject<T>
 
 type OwnedSchema<T extends ZodRawShape> = SchemaBrand<'owned'> & ZodObject<T>
+
+interface Register {
+  _?: never
+}
+
+type RegisteredDefaultError = Register extends { defaultError: infer E } ? E : Error
+
+type RegisteredMeta = Register extends { meta: infer M } ? M : Record<string, unknown>
 
 interface SchemaBrand<K extends string> {
   readonly [__brand]: K
@@ -352,16 +390,19 @@ interface SchemaBrand<K extends string> {
 }
 
 type SchemaHint<K extends string> = K extends keyof SchemaHintMap ? SchemaHintMap[K] : string
+
 interface SchemaHintMap {
   base: 'Created by makeBase() → use cacheCrud() + baseTable()'
   org: 'Created by makeOrgScoped() → use orgCrud() + orgTable()'
   owned: 'Created by makeOwned() → use crud() + ownedTable()'
   singleton: 'Created by makeSingleton() → use singletonCrud() + singletonTable()'
 }
+
 type SchemaTypeError<
   Expected extends keyof BrandLabelMap,
   Got extends keyof BrandLabelMap
 > = `Schema mismatch: expected ${BrandLabelMap[Expected]}, got ${BrandLabelMap[Got]}. ${Expected extends keyof SchemaHintMap ? SchemaHintMap[Expected] : ''}`
+
 type SingletonSchema<T extends ZodRawShape> = SchemaBrand<'singleton'> & ZodObject<T>
 
 export type {
@@ -387,6 +428,14 @@ export type {
   HookCtx,
   IdentityLike,
   IndexLike,
+  InferCreate,
+  InferReducerArgs,
+  InferReducerInputs,
+  InferReducerOutputs,
+  InferReducerReturn,
+  InferRow,
+  InferRows,
+  InferUpdate,
   Mb,
   Middleware,
   MiddlewareCtx,
@@ -406,7 +455,10 @@ export type {
   ReadCtx,
   Rec,
   ReducerCtx,
+  Register,
   RegisteredAction,
+  RegisteredDefaultError,
+  RegisteredMeta,
   RegisteredMutation,
   RegisteredQuery,
   SchemaBrand,

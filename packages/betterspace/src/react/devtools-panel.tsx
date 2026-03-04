@@ -5,9 +5,11 @@
 import { useEffect, useRef, useState } from 'react'
 import { createPortal } from 'react-dom'
 
+import type { ErrorCode } from '../server/types'
 import type { DevCacheEntry, DevConnection, DevError, DevMutation, DevSubscription } from './devtools'
 
-import { SLOW_THRESHOLD_MS, STALE_THRESHOLD_MS, useDevErrors } from './devtools'
+import { ERROR_MESSAGES } from '../server/types'
+import { injectError, SLOW_THRESHOLD_MS, STALE_THRESHOLD_MS, useDevErrors } from './devtools'
 
 interface DevtoolsProps {
   buttonClassName?: string
@@ -286,13 +288,31 @@ const POSITION_CLASSES: Record<Position, string> = {
             />
           </div>
           <div className='flex gap-1'>
-            {tab === 'errors' && errorCount > 0 ? (
-              <button
-                className='rounded-sm px-2 py-0.5 text-xs text-zinc-400 hover:bg-zinc-800 hover:text-zinc-200'
-                onClick={clear}
-                type='button'>
-                Clear
-              </button>
+            {tab === 'errors' ? (
+              <>
+                <select
+                  className='rounded-sm bg-zinc-800 px-1 py-0.5 text-xs text-zinc-400'
+                  onChange={e => {
+                    const val = e.target.value
+                    if (val in ERROR_MESSAGES) injectError(val as ErrorCode, { table: 'test' })
+                    e.target.value = ''
+                  }}>
+                  <option value=''>Inject...</option>
+                  {Object.keys(ERROR_MESSAGES).map(c => (
+                    <option key={c} value={c}>
+                      {c}
+                    </option>
+                  ))}
+                </select>
+                {errorCount > 0 ? (
+                  <button
+                    className='rounded-sm px-2 py-0.5 text-xs text-zinc-400 hover:bg-zinc-800 hover:text-zinc-200'
+                    onClick={clear}
+                    type='button'>
+                    Clear
+                  </button>
+                ) : null}
+              </>
             ) : null}
             {tab === 'reducers' && reducerCount > 0 ? (
               <button

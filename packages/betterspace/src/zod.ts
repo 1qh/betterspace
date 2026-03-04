@@ -167,7 +167,21 @@ const WRAPPERS: ReadonlySet<DefType> = new Set<DefType>([
       }
 
     return result as output<S>
-  }
+  },
+  /** Generates create and update schema variants from a base schema.
+   * @param schema - Base object schema
+   * @param requiredOnUpdate - Keys that remain required in the update variant
+   * @returns Object with create (original) and update (partial) variants
+   */
+  schemaVariants = <S extends ZodObject<ZodRawShape>>(
+    schema: S,
+    requiredOnUpdate?: (keyof output<S>)[]
+  ): { create: S; update: ZodObject<ZodRawShape> } => ({
+    create: schema,
+    update: requiredOnUpdate?.length
+      ? requiredPartial(schema, requiredOnUpdate as (keyof S['shape'])[])
+      : (schema.partial() as ZodObject<ZodRawShape>)
+  })
 
 export type { CvMeta, DefType, ZodSchema }
 export {
@@ -187,5 +201,6 @@ export {
   partialValues,
   pickValues,
   requiredPartial,
+  schemaVariants,
   unwrapZod
 }

@@ -24,6 +24,7 @@ export {
   clearMutations,
   completeMutation,
   completeReducerCall,
+  injectError,
   pushError,
   SLOW_THRESHOLD_MS,
   STALE_THRESHOLD_MS,

@@ -4,6 +4,7 @@ import { useEffect, useMemo, useState } from 'react'
 import { useSpacetimeDB } from 'spacetimedb/react'
 
 import type { ErrorData } from '../server/helpers'
+import type { ErrorCode } from '../server/types'
 
 import { extractErrorData, getErrorDetail, getErrorMessage } from '../server/helpers'
 
@@ -223,6 +224,20 @@ const listeners: (() => void)[] = [],
     mutationStore.length = 0
     notify()
   },
+  injectError = (code: ErrorCode, opts?: { detail?: string; message?: string; op?: string; table?: string }) => {
+    const data: ErrorData = { code, ...opts },
+      entry: DevError = {
+        data,
+        detail: opts?.detail ?? `Injected error: ${code}`,
+        id: nextId,
+        message: opts?.message ?? code,
+        timestamp: Date.now()
+      }
+    nextId += 1
+    errorStore.unshift(entry)
+    if (errorStore.length > MAX_ERRORS) errorStore.length = MAX_ERRORS
+    notify()
+  },
   useDevErrors = () => {
     const [, setTick] = useState(0),
       spacetime = useSpacetimeDB(),
@@ -266,6 +281,7 @@ export {
   clearMutations,
   completeMutation,
   completeReducerCall,
+  injectError,
   pushError,
   SLOW_THRESHOLD_MS,
   STALE_THRESHOLD_MS,
