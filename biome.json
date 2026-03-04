@@ -80,19 +80,6 @@
   },
   "overrides": [
     {
-      "includes": ["**/e2e/**", "**/maestro/**"],
-      "linter": {
-        "rules": {
-          "performance": {
-            "noAwaitInLoops": "off"
-          },
-          "suspicious": {
-            "noEmptyBlockStatements": "off"
-          }
-        }
-      }
-    },
-    {
       "css": {
         "parser": {
           "tailwindDirectives": true
