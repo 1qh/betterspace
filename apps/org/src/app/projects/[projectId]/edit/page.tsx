@@ -11,7 +11,7 @@ import { Card, CardContent, CardHeader, CardTitle } from '@a/ui/card'
 import { FieldGroup } from '@a/ui/field'
 import { Skeleton } from '@a/ui/skeleton'
 import { Form, PermissionGuard, useForm } from 'betterspace/components'
-import { getFieldErrors, useMutate } from 'betterspace/react'
+import { toastFieldError, useMutation } from 'betterspace/react'
 import { pickValues } from 'betterspace/zod'
 import { useRouter } from 'next/navigation'
 import { use } from 'react'
@@ -26,8 +26,7 @@ const EditProjectForm = ({ projectId, taskCount }: { projectId: number; taskCoun
       { org } = useOrg(),
       [projects] = useTable(tables.project),
       project = projects.find((p: Project) => p.id === projectId && p.orgId === Number(org._id)),
-      removeRaw = useReducer(reducers.rmProject),
-      remove = useMutate(removeRaw, {
+      remove = useMutation(useReducer, reducers.rmProject, {
         getName: () => `project.rm:${projectId}`,
         onSettled: (_args, error) => {
           if (error) toast.error('Failed to delete project')
@@ -36,13 +35,13 @@ const EditProjectForm = ({ projectId, taskCount }: { projectId: number; taskCoun
           toast.success('Project deleted')
         }
       }),
-      updateRaw = useReducer(reducers.updateProject),
-      update = useMutate(updateRaw, {
+      update = useMutation(useReducer, reducers.updateProject, {
         getName: () => `project.update:${projectId}`,
         onSettled: (_args, error) => {
-          if (!error) return
-          const fieldErrors = getFieldErrors<typeof projectUpdate>(error)
-          if (fieldErrors?.name) toast.error(fieldErrors.name)
+          if (error)
+            toastFieldError(error, message => {
+              toast.error(message)
+            })
         },
         onSuccess: () => {
           toast.success('Project updated')

@@ -4,7 +4,7 @@ import { reducers, tables } from '@a/be/spacetimedb'
 import { FieldGroup } from '@a/ui/field'
 import { Spinner } from '@a/ui/spinner'
 import { Form, useForm } from 'betterspace/components'
-import { getFieldErrors, useMutate } from 'betterspace/react'
+import { toastFieldError, useMutation } from 'betterspace/react'
 import Link from 'next/link'
 import { toast } from 'sonner'
 import { useReducer, useSpacetimeDB, useTable } from 'spacetimedb/react'
@@ -17,8 +17,7 @@ const Page = () => {
     // eslint-disable-next-line no-restricted-properties
     isPlaywright = process.env.NEXT_PUBLIC_PLAYWRIGHT === '1',
     profile = profiles.find(p => identity && p.userId.isEqual(identity)) ?? null,
-    upsertRaw = useReducer(reducers.upsertBlogProfile),
-    upsert = useMutate(upsertRaw, {
+    upsert = useMutation(useReducer, reducers.upsertBlogProfile, {
       getName: () => 'blogProfile.upsert',
       onSettled: (_args, error) => {
         if (!error) return
@@ -40,8 +39,9 @@ const Page = () => {
             theme: d.theme
           })
         } catch (error) {
-          const fieldErrors = getFieldErrors<typeof profileSchema>(error)
-          if (fieldErrors?.displayName) toast.error(fieldErrors.displayName)
+          toastFieldError(error, message => {
+            toast.error(message)
+          })
           throw error
         }
         return d

@@ -6,7 +6,7 @@ import { Button } from '@a/ui/button'
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@a/ui/card'
 import { Skeleton } from '@a/ui/skeleton'
 import { Form, OrgAvatar, useForm } from 'betterspace/components'
-import { getFieldErrors, setActiveOrgCookieClient, useMutate } from 'betterspace/react'
+import { setActiveOrgCookieClient, toastFieldError, useMutation } from 'betterspace/react'
 import { useRouter } from 'next/navigation'
 import { use } from 'react'
 import { toast } from 'sonner'
@@ -30,8 +30,7 @@ const JoinPage = ({ params }: { params: Promise<{ slug: string }> }) => {
         : null,
     membership =
       identity && org ? members.find(m => m.orgId === org.id && m.userId.toHexString() === identity.toHexString()) : null,
-    cancelRequestRaw = useReducer(reducers.orgCancelJoin),
-    cancelRequest = useMutate(cancelRequestRaw, {
+    cancelRequest = useMutation(useReducer, reducers.orgCancelJoin, {
       getName: () => 'org.cancelJoin',
       onSettled: (_args, error) => {
         if (error) toast.error('Failed to cancel request')
@@ -40,13 +39,13 @@ const JoinPage = ({ params }: { params: Promise<{ slug: string }> }) => {
         toast.success('Request cancelled')
       }
     }),
-    requestJoinRaw = useReducer(reducers.orgRequestJoin),
-    requestJoin = useMutate(requestJoinRaw, {
+    requestJoin = useMutation(useReducer, reducers.orgRequestJoin, {
       getName: () => 'org.requestJoin',
       onSettled: (_args, error) => {
-        if (!error) return
-        const fieldErrors = getFieldErrors<typeof joinRequest>(error)
-        if (fieldErrors?.message) toast.error(fieldErrors.message)
+        if (error)
+          toastFieldError(error, message => {
+            toast.error(message)
+          })
       },
       onSuccess: () => {
         toast.success('Join request sent')

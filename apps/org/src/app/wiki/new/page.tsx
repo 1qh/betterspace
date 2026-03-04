@@ -4,7 +4,7 @@ import { reducers } from '@a/be/spacetimedb'
 import { Card, CardContent, CardHeader, CardTitle } from '@a/ui/card'
 import { FieldGroup } from '@a/ui/field'
 import { Form, useForm } from 'betterspace/components'
-import { getFieldErrors, useMutate } from 'betterspace/react'
+import { toastFieldError, useMutation } from 'betterspace/react'
 import { useRouter } from 'next/navigation'
 import { toast } from 'sonner'
 import { useReducer } from 'spacetimedb/react'
@@ -15,13 +15,13 @@ import { wiki } from '~/schema'
 const NewWikiPage = () => {
   const router = useRouter(),
     { org } = useOrg(),
-    createWikiRaw = useReducer(reducers.createWiki),
-    createWiki = useMutate(createWikiRaw, {
+    createWiki = useMutation(useReducer, reducers.createWiki, {
       getName: () => 'wiki.create',
       onSettled: (_args, error) => {
-        if (!error) return
-        const fieldErrors = getFieldErrors<typeof wiki>(error)
-        if (fieldErrors?.title) toast.error(fieldErrors.title)
+        if (error)
+          toastFieldError(error, message => {
+            toast.error(message)
+          })
       },
       onSuccess: () => {
         toast.success('Wiki page created')

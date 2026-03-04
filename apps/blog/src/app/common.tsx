@@ -20,7 +20,7 @@ import { Dialog, DialogContent, DialogTrigger } from '@a/ui/dialog'
 import { FieldGroup } from '@a/ui/field'
 import { Spinner } from '@a/ui/spinner'
 import { Form, useForm } from 'betterspace/components'
-import { getFieldErrors, useMutate, useOptimisticMutation } from 'betterspace/react'
+import { toastFieldError, useMutation, useOptimisticMutation } from 'betterspace/react'
 import { format, formatDistance } from 'date-fns'
 import { Pencil, Plus, Send, Trash, UserRound } from 'lucide-react'
 import Link from 'next/link'
@@ -35,8 +35,7 @@ import { Publish } from './[id]/edit/client'
 // eslint-disable-next-line no-restricted-properties
 const isPlaywrightTest = process.env.NEXT_PUBLIC_PLAYWRIGHT === '1',
   Delete = ({ id, onOptimisticRemove }: { id: number; onOptimisticRemove?: () => void }) => {
-    const rmBlogRaw = useReducer(reducers.rmBlog),
-      rmBlog = useMutate(rmBlogRaw, {
+    const rmBlog = useMutation(useReducer, reducers.rmBlog, {
         getName: () => 'blog.rm',
         onSettled: (args, error) => {
           if (!error) return
@@ -90,8 +89,7 @@ const isPlaywrightTest = process.env.NEXT_PUBLIC_PLAYWRIGHT === '1',
   },
   Create = () => {
     const [open, setOpen] = useState(false),
-      createRaw = useReducer(reducers.createBlog),
-      create = useMutate(createRaw, {
+      create = useMutation(useReducer, reducers.createBlog, {
         getName: () => 'blog.create',
         onSettled: (_args, error) => {
           if (!error) return
@@ -115,8 +113,9 @@ const isPlaywrightTest = process.env.NEXT_PUBLIC_PLAYWRIGHT === '1',
           try {
             await create(payload)
           } catch (error) {
-            const fieldErrors = getFieldErrors<typeof createBlog>(error)
-            if (fieldErrors?.title) toast.error(fieldErrors.title)
+            toastFieldError(error, message => {
+              toast.error(message)
+            })
             throw error
           }
           return d

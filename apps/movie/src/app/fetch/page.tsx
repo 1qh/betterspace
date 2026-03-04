@@ -8,7 +8,7 @@ import { reducers } from '@a/be/spacetimedb'
 import { Badge } from '@a/ui/badge'
 import { Input } from '@a/ui/input'
 import { Skeleton } from '@a/ui/skeleton'
-import { getFieldErrors, useMutate } from 'betterspace/react'
+import { toastFieldError, useMutation } from 'betterspace/react'
 import { ArrowLeft } from 'lucide-react'
 import Link from 'next/link'
 import { useState, useTransition } from 'react'
@@ -163,14 +163,13 @@ const fetchMovie = async (id: number): Promise<MovieDetailData> => {
     }
   },
   Page = () => {
-    const createMovieRaw = useReducer(reducers.createMovie),
-      createMovie = useMutate(createMovieRaw, {
+    const createMovie = useMutation(useReducer, reducers.createMovie, {
         getName: args => `movie.create:${args.tmdbId}`,
         onSettled: (_args, error) => {
-          if (!error) return
-          const fieldErrors = getFieldErrors(error),
-            [firstError] = Object.values(fieldErrors ?? {})
-          if (typeof firstError === 'string' && firstError.length > 0) toast.error(firstError)
+          if (error)
+            toastFieldError(error, message => {
+              toast.error(message)
+            })
         },
         onSuccess: () => {
           toast.success('Movie cached')

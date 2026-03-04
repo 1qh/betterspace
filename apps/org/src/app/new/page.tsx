@@ -5,7 +5,7 @@ import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@a/ui
 import { FieldGroup } from '@a/ui/field'
 import slugify from '@sindresorhus/slugify'
 import { Form, useForm } from 'betterspace/components'
-import { getFieldErrors, useMutate } from 'betterspace/react'
+import { toastFieldError, useMutation } from 'betterspace/react'
 import { useRouter } from 'next/navigation'
 import { useEffect, useRef } from 'react'
 import { toast } from 'sonner'
@@ -15,13 +15,13 @@ import { orgTeam } from '~/schema'
 
 const NewOrgPage = () => {
   const router = useRouter(),
-    createRaw = useReducer(reducers.orgCreate),
-    create = useMutate(createRaw, {
+    create = useMutation(useReducer, reducers.orgCreate, {
       getName: () => 'org.create',
       onSettled: (_args, error) => {
-        if (!error) return
-        const fieldErrors = getFieldErrors<typeof orgTeam>(error)
-        if (fieldErrors?.slug) toast.error(fieldErrors.slug)
+        if (error)
+          toastFieldError(error, message => {
+            toast.error(message)
+          })
       },
       onSuccess: () => {
         toast.success('Organization created')

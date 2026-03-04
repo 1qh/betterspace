@@ -4,7 +4,7 @@ import { reducers, tables } from '@a/be/spacetimedb'
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@a/ui/card'
 import { FieldGroup } from '@a/ui/field'
 import { defineSteps } from 'betterspace/components'
-import { getFieldErrors, useMutate } from 'betterspace/react'
+import { toastFieldError, useMutation } from 'betterspace/react'
 import { toast } from 'sonner'
 import { useReducer, useSpacetimeDB, useTable } from 'spacetimedb/react'
 
@@ -36,25 +36,25 @@ const { StepForm, useStepper } = defineSteps(
           displayName: profile?.displayName ?? ''
         }
       },
-      upsertRaw = useReducer(reducers.upsertOrgProfile),
-      upsert = useMutate(upsertRaw, {
+      upsert = useMutation(useReducer, reducers.upsertOrgProfile, {
         getName: () => 'orgProfile.upsert',
         onSettled: (_args, error) => {
-          if (!error) return
-          const fieldErrors = getFieldErrors<typeof profileStep>(error)
-          if (fieldErrors?.displayName) toast.error(fieldErrors.displayName)
+          if (error)
+            toastFieldError(error, message => {
+              toast.error(message)
+            })
         },
         onSuccess: () => {
           toast.success('Profile saved')
         }
       }),
-      createRaw = useReducer(reducers.orgCreate),
-      create = useMutate(createRaw, {
+      create = useMutation(useReducer, reducers.orgCreate, {
         getName: () => 'org.create.onboarding',
         onSettled: (_args, error) => {
-          if (!error) return
-          const fieldErrors = getFieldErrors<typeof orgStep>(error)
-          if (fieldErrors?.slug) toast.error(fieldErrors.slug)
+          if (error)
+            toastFieldError(error, message => {
+              toast.error(message)
+            })
         },
         onSuccess: () => {
           toast.success('Organization ready')

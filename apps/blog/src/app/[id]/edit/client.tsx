@@ -11,7 +11,7 @@ import { Popover, PopoverContent, PopoverTrigger } from '@a/ui/popover'
 import { Spinner } from '@a/ui/spinner'
 import { Switch } from '@a/ui/switch'
 import { AutoSaveIndicator, Form, useForm } from 'betterspace/components'
-import { getFieldErrors, useMutate } from 'betterspace/react'
+import { toastFieldError, useMutation } from 'betterspace/react'
 import { Settings } from 'lucide-react'
 import Link from 'next/link'
 import { useTransition } from 'react'
@@ -26,8 +26,7 @@ const Publish = ({
     published,
     ...props
   }: Omit<ComponentProps<'div'>, 'id'> & { id: number; published: boolean }) => {
-    const updateRaw = useReducer(reducers.updateBlog),
-      update = useMutate(updateRaw, {
+    const update = useMutation(useReducer, reducers.updateBlog, {
         getName: () => 'blog.update.publish',
         onSettled: (_args, error) => {
           if (!error) return
@@ -67,8 +66,7 @@ const Publish = ({
     )
   },
   Edit = ({ blog }: { blog: Blog }) => {
-    const updateRaw = useReducer(reducers.updateBlog),
-      update = useMutate(updateRaw, {
+    const update = useMutation(useReducer, reducers.updateBlog, {
         getName: () => 'blog.update.edit',
         onSettled: (_args, error) => {
           if (!error) return
@@ -95,8 +93,9 @@ const Publish = ({
           try {
             await update(payload)
           } catch (error) {
-            const fieldErrors = getFieldErrors<typeof editBlog>(error)
-            if (fieldErrors?.title) toast.error(fieldErrors.title)
+            toastFieldError(error, message => {
+              toast.error(message)
+            })
             throw error
           }
           return d
@@ -157,8 +156,7 @@ const Publish = ({
     )
   },
   Setting = ({ blog }: { blog: Blog }) => {
-    const updateRaw = useReducer(reducers.updateBlog),
-      update = useMutate(updateRaw, {
+    const update = useMutation(useReducer, reducers.updateBlog, {
         getName: () => 'blog.update.settings',
         onSettled: (_args, error) => {
           if (!error) return

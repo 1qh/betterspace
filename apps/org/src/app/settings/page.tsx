@@ -10,7 +10,7 @@ import { Button } from '@a/ui/button'
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@a/ui/card'
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@a/ui/select'
 import { clearActiveOrgCookie } from 'betterspace/next'
-import { useMutate } from 'betterspace/react'
+import { useMutation } from 'betterspace/react'
 import { useRouter } from 'next/navigation'
 import { useState } from 'react'
 import { toast } from 'sonner'
@@ -23,8 +23,7 @@ import OrgSettingsForm from './org-settings-form'
 const OrgSettingsPage = () => {
   const router = useRouter(),
     { canDeleteOrg, isAdmin, isOwner, org } = useOrg(),
-    removeOrgRaw = useReducer(reducers.orgRemove),
-    removeOrg = useMutate(removeOrgRaw, {
+    removeOrg = useMutation(useReducer, reducers.orgRemove, {
       getName: () => `org.remove:${org._id}`,
       onSettled: (_args, error) => {
         if (error) toast.error('Failed to delete organization')
@@ -33,8 +32,7 @@ const OrgSettingsPage = () => {
         toast.success('Organization deleted')
       }
     }),
-    leaveOrgRaw = useReducer(reducers.orgLeave),
-    leaveOrg = useMutate(leaveOrgRaw, {
+    leaveOrg = useMutation(useReducer, reducers.orgLeave, {
       getName: () => `org.leave:${org._id}`,
       onSettled: (_args, error) => {
         if (error) toast.error('Failed to leave organization')
@@ -43,8 +41,7 @@ const OrgSettingsPage = () => {
         toast.success('You have left the organization')
       }
     }),
-    transferOwnershipRaw = useReducer(reducers.orgTransferOwnership),
-    transferOwnership = useMutate(transferOwnershipRaw, {
+    transferOwnership = useMutation(useReducer, reducers.orgTransferOwnership, {
       getName: () => `org.transferOwnership:${org._id}`,
       onSettled: (_args, error) => {
         if (error) toast.error('Failed to transfer ownership')

@@ -4,7 +4,7 @@ import { reducers } from '@a/be/spacetimedb'
 import { Card, CardContent, CardHeader, CardTitle } from '@a/ui/card'
 import { FieldGroup } from '@a/ui/field'
 import { Form, useForm } from 'betterspace/components'
-import { getFieldErrors, useMutate } from 'betterspace/react'
+import { toastFieldError, useMutation } from 'betterspace/react'
 import { useRouter } from 'next/navigation'
 import { toast } from 'sonner'
 import { useReducer } from 'spacetimedb/react'
@@ -15,13 +15,13 @@ import { project } from '~/schema'
 const NewProjectPage = () => {
   const router = useRouter(),
     { org } = useOrg(),
-    createProjectRaw = useReducer(reducers.createProject),
-    createProject = useMutate(createProjectRaw, {
+    createProject = useMutation(useReducer, reducers.createProject, {
       getName: () => 'project.create',
       onSettled: (_args, error) => {
-        if (!error) return
-        const fieldErrors = getFieldErrors<typeof project>(error)
-        if (fieldErrors?.name) toast.error(fieldErrors.name)
+        if (error)
+          toastFieldError(error, message => {
+            toast.error(message)
+          })
       },
       onSuccess: () => {
         toast.success('Project created')

@@ -4,7 +4,7 @@ import { reducers } from '@a/be/spacetimedb'
 import { Button } from '@a/ui/button'
 import { Dialog, DialogContent, DialogDescription, DialogHeader, DialogTitle, DialogTrigger } from '@a/ui/dialog'
 import { Form, useForm } from 'betterspace/components'
-import { getFieldErrors, useMutate } from 'betterspace/react'
+import { toastFieldError, useMutation } from 'betterspace/react'
 import { Plus } from 'lucide-react'
 import { useState } from 'react'
 import { toast } from 'sonner'
@@ -18,13 +18,13 @@ interface InviteDialogProps {
 
 const InviteDialog = ({ orgId }: InviteDialogProps) => {
   const [open, setOpen] = useState(false),
-    sendInviteRaw = useReducer(reducers.orgSendInvite),
-    sendInvite = useMutate(sendInviteRaw, {
+    sendInvite = useMutation(useReducer, reducers.orgSendInvite, {
       getName: () => `org.invite:${orgId}`,
       onSettled: (_args, error) => {
-        if (!error) return
-        const fieldErrors = getFieldErrors<typeof invite>(error)
-        if (fieldErrors?.email) toast.error(fieldErrors.email)
+        if (error)
+          toastFieldError(error, message => {
+            toast.error(message)
+          })
       },
       onSuccess: () => {
         toast.success('Invite sent')
