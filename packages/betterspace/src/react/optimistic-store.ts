@@ -3,6 +3,8 @@
 
 import { createContext, createElement, use, useMemo, useRef, useSyncExternalStore } from 'react'
 
+import { noop } from './list-utils'
+
 type MutationType = 'create' | 'delete' | 'update'
 
 interface OptimisticStore {
@@ -33,9 +35,7 @@ const makeTempId = () => {
     counter += 1
     return `__optimistic_${counter}_${Date.now()}`
   },
-  /** biome-ignore lint/suspicious/noEmptyBlockStatements: noop */
-  noopUnsubscribe = (): void => {}, // eslint-disable-line @typescript-eslint/no-empty-function
-  emptySubscribe = () => noopUnsubscribe,
+  emptySubscribe = () => noop,
   classifyPending = (pending: PendingMutation[]) => {
     const deleteIds = new Set<string>(),
       updates = new Map<string, Record<string, unknown>>(),

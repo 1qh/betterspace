@@ -46,6 +46,7 @@ export { makeErrorHandler, toastFieldError, useErrorToast } from './error-toast'
 export type { ConflictData, FieldKind, FieldMeta, FieldMetaMap, FormReturn, Widen } from './form'
 export { buildMeta, getMeta, useForm, useFormMutation } from './form'
 export type { ListSort, SortDirection, SortMap, SortObject, WhereFieldValue } from './list-utils'
+export { noop } from './list-utils'
 export type { MutationType, PendingMutation } from './optimistic-store'
 export { OptimisticProvider, usePendingMutations } from './optimistic-store'
 export {

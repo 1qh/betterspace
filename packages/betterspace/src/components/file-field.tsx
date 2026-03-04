@@ -12,9 +12,7 @@ import { useDropzone } from 'react-dropzone'
 import { toast } from 'sonner'
 
 import { BYTES_PER_KB, BYTES_PER_MB } from '../constants'
-
-/** biome-ignore lint/suspicious/noEmptyBlockStatements: noop */
-const noop = (): void => {} // eslint-disable-line @typescript-eslint/no-empty-function
+import { noop } from '../react/list-utils'
 
 interface DropSlotProps {
   accept?: string
