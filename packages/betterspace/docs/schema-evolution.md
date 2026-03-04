@@ -1,12 +1,15 @@
 # Schema Evolution
 
-SpacetimeDB handles schema changes through module republishing. When you run `spacetime publish`, it compares the new schema against the deployed one and applies the diff.
+SpacetimeDB handles schema changes through module republishing.
+When you run `spacetime publish`, it compares the new schema against the deployed one
+and applies the diff.
 
 ## The basic workflow
 
 1. Edit your module (`packages/be/spacetimedb/src/index.ts`)
 2. Publish: `spacetime publish my-app --module-path packages/be/spacetimedb/`
-3. Regenerate bindings: `spacetime generate --lang typescript --module-path packages/be/spacetimedb/ --out-dir packages/be/spacetimedb/module_bindings/`
+3. Regenerate bindings:
+   `spacetime generate --lang typescript --module-path packages/be/spacetimedb/ --out-dir packages/be/spacetimedb/module_bindings/`
 4. Update client code to use new fields/tables
 
 ## Adding a field
@@ -46,11 +49,14 @@ Publish:
 spacetime publish my-app --module-path packages/be/spacetimedb/
 ```
 
-Existing rows get `null` for the new optional field. Required (non-optional) fields on existing rows will have their zero value (empty string for `t.string()`, `0` for `t.u32()`, `false` for `t.bool()`).
+Existing rows get `null` for the new optional field.
+Required (non-optional) fields on existing rows will have their zero value (empty string
+for `t.string()`, `0` for `t.u32()`, `false` for `t.bool()`).
 
 ## Removing a field
 
-Remove the field from the table definition and republish. Existing data in that column is dropped.
+Remove the field from the table definition and republish.
+Existing data in that column is dropped.
 
 ```typescript
 // Remove 'category' field
@@ -66,7 +72,9 @@ const post = table(
 )
 ```
 
-After republishing, regenerate bindings. Client code referencing the removed field will get TypeScript errors, which is the intended behavior.
+After republishing, regenerate bindings.
+Client code referencing the removed field will get TypeScript errors, which is the
+intended behavior.
 
 ## Adding a table
 
@@ -88,11 +96,13 @@ const spacetimedb = schema({
 })
 ```
 
-The new table starts empty. Existing data is unaffected.
+The new table starts empty.
+Existing data is unaffected.
 
 ## Removing a table
 
-Remove the table from the schema and republish. All data in that table is dropped.
+Remove the table from the schema and republish.
+All data in that table is dropped.
 
 ```typescript
 const spacetimedb = schema({
@@ -103,7 +113,8 @@ const spacetimedb = schema({
 
 ## Renaming a field or table
 
-SpacetimeDB doesn't have a native rename migration. The safe approach:
+SpacetimeDB doesn’t have a native rename migration.
+The safe approach:
 
 1. Add the new field/table alongside the old one
 2. Write a migration reducer that copies data from old to new
@@ -148,7 +159,9 @@ Then remove the old field in a subsequent publish.
 
 ## Changing a field type
 
-SpacetimeDB doesn't support in-place type changes. Use the rename pattern above: add a new field with the new type, migrate data, remove the old field.
+SpacetimeDB doesn’t support in-place type changes.
+Use the rename pattern above: add a new field with the new type, migrate data, remove
+the old field.
 
 ## Index changes
 
@@ -183,21 +196,26 @@ const wiki = table(
 )
 ```
 
-Republish to apply index changes. SpacetimeDB rebuilds indexes on publish.
+Republish to apply index changes.
+SpacetimeDB rebuilds indexes on publish.
 
 ## Reducer changes
 
-Adding, removing, or changing reducer signatures follows the same pattern: edit the module, republish, regenerate bindings.
+Adding, removing, or changing reducer signatures follows the same pattern: edit the
+module, republish, regenerate bindings.
 
-If you remove a reducer that clients are calling, those calls will fail with an error. Coordinate client and server deploys to avoid downtime.
+If you remove a reducer that clients are calling, those calls will fail with an error.
+Coordinate client and server deploys to avoid downtime.
 
 ## Production migrations
 
 For production deployments with live users:
 
-1. **Backward-compatible changes first**: add optional fields, new tables, new reducers. Deploy server.
+1. **Backward-compatible changes first**: add optional fields, new tables, new reducers.
+   Deploy server.
 2. **Deploy client**: update client to use new fields/reducers.
-3. **Remove old fields**: once all clients are updated, remove deprecated fields. Deploy server again.
+3. **Remove old fields**: once all clients are updated, remove deprecated fields.
+   Deploy server again.
 
 This two-phase approach avoids breaking live clients during a deploy.
 
@@ -223,4 +241,5 @@ spacetime delete my-app
 spacetime publish my-app --module-path packages/be/spacetimedb/
 ```
 
-This is only safe in local dev. Never do this in production.
+This is only safe in local dev.
+Never do this in production.

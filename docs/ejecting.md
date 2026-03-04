@@ -1,12 +1,18 @@
 # Ejecting from betterspace
 
-If you outgrow betterspace or want full control over your SpacetimeDB module, you can eject to raw SpacetimeDB SDK code. The generated bindings stay intact. Only the server-side factory layer is replaced.
+If you outgrow betterspace or want full control over your SpacetimeDB module, you can
+eject to raw SpacetimeDB SDK code.
+The generated bindings stay intact.
+Only the server-side factory layer is replaced.
 
 ## What betterspace provides
 
-The factories (`makeCrud`, `makeOrgCrud`, etc.) generate reducer definitions. Ejecting means writing those reducers manually instead of using the factories.
+The factories (`makeCrud`, `makeOrgCrud`, etc.)
+generate reducer definitions.
+Ejecting means writing those reducers manually instead of using the factories.
 
-The client-side hooks (`useList`, `usePresence`, `useUpload`) are independent utilities. You can keep using them after ejecting from the server factories.
+The client-side hooks (`useList`, `usePresence`, `useUpload`) are independent utilities.
+You can keep using them after ejecting from the server factories.
 
 ## Step 1: understand what the factories generate
 
@@ -162,7 +168,9 @@ import { schema, t, table, SenderError } from 'spacetimedb/server'
 
 ## Step 4: keep or remove client-side utilities
 
-The client-side hooks (`useList`, `usePresence`, `useUpload`, etc.) are independent of the server factories. You can keep using them:
+The client-side hooks (`useList`, `usePresence`, `useUpload`, etc.)
+are independent of the server factories.
+You can keep using them:
 
 ```typescript
 // These still work after ejecting from server factories
@@ -184,7 +192,9 @@ spacetime publish my-app --module-path packages/be/spacetimedb/
 spacetime generate --lang typescript --module-path packages/be/spacetimedb/ --out-dir packages/be/spacetimedb/module_bindings/
 ```
 
-The generated bindings are identical whether you used betterspace factories or wrote reducers manually. The reducer names (`create_post`, `update_post`, `rm_post`) are what matter, not how they were defined.
+The generated bindings are identical whether you used betterspace factories or wrote
+reducers manually. The reducer names (`create_post`, `update_post`, `rm_post`) are what
+matter, not how they were defined.
 
 ## What you lose by ejecting
 
@@ -192,10 +202,10 @@ The generated bindings are identical whether you used betterspace factories or w
 - Conflict detection via `expectedUpdatedAt` (you implement it)
 - Soft delete support (you implement it)
 - Lifecycle hooks (you inline the logic)
-- Future betterspace improvements (you're on your own)
+- Future betterspace improvements (you’re on your own)
 
 ## What you gain
 
 - Full control over reducer logic
-- No dependency on betterspace's internal types
+- No dependency on betterspace’s internal types
 - Ability to deviate from the standard CRUD pattern

@@ -1,8 +1,12 @@
 # betterspace
 
-Zod schema → fullstack app. One schema, zero boilerplate.
+Zod schema → fullstack app.
+One schema, zero boilerplate.
 
-Define a Zod schema once → authenticated CRUD reducers, typesafe forms with file upload, real-time WebSocket subscriptions, pagination, search, conflict detection, soft delete, org multi-tenancy with ACL — all generated. Ship a production app in minutes, not days.
+Define a Zod schema once → authenticated CRUD reducers, typesafe forms with file upload,
+real-time WebSocket subscriptions, pagination, search, conflict detection, soft delete,
+org multi-tenancy with ACL — all generated.
+Ship a production app in minutes, not days.
 
 ## Before / After
 
@@ -46,7 +50,8 @@ const deletePost = spacetimedb.reducer(
 )
 ```
 
-~40 lines for 3 reducers. No validation, no file cleanup, no conflict detection.
+~40 lines for 3 reducers.
+No validation, no file cleanup, no conflict detection.
 
 With betterspace `setupCrud()`:
 
@@ -59,13 +64,16 @@ const blogCrud = crud('blog', {
 })
 ```
 
-4 lines. `create`/`update`/`rm` reducers with auth, ownership, validation hooks, and conflict detection — all included.
+4 lines. `create`/`update`/`rm` reducers with auth, ownership, validation hooks, and
+conflict detection — all included.
 
 ## Less Boilerplate, Same Capability
 
-The backend for 4 production apps — blog, chat, org collaboration, and movie search — stays compact consumer code while preserving typed reducers, auth checks, hooks, and real-time subscriptions.
+The backend for 4 production apps — blog, chat, org collaboration, and movie search —
+stays compact consumer code while preserving typed reducers, auth checks, hooks, and
+real-time subscriptions.
 
-Here's a full org-scoped CRUD with per-item editor permissions and soft delete:
+Here’s a full org-scoped CRUD with per-item editor permissions and soft delete:
 
 ```tsx
 const wikiCrud = orgCrud('wiki', {
@@ -75,14 +83,15 @@ const wikiCrud = orgCrud('wiki', {
 }, { softDelete: true })
 ```
 
-One call. Role-based access, editor ACL, soft delete with restore, and bulk operations — all generated.
+One call. Role-based access, editor ACL, soft delete with restore, and bulk operations —
+all generated.
 
 > [See all backend code: packages/be/spacetimedb/src/](https://github.com/1qh/betterspace/tree/main/packages/be/spacetimedb/src)
 
 ## What You Get
 
 | Feature | Lines of code |
-|---------|:---:|
+| --- | :---: |
 | CRUD reducers with auth + ownership | 0 |
 | Real-time WebSocket subscriptions | 0 |
 | File upload with S3/MinIO presign, auto-cleanup | 0 |
@@ -154,13 +163,13 @@ type Validated = AssertSchema<typeof mySchema, 'owned'>
 //   ❌ if mySchema is OrgSchema → resolves to descriptive error string
 ```
 
-
-
 ### Browser Devtools Panel
 
-In dev mode, the devtools panel auto-mounts inside `<Form>` components — no import needed. The panel tracks:
+In dev mode, the devtools panel auto-mounts inside `<Form>` components — no import
+needed. The panel tracks:
 
-- **Subscriptions**: Active queries with args, data preview, render count, result count, latency
+- **Subscriptions**: Active queries with args, data preview, render count, result count,
+  latency
 - **Mutations**: Name, args, duration, status (pending/success/error)
 - **Cache**: Table, key, hit/miss counts, stale state
 - **Errors**: Full error details with retry info
@@ -168,8 +177,6 @@ In dev mode, the devtools panel auto-mounts inside `<Form>` components — no im
 Click any subscription row to expand and inspect its current args and data preview.
 
 For standalone usage or customization:
-
-
 
 ```tsx
 import { BetterspaceDevtools } from 'betterspace/react'
@@ -180,8 +187,6 @@ import { BetterspaceDevtools } from 'betterspace/react'
 ### Schema Playground
 
 Interactive component for previewing how schemas map to generated endpoints:
-
-
 
 ```tsx
 import { SchemaPlayground } from 'betterspace/react'
@@ -197,7 +202,9 @@ Run project-wide diagnostics with a health score:
 betterspace doctor --schema-file=t.ts
 ```
 
-Checks 7 categories: schema consistency, endpoint coverage, index coverage, access levels, ESLint config, and dependency versions. Outputs pass/warn/fail for each check with a health score from 0–100.
+Checks 7 categories: schema consistency, endpoint coverage, index coverage, access
+levels, ESLint config, and dependency versions.
+Outputs pass/warn/fail for each check with a health score from 0–100.
 
 ### CLI: `betterspace dev`
 
@@ -221,9 +228,13 @@ betterspace add profile --type=singleton --fields="displayName:string,bio:string
 betterspace add movie --type=cache --fields="title:string,tmdb_id:number"
 ```
 
-Generates schema definition, reducer config, and page component. Skips existing files. Supports all 5 table types (owned, org, singleton, cache, child) with field types `string`, `boolean`, `number`, and `enum()`.
+Generates schema definition, reducer config, and page component.
+Skips existing files.
+Supports all 5 table types (owned, org, singleton, cache, child) with field types
+`string`, `boolean`, `number`, and `enum()`.
 
-When you run `betterspace add` with no table name in a TTY, it enters interactive mode and prompts for type, parent table (for child tables), and fields.
+When you run `betterspace add` with no table name in a TTY, it enters interactive mode
+and prompts for type, parent table (for child tables), and fields.
 
 ### React provider utilities
 
@@ -231,8 +242,10 @@ When you run `betterspace add` with no table name in a TTY, it enters interactiv
 
 - `toWsUri(uri)` converts `http(s)` endpoints to `ws(s)` endpoints
 - `createTokenStore(key?)` persists auth tokens in localStorage + cookie
-- `createFileUploader(presignEndpoint)` builds a `FileApi` uploader from a presign endpoint
-- `createSpacetimeClient({ DbConnection, uri, moduleName, tokenStore })` builds and caches a configured builder
+- `createFileUploader(presignEndpoint)` builds a `FileApi` uploader from a presign
+  endpoint
+- `createSpacetimeClient({ DbConnection, uri, moduleName, tokenStore })` builds and
+  caches a configured builder
 
 ### ESLint Plugin
 
@@ -245,10 +258,10 @@ export default [recommended]
 ```
 
 | Rule | Severity | What it catches |
-|------|----------|----------------|
+| --- | --- | --- |
 | `api-casing` | error | Wrong casing in API references |
 | `discovery-check` | warn | Could not find schema or module directory |
-| `consistent-crud-naming` | error | CRUD export name doesn't match table |
+| `consistent-crud-naming` | error | CRUD export name doesn’t match table |
 | `form-field-exists` | error | `<Text name='typo' />` — field not in schema |
 | `form-field-kind` | warn | `<Text>` on boolean field (should be `<Toggle>`) |
 | `no-duplicate-crud` | error | Same table registered in two `crud()` calls |
@@ -271,8 +284,8 @@ bun add betterspace
 
 ## Entry Points
 
-| Import | What's inside |
-|--------|--------------|
+| Import | What’s inside |
+| --- | --- |
 | `betterspace` | `guardApi`, `strictApi`, `zodFromTable`, identity helpers |
 | `betterspace/schema` | `makeOwned`, `makeOrgScoped`, `makeBase`, `makeSingleton`, `child`, `cvFile`, `cvFiles`, `orgSchema` |
 | `betterspace/server` | `setupCrud`, `setup`, `makeCrud`, `makeChildCrud`, `makeOrgCrud`, `makeSingletonCrud`, `makeCacheCrud`, `makeOrg`, `makeFileUpload`, `makePresence`, table helpers, middleware, error handling, test utilities |
@@ -288,7 +301,8 @@ bun add betterspace
 
 ## Type Safety
 
-Every API surface is type-checked at compile time. Typos are caught before your code runs.
+Every API surface is type-checked at compile time.
+Typos are caught before your code runs.
 
 ### Branded schemas prevent mismatches
 
@@ -372,7 +386,9 @@ export const reducers = spacetimedb.exportGroup(allExports())
 export default spacetimedb
 ```
 
-`setupCrud()` eliminates repeated `idField`, `pk`, `table` boilerplate across tables. For fine-grained control, use `makeCrud()` directly (see [API Reference](docs/api-reference.md)).
+`setupCrud()` eliminates repeated `idField`, `pk`, `table` boilerplate across tables.
+For fine-grained control, use `makeCrud()` directly (see
+[API Reference](docs/api-reference.md)).
 
 ### 3. Publish the module
 
@@ -388,23 +404,25 @@ const { data: blogs, loadMore } = useList(allBlogs, isReady, { where: { publishe
 
 ## Zero-Config Defaults
 
-Everything works out of the box. Opt out only when needed.
+Everything works out of the box.
+Opt out only when needed.
 
 | Default | What it does | Opt out |
-|---------|-------------|---------|
-| Auto-derived labels | `coverImage` renders as "Cover Image" | `label={false}` or `label="Custom"` |
+| --- | --- | --- |
+| Auto-derived labels | `coverImage` renders as “Cover Image” | `label={false}` or `label="Custom"` |
 | Error toasts | `useMutate` and forms show toast on error | `onError: false` |
 | Devtools panel | Auto-mounts in dev mode inside forms | Manual `<BetterspaceDevtools>` for customization |
 | File upload warning | Console warning if file fields lack `<FileApiProvider>` | Add the provider |
 | Form data return | Forms auto-return submitted data for reset | Return custom data from `onSubmit` |
 | Devtools tracking | Mutations, subscriptions, and cache tracked in dev panel | Dev mode only |
 
-`bunx betterspace init` scaffolds new projects with all defaults pre-configured: guarded API wrapper, `FileApiProvider`, `ErrorBoundary`, and commented middleware examples.
+`bunx betterspace init` scaffolds new projects with all defaults pre-configured: guarded
+API wrapper, `FileApiProvider`, `ErrorBoundary`, and commented middleware examples.
 
 ## 5 Table Types
 
 | Type | Schema | Factory | Use Case |
-|------|--------|---------|----------|
+| --- | --- | --- | --- |
 | `owned` | Table fields | `makeCrud()` | User-owned data (blog posts, chats) |
 | `orgScoped` | Table fields + orgId | `makeOrgCrud()` | Org-scoped data (wikis, projects) |
 | `children` | Table fields + foreignKey | `makeChildCrud()` | Nested under parent (messages in chat) |
@@ -416,7 +434,7 @@ Everything works out of the box. Opt out only when needed.
 4 real-world web apps showcase betterspace in production use:
 
 | App | What it shows | Backend |
-|-----|---------------|---------|
+| --- | --- | --- |
 | [Movie](https://github.com/1qh/betterspace/tree/main/apps/movie) | Cache factory, TMDB integration, no-auth | [spacetimedb/src/index.ts](https://github.com/1qh/betterspace/blob/main/packages/be/spacetimedb/src/index.ts) |
 | [Blog](https://github.com/1qh/betterspace/tree/main/apps/blog) | Owned CRUD, forms, file upload, pagination, profile | [spacetimedb/src/index.ts](https://github.com/1qh/betterspace/blob/main/packages/be/spacetimedb/src/index.ts) |
 | [Chat](https://github.com/1qh/betterspace/tree/main/apps/chat) | Child CRUD, public/auth split, AI streaming | [spacetimedb/src/index.ts](https://github.com/1qh/betterspace/blob/main/packages/be/spacetimedb/src/index.ts) |
@@ -425,15 +443,15 @@ Everything works out of the box. Opt out only when needed.
 ### Test Coverage
 
 | Platform | Framework | Tests |
-|----------|-----------|------:|
+| --- | --- | ---: |
 | Web | Playwright E2E | 220 |
 | Backend | SpacetimeDB test utilities | 219 |
 | Library | bun:test (`src/__tests__/`) | 906 |
 
 ## Documentation
 
-| Guide | What's covered |
-|-------|---------------|
+| Guide | What’s covered |
+| --- | --- |
 | [Quickstart](docs/quickstart.md) | From zero to running app in 5 minutes |
 | [Forms](docs/forms.md) | Typesafe forms, multi-step wizards, auto-save, conflict detection, async validation |
 | [Data Fetching](docs/data-fetching.md) | Real-time subscriptions, filtering, pagination, search |
@@ -457,6 +475,8 @@ bun lint          # library-scoped linting
 bun typecheck     # library-only type checking
 ```
 
-Repo-wide commands (`bun fix`, `bun test:all`) include all 4 demo apps and take longer. For library-only changes, the commands above are sufficient.
+Repo-wide commands (`bun fix`, `bun test:all`) include all 4 demo apps and take longer.
+For library-only changes, the commands above are sufficient.
 
-Run `bunx betterspace check` from any consumer project to validate schema/factory consistency.
+Run `bunx betterspace check` from any consumer project to validate schema/factory
+consistency.

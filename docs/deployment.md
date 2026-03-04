@@ -9,7 +9,8 @@ docker compose up -d
 ```
 
 This starts:
-- SpacetimeDB at `ws://localhost:3000` (WebSocket) and `http://localhost:3000` (HTTP SQL API)
+- SpacetimeDB at `ws://localhost:3000` (WebSocket) and `http://localhost:3000` (HTTP SQL
+  API)
 - MinIO at `http://localhost:9000` (S3 API) and `http://localhost:9001` (console)
 
 Publish your module:
@@ -66,11 +67,12 @@ mc mb local/my-bucket
 mc anonymous set download local/my-bucket
 ```
 
----
+* * *
 
 ## Maincloud
 
-SpacetimeDB Maincloud is the managed cloud offering. It handles hosting, scaling, and backups.
+SpacetimeDB Maincloud is the managed cloud offering.
+It handles hosting, scaling, and backups.
 
 ### Publish to Maincloud
 
@@ -97,15 +99,19 @@ NEXT_PUBLIC_MODULE_NAME=my-app
 spacetime publish my-app --server maincloud --module-path packages/be/spacetimedb/
 ```
 
-Republishing applies schema changes and updates reducer logic. Existing data is preserved (see [schema evolution](./schema-evolution.md)).
+Republishing applies schema changes and updates reducer logic.
+Existing data is preserved (see [schema evolution](./schema-evolution.md)).
 
 ### Maincloud limitations
 
-- `ctx.http.fetch()` may work on Maincloud (it panics in local Docker due to networking). Test before relying on it.
-- Latency will be higher than local Docker. Measure before deciding whether to add optimistic updates.
-- Auth: Maincloud supports OIDC providers (Google, GitHub). Configure via the Maincloud dashboard.
+- `ctx.http.fetch()` may work on Maincloud (it panics in local Docker due to
+  networking). Test before relying on it.
+- Latency will be higher than local Docker.
+  Measure before deciding whether to add optimistic updates.
+- Auth: Maincloud supports OIDC providers (Google, GitHub).
+  Configure via the Maincloud dashboard.
 
----
+* * *
 
 ## Self-hosted with Docker
 
@@ -187,7 +193,7 @@ http {
 }
 ```
 
-### TLS with Let's Encrypt
+### TLS with Let’s Encrypt
 
 ```bash
 # Install certbot
@@ -217,11 +223,12 @@ NEXT_PUBLIC_SPACETIMEDB_URL=wss://stdb.yourdomain.com
 NEXT_PUBLIC_MODULE_NAME=my-app
 ```
 
----
+* * *
 
 ## Self-hosted manual install
 
-For bare-metal or custom setups, see the [official SpacetimeDB installation docs](https://spacetimedb.com/docs/getting-started).
+For bare-metal or custom setups, see the
+[official SpacetimeDB installation docs](https://spacetimedb.com/docs/getting-started).
 
 The SpacetimeDB binary can run without Docker:
 
@@ -233,7 +240,7 @@ curl -sSf https://install.spacetimedb.com | sh
 spacetimedb start --listen-addr 0.0.0.0:3000 --data-dir /var/lib/spacetimedb
 ```
 
----
+* * *
 
 ## Deploying the Next.js app
 
@@ -282,7 +289,7 @@ S3_BUCKET=my-production-bucket
 S3_REGION=us-east-1
 ```
 
----
+* * *
 
 ## CI/CD
 
@@ -334,7 +341,7 @@ jobs:
           VERCEL_TOKEN: ${{ secrets.VERCEL_TOKEN }}
 ```
 
----
+* * *
 
 ## Health checks
 
@@ -350,7 +357,8 @@ Use this in Docker health checks and load balancer probes.
 
 ## Monitoring
 
-SpacetimeDB logs to stdout. Collect logs with your preferred log aggregator (Datadog, Loki, CloudWatch, etc.).
+SpacetimeDB logs to stdout.
+Collect logs with your preferred log aggregator (Datadog, Loki, CloudWatch, etc.).
 
 Key metrics to watch:
 - WebSocket connection count

@@ -2,7 +2,8 @@
 
 ## Server factories
 
-All factories are imported from `betterspace/server` (or the bundled `betterspace-server.js` for SpacetimeDB modules).
+All factories are imported from `betterspace/server` (or the bundled
+`betterspace-server.js` for SpacetimeDB modules).
 
 ### makeCrud
 
@@ -52,18 +53,20 @@ const postCrud = makeCrud(spacetimedb, {
 **Generated reducers:**
 
 | Reducer | Parameters | Description |
-|---------|-----------|-------------|
+| --- | --- | --- |
 | `create_{tableName}` | All fields | Insert a row. Sets `userId = ctx.sender`, `updatedAt = ctx.timestamp`, `id = 0` (auto-inc). |
-| `update_{tableName}` | `id`, optional fields, optional `expectedUpdatedAt` | Update a row. Caller must be the owner. Throws `CONFLICT` if `expectedUpdatedAt` doesn't match. |
+| `update_{tableName}` | `id`, optional fields, optional `expectedUpdatedAt` | Update a row. Caller must be the owner. Throws `CONFLICT` if `expectedUpdatedAt` doesn’t match. |
 | `rm_{tableName}` | `id` | Delete a row (or soft-delete if `softDelete: true`). Caller must be the owner. |
 
-**Ownership:** All write operations check `row.userId === ctx.sender`. Non-owners get a `FORBIDDEN` error.
+**Ownership:** All write operations check `row.userId === ctx.sender`. Non-owners get a
+`FORBIDDEN` error.
 
----
+* * *
 
 ### makeOrgCrud
 
-Like `makeCrud`, but for org-scoped tables. Checks org membership before writes.
+Like `makeCrud`, but for org-scoped tables.
+Checks org membership before writes.
 
 ```typescript
 import { makeOrgCrud } from 'betterspace/server'
@@ -90,12 +93,12 @@ const projectCrud = makeOrgCrud(spacetimedb, {
 **Generated reducers:**
 
 | Reducer | Parameters | Description |
-|---------|-----------|-------------|
+| --- | --- | --- |
 | `create_{tableName}` | `orgId`, all fields | Insert a row. Requires org membership. |
 | `update_{tableName}` | `id`, optional fields | Update a row. Requires org membership + ownership or admin. |
 | `rm_{tableName}` | `id` | Delete a row. Requires org membership + ownership or admin. |
 
----
+* * *
 
 ### makeSingletonCrud
 
@@ -121,11 +124,11 @@ const profileCrud = makeSingletonCrud(spacetimedb, {
 **Generated reducers:**
 
 | Reducer | Parameters | Description |
-|---------|-----------|-------------|
+| --- | --- | --- |
 | `get_{tableName}` | none | Throws `NOT_FOUND` if no row exists for the caller. Useful for triggering a read hook. |
-| `upsert_{tableName}` | All fields (all optional) | Insert or update the caller's row. |
+| `upsert_{tableName}` | All fields (all optional) | Insert or update the caller’s row. |
 
----
+* * *
 
 ### makeCacheCrud
 
@@ -155,7 +158,7 @@ const movieCrud = makeCacheCrud(spacetimedb, {
 **Generated reducers:**
 
 | Reducer | Parameters | Description |
-|---------|-----------|-------------|
+| --- | --- | --- |
 | `create_{tableName}` | `keyName` + all fields | Insert a cache entry. Sets `cachedAt`, `updatedAt`. |
 | `update_{tableName}` | `keyName` + optional fields | Update a cache entry. Clears `invalidatedAt`. |
 | `rm_{tableName}` | `keyName` | Delete a cache entry. |
@@ -164,7 +167,7 @@ const movieCrud = makeCacheCrud(spacetimedb, {
 
 Cache tables automatically get `cachedAt`, `invalidatedAt`, and `updatedAt` fields.
 
----
+* * *
 
 ### makeChildCrud
 
@@ -193,18 +196,19 @@ const messageCrud = makeChildCrud(spacetimedb, {
 **Generated reducers:**
 
 | Reducer | Parameters | Description |
-|---------|-----------|-------------|
+| --- | --- | --- |
 | `create_{tableName}` | `foreignKeyName` + all fields | Insert a child row. Verifies parent exists. |
 | `update_{tableName}` | `id` + optional fields | Update a child row. Caller must be owner. |
 | `rm_{tableName}` | `id` | Delete a child row. Caller must be owner. |
 
----
+* * *
 
 ### makeOrg
 
-Generates the full suite of org management reducers. See [organizations](./organizations.md) for the full config reference.
+Generates the full suite of org management reducers.
+See [organizations](./organizations.md) for the full config reference.
 
----
+* * *
 
 ### makePresence
 
@@ -225,14 +229,14 @@ const presenceFns = makePresence(spacetimedb, {
 **Generated reducers:**
 
 | Reducer | Parameters | Description |
-|---------|-----------|-------------|
+| --- | --- | --- |
 | `presence_heartbeat_{tableName}` | `roomId`, optional `data` | Upsert presence row. Requires authenticated sender. |
 | `presence_leave_{tableName}` | `roomId` | Delete presence row for the caller. |
 | `presence_cleanup_{tableName}` | none | Delete stale presence rows (older than TTL). |
 
 Constants: `HEARTBEAT_INTERVAL_MS = 15000`, `PRESENCE_TTL_MS = 30000`.
 
----
+* * *
 
 ### makeFileUpload
 
@@ -262,15 +266,16 @@ const fileCrud = makeFileUpload(spacetimedb, {
 **Generated reducers:**
 
 | Reducer | Parameters | Description |
-|---------|-----------|-------------|
+| --- | --- | --- |
 | `register_upload_{namespace}` | `contentType`, `filename`, `size`, `storageKey` | Record a completed upload. Validates type and size. |
 | `delete_file_{namespace}` | `fileId` | Delete a file record. Caller must be owner. |
 
----
+* * *
 
 ### setupCrud
 
-`setupCrud` is a convenience wrapper around `setup` that reduces repetitive table wiring for `crud`, `orgCrud`, `childCrud`, `singletonCrud`, `cacheCrud`, and `fileUpload`.
+`setupCrud` is a convenience wrapper around `setup` that reduces repetitive table wiring
+for `crud`, `orgCrud`, `childCrud`, `singletonCrud`, `cacheCrud`, and `fileUpload`.
 
 ```typescript
 import { setupCrud } from 'betterspace/server'
@@ -296,7 +301,7 @@ const uploadFns = s.fileUpload('file', 'file', {
 const reducers = spacetimedb.exportGroup(s.allExports())
 ```
 
----
+* * *
 
 ## React hooks
 
@@ -329,7 +334,7 @@ const { data, hasMore, isLoading, loadMore, page, totalCount } = useList(
 **Return value:**
 
 | Field | Type | Description |
-|-------|------|-------------|
+| --- | --- | --- |
 | `data` | `T[]` | Current page of filtered, sorted rows |
 | `hasMore` | `boolean` | Whether more rows exist |
 | `isLoading` | `boolean` | `true` until `isReady` is `true` |
@@ -337,7 +342,7 @@ const { data, hasMore, isLoading, loadMore, page, totalCount } = useList(
 | `page` | `number` | Current page number |
 | `totalCount` | `number` | Total filtered row count |
 
----
+* * *
 
 ### usePresence
 
@@ -368,11 +373,11 @@ updatePresence({ cursor: { x: 100, y: 200 } })
 **Return value:**
 
 | Field | Type | Description |
-|-------|------|-------------|
+| --- | --- | --- |
 | `users` | `PresenceRow[]` | Active users (filtered by TTL) |
 | `updatePresence` | `(data: Record<string, unknown>) => void` | Update presence data and send heartbeat |
 
----
+* * *
 
 ### useUpload
 
@@ -394,7 +399,7 @@ const result = await upload(file, { signal: abortController.signal })
 // result: { ok: true, storageId, url? } | { ok: false, code: 'ABORTED' | 'NETWORK' | 'URL' | 'HTTP' }
 ```
 
----
+* * *
 
 ### useInfiniteList
 
@@ -409,7 +414,7 @@ const { data, hasMore, loadMore, totalCount } = useInfiniteList(rows, isReady, {
 })
 ```
 
----
+* * *
 
 ### useSearch
 
@@ -423,7 +428,7 @@ const results = useSearch(posts, query, {
 })
 ```
 
----
+* * *
 
 ### useBulkSelection
 
@@ -443,7 +448,7 @@ const {
 } = useBulkSelection(posts.map(p => p.id))
 ```
 
----
+* * *
 
 ### useOnlineStatus
 
@@ -455,13 +460,14 @@ import { useOnlineStatus } from 'betterspace/react'
 const isOnline = useOnlineStatus()
 ```
 
----
+* * *
 
 ## React components
 
 ### OrgProvider
 
-Provides org context to child components. See [organizations](./organizations.md).
+Provides org context to child components.
+See [organizations](./organizations.md).
 
 ```typescript
 import { OrgProvider } from 'betterspace/react'
@@ -505,7 +511,7 @@ const client = createSpacetimeClient({ DbConnection, moduleName: 'my-app', token
 const uploader = createFileUploader('/api/upload/presign')
 ```
 
----
+* * *
 
 ## Server utilities
 
@@ -546,7 +552,8 @@ const id = idFromWire('42')  // 42
 
 ### zodFromTable
 
-Convert SpacetimeDB column definitions to a Zod schema. See [forms](./forms.md).
+Convert SpacetimeDB column definitions to a Zod schema.
+See [forms](./forms.md).
 
 ```typescript
 import { zodFromTable } from 'betterspace'
@@ -576,22 +583,24 @@ const uploadUrl = await createS3UploadPresignedUrl({
 })
 ```
 
----
+* * *
 
 ## Error codes
 
-Reducers throw `SenderError('CODE: message')`. The client receives the error with the message intact.
+Reducers throw `SenderError('CODE: message')`. The client receives the error with the
+message intact.
 
-betterspace currently ships **36 structured error codes** (`ErrorCode`), defined in `ERROR_MESSAGES`.
+betterspace currently ships **36 structured error codes** (`ErrorCode`), defined in
+`ERROR_MESSAGES`.
 
 | Code | Description |
-|------|-------------|
+| --- | --- |
 | `ALREADY_ORG_MEMBER` | Already a member of this organization |
-| `NOT_FOUND` | Row doesn't exist |
-| `FORBIDDEN` | Caller doesn't own the row |
+| `NOT_FOUND` | Row doesn’t exist |
+| `FORBIDDEN` | Caller doesn’t own the row |
 | `NOT_AUTHORIZED` | Caller lacks permission for this operation |
 | `NOT_ORG_MEMBER` | Caller is not a member of the org |
-| `CONFLICT` | `expectedUpdatedAt` doesn't match current value |
+| `CONFLICT` | `expectedUpdatedAt` doesn’t match current value |
 | `NOT_AUTHENTICATED` | Caller has a zero identity (unauthenticated) |
 | `INVALID_FILE_TYPE` | File content type not in allowed list |
 | `FILE_TOO_LARGE` | File size exceeds limit |
@@ -612,22 +621,24 @@ try {
 }
 ```
 
----
+* * *
 
 ## Type reference
 
 ### SpacetimeDB type mapping
 
 | SpacetimeDB type | TypeScript type | Notes |
-|-----------------|----------------|-------|
+| --- | --- | --- |
 | `t.u32()` | `number` | Safe for JSON, URLs, React keys |
 | `t.u64()` | `bigint` | Breaks `JSON.stringify`. Use `.toString()` for URLs/keys. |
-| `t.string()` | `string` | |
-| `t.bool()` | `boolean` | |
+| `t.string()` | `string` |  |
+| `t.bool()` | `boolean` |  |
 | `t.number()` | `number` | Floating point |
 | `t.identity()` | `Identity` | Use `.toHexString()` for serialization, `.isEqual()` for comparison |
 | `t.timestamp()` | `Timestamp` | Use `toMillis()` or convert via `microsSinceUnixEpoch` |
-| `t.array(T)` | `T[]` | |
-| `T.optional()` | `T \| undefined` | |
+| `t.array(T)` | `T[]` |  |
+| `T.optional()` | `T \| undefined` |  |
 
-**Recommendation:** Use `t.u32()` for all auto-increment IDs. `u32` maps to `number` and works everywhere. `u64` maps to `bigint` and breaks JSON serialization.
+**Recommendation:** Use `t.u32()` for all auto-increment IDs.
+`u32` maps to `number` and works everywhere.
+`u64` maps to `bigint` and breaks JSON serialization.

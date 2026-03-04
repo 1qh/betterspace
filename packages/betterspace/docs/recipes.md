@@ -131,7 +131,7 @@ const ChatRoom = ({ chatId }: { chatId: number }) => {
 }
 ```
 
----
+* * *
 
 ## File upload with S3 pre-signed URLs
 
@@ -209,7 +209,7 @@ const FileUploader = () => {
 }
 ```
 
----
+* * *
 
 ## Org-scoped data access
 
@@ -277,7 +277,7 @@ const ProjectList = () => {
 }
 ```
 
----
+* * *
 
 ## Cache with external API (movie app pattern)
 
@@ -317,7 +317,8 @@ movieCrud = makeCacheCrud(spacetimedb, {
 
 ### Next.js API route for cache population
 
-Since `ctx.http.fetch()` panics in local Docker, use a Next.js API route to fetch from the external API and populate the cache:
+Since `ctx.http.fetch()` panics in local Docker, use a Next.js API route to fetch from
+the external API and populate the cache:
 
 ```typescript
 // app/api/movies/[tmdbId]/route.ts
@@ -394,7 +395,7 @@ const MovieList = () => {
 }
 ```
 
----
+* * *
 
 ## Soft delete with restore
 

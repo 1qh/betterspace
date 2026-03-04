@@ -1,10 +1,12 @@
 # Organizations
 
-The `makeOrg` factory generates reducers for multi-tenant organization management: creating orgs, managing members, handling invites, and join requests.
+The `makeOrg` factory generates reducers for multi-tenant organization management:
+creating orgs, managing members, handling invites, and join requests.
 
 ## Schema setup
 
-Organizations require several tables. Define them in your SpacetimeDB module:
+Organizations require several tables.
+Define them in your SpacetimeDB module:
 
 ```typescript
 import { makeOrg, makeOrgCrud } from 'betterspace/server'
@@ -160,7 +162,7 @@ const orgFns = makeOrg(spacetimedb, {
 `makeOrg` generates these reducers:
 
 | Reducer | Description |
-|---------|-------------|
+| --- | --- |
 | `create_org` | Create a new org (caller becomes owner + member) |
 | `update_org` | Update org name/slug/avatar (owner only) |
 | `remove_org` | Delete org and cascade-delete all resources |
@@ -180,14 +182,16 @@ const orgFns = makeOrg(spacetimedb, {
 | `approve_join_request` | Approve a pending join request (admin only) |
 | `reject_join_request` | Reject a pending join request (admin only) |
 | `pending_join_requests` | List pending join requests for an org |
-| `membership` | Get caller's membership in an org |
+| `membership` | Get caller’s membership in an org |
 | `members` | List all members of an org |
 
-All reducers above are generated with typed signatures and runtime checks for org permissions, ownership transfers, invites, and join-request workflows.
+All reducers above are generated with typed signatures and runtime checks for org
+permissions, ownership transfers, invites, and join-request workflows.
 
 ## makeOrgCrud factory
 
-For tables that belong to an org, use `makeOrgCrud`. It enforces org membership before any write:
+For tables that belong to an org, use `makeOrgCrud`. It enforces org membership before
+any write:
 
 ```typescript
 const projectCrud = makeOrgCrud(spacetimedb, {
@@ -207,7 +211,8 @@ const projectCrud = makeOrgCrud(spacetimedb, {
 
 Generated reducers: `create_project`, `update_project`, `rm_project`.
 
-The `create_project` reducer requires `orgId` in addition to the fields. It checks that the caller is a member of that org before inserting.
+The `create_project` reducer requires `orgId` in addition to the fields.
+It checks that the caller is a member of that org before inserting.
 
 The `update_project` and `rm_project` reducers check that the caller is either:
 - An org admin, or
@@ -302,7 +307,8 @@ const CreateProject = () => {
 
 ## Read-side ACL with private tables and views
 
-For data that should only be visible to org members, use private tables with public views filtered by `ctx.sender`:
+For data that should only be visible to org members, use private tables with public
+views filtered by `ctx.sender`:
 
 ```typescript
 // In your SpacetimeDB module
@@ -324,11 +330,13 @@ const privateData = table(
 //   WHERE m.user_id = ctx_sender()
 ```
 
-Clients subscribe to the view, not the base table. SpacetimeDB enforces this at the subscription level.
+Clients subscribe to the view, not the base table.
+SpacetimeDB enforces this at the subscription level.
 
 ## canEditResource
 
-For resources with an optional `editors` list (users who can edit even if they're not the owner):
+For resources with an optional `editors` list (users who can edit even if they’re not
+the owner):
 
 ```typescript
 import { canEditResource } from 'betterspace/react'

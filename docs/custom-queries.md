@@ -2,7 +2,10 @@
 
 ## SpacetimeDB procedures
 
-Procedures are server-side functions that can return values, run transactions, and call external services. Unlike reducers (which are fire-and-forget), procedures return data to the caller.
+Procedures are server-side functions that can return values, run transactions, and call
+external services.
+Unlike reducers (which are fire-and-forget), procedures return data to
+the caller.
 
 Define a procedure in your SpacetimeDB module:
 
@@ -50,7 +53,8 @@ console.log('Created post with ID:', id)
 
 ## Transactions with ctx.withTx
 
-Use `ctx.withTx()` for atomic multi-step operations. If any step throws, all changes roll back:
+Use `ctx.withTx()` for atomic multi-step operations.
+If any step throws, all changes roll back:
 
 ```typescript
 export const transferPost = spacetimedb.procedure(
@@ -75,13 +79,15 @@ export const transferPost = spacetimedb.procedure(
 )
 ```
 
-If `tx.db.audit_log.insert` throws, the `post.id.update` is also rolled back. No partial writes.
+If `tx.db.audit_log.insert` throws, the `post.id.update` is also rolled back.
+No partial writes.
 
 ## Subscription patterns beyond basic CRUD
 
 ### Subscribing to multiple tables
 
-You can have multiple active subscriptions on a single connection. Each subscription is independent:
+You can have multiple active subscriptions on a single connection.
+Each subscription is independent:
 
 ```typescript
 'use client'
@@ -101,7 +107,8 @@ const Dashboard = () => {
 
 ### Conditional subscriptions
 
-SpacetimeDB doesn't have a built-in `skip` option. Conditionally render the subscribing component instead:
+SpacetimeDB doesn’t have a built-in `skip` option.
+Conditionally render the subscribing component instead:
 
 ```typescript
 // Instead of:
@@ -121,7 +128,8 @@ const DataConsumer = () => {
 
 ### Subscribing to views
 
-Views are subscribable like tables. Define a view in your module SQL and subscribe to it:
+Views are subscribable like tables.
+Define a view in your module SQL and subscribe to it:
 
 ```typescript
 // Client-side: subscribe to a view
@@ -129,12 +137,14 @@ const [postsWithAuthors, isReady] = useTable(tables.post_with_author)
 // postsWithAuthors contains joined data from post + profile tables
 ```
 
-Views update automatically when the underlying tables change. Delta updates are pushed to subscribers.
+Views update automatically when the underlying tables change.
+Delta updates are pushed to subscribers.
 
 ## SQL API for complex queries
 
-The HTTP SQL API supports arbitrary SQL queries. Use it for:
-- Complex joins that aren't worth defining as views
+The HTTP SQL API supports arbitrary SQL queries.
+Use it for:
+- Complex joins that aren’t worth defining as views
 - Aggregations (COUNT, SUM, AVG)
 - SSR data fetching in Next.js Server Components
 - One-off data exploration
@@ -300,7 +310,8 @@ Scheduled reducers are useful for:
 
 ## Rate limiting
 
-SpacetimeDB doesn't have built-in rate limiting. Implement it with a tracking table:
+SpacetimeDB doesn’t have built-in rate limiting.
+Implement it with a tracking table:
 
 ```typescript
 // In your SpacetimeDB module
@@ -360,4 +371,5 @@ export const createPost = spacetimedb.reducer(
 )
 ```
 
-This adds a write to every rate-limited reducer call. For demo apps, defer rate limiting until needed.
+This adds a write to every rate-limited reducer call.
+For demo apps, defer rate limiting until needed.

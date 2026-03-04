@@ -1,11 +1,13 @@
 # Coming from lazyconvex
 
-betterspace is the SpacetimeDB successor to lazyconvex. The mental model is similar, but the underlying system is different. This guide maps lazyconvex concepts to their betterspace equivalents.
+betterspace is the SpacetimeDB successor to lazyconvex.
+The mental model is similar, but the underlying system is different.
+This guide maps lazyconvex concepts to their betterspace equivalents.
 
 ## The big picture
 
 | Concept | lazyconvex (Convex) | betterspace (SpacetimeDB) |
-|---------|---------------------|--------------------------|
+| --- | --- | --- |
 | Backend | Convex cloud | SpacetimeDB (Docker or Maincloud) |
 | Data model | Document store (JSON) | Relational tables |
 | Real-time | `useQuery` with reactive queries | `useTable` with WebSocket subscriptions |
@@ -65,9 +67,13 @@ const [posts, isReady] = useTable(tables.post)
 ```
 
 Key differences:
-- `useQuery` returns `undefined` while loading. `useTable` returns an empty array immediately and `isReady` becomes `true` when the initial sync completes.
-- `useQuery` takes a function reference and args. `useTable` takes a table reference (optionally with `.where()`).
-- Convex queries run on the server and return computed results. SpacetimeDB subscriptions return raw table rows.
+- `useQuery` returns `undefined` while loading.
+  `useTable` returns an empty array immediately and `isReady` becomes `true` when the
+  initial sync completes.
+- `useQuery` takes a function reference and args.
+  `useTable` takes a table reference (optionally with `.where()`).
+- Convex queries run on the server and return computed results.
+  SpacetimeDB subscriptions return raw table rows.
 
 ### Filtering
 
@@ -148,9 +154,12 @@ await createPost({ title: 'Hello', content: 'World', published: false })
 ```
 
 Key differences:
-- `useMutation` takes a function reference from the generated API. `useReducer` takes a reducer reference from the generated bindings.
-- Both return an async function. The call signature is the same (single object argument).
-- Convex mutations can return values. SpacetimeDB reducers are fire-and-forget (use procedures for return values).
+- `useMutation` takes a function reference from the generated API. `useReducer` takes a
+  reducer reference from the generated bindings.
+- Both return an async function.
+  The call signature is the same (single object argument).
+- Convex mutations can return values.
+  SpacetimeDB reducers are fire-and-forget (use procedures for return values).
 
 ## Server functions
 
@@ -265,9 +274,11 @@ const spacetimedb = schema({ post })
 ```
 
 Key differences:
-- Convex uses `v.string()`, `v.boolean()`, etc. SpacetimeDB uses `t.string()`, `t.bool()`, etc.
+- Convex uses `v.string()`, `v.boolean()`, etc.
+  SpacetimeDB uses `t.string()`, `t.bool()`, etc.
 - Convex IDs are strings (`Id<"post">`). SpacetimeDB IDs are numbers (`u32`).
-- SpacetimeDB requires explicit `id`, `updatedAt`, and `userId` fields. Convex adds `_id` and `_creationTime` automatically.
+- SpacetimeDB requires explicit `id`, `updatedAt`, and `userId` fields.
+  Convex adds `_id` and `_creationTime` automatically.
 - SpacetimeDB tables need `{ public: true }` to be subscribable by clients.
 
 ## IDs
@@ -321,7 +332,8 @@ identityEquals(ctx.sender, row.userId)  // true/false
 ctx.sender.toHexString()  // 'c200725ff16b4c1d...'
 ```
 
-For production auth with real users, SpacetimeDB supports OIDC providers via Maincloud. Local dev uses anonymous connections with stable tokens.
+For production auth with real users, SpacetimeDB supports OIDC providers via Maincloud.
+Local dev uses anonymous connections with stable tokens.
 
 ## File storage
 
@@ -384,12 +396,14 @@ try {
 
 ## Real-time latency
 
-Convex reactive queries update within ~100-300ms. SpacetimeDB subscriptions update within ~39ms (local Docker). Optimistic updates are unnecessary at this latency.
+Convex reactive queries update within ~100-300ms. SpacetimeDB subscriptions update
+within ~39ms (local Docker).
+Optimistic updates are unnecessary at this latency.
 
-## What doesn't exist in betterspace (yet)
+## What doesn’t exist in betterspace (yet)
 
 | lazyconvex feature | Status in betterspace |
-|--------------------|-----------------------|
+| --- | --- |
 | `usePaginatedQuery` | Use `useList` with `loadMore` |
 | Optimistic updates | Not needed at 39ms latency; `useOptimisticMutation` is a placeholder |
 | `skip` option on queries | Conditionally render the subscribing component instead |

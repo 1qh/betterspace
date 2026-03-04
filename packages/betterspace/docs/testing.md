@@ -2,7 +2,8 @@
 
 ## Local SpacetimeDB for tests
 
-All tests run against a local SpacetimeDB instance. Start it with Docker:
+All tests run against a local SpacetimeDB instance.
+Start it with Docker:
 
 ```bash
 docker compose up -d
@@ -20,11 +21,13 @@ Publish your module before running integration tests:
 spacetime publish my-app-test --module-path packages/be/spacetimedb/
 ```
 
-Use a separate module name for tests (e.g., `my-app-test`) so tests don't interfere with your dev module.
+Use a separate module name for tests (e.g., `my-app-test`) so tests don’t interfere with
+your dev module.
 
 ## Unit tests with Bun
 
-Bun's built-in test runner works for testing pure logic, schema utilities, and server-side helpers.
+Bun’s built-in test runner works for testing pure logic, schema utilities, and
+server-side helpers.
 
 ```typescript
 // packages/be/spacetimedb/__tests__/schema.test.ts
@@ -64,7 +67,8 @@ Integration tests connect to a real SpacetimeDB instance and call reducers.
 
 ### Test helper: connectAsTestUser
 
-SpacetimeDB assigns a stable `Identity` when you reconnect with a saved token. Use this to create deterministic test users:
+SpacetimeDB assigns a stable `Identity` when you reconnect with a saved token.
+Use this to create deterministic test users:
 
 ```typescript
 // test-helpers/connect.ts
@@ -155,7 +159,9 @@ describe('blog CRUD', () => {
 
 ## Auth in tests
 
-SpacetimeDB uses anonymous connections for local testing. Each connection gets a unique `Identity`. Reconnecting with the same token gives the same `Identity`.
+SpacetimeDB uses anonymous connections for local testing.
+Each connection gets a unique `Identity`. Reconnecting with the same token gives the
+same `Identity`.
 
 ```typescript
 // First connection: gets a new identity + token
@@ -176,7 +182,8 @@ const bob = await connectAsTestUser('bob')
 // alice.identity !== bob.identity
 ```
 
-Tokens are cached in memory per test run. For persistent tokens across runs, save them to a file:
+Tokens are cached in memory per test run.
+For persistent tokens across runs, save them to a file:
 
 ```typescript
 import { readFileSync, writeFileSync } from 'fs'
@@ -273,15 +280,19 @@ timeout 30 bun playwright test e2e/blog.test.ts --timeout=8000
 bun test:e2e
 ```
 
-Follow the [E2E testing strategy](../AGENTS.md) for timeout rules and debugging hanging tests.
+Follow the [E2E testing strategy](../AGENTS.md) for timeout rules and debugging hanging
+tests.
 
 ## Test isolation
 
-SpacetimeDB doesn't have built-in test isolation (no per-test database reset). Options:
+SpacetimeDB doesn’t have built-in test isolation (no per-test database reset).
+Options:
 
-1. **Use unique identifiers**: prefix test data with a timestamp or UUID so tests don't collide.
+1. **Use unique identifiers**: prefix test data with a timestamp or UUID so tests don’t
+   collide.
 2. **Clean up in afterEach**: call `rm_*` reducers to delete test data after each test.
-3. **Use a fresh module**: publish a new module name for each test run (slower but fully isolated).
+3. **Use a fresh module**: publish a new module name for each test run (slower but fully
+   isolated).
 
 ```typescript
 // Option 1: unique prefix
@@ -299,4 +310,5 @@ await conn.reducers.create_post({
 bun test:all
 ```
 
-This runs unit tests and E2E tests in parallel. All tests must pass before pushing.
+This runs unit tests and E2E tests in parallel.
+All tests must pass before pushing.

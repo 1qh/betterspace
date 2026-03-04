@@ -1,6 +1,8 @@
 # Data Fetching
 
-SpacetimeDB uses subscriptions, not queries. When you subscribe to a table, you receive the current state and all future changes over a WebSocket. There's no separate "fetch" step.
+SpacetimeDB uses subscriptions, not queries.
+When you subscribe to a table, you receive the current state and all future changes over
+a WebSocket. There’s no separate “fetch” step.
 
 ## Subscriptions are the data layer
 
@@ -17,11 +19,14 @@ const Posts = () => {
 }
 ```
 
-`isReady` is `false` until the initial subscription sync finishes. After that, `posts` updates automatically whenever any client calls a reducer that modifies the `post` table.
+`isReady` is `false` until the initial subscription sync finishes.
+After that, `posts` updates automatically whenever any client calls a reducer that
+modifies the `post` table.
 
 ## Server-side filtering with WHERE
 
-SpacetimeDB subscriptions support SQL WHERE clauses. Use `tables.post.where(...)` to subscribe to a filtered subset:
+SpacetimeDB subscriptions support SQL WHERE clauses.
+Use `tables.post.where(...)` to subscribe to a filtered subset:
 
 ```typescript
 // Only published posts
@@ -35,11 +40,13 @@ const [myPosts, isReady] = useTable(
 )
 ```
 
-Multiple WHERE subscriptions on the same table work independently. Unsubscribing from one doesn't affect others.
+Multiple WHERE subscriptions on the same table work independently.
+Unsubscribing from one doesn’t affect others.
 
 ## Client-side filtering with useList
 
-For filtering that doesn't map cleanly to a single WHERE clause, subscribe to the full table and filter client-side with `useList`:
+For filtering that doesn’t map cleanly to a single WHERE clause, subscribe to the full
+table and filter client-side with `useList`:
 
 ```typescript
 'use client'
@@ -109,7 +116,9 @@ The return value:
 }
 ```
 
-`useList` is purely client-side. It doesn't make any network requests. All filtering and sorting happens over the in-memory subscription data.
+`useList` is purely client-side.
+It doesn’t make any network requests.
+All filtering and sorting happens over the in-memory subscription data.
 
 ## Comparison operators in where
 
@@ -126,7 +135,8 @@ Supported operators: `$gt`, `$gte`, `$lt`, `$lte`, `$between`.
 
 ## Filtering by current user
 
-Use `own: true` in the where clause to filter rows where `userId` matches the current viewer:
+Use `own: true` in the where clause to filter rows where `userId` matches the current
+viewer:
 
 ```typescript
 // This requires passing the viewer's identity to matchW internally.
@@ -164,7 +174,8 @@ const totalPages = Math.ceil(totalCount / 20)
 
 ## SSR with the HTTP SQL API
 
-SpacetimeDB exposes an HTTP endpoint for SQL queries. This is ideal for Next.js Server Components where you can't use WebSockets.
+SpacetimeDB exposes an HTTP endpoint for SQL queries.
+This is ideal for Next.js Server Components where you can’t use WebSockets.
 
 ```typescript
 // app/posts/page.tsx (Server Component)
@@ -225,7 +236,8 @@ Latency is ~0.27ms for simple queries on local Docker.
 
 ## Views for computed/joined data
 
-SpacetimeDB views are subscribable. Define a view in your module and subscribe to it like any table:
+SpacetimeDB views are subscribable.
+Define a view in your module and subscribe to it like any table:
 
 ```typescript
 // In your SpacetimeDB module (server-side)
@@ -243,12 +255,19 @@ Views are useful for:
 
 ## No loading spinners for updates
 
-Because subscriptions push deltas, you don't need to show a loading state when a reducer runs. The UI updates within ~39ms (local Docker). Optimistic updates are unnecessary at this latency.
+Because subscriptions push deltas, you don’t need to show a loading state when a reducer
+runs. The UI updates within ~39ms (local Docker).
+Optimistic updates are unnecessary at this latency.
 
-If you're deploying to Maincloud and latency is higher, you can add optimistic updates later. The `useOptimisticMutation` hook from `betterspace/react` provides a placeholder API for this.
+If you’re deploying to Maincloud and latency is higher, you can add optimistic updates
+later. The `useOptimisticMutation` hook from `betterspace/react` provides a placeholder
+API for this.
 
 ## Known limitations
 
-- Subscriptions don't support `ORDER BY` or `LIMIT`. Sort and paginate client-side with `useList`.
-- `ctx.http.fetch()` inside procedures panics in local Docker (networking issue). Use Next.js API routes for external HTTP calls.
-- No built-in rate limiting. See [custom queries](./custom-queries.md) for a manual approach.
+- Subscriptions don’t support `ORDER BY` or `LIMIT`. Sort and paginate client-side with
+  `useList`.
+- `ctx.http.fetch()` inside procedures panics in local Docker (networking issue).
+  Use Next.js API routes for external HTTP calls.
+- No built-in rate limiting.
+  See [custom queries](./custom-queries.md) for a manual approach.

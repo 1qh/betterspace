@@ -2,7 +2,9 @@
 
 ## zodFromTable
 
-`zodFromTable` converts a SpacetimeDB table's column definitions into a Zod schema. This lets you derive form validation schemas directly from your database schema, keeping them in sync automatically.
+`zodFromTable` converts a SpacetimeDB table’s column definitions into a Zod schema.
+This lets you derive form validation schemas directly from your database schema, keeping
+them in sync automatically.
 
 ```typescript
 import { zodFromTable } from 'betterspace'
@@ -139,7 +141,8 @@ export default CreatePostForm
 
 ## Error handling in forms
 
-Reducer errors use the `SenderError('CODE: message')` convention. Parse them to show field-level errors:
+Reducer errors use the `SenderError('CODE: message')` convention.
+Parse them to show field-level errors:
 
 ```typescript
 import { extractErrorData } from 'betterspace'
@@ -163,7 +166,8 @@ const form = useForm({
 
 ## File uploads
 
-File uploads go through a Next.js API route that generates S3/MinIO pre-signed URLs. The `useUpload` hook handles the upload flow.
+File uploads go through a Next.js API route that generates S3/MinIO pre-signed URLs.
+The `useUpload` hook handles the upload flow.
 
 ### API route
 
@@ -252,10 +256,12 @@ const FileUploadForm = () => {
 2. `useUpload` calls your API route (`/api/upload/presign`) with file metadata
 3. API route generates a pre-signed S3/MinIO URL
 4. `useUpload` uploads the file directly to S3/MinIO using the pre-signed URL
-5. On success, `registerFile` is called to record the upload in SpacetimeDB via a reducer
+5. On success, `registerFile` is called to record the upload in SpacetimeDB via a
+   reducer
 6. The file row is now in the database and visible to subscribers
 
-This pattern works in local dev (MinIO) and production (S3, R2, etc.) without changing client code.
+This pattern works in local dev (MinIO) and production (S3, R2, etc.)
+without changing client code.
 
 ## Form utilities from betterspace/react
 
@@ -263,4 +269,5 @@ This pattern works in local dev (MinIO) and production (S3, R2, etc.) without ch
 import { buildMeta, getMeta, useForm, useFormMutation } from 'betterspace/react'
 ```
 
-These are lower-level utilities for building custom form integrations. For most cases, `@tanstack/react-form` with `zodFromTable` is the recommended approach.
+These are lower-level utilities for building custom form integrations.
+For most cases, `@tanstack/react-form` with `zodFromTable` is the recommended approach.

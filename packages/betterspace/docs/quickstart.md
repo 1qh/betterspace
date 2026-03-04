@@ -35,7 +35,8 @@ bun add -d @types/react @types/react-dom
 
 ## Start the local backend
 
-The Docker Compose file starts SpacetimeDB (port 3000) and MinIO for file storage (port 9000):
+The Docker Compose file starts SpacetimeDB (port 3000) and MinIO for file storage (port
+9000):
 
 ```bash
 # From your project root, create docker-compose.yml:
@@ -79,7 +80,8 @@ docker compose ps  # spacetimedb should show "healthy"
 
 ## Define your schema
 
-Create `packages/be/spacetimedb/src/index.ts`. This is your SpacetimeDB module, the server-side code that runs inside the database.
+Create `packages/be/spacetimedb/src/index.ts`. This is your SpacetimeDB module, the
+server-side code that runs inside the database.
 
 ```typescript
 import {
@@ -149,7 +151,8 @@ export default spacetimedb
 
 ### Optional: reduce setup boilerplate with `setupCrud()`
 
-If you are defining multiple tables, `setupCrud()` lets you reuse defaults and table lookup wiring:
+If you are defining multiple tables, `setupCrud()` lets you reuse defaults and table
+lookup wiring:
 
 ```typescript
 import { setupCrud } from 'betterspace/server'
@@ -177,7 +180,8 @@ const profileCrud = s.singletonCrud('profile', {
 spacetime publish my-app --module-path packages/be/spacetimedb/
 ```
 
-This compiles your TypeScript module and deploys it to the local SpacetimeDB instance. The module name (`my-app`) is what clients connect to.
+This compiles your TypeScript module and deploys it to the local SpacetimeDB instance.
+The module name (`my-app`) is what clients connect to.
 
 ## Generate TypeScript bindings
 
@@ -188,7 +192,8 @@ spacetime generate \
   --out-dir packages/be/spacetimedb/module_bindings/
 ```
 
-This generates typed client code from your module. Re-run this whenever you change the schema.
+This generates typed client code from your module.
+Re-run this whenever you change the schema.
 
 The generated output includes:
 - `DbConnection` class for connecting
@@ -311,7 +316,7 @@ export default CreatePost
 
 ## Full blog example
 
-Here's a complete working component with create, update, and delete:
+Here’s a complete working component with create, update, and delete:
 
 ```typescript
 'use client'
@@ -384,7 +389,8 @@ export default BlogApp
 - `spacetime publish` compiled and deployed the module
 - `spacetime generate` created typed bindings from the deployed module
 - `useTable` opened a WebSocket subscription, receiving all rows and live updates
-- `useReducer` calls reducers on the server, which update the database and push changes to all subscribers
+- `useReducer` calls reducers on the server, which update the database and push changes
+  to all subscribers
 - `useList` handles client-side sorting and pagination over the subscription data
 
 Updates from any client appear in all connected clients within ~39ms (local Docker).
