@@ -9,6 +9,7 @@ interface FireLoadCtx<A extends Record<string, unknown>> {
   load: (args: A) => Promise<void>
   loadingRef: React.RefObject<boolean>
   setIsLoading: (value: boolean) => void
+  table: string
 }
 
 interface UseCacheEntryOptions<A extends Record<string, unknown>, T extends Record<string, unknown>> {
@@ -26,12 +27,18 @@ interface UseCacheEntryResult<T> {
 }
 
 const isDev = typeof process !== 'undefined' && process.env.NODE_ENV !== 'production',
-  fireLoad = async <A extends Record<string, unknown>>({ args, load, loadingRef, setIsLoading }: FireLoadCtx<A>) => {
+  fireLoad = async <A extends Record<string, unknown>>({
+    args,
+    load,
+    loadingRef,
+    setIsLoading,
+    table
+  }: FireLoadCtx<A>) => {
     try {
       await load(args)
     } catch (error) {
       // eslint-disable-next-line no-console
-      console.error('[betterspace] Cache load failed:', error)
+      console.error('[betterspace] Cache load failed (table=%s, args=%o):', table, args, error)
     } finally {
       loadingRef.current = false
       setIsLoading(false)
@@ -62,8 +69,8 @@ const isDev = typeof process !== 'undefined' && process.env.NODE_ENV !== 'produc
       if (!isStale) return
       loadingRef.current = true
       setIsLoading(true)
-      fireLoad({ args: argsRef.current, load, loadingRef, setIsLoading })
-    }, [data, load])
+      fireLoad({ args: argsRef.current, load, loadingRef, setIsLoading, table })
+    }, [data, load, table])
 
     useEffect(() => {
       if (!(isDev && data !== undefined)) return
@@ -75,8 +82,8 @@ const isDev = typeof process !== 'undefined' && process.env.NODE_ENV !== 'produc
         if (loadingRef.current) return
         loadingRef.current = true
         setIsLoading(true)
-        fireLoad({ args: argsRef.current, load, loadingRef, setIsLoading })
-      }, [load]),
+        fireLoad({ args: argsRef.current, load, loadingRef, setIsLoading, table })
+      }, [load, table]),
       cacheData = data === undefined ? null : data,
       isStale = cacheData !== null && cacheData.stale === true
 

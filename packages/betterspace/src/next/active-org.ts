@@ -82,7 +82,10 @@ const isTestMode = () =>
         method: 'POST'
       })
     if (!response.ok) return null
-    const body = (await response.json().catch(() => null)) as unknown
+    const body = (await response.json().catch((parseError: unknown) => {
+      console.error('[betterspace] Failed to parse SQL response as JSON (module=%s):', moduleName, parseError) // eslint-disable-line no-console
+      return null
+    })) as unknown
     if (body === null) return null
     return firstRow(body) as null | T
   },

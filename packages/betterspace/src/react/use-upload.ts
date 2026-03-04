@@ -89,7 +89,10 @@ const DEFAULT_API_ENDPOINT = '/api/upload/presign',
         headers: { 'content-type': 'application/json' },
         method: 'POST'
       }),
-      payload = (await response.json().catch(() => null)) as unknown
+      payload = (await response.json().catch((parseError: unknown) => {
+        console.error('[betterspace] Upload presign response is not valid JSON:', parseError) // eslint-disable-line no-console
+        return null
+      })) as unknown
     if (!response.ok) err('FILE_NOT_FOUND', { message: `Failed to create upload URL (HTTP ${response.status})` })
     if (payload === null) err('VALIDATION_FAILED', { message: 'Upload presign endpoint returned non-JSON response' })
     return parsePresignedPayload(payload)
@@ -164,6 +167,11 @@ const DEFAULT_API_ENDPOINT = '/api/upload/presign',
       if (isAborted) resolve({ code: 'ABORTED', ok: false })
       else xhr.send(file)
     }),
+  /**
+   * Manages file upload state with progress tracking and presigned URL flow.
+   * @param config Optional upload endpoint and custom presign/register functions.
+   * @returns Upload state (progress, error, url) and an `upload` executor.
+   */
   useUpload = (config?: UploadConfig) => {
     const [progress, setProgress] = useState(0),
       [isUploading, setIsUploading] = useState(false),
