@@ -84,66 +84,58 @@ Create `packages/be/spacetimedb/src/index.ts`. This is your SpacetimeDB module, 
 server-side code that runs inside the database.
 
 ```typescript
-import {
-  makeCrud,
-  makeSingletonCrud,
-} from 'betterspace/server'
+import { makeCrud, makeSingletonCrud } from 'betterspace/server'
 import { schema, t, table } from 'spacetimedb/server'
 
 // Define tables
 const post = table(
-  { public: true },
-  {
-    id: t.u32().autoInc().primaryKey(),
-    title: t.string(),
-    content: t.string(),
-    published: t.bool().index(),
-    updatedAt: t.timestamp(),
-    userId: t.identity().index(),
-  }
-),
-
-profile = table(
-  { public: true },
-  {
-    displayName: t.string(),
-    bio: t.string().optional(),
-    updatedAt: t.timestamp(),
-    userId: t.identity().index(),
-  }
-),
-
-// Compose into a schema
-spacetimedb = schema({ post, profile }),
-
-// Generate CRUD reducers
-postCrud = makeCrud(spacetimedb, {
-  expectedUpdatedAtField: t.timestamp(),
-  fields: {
-    title: t.string(),
-    content: t.string(),
-    published: t.bool(),
-  },
-  idField: t.u32(),
-  pk: tbl => tbl.id,
-  table: db => db.post,
-  tableName: 'post',
-}),
-
-profileCrud = makeSingletonCrud(spacetimedb, {
-  fields: {
-    displayName: t.string(),
-    bio: t.string().optional(),
-  },
-  table: db => db.profile,
-  tableName: 'profile',
-}),
-
-// Export all reducers
-reducers = spacetimedb.exportGroup({
-  ...postCrud.exports,
-  ...profileCrud.exports,
-})
+    { public: true },
+    {
+      id: t.u32().autoInc().primaryKey(),
+      title: t.string(),
+      content: t.string(),
+      published: t.bool().index(),
+      updatedAt: t.timestamp(),
+      userId: t.identity().index()
+    }
+  ),
+  profile = table(
+    { public: true },
+    {
+      displayName: t.string(),
+      bio: t.string().optional(),
+      updatedAt: t.timestamp(),
+      userId: t.identity().index()
+    }
+  ),
+  // Compose into a schema
+  spacetimedb = schema({ post, profile }),
+  // Generate CRUD reducers
+  postCrud = makeCrud(spacetimedb, {
+    expectedUpdatedAtField: t.timestamp(),
+    fields: {
+      title: t.string(),
+      content: t.string(),
+      published: t.bool()
+    },
+    idField: t.u32(),
+    pk: tbl => tbl.id,
+    table: db => db.post,
+    tableName: 'post'
+  }),
+  profileCrud = makeSingletonCrud(spacetimedb, {
+    fields: {
+      displayName: t.string(),
+      bio: t.string().optional()
+    },
+    table: db => db.profile,
+    tableName: 'profile'
+  }),
+  // Export all reducers
+  reducers = spacetimedb.exportGroup({
+    ...postCrud.exports,
+    ...profileCrud.exports
+  })
 
 export { reducers }
 export default spacetimedb
@@ -159,18 +151,18 @@ import { setupCrud } from 'betterspace/server'
 
 const s = setupCrud(spacetimedb, {
   expectedUpdatedAtField: t.timestamp(),
-  idField: t.u32(),
+  idField: t.u32()
 })
 
 const postCrud = s.crud('post', {
   title: t.string(),
   content: t.string(),
-  published: t.bool(),
+  published: t.bool()
 })
 
 const profileCrud = s.singletonCrud('profile', {
   displayName: t.string(),
-  bio: t.string().optional(),
+  bio: t.string().optional()
 })
 ```
 
@@ -196,6 +188,7 @@ This generates typed client code from your module.
 Re-run this whenever you change the schema.
 
 The generated output includes:
+
 - `DbConnection` class for connecting
 - `tables` object with typed table accessors
 - `reducers` object with typed reducer callers

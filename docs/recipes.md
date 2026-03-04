@@ -12,72 +12,65 @@ import { makeCrud, makeChildCrud, makePresence } from 'betterspace/server'
 import { schema, t, table } from 'spacetimedb/server'
 
 const chat = table(
-  { public: true },
-  {
-    id: t.u32().autoInc().primaryKey(),
-    title: t.string(),
-    isPublic: t.bool().index(),
-    updatedAt: t.timestamp(),
-    userId: t.identity().index(),
-  }
-),
-
-message = table(
-  { public: true },
-  {
-    id: t.u32().autoInc().primaryKey(),
-    chatId: t.u32().index(),
-    content: t.string(),
-    updatedAt: t.timestamp(),
-    userId: t.identity().index(),
-  }
-),
-
-presence = table(
-  { public: true },
-  {
-    id: t.u32().autoInc().primaryKey(),
-    roomId: t.string().index(),
-    userId: t.identity().index(),
-    data: t.string(),
-    lastSeen: t.timestamp(),
-  }
-),
-
-spacetimedb = schema({ chat, message, presence }),
-
-chatCrud = makeCrud(spacetimedb, {
-  fields: { title: t.string(), isPublic: t.bool() },
-  idField: t.u32(),
-  pk: tbl => tbl.id,
-  table: db => db.chat,
-  tableName: 'chat',
-}),
-
-messageCrud = makeChildCrud(spacetimedb, {
-  fields: { content: t.string() },
-  foreignKeyField: t.u32(),
-  foreignKeyName: 'chatId',
-  idField: t.u32(),
-  parentPk: tbl => tbl.id,
-  parentTable: db => db.chat,
-  pk: tbl => tbl.id,
-  table: db => db.message,
-  tableName: 'message',
-}),
-
-presenceFns = makePresence(spacetimedb, {
-  dataField: t.string(),
-  roomIdField: t.string(),
-  pk: tbl => tbl.id,
-  table: db => db.presence,
-}),
-
-reducers = spacetimedb.exportGroup({
-  ...chatCrud.exports,
-  ...messageCrud.exports,
-  ...presenceFns.exports,
-})
+    { public: true },
+    {
+      id: t.u32().autoInc().primaryKey(),
+      title: t.string(),
+      isPublic: t.bool().index(),
+      updatedAt: t.timestamp(),
+      userId: t.identity().index()
+    }
+  ),
+  message = table(
+    { public: true },
+    {
+      id: t.u32().autoInc().primaryKey(),
+      chatId: t.u32().index(),
+      content: t.string(),
+      updatedAt: t.timestamp(),
+      userId: t.identity().index()
+    }
+  ),
+  presence = table(
+    { public: true },
+    {
+      id: t.u32().autoInc().primaryKey(),
+      roomId: t.string().index(),
+      userId: t.identity().index(),
+      data: t.string(),
+      lastSeen: t.timestamp()
+    }
+  ),
+  spacetimedb = schema({ chat, message, presence }),
+  chatCrud = makeCrud(spacetimedb, {
+    fields: { title: t.string(), isPublic: t.bool() },
+    idField: t.u32(),
+    pk: tbl => tbl.id,
+    table: db => db.chat,
+    tableName: 'chat'
+  }),
+  messageCrud = makeChildCrud(spacetimedb, {
+    fields: { content: t.string() },
+    foreignKeyField: t.u32(),
+    foreignKeyName: 'chatId',
+    idField: t.u32(),
+    parentPk: tbl => tbl.id,
+    parentTable: db => db.chat,
+    pk: tbl => tbl.id,
+    table: db => db.message,
+    tableName: 'message'
+  }),
+  presenceFns = makePresence(spacetimedb, {
+    dataField: t.string(),
+    roomIdField: t.string(),
+    pk: tbl => tbl.id,
+    table: db => db.presence
+  }),
+  reducers = spacetimedb.exportGroup({
+    ...chatCrud.exports,
+    ...messageCrud.exports,
+    ...presenceFns.exports
+  })
 
 export { reducers }
 export default spacetimedb
@@ -145,7 +138,7 @@ import { createS3UploadPresignedUrl } from 'betterspace/server'
 import { NextResponse } from 'next/server'
 
 export const POST = async (req: Request) => {
-  const { filename, contentType } = await req.json() as {
+  const { filename, contentType } = (await req.json()) as {
     filename: string
     contentType: string
     size: number
@@ -161,14 +154,14 @@ export const POST = async (req: Request) => {
     region: process.env.S3_REGION ?? 'us-east-1',
     key,
     contentType,
-    expiresInSeconds: 900,
+    expiresInSeconds: 900
   })
 
   return NextResponse.json({
     uploadUrl: presigned.url,
     storageKey: key,
     headers: presigned.headers,
-    method: 'PUT',
+    method: 'PUT'
   })
 }
 ```
@@ -219,25 +212,24 @@ Projects and tasks that belong to an org, with member-only write access.
 
 ```typescript
 const project = table(
-  { public: true },
-  {
-    id: t.u32().autoInc().primaryKey(),
-    orgId: t.u32().index(),
-    name: t.string(),
-    updatedAt: t.timestamp(),
-    userId: t.identity().index(),
-  }
-),
-
-projectCrud = makeOrgCrud(spacetimedb, {
-  fields: { name: t.string() },
-  idField: t.u32(),
-  orgIdField: t.u32(),
-  orgMemberTable: db => db.orgMember,
-  pk: tbl => tbl.id,
-  table: db => db.project,
-  tableName: 'project',
-})
+    { public: true },
+    {
+      id: t.u32().autoInc().primaryKey(),
+      orgId: t.u32().index(),
+      name: t.string(),
+      updatedAt: t.timestamp(),
+      userId: t.identity().index()
+    }
+  ),
+  projectCrud = makeOrgCrud(spacetimedb, {
+    fields: { name: t.string() },
+    idField: t.u32(),
+    orgIdField: t.u32(),
+    orgMemberTable: db => db.orgMember,
+    pk: tbl => tbl.id,
+    table: db => db.project,
+    tableName: 'project'
+  })
 ```
 
 ### Client
@@ -287,32 +279,31 @@ Cache third-party API responses in SpacetimeDB with TTL-based invalidation.
 
 ```typescript
 const movie = table(
-  { public: true },
-  {
-    id: t.u32().autoInc().primaryKey(),
-    tmdbId: t.u32().unique(),
-    title: t.string(),
-    overview: t.string(),
-    voteAverage: t.number(),
-    cachedAt: t.timestamp(),
-    invalidatedAt: t.timestamp().optional(),
-    updatedAt: t.timestamp(),
-  }
-),
-
-movieCrud = makeCacheCrud(spacetimedb, {
-  fields: {
-    title: t.string(),
-    overview: t.string(),
-    voteAverage: t.number(),
-  },
-  keyField: t.number(),
-  keyName: 'tmdbId',
-  pk: tbl => tbl.tmdbId,
-  table: db => db.movie,
-  tableName: 'movie',
-  options: { ttl: 7 * 24 * 60 * 60 * 1000 },
-})
+    { public: true },
+    {
+      id: t.u32().autoInc().primaryKey(),
+      tmdbId: t.u32().unique(),
+      title: t.string(),
+      overview: t.string(),
+      voteAverage: t.number(),
+      cachedAt: t.timestamp(),
+      invalidatedAt: t.timestamp().optional(),
+      updatedAt: t.timestamp()
+    }
+  ),
+  movieCrud = makeCacheCrud(spacetimedb, {
+    fields: {
+      title: t.string(),
+      overview: t.string(),
+      voteAverage: t.number()
+    },
+    keyField: t.number(),
+    keyName: 'tmdbId',
+    pk: tbl => tbl.tmdbId,
+    table: db => db.movie,
+    tableName: 'movie',
+    options: { ttl: 7 * 24 * 60 * 60 * 1000 }
+  })
 ```
 
 ### Next.js API route for cache population
@@ -338,9 +329,9 @@ export const GET = async (
   const cacheRes = await fetch(`${STDB_URL}/v1/database/${MODULE}/sql`, {
     method: 'POST',
     headers: { 'Content-Type': 'text/plain' },
-    body: `SELECT * FROM movie WHERE tmdb_id = ${tmdbId} AND invalidated_at IS NULL LIMIT 1`,
+    body: `SELECT * FROM movie WHERE tmdb_id = ${tmdbId} AND invalidated_at IS NULL LIMIT 1`
   })
-  const [cacheResult] = await cacheRes.json() as [{ rows: unknown[][] }]
+  const [cacheResult] = (await cacheRes.json()) as [{ rows: unknown[][] }]
 
   if (cacheResult.rows.length > 0) {
     // Cache hit: return cached data
@@ -351,7 +342,7 @@ export const GET = async (
   const tmdbRes = await fetch(
     `https://api.themoviedb.org/3/movie/${tmdbId}?api_key=${TMDB_API_KEY}`
   )
-  const movie = await tmdbRes.json() as {
+  const movie = (await tmdbRes.json()) as {
     id: number
     title: string
     overview: string
@@ -405,42 +396,41 @@ Use `softDelete: true` in `makeCrud` to set `deletedAt` instead of deleting rows
 
 ```typescript
 const wiki = table(
-  { public: true },
-  {
-    id: t.u32().autoInc().primaryKey(),
-    title: t.string(),
-    content: t.string().optional(),
-    deletedAt: t.timestamp().optional(),
-    updatedAt: t.timestamp(),
-    userId: t.identity().index(),
-  }
-),
-
-wikiCrud = makeOrgCrud(spacetimedb, {
-  fields: {
-    title: t.string(),
-    content: t.string().optional(),
-    deletedAt: t.timestamp().optional(),
-  },
-  idField: t.u32(),
-  orgIdField: t.u32(),
-  orgMemberTable: db => db.orgMember,
-  pk: tbl => tbl.id,
-  table: db => db.wiki,
-  tableName: 'wiki',
-  options: { softDelete: true },
-})
+    { public: true },
+    {
+      id: t.u32().autoInc().primaryKey(),
+      title: t.string(),
+      content: t.string().optional(),
+      deletedAt: t.timestamp().optional(),
+      updatedAt: t.timestamp(),
+      userId: t.identity().index()
+    }
+  ),
+  wikiCrud = makeOrgCrud(spacetimedb, {
+    fields: {
+      title: t.string(),
+      content: t.string().optional(),
+      deletedAt: t.timestamp().optional()
+    },
+    idField: t.u32(),
+    orgIdField: t.u32(),
+    orgMemberTable: db => db.orgMember,
+    pk: tbl => tbl.id,
+    table: db => db.wiki,
+    tableName: 'wiki',
+    options: { softDelete: true }
+  })
 ```
 
 ### Client: filter out deleted rows
 
 ```typescript
 const { data: activeWikis } = useList(wikis, isReady, {
-  where: { deletedAt: undefined },
+  where: { deletedAt: undefined }
 })
 
 const { data: deletedWikis } = useList(wikis, isReady, {
-  where: { deletedAt: { $gt: 0 } },  // has a deletedAt value
+  where: { deletedAt: { $gt: 0 } } // has a deletedAt value
 })
 ```
 

@@ -89,6 +89,7 @@ as reference.
 ### Interview Summary
 
 **Key Discussions**:
+
 - File storage: SpacetimeDB has no built-in storage → use procedures + R2/S3 for file
   uploads
 - Auth: SpacetimeAuth (official OAuth integration) replaces Convex Auth
@@ -101,6 +102,7 @@ as reference.
 **Strategic Update (Post-Research)**: After deep research into SpacetimeDB’s actual
 capabilities (official docs, SQL reference, procedures, subscriptions, SpacetimeAuth),
 the plan has been reframed:
+
 - **NOT a “1:1 port”** — same DX philosophy, platform-native implementation
 - **Auth**: Google OAuth via SpacetimeAuth (SpacetimeAuth has NO email/password — only
   magic link + OAuth providers)
@@ -136,9 +138,10 @@ the plan has been reframed:
 | File storage | Built-in Convex storage | Pre-signed URL via R2/S3 + procedures | No built-in file storage |
 | Auth | @convex-dev/auth (email/password/OAuth) | SpacetimeAuth (magic link/OAuth only) | Google OAuth for demo apps |
 | Presence | Custom heartbeat + reactive queries | Table + connect/disconnect lifecycle | SpacetimeDB has lifecycle events |
-| Input validation | Zod validators at network boundary | SpacetimeDB type system (t.* types validate automatically) | Platform-native |
+| Input validation | Zod validators at network boundary | SpacetimeDB type system (t.\* types validate automatically) | Platform-native |
 
 **Research Findings (verified from official docs)**:
+
 - SpacetimeDB tables use `t.*` types, reducers are ACID with no return values, views are
   read-only computed queries
 - **Procedures (new in 2.0, API is BETA — “API may change in upcoming releases”)**: CAN
@@ -206,7 +209,7 @@ the plan has been reframed:
       image: clockworklabs/spacetime:latest
       command: start
       ports:
-        - "3000:3000"
+        - '3000:3000'
       volumes:
         - spacetime_data:/data
     ```
@@ -223,6 +226,7 @@ the plan has been reframed:
 ### Metis Review
 
 **Identified Gaps** (addressed):
+
 - **Corrected feature inventory**: 14+ hooks (not just the few discussed), middleware
   system, presence system
 - **Full-text search gap**: SpacetimeDB has no full-text search → client-side filtering
@@ -326,6 +330,7 @@ All 4 web demo apps running on SpacetimeDB with all tests reproduced.
 > shifted unexpectedly.
 
 **STABLE — These behaviors MUST match lazyconvex (tests verify them):**
+
 - `setup()` call pattern: same shape, same return type structure, same factory
   composition
 - Factory option names: `softDelete`, `timestamps`, `ownership`, `pub`, `acl` — same
@@ -339,6 +344,7 @@ All 4 web demo apps running on SpacetimeDB with all tests reproduced.
 
 **MAY CHANGE — These behaviors will differ from lazyconvex (documented in migration
 guide):**
+
 - `StrictApi` type export: REMOVED — Convex uses `anyApi` proxy with
   `StrictApi<FullApi>` wrapper for type safety.
   SpacetimeDB uses generated bindings instead (from `spacetime generate`), which are
@@ -1515,12 +1521,14 @@ Note: Decision Gates may add tasks (Task 2b React binding, Task 7b multi-table j
 > If `where(eq(...))` handles filtering → simplify filter utilities in Task 5.
 
 **Gate 1: React SDK Gap**
+
 - IF SpacetimeDB React SDK is missing core primitives (loading states, error states,
   skip conditions): → Add Task 2b: “Build SpacetimeDB React binding layer” to Wave 1
   (blocks all React tasks in Wave 3) → Estimated additional effort: 1-2 weeks
 - ELSE: Proceed as planned.
 
 **Gate 2: View Subscriptions**
+
 - IF views DON’T support subscription deltas (onInsert/onUpdate/onDelete): → Add Task
   7b: “Build client-side multi-table join utility” to Wave 2a (new task) → Modify Task
   14 (useList) instructions: accept multi-subscription data instead of view
@@ -1530,6 +1538,7 @@ Note: Decision Gates may add tasks (Task 2b React binding, Task 7b multi-table j
 - ELSE: Proceed as planned.
 
 **Gate 3: Identity Stability**
+
 - IF same OAuth user gets different Identity across sessions: → Add users table
   intermediary to ALL CRUD factories.
   Change ALL ownership patterns.
@@ -1537,12 +1546,14 @@ Note: Decision Gates may add tasks (Task 2b React binding, Task 7b multi-table j
 - ELSE: Proceed as planned (use ctx.sender directly for ownership).
 
 **Gate 4: cacheCrud Necessity**
+
 - IF SpacetimeDB subscriptions provide sufficient client-side caching: → Simplify
   cacheCrud to thin wrapper or remove entirely.
   Simplify movie demo app.
 - ELSE: Port cacheCrud fully.
 
 **Gate 5: Optimistic Update Necessity**
+
 - IF reducer latency is consistently <100ms on local Docker: → Defer custom optimistic
   layer to post-v1. Remove OptimisticProvider, simplify useList/useMutate.
   → Note: Still measure Maincloud latency later — may need optimistic layer for
@@ -1550,6 +1561,7 @@ Note: Decision Gates may add tasks (Task 2b React binding, Task 7b multi-table j
 - ELSE: Build custom optimistic layer as planned in Wave 3.
 
 **Gate 6: Test Auth Bypass** [NEW — CRITICAL]
+
 - **Preferred approach: Deterministic key-material per test user.** Instead of relying
   on “anonymous” randomness, generate stable test Identities from fixed seed material
   (e.g., derive from a known private key or use SpacetimeDB’s admin API to create tokens
@@ -1575,6 +1587,7 @@ Note: Decision Gates may add tasks (Task 2b React binding, Task 7b multi-table j
   “Build test auth solution” to Wave 2a
 
 **Gate 7: SSR / Server-Side Data Fetching** [NEW]
+
 - IF HTTP query API or PGWire works for SSR (Spike Item 13): → Add SSR data fetching
   utility to Task 5 (helpers/utilities) → Update demo app tasks (25-28) to include SSR
   data loading for initial page renders → Add SSR pattern to Task 34 (documentation)
@@ -1584,6 +1597,7 @@ Note: Decision Gates may add tasks (Task 2b React binding, Task 7b multi-table j
   (documentation) → This is ACCEPTABLE — not a blocker, just a UX tradeoff
 
 **Gate 8: Scheduled Reducers** [NEW]
+
 - IF SpacetimeDB supports scheduled/delayed reducer execution (Spike Item 14): → Proceed
   as planned for cacheCrud TTL (Task 11)
 - IF NO native scheduling but workaround exists (client-side timer, polling): → Modify
@@ -1594,6 +1608,7 @@ Note: Decision Gates may add tasks (Task 2b React binding, Task 7b multi-table j
   → Simplify cacheCrud acceptance criteria accordingly
 
 **Gate 9: Procedure HTTP Reliability** [NEW — CRITICAL for movie app]
+
 - IF procedure HTTP fetch has ≥95% success rate and p95 <500ms (Spike Item 17): →
   Proceed as planned. Movie app’s cacheCrud uses procedures for TMDB API calls.
 - IF procedure HTTP is unreliable (frequent timeouts, <90% success rate): → FUNDAMENTAL
@@ -1605,6 +1620,7 @@ Note: Decision Gates may add tasks (Task 2b React binding, Task 7b multi-table j
   days
 
 **Gate 10: TypeScript Binding Types / Serialization** [NEW — CRITICAL for forms/URLs]
+
 - **Concrete serialization policy**: Standardize on “wire/string form” for all
   non-primitive types.
   IDs, Identities, Timestamps — all have a canonical string representation for URLs,
@@ -1633,6 +1649,7 @@ Note: Decision Gates may add tasks (Task 2b React binding, Task 7b multi-table j
   CRUD factories to use identity comparison utility
 
 **Gate 11: Presence Strategy Reconciliation** [NEW]
+
 - Spike Item 6 tests two approaches: (a) connect/disconnect lifecycle events, (b)
   heartbeat + TTL event-table
 - The gate decision determines which approach Task 20 (usePresence) implements:
@@ -1646,6 +1663,7 @@ Note: Decision Gates may add tasks (Task 2b React binding, Task 7b multi-table j
 
 **Gate 12: Subscription Access Control / Read-Side ACL**
 [NEW — CRITICAL for multi-tenant security]
+
 - This is the **primary architecture fork** — if read-side ACL fails, the entire
   multi-tenant security model downgrades.
 - IF SpacetimeDB supports private tables + identity-filtered views for subscriptions
@@ -1670,20 +1688,21 @@ Note: Decision Gates may add tasks (Task 2b React binding, Task 7b multi-table j
   enforced
 
 **Gate 13: Schema Introspection Feasibility** [NEW — affects Task 4 Zod bridge]
+
 - IF `t.*`/`table()` definitions expose stable runtime metadata that can be introspected
   to generate Zod schemas programmatically (Spike Item 18 sub-check): → Task 4’s
   `zodFromTable()` works as planned — introspect t.* definitions at runtime to produce
   Zod
 
 - IF `t.*` builders are opaque / no stable metadata API: → **Simplest fallback
-  (preferred)**: Zod schemas stay user-authored alongside t.* tables (parallel
+  (preferred)**: Zod schemas stay user-authored alongside t._ tables (parallel
   definitions, no auto-derivation).
   This is the path of least resistance — avoid building a new DSL unless we’re willing
   to own it long-term.
   → Alternative (higher effort): betterspace provides its own thin schema DSL that
-  generates BOTH `t.*` tables and Zod schemas from a single definition (like Drizzle’s
-  `createTable()`) → Update Task 4 instructions to match the chosen approach → Estimated
-  additional effort if DSL route: 2-3 days for DSL design
+  generates BOTH `t._`tables and Zod schemas from a single definition (like
+  Drizzle’s`createTable()`) → Update Task 4 instructions to match the chosen approach →
+  Estimated additional effort if DSL route: 2-3 days for DSL design
 
 - [ ] 3. Port branded type system to SpacetimeDB t.* types (CANONICAL SCHEMA SOURCE)
 
@@ -1808,14 +1827,14 @@ Note: Decision Gates may add tasks (Task 2b React binding, Task 7b multi-table j
     Evidence: .sisyphus/evidence/task-3-auto-fields.txt
   ```
 
-- [ ] 4. Create Zod ↔ SpacetimeDB t.* bridge for client forms (DERIVED from canonical
-  t.* schema)
+- [ ] 4. Create Zod ↔ SpacetimeDB t._ bridge for client forms (DERIVED from canonical
+  t._ schema)
 
   **What to do**:
   - **This task derives Zod schemas FROM the canonical t.* table definitions established
-    in Task 3.** The t.* table is the single source of truth; Zod schemas are a
+    in Task 3.** The t._ table is the single source of truth; Zod schemas are a
     client-side projection for form validation.
-    Developers define tables with t.*, and `zodFromTable()` auto-generates the
+    Developers define tables with t._, and `zodFromTable()` auto-generates the
     corresponding Zod schema — they never manually write both.
   - Create a bridge module that generates Zod schemas from SpacetimeDB table definitions
   - Given a SpacetimeDB table with `t.string()`, `t.u64()`, etc., produce a
@@ -2050,21 +2069,27 @@ Note: Decision Gates may add tasks (Task 2b React binding, Task 7b multi-table j
   **What to do**:
   - Add SpacetimeDB dependencies to `packages/betterspace/package.json` and root
     workspace
+
   - Create `docker-compose.yml` at repo root for local SpacetimeDB + MinIO
     (S3-compatible storage for file uploads):
+
     ```yaml
     services:
       spacetimedb:
         image: clockworklabs/spacetime:latest
         command: start
         ports:
-          - "3000:3000"
-          - "5432:5432"   # PGWire port — needed if Gate 7 (SSR) validates PGWire for server-side queries
+          - '3000:3000'
+          - '5432:5432' # PGWire port — needed if Gate 7 (SSR) validates PGWire for server-side queries
         volumes:
           - spacetimedb_data:/data
         restart: unless-stopped
         healthcheck:
-          test: ["CMD-SHELL", "curl -fsS http://localhost:3000/v1/ping 2>/dev/null || curl -fsS http://localhost:3000/database/ping 2>/dev/null || exit 1"]
+          test:
+            [
+              'CMD-SHELL',
+              'curl -fsS http://localhost:3000/v1/ping 2>/dev/null || curl -fsS http://localhost:3000/database/ping 2>/dev/null || exit 1'
+            ]
           interval: 5s
           timeout: 3s
           retries: 10
@@ -2074,8 +2099,8 @@ Note: Decision Gates may add tasks (Task 2b React binding, Task 7b multi-table j
         image: minio/minio
         command: server /data --console-address ":9001"
         ports:
-          - "9000:9000"
-          - "9001:9001"
+          - '9000:9000'
+          - '9001:9001'
         environment:
           MINIO_ROOT_USER: minioadmin
           MINIO_ROOT_PASSWORD: minioadmin
@@ -2083,7 +2108,11 @@ Note: Decision Gates may add tasks (Task 2b React binding, Task 7b multi-table j
           - minio_data:/data
         restart: unless-stopped
         healthcheck:
-          test: ["CMD-SHELL", "curl -fsS http://localhost:9000/minio/health/live || exit 1"]
+          test:
+            [
+              'CMD-SHELL',
+              'curl -fsS http://localhost:9000/minio/health/live || exit 1'
+            ]
           interval: 5s
           timeout: 3s
           retries: 5
@@ -2093,6 +2122,7 @@ Note: Decision Gates may add tasks (Task 2b React binding, Task 7b multi-table j
       spacetimedb_data:
       minio_data:
     ```
+
   - Create dev scripts in package.json:
     - `spacetime:up` —
       `docker compose up -d && spacetime server add local --url http://localhost:3000 --no-fingerprint --default 2>/dev/null; echo 'SpacetimeDB ready on http://localhost:3000'`
@@ -2110,9 +2140,13 @@ Note: Decision Gates may add tasks (Task 2b React binding, Task 7b multi-table j
     - `spacetime:storage` — Create MinIO bucket for file uploads:
       `curl -s http://localhost:9000/minio/health/live > /dev/null && mc alias set local http://localhost:9000 minioadmin minioadmin && mc mb --ignore-existing local/betterspace-uploads && mc anonymous set download local/betterspace-uploads`
       (or equivalent using AWS CLI)
+
   - Create SpacetimeDB module config file (server module entry point)
+
   - Set up `spacetime generate` in build pipeline so bindings are always fresh
+
   - Update `tsconfig.json` for SpacetimeDB module compilation settings
+
   - Create `.env.example` with SpacetimeDB connection details:
     - Local (Docker): `SPACETIMEDB_URI=http://localhost:3000`
     - Maincloud: `SPACETIMEDB_URI=https://<name>.spacetimedb.com`
@@ -2122,8 +2156,10 @@ Note: Decision Gates may add tasks (Task 2b React binding, Task 7b multi-table j
     - S3/R2 (production): `S3_ENDPOINT=https://<account-id>.r2.cloudflarestorage.com`,
       `S3_ACCESS_KEY=<key>`, `S3_SECRET_KEY=<secret>`, `S3_BUCKET=betterspace-uploads`,
       `S3_REGION=auto`
+
   - Create `.env.test` (gitignored) template for test runs — sets
     `SPACETIMEDB_URI=http://localhost:3000` and `SPACETIMEDB_TEST_MODE=true`
+
   - **Configure SpacetimeAuth with Google OAuth** (walking skeleton prerequisite — user
     confirmed they have existing Google Cloud OAuth credentials):
     - Add `SPACETIMEAUTH_PROJECT_ID`, `GOOGLE_CLIENT_ID`, `GOOGLE_CLIENT_SECRET` to
@@ -2132,13 +2168,16 @@ Note: Decision Gates may add tasks (Task 2b React binding, Task 7b multi-table j
     - Verify OAuth redirect works against local Docker SpacetimeDB
     - Without this, the walking skeleton gate (which requires real Google OAuth flow)
       will fail
+
   - Verify infra supports the full demo app workflow:
     - SpacetimeDB accepts WebSocket connections from Next.js apps (port 3000)
     - SpacetimeDB accepts `spacetime publish` for module deployment
     - SpacetimeDB accepts `spacetime sql` for data verification
     - Multiple demo apps can connect to the SAME SpacetimeDB instance simultaneously
       (different databases/modules)
+
   - Update monorepo workspace config to include SpacetimeDB module directories
+
   - Ensure `bun fix` still works with new dependencies
 
   **Must NOT do**:
@@ -2327,7 +2366,7 @@ Note: Decision Gates may add tasks (Task 2b React binding, Task 7b multi-table j
   - [ ] `crud(schema)` generates create, update, rm, bulkCreate, bulkUpdate, bulkRm
     reducers
   - [ ] Ownership checking works (only owner can update/delete their rows)
-  - [ ] Soft delete option works (sets _deleted flag instead of removing)
+  - [ ] Soft delete option works (sets \_deleted flag instead of removing)
   - [ ] Timestamps auto-managed (createdAt, updatedAt)
   - [ ] Pub option generates public read-only access
   - [ ] Type inference: create input excludes autoInc/identity fields
@@ -3299,7 +3338,7 @@ Note: Decision Gates may add tasks (Task 2b React binding, Task 7b multi-table j
 - [ ] 18. Port useSoftDelete, useBulkSelection, useOptimisticMutation + supporting hooks
 
   **What to do**:
-  - Port `useSoftDelete` (69 lines): Toggle _deleted flag instead of removing data.
+  - Port `useSoftDelete` (69 lines): Toggle \_deleted flag instead of removing data.
     Provides `softDelete(id)`, `restore(id)`, undo UI support.
     Calls the rm reducer with soft delete behavior.
   - Port `useBulkSelection` (86 lines): Track selected items for bulk operations.
@@ -4433,6 +4472,7 @@ Note: Decision Gates may add tasks (Task 2b React binding, Task 7b multi-table j
   - [ ] `bun fix` passes
 
   **QA Scenarios**:
+
   ```
   Scenario: Schema type tests pass
     Tool: Bash
@@ -4469,6 +4509,7 @@ Note: Decision Gates may add tasks (Task 2b React binding, Task 7b multi-table j
   - [ ] `bun fix` passes
 
   **QA Scenarios**:
+
   ```
   Scenario: CRUD factory tests pass
     Tool: Bash
@@ -4502,6 +4543,7 @@ Note: Decision Gates may add tasks (Task 2b React binding, Task 7b multi-table j
   - [ ] `bun fix` passes
 
   **QA Scenarios**:
+
   ```
   Scenario: Org and middleware tests pass
     Tool: Bash
@@ -4539,6 +4581,7 @@ Note: Decision Gates may add tasks (Task 2b React binding, Task 7b multi-table j
   - [ ] `bun fix` passes
 
   **QA Scenarios**:
+
   ```
   Scenario: All library tests combined pass
     Tool: Bash
@@ -4918,7 +4961,7 @@ Note: Decision Gates may add tasks (Task 2b React binding, Task 7b multi-table j
       `codegen:swift`
     - Add SpacetimeDB scripts: `spacetime:up`, `spacetime:down`, `spacetime:publish`,
       `spacetime:generate`, `spacetime:reset`
-  - Update `.env.example`: Replace 5 CONVEX_* vars (`CONVEX_SELF_HOSTED_ADMIN_KEY`,
+  - Update `.env.example`: Replace 5 CONVEX\_\* vars (`CONVEX_SELF_HOSTED_ADMIN_KEY`,
     `CONVEX_SELF_HOSTED_URL`, `CONVEX_SITE_URL`, `CONVEX_URL`, `NEXT_PUBLIC_CONVEX_URL`)
     with SpacetimeDB equivalents (`SPACETIMEDB_URI`, `NEXT_PUBLIC_SPACETIMEDB_URI`,
     etc.)
@@ -5099,6 +5142,7 @@ Note: Decision Gates may add tasks (Task 2b React binding, Task 7b multi-table j
 > (Docker) and Maincloud (managed).
 
 **Prerequisites**:
+
 - All F1-F4 verdicts: APPROVE
 
 - User provides Maincloud credentials (URI, auth tokens)
@@ -5226,6 +5270,7 @@ Note: Decision Gates may add tasks (Task 2b React binding, Task 7b multi-table j
 
 **Rule**: After completing ANY coherent unit of work (a file ported, a test passing, a
 config updated), immediately:
+
 1. `bun fix` — MUST pass (pre-commit gate, non-negotiable)
 2. `git add` the relevant files
 3. `git commit` with a conventional commit message: `type(scope): description`
@@ -5243,6 +5288,7 @@ User will re-enable CI when they confirm all work is done.
 `crud`, `hooks`, `blog-app`, `infra`, `eslint`, `cli`, `e2e`
 
 **Examples of good commit granularity**:
+
 - `feat(crud): port create reducer to spacetimedb`
 - `feat(crud): port update and delete reducers`
 - `test(crud): port 45 crud unit tests`

@@ -41,7 +41,7 @@ describe('zodFromTable', () => {
     const result = schema.safeParse({
       title: 'Hello',
       content: 'World',
-      published: false,
+      published: false
     })
     expect(result.success).toBe(true)
   })
@@ -76,7 +76,9 @@ import { DbConnection } from '../module_bindings'
 
 const TOKEN_CACHE = new Map<string, string>()
 
-export const connectAsTestUser = async (name: string): Promise<DbConnection> => {
+export const connectAsTestUser = async (
+  name: string
+): Promise<DbConnection> => {
   const savedToken = TOKEN_CACHE.get(name)
 
   return new Promise((resolve, reject) => {
@@ -122,7 +124,7 @@ describe('blog CRUD', () => {
     await conn.reducers.create_post({
       title: 'Test post',
       content: 'Test content',
-      published: false,
+      published: false
     })
 
     // Wait for subscription to update
@@ -139,7 +141,7 @@ describe('blog CRUD', () => {
     await conn.reducers.create_post({
       title: 'Alice post',
       content: 'Content',
-      published: false,
+      published: false
     })
     await new Promise(resolve => setTimeout(resolve, 100))
 
@@ -192,7 +194,10 @@ const TOKEN_FILE = '.test-tokens.json'
 
 const loadTokens = (): Record<string, string> => {
   try {
-    return JSON.parse(readFileSync(TOKEN_FILE, 'utf-8')) as Record<string, string>
+    return JSON.parse(readFileSync(TOKEN_FILE, 'utf-8')) as Record<
+      string,
+      string
+    >
   } catch {
     return {}
   }
@@ -217,13 +222,13 @@ export default defineConfig({
   testDir: './e2e',
   timeout: 10_000,
   use: {
-    baseURL: 'http://localhost:3001',
+    baseURL: 'http://localhost:3001'
   },
   webServer: {
     command: 'bun dev',
     url: 'http://localhost:3001',
-    reuseExistingServer: !process.env.CI,
-  },
+    reuseExistingServer: !process.env.CI
+  }
 })
 ```
 
@@ -300,7 +305,7 @@ const testId = Date.now()
 await conn.reducers.create_post({
   title: `Test post ${testId}`,
   content: 'Content',
-  published: false,
+  published: false
 })
 ```
 

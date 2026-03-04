@@ -25,7 +25,7 @@ const post = table(
     title: t.string(),
     content: t.string(),
     updatedAt: t.timestamp(),
-    userId: t.identity().index(),
+    userId: t.identity().index()
   }
 )
 
@@ -36,9 +36,9 @@ const post = table(
     id: t.u32().autoInc().primaryKey(),
     title: t.string(),
     content: t.string(),
-    category: t.string().optional(),  // new field, optional for backward compat
+    category: t.string().optional(), // new field, optional for backward compat
     updatedAt: t.timestamp(),
-    userId: t.identity().index(),
+    userId: t.identity().index()
   }
 )
 ```
@@ -67,7 +67,7 @@ const post = table(
     title: t.string(),
     content: t.string(),
     updatedAt: t.timestamp(),
-    userId: t.identity().index(),
+    userId: t.identity().index()
   }
 )
 ```
@@ -86,13 +86,13 @@ const tag = table(
   {
     id: t.u32().autoInc().primaryKey(),
     name: t.string().unique(),
-    postId: t.u32().index(),
+    postId: t.u32().index()
   }
 )
 
 const spacetimedb = schema({
   post,
-  tag,  // new table
+  tag // new table
 })
 ```
 
@@ -106,7 +106,7 @@ All data in that table is dropped.
 
 ```typescript
 const spacetimedb = schema({
-  post,
+  post
   // tag removed
 })
 ```
@@ -128,10 +128,10 @@ const post = table(
   {
     id: t.u32().autoInc().primaryKey(),
     title: t.string(),
-    body: t.string(),        // new name
-    content: t.string(),     // old name, keep temporarily
+    body: t.string(), // new name
+    content: t.string(), // old name, keep temporarily
     updatedAt: t.timestamp(),
-    userId: t.identity().index(),
+    userId: t.identity().index()
   }
 )
 
@@ -174,9 +174,9 @@ const post = table(
   {
     id: t.u32().autoInc().primaryKey(),
     title: t.string(),
-    category: t.string().index(),  // add index
+    category: t.string().index(), // add index
     updatedAt: t.timestamp(),
-    userId: t.identity().index(),
+    userId: t.identity().index()
   }
 )
 
@@ -188,11 +188,13 @@ const wiki = table(
       {
         accessor: 'orgIdSlug',
         algorithm: 'btree',
-        columns: ['orgId', 'slug'],
-      },
-    ],
+        columns: ['orgId', 'slug']
+      }
+    ]
   },
-  { /* fields */ }
+  {
+    /* fields */
+  }
 )
 ```
 

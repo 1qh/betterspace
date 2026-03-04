@@ -67,6 +67,7 @@ const [posts, isReady] = useTable(tables.post)
 ```
 
 Key differences:
+
 - `useQuery` returns `undefined` while loading.
   `useTable` returns an empty array immediately and `isReady` becomes `true` when the
   initial sync completes.
@@ -83,10 +84,11 @@ Key differences:
 export const list = query({
   args: { published: v.boolean() },
   handler: async (ctx, { published }) => {
-    return ctx.db.query('post')
+    return ctx.db
+      .query('post')
       .withIndex('by_published', q => q.eq('published', published))
       .collect()
-  },
+  }
 })
 
 // Client
@@ -96,16 +98,14 @@ const posts = useQuery(api.blog.list, { published: true })
 ```typescript
 // betterspace: server-side WHERE or client-side filter
 // Option A: server-side WHERE subscription
-const [posts, isReady] = useTable(
-  tables.post.where(r => r.published.eq(true))
-)
+const [posts, isReady] = useTable(tables.post.where(r => r.published.eq(true)))
 
 // Option B: client-side filter with useList
 import { useList } from 'betterspace/react'
 
 const [allPosts, isReady] = useTable(tables.post)
 const { data: posts } = useList(allPosts, isReady, {
-  where: { published: true },
+  where: { published: true }
 })
 ```
 
@@ -129,7 +129,7 @@ import { useList } from 'betterspace/react'
 const [posts, isReady] = useTable(tables.post)
 const { data, hasMore, loadMore, totalCount } = useList(posts, isReady, {
   pageSize: 20,
-  sort: { field: 'updatedAt', direction: 'desc' },
+  sort: { field: 'updatedAt', direction: 'desc' }
 })
 ```
 
@@ -154,6 +154,7 @@ await createPost({ title: 'Hello', content: 'World', published: false })
 ```
 
 Key differences:
+
 - `useMutation` takes a function reference from the generated API. `useReducer` takes a
   reducer reference from the generated bindings.
 - Both return an async function.
@@ -169,10 +170,11 @@ Key differences:
 export const getBySlug = query({
   args: { slug: v.string() },
   handler: async (ctx, { slug }) => {
-    return ctx.db.query('post')
+    return ctx.db
+      .query('post')
       .withIndex('by_slug', q => q.eq('slug', slug))
       .unique()
-  },
+  }
 })
 
 // lazyconvex: Convex mutation
@@ -181,17 +183,19 @@ export const create = mutation({
   handler: async (ctx, args) => {
     const userId = await getAuthUserId(ctx)
     return ctx.db.insert('post', { ...args, userId, published: false })
-  },
+  }
 })
 
 // lazyconvex: Convex action (can call external APIs)
 export const fetchFromApi = action({
   args: { id: v.string() },
   handler: async (ctx, { id }) => {
-    const data = await fetch(`https://api.example.com/${id}`).then(r => r.json())
+    const data = await fetch(`https://api.example.com/${id}`).then(r =>
+      r.json()
+    )
     await ctx.runMutation(api.cache.store, { id, data })
     return data
-  },
+  }
 })
 ```
 
@@ -208,7 +212,7 @@ export const createPost = spacetimedb.reducer(
       content: args.content,
       published: false,
       updatedAt: ctx.timestamp,
-      userId: ctx.sender,
+      userId: ctx.sender
     })
   }
 )
@@ -248,8 +252,8 @@ export default defineSchema({
     title: v.string(),
     content: v.string(),
     published: v.boolean(),
-    userId: v.string(),
-  }).index('by_published', ['published']),
+    userId: v.string()
+  }).index('by_published', ['published'])
 })
 ```
 
@@ -266,7 +270,7 @@ const post = table(
     content: t.string(),
     published: t.bool().index(),
     updatedAt: t.timestamp(),
-    userId: t.identity().index(),
+    userId: t.identity().index()
   }
 )
 
@@ -274,6 +278,7 @@ const spacetimedb = schema({ post })
 ```
 
 Key differences:
+
 - Convex uses `v.string()`, `v.boolean()`, etc.
   SpacetimeDB uses `t.string()`, `t.bool()`, etc.
 - Convex IDs are strings (`Id<"post">`). SpacetimeDB IDs are numbers (`u32`).
@@ -285,23 +290,23 @@ Key differences:
 
 ```typescript
 // lazyconvex: string IDs
-const postId: Id<'post'> = post._id  // 'k17abc...'
+const postId: Id<'post'> = post._id // 'k17abc...'
 await updatePost({ id: postId, title: 'New title' })
 
 // In URLs
-const url = `/posts/${postId}`  // works, it's a string
+const url = `/posts/${postId}` // works, it's a string
 ```
 
 ```typescript
 // betterspace: numeric IDs (u32 = number)
-const postId: number = post.id  // 42
+const postId: number = post.id // 42
 await updatePost({ id: postId, title: 'New title' })
 
 // In URLs
-const url = `/posts/${postId}`  // works, number coerces to string
+const url = `/posts/${postId}` // works, number coerces to string
 // Or explicitly:
 import { idToWire } from 'betterspace'
-const url = `/posts/${idToWire(postId)}`  // '42'
+const url = `/posts/${idToWire(postId)}` // '42'
 ```
 
 ## Auth
@@ -310,7 +315,9 @@ const url = `/posts/${idToWire(postId)}`  // '42'
 // lazyconvex: ConvexAuth with JWT
 // convex/auth.ts
 import { convexAuth } from '@convex-dev/auth/server'
-export const { auth, signIn, signOut, store } = convexAuth({ providers: [Google] })
+export const { auth, signIn, signOut, store } = convexAuth({
+  providers: [Google]
+})
 
 // In mutations
 const userId = await getAuthUserId(ctx)
@@ -319,17 +326,17 @@ const userId = await getAuthUserId(ctx)
 ```typescript
 // betterspace: anonymous Identity (dev) or OIDC (production)
 // In reducers, the caller's identity is always available:
-(ctx, args) => {
-  const userId = ctx.sender  // Identity object
+;(ctx, args) => {
+  const userId = ctx.sender // Identity object
   // ctx.sender is always set (anonymous connections get a unique Identity)
 }
 
 // Compare identities
 import { identityEquals } from 'betterspace/server'
-identityEquals(ctx.sender, row.userId)  // true/false
+identityEquals(ctx.sender, row.userId) // true/false
 
 // Convert to string for storage/comparison
-ctx.sender.toHexString()  // 'c200725ff16b4c1d...'
+ctx.sender.toHexString() // 'c200725ff16b4c1d...'
 ```
 
 For production auth with real users, SpacetimeDB supports OIDC providers via Maincloud.
@@ -341,7 +348,7 @@ Local dev uses anonymous connections with stable tokens.
 // lazyconvex: Convex built-in storage
 const storageId = await generateUploadUrl()
 // Upload to storageId...
-await ctx.storage.getUrl(storageId)  // get download URL
+await ctx.storage.getUrl(storageId) // get download URL
 ```
 
 ```typescript
@@ -357,7 +364,7 @@ const { upload } = useUpload({
   registerFile: async ({ storageKey, ...meta }) => {
     await registerUpload({ storageKey, ...meta })
     return { storageId: storageKey }
-  },
+  }
 })
 ```
 
@@ -389,8 +396,8 @@ import { extractErrorData, getErrorCode } from 'betterspace/server'
 try {
   await createPost(data)
 } catch (error) {
-  const code = getErrorCode(error)  // 'NOT_FOUND'
-  const data = extractErrorData(error)  // { code, message, table, op }
+  const code = getErrorCode(error) // 'NOT_FOUND'
+  const data = extractErrorData(error) // { code, message, table, op }
 }
 ```
 

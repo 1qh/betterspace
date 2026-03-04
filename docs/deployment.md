@@ -9,6 +9,7 @@ docker compose up -d
 ```
 
 This starts:
+
 - SpacetimeDB at `ws://localhost:3000` (WebSocket) and `http://localhost:3000` (HTTP SQL
   API)
 - MinIO at `http://localhost:9000` (S3 API) and `http://localhost:9001` (console)
@@ -126,7 +127,7 @@ services:
     image: clockworklabs/spacetime:latest
     command: start --listen-addr 0.0.0.0:3000
     ports:
-      - "3000:3000"
+      - '3000:3000'
     volumes:
       - spacetimedb_data:/stdb
     restart: always
@@ -136,8 +137,8 @@ services:
   nginx:
     image: nginx:alpine
     ports:
-      - "80:80"
-      - "443:443"
+      - '80:80'
+      - '443:443'
     volumes:
       - ./nginx.conf:/etc/nginx/nginx.conf:ro
       - /etc/letsencrypt:/etc/letsencrypt:ro
@@ -361,6 +362,7 @@ SpacetimeDB logs to stdout.
 Collect logs with your preferred log aggregator (Datadog, Loki, CloudWatch, etc.).
 
 Key metrics to watch:
+
 - WebSocket connection count
 - Reducer call latency
 - Subscription count per connection

@@ -15,7 +15,12 @@ A typical user-owned CRUD in raw SpacetimeDB:
 ```tsx
 const createPost = spacetimedb.reducer(
   { name: 'create_post' },
-  { title: t.string(), content: t.string(), category: t.string(), published: t.bool() },
+  {
+    title: t.string(),
+    content: t.string(),
+    category: t.string(),
+    published: t.bool()
+  },
   (ctx, args) => {
     ctx.db.blog.insert({
       id: 0,
@@ -24,7 +29,7 @@ const createPost = spacetimedb.reducer(
       category: args.category,
       published: args.published,
       updatedAt: ctx.timestamp,
-      userId: ctx.sender,
+      userId: ctx.sender
     })
   }
 )
@@ -34,7 +39,8 @@ const updatePost = spacetimedb.reducer(
   { id: t.u32(), title: t.string().optional(), content: t.string().optional() },
   (ctx, { id, ...fields }) => {
     const row = ctx.db.blog.id.find(id)
-    if (!row || !identityEquals(row.userId, ctx.sender)) throw new SenderError('NOT_FOUND')
+    if (!row || !identityEquals(row.userId, ctx.sender))
+      throw new SenderError('NOT_FOUND')
     ctx.db.blog.id.update({ ...row, ...fields, updatedAt: ctx.timestamp })
   }
 )
@@ -44,7 +50,8 @@ const deletePost = spacetimedb.reducer(
   { id: t.u32() },
   (ctx, { id }) => {
     const row = ctx.db.blog.id.find(id)
-    if (!row || !identityEquals(row.userId, ctx.sender)) throw new SenderError('NOT_FOUND')
+    if (!row || !identityEquals(row.userId, ctx.sender))
+      throw new SenderError('NOT_FOUND')
     ctx.db.blog.id.delete(id)
   }
 )
@@ -56,11 +63,17 @@ No validation, no file cleanup, no conflict detection.
 With betterspace `setupCrud()`:
 
 ```tsx
-const { crud } = setupCrud(spacetimedb, { expectedUpdatedAtField: t.timestamp(), idField: t.u32() })
+const { crud } = setupCrud(spacetimedb, {
+  expectedUpdatedAtField: t.timestamp(),
+  idField: t.u32()
+})
 
 const blogCrud = crud('blog', {
-  category: t.string(), content: t.string(), coverImage: t.string().optional(),
-  published: t.bool(), title: t.string()
+  category: t.string(),
+  content: t.string(),
+  coverImage: t.string().optional(),
+  published: t.bool(),
+  title: t.string()
 })
 ```
 
@@ -76,11 +89,18 @@ real-time subscriptions.
 Here’s a full org-scoped CRUD with per-item editor permissions and soft delete:
 
 ```tsx
-const wikiCrud = orgCrud('wiki', {
-  content: t.string().optional(), deletedAt: t.timestamp().optional(),
-  editors: t.array(t.identity()).optional(), slug: t.string(),
-  status: t.string(), title: t.string()
-}, { softDelete: true })
+const wikiCrud = orgCrud(
+  'wiki',
+  {
+    content: t.string().optional(),
+    deletedAt: t.timestamp().optional(),
+    editors: t.array(t.identity()).optional(),
+    slug: t.string(),
+    status: t.string(),
+    title: t.string()
+  },
+  { softDelete: true }
+)
 ```
 
 One call. Role-based access, editor ACL, soft delete with restore, and bulk operations —
@@ -156,7 +176,11 @@ Schema mismatches surface as clear compile-time errors with descriptive messages
 Use `AssertSchema<T, Expected>` in your own code to enforce schema brands:
 
 ```tsx
-import type { AssertSchema, DetectBrand, SchemaTypeError } from 'betterspace/server'
+import type {
+  AssertSchema,
+  DetectBrand,
+  SchemaTypeError
+} from 'betterspace/server'
 
 type Validated = AssertSchema<typeof mySchema, 'owned'>
 //   ✅ if mySchema is OwnedSchema → resolves to the schema type
@@ -181,7 +205,7 @@ For standalone usage or customization:
 ```tsx
 import { BetterspaceDevtools } from 'betterspace/react'
 
-<BetterspaceDevtools position='bottom-right' defaultTab='subs' />
+;<BetterspaceDevtools position="bottom-right" defaultTab="subs" />
 ```
 
 ### Schema Playground
@@ -191,7 +215,7 @@ Interactive component for previewing how schemas map to generated endpoints:
 ```tsx
 import { SchemaPlayground } from 'betterspace/react'
 
-<SchemaPlayground className='my-8' />
+;<SchemaPlayground className="my-8" />
 ```
 
 ### CLI: `betterspace doctor`
@@ -365,21 +389,33 @@ const owned = {
 import { setupCrud } from 'betterspace/server'
 import { schema, t, table } from 'spacetimedb/server'
 
-const blog = table({ public: true }, {
-  category: t.string(), content: t.string(), coverImage: t.string().optional(),
-  id: t.u32().autoInc().primaryKey(), published: t.bool().index(),
-  title: t.string(), updatedAt: t.timestamp(), userId: t.identity().index()
-})
+const blog = table(
+  { public: true },
+  {
+    category: t.string(),
+    content: t.string(),
+    coverImage: t.string().optional(),
+    id: t.u32().autoInc().primaryKey(),
+    published: t.bool().index(),
+    title: t.string(),
+    updatedAt: t.timestamp(),
+    userId: t.identity().index()
+  }
+)
 
 const spacetimedb = schema({ blog })
 
 const { crud, allExports } = setupCrud(spacetimedb, {
-  expectedUpdatedAtField: t.timestamp(), idField: t.u32()
+  expectedUpdatedAtField: t.timestamp(),
+  idField: t.u32()
 })
 
 const blogCrud = crud('blog', {
-  category: t.string(), content: t.string(),
-  coverImage: t.string().optional(), published: t.bool(), title: t.string()
+  category: t.string(),
+  content: t.string(),
+  coverImage: t.string().optional(),
+  published: t.bool(),
+  title: t.string()
 })
 
 export const reducers = spacetimedb.exportGroup(allExports())
@@ -399,7 +435,9 @@ bun spacetime:publish
 ### 4. Use in React
 
 ```tsx
-const { data: blogs, loadMore } = useList(allBlogs, isReady, { where: { published: true } })
+const { data: blogs, loadMore } = useList(allBlogs, isReady, {
+  where: { published: true }
+})
 ```
 
 ## Zero-Config Defaults

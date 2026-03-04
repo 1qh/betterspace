@@ -86,7 +86,7 @@ useList(data, isReady, {
   where: {
     published: true,
     category: 'tech',
-    or: [{ category: 'news' }],
+    or: [{ category: 'news' }]
   },
 
   // Sort by a field
@@ -99,7 +99,7 @@ useList(data, isReady, {
 
   // Pagination
   pageSize: 20,
-  page: 1,  // controlled page (optional)
+  page: 1 // controlled page (optional)
 })
 ```
 
@@ -126,8 +126,8 @@ All filtering and sorting happens over the in-memory subscription data.
 useList(posts, isReady, {
   where: {
     voteCount: { $gte: 100 },
-    releaseYear: { $between: [2020, 2024] },
-  },
+    releaseYear: { $between: [2020, 2024] }
+  }
 })
 ```
 
@@ -152,7 +152,7 @@ const [myPosts, isReady] = useTable(
 
 ```typescript
 const { data, hasMore, loadMore } = useList(posts, isReady, {
-  pageSize: 20,
+  pageSize: 20
 })
 
 // Render a "Load more" button or use an intersection observer
@@ -165,7 +165,7 @@ const [page, setPage] = useState(1)
 
 const { data, totalCount } = useList(posts, isReady, {
   pageSize: 20,
-  page,
+  page
 })
 
 // Traditional page controls
@@ -220,16 +220,21 @@ export default PostsPage
 The HTTP SQL API returns:
 
 ```json
-[{
-  "schema": {
-    "elements": [
-      { "name": "id", "algebraicType": { "tag": "U32" } },
-      { "name": "title", "algebraicType": { "tag": "String" } }
-    ]
-  },
-  "rows": [[1, "Hello world"], [2, "Second post"]],
-  "total_duration_micros": 269
-}]
+[
+  {
+    "schema": {
+      "elements": [
+        { "name": "id", "algebraicType": { "tag": "U32" } },
+        { "name": "title", "algebraicType": { "tag": "String" } }
+      ]
+    },
+    "rows": [
+      [1, "Hello world"],
+      [2, "Second post"]
+    ],
+    "total_duration_micros": 269
+  }
+]
 ```
 
 Latency is ~0.27ms for simple queries on local Docker.
@@ -249,6 +254,7 @@ const [postsWithAuthors, isReady] = useTable(tables.post_with_author)
 ```
 
 Views are useful for:
+
 - Joining tables (post + user profile)
 - Filtering by `ctx.sender` for per-user data (read-side ACL)
 - Computing derived fields

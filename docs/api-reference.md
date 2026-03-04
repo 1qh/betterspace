@@ -17,7 +17,7 @@ const postCrud = makeCrud(spacetimedb, {
   fields: {
     title: t.string(),
     content: t.string(),
-    published: t.bool(),
+    published: t.bool()
   },
 
   // Required: primary key type
@@ -37,16 +37,16 @@ const postCrud = makeCrud(spacetimedb, {
 
   // Optional: lifecycle hooks
   options: {
-    softDelete: false,  // set true to set deletedAt instead of deleting
+    softDelete: false, // set true to set deletedAt instead of deleting
     hooks: {
       beforeCreate: (ctx, { data }) => data,
       afterCreate: (ctx, { data, row }) => {},
       beforeUpdate: (ctx, { patch, prev }) => patch,
       afterUpdate: (ctx, { next, patch, prev }) => {},
       beforeDelete: (ctx, { row }) => {},
-      afterDelete: (ctx, { row }) => {},
-    },
-  },
+      afterDelete: (ctx, { row }) => {}
+    }
+  }
 })
 ```
 
@@ -74,7 +74,7 @@ import { makeOrgCrud } from 'betterspace/server'
 const projectCrud = makeOrgCrud(spacetimedb, {
   fields: {
     name: t.string(),
-    description: t.string().optional(),
+    description: t.string().optional()
   },
   idField: t.u32(),
   orgIdField: t.u32(),
@@ -85,8 +85,10 @@ const projectCrud = makeOrgCrud(spacetimedb, {
   expectedUpdatedAtField: t.timestamp(),
   options: {
     softDelete: false,
-    hooks: { /* same as makeCrud */ },
-  },
+    hooks: {
+      /* same as makeCrud */
+    }
+  }
 })
 ```
 
@@ -111,13 +113,15 @@ const profileCrud = makeSingletonCrud(spacetimedb, {
   fields: {
     displayName: t.string(),
     bio: t.string().optional(),
-    theme: t.string(),
+    theme: t.string()
   },
   table: db => db.profile,
   tableName: 'profile',
   options: {
-    hooks: { /* beforeCreate, afterCreate, beforeUpdate, afterUpdate, beforeRead */ },
-  },
+    hooks: {
+      /* beforeCreate, afterCreate, beforeUpdate, afterUpdate, beforeRead */
+    }
+  }
 })
 ```
 
@@ -141,7 +145,7 @@ const movieCrud = makeCacheCrud(spacetimedb, {
   fields: {
     title: t.string(),
     overview: t.string(),
-    voteAverage: t.number(),
+    voteAverage: t.number()
   },
   // The unique key for cache lookup (not the auto-inc id)
   keyField: t.number(),
@@ -150,8 +154,8 @@ const movieCrud = makeCacheCrud(spacetimedb, {
   table: db => db.movie,
   tableName: 'movie',
   options: {
-    ttl: 7 * 24 * 60 * 60 * 1000,  // 7 days in ms (default)
-  },
+    ttl: 7 * 24 * 60 * 60 * 1000 // 7 days in ms (default)
+  }
 })
 ```
 
@@ -179,7 +183,7 @@ import { makeChildCrud } from 'betterspace/server'
 const messageCrud = makeChildCrud(spacetimedb, {
   fields: {
     content: t.string(),
-    role: t.string(),
+    role: t.string()
   },
   foreignKeyField: t.u32(),
   foreignKeyName: 'chatId',
@@ -189,7 +193,7 @@ const messageCrud = makeChildCrud(spacetimedb, {
   pk: tbl => tbl.id,
   table: db => db.message,
   tableName: 'message',
-  expectedUpdatedAtField: t.timestamp(),
+  expectedUpdatedAtField: t.timestamp()
 })
 ```
 
@@ -222,7 +226,7 @@ const presenceFns = makePresence(spacetimedb, {
   roomIdField: t.string(),
   pk: tbl => tbl.id,
   table: db => db.presence,
-  tableName: 'presence',  // optional, defaults to 'presence'
+  tableName: 'presence' // optional, defaults to 'presence'
 })
 ```
 
@@ -250,16 +254,16 @@ const fileCrud = makeFileUpload(spacetimedb, {
     contentType: t.string(),
     filename: t.string(),
     size: t.number(),
-    storageKey: t.string(),
+    storageKey: t.string()
   },
   idField: t.u32(),
   namespace: 'file',
   pk: tbl => tbl.id,
   table: db => db.file,
   options: {
-    maxFileSize: 10 * 1024 * 1024,  // 10MB default
-    allowedTypes: new Set(['image/jpeg', 'image/png', 'application/pdf']),
-  },
+    maxFileSize: 10 * 1024 * 1024, // 10MB default
+    allowedTypes: new Set(['image/jpeg', 'image/png', 'application/pdf'])
+  }
 })
 ```
 
@@ -283,19 +287,19 @@ import { setupCrud } from 'betterspace/server'
 const s = setupCrud(spacetimedb, {
   expectedUpdatedAtField: t.timestamp(),
   idField: t.u32(),
-  orgIdField: t.u32(),
+  orgIdField: t.u32()
 })
 
 const postCrud = s.crud('post', {
   title: t.string(),
-  content: t.string(),
+  content: t.string()
 })
 
 const uploadFns = s.fileUpload('file', 'file', {
   contentType: t.string(),
   filename: t.string(),
   size: t.number(),
-  storageKey: t.string(),
+  storageKey: t.string()
 })
 
 const reducers = spacetimedb.exportGroup(s.allExports())
@@ -315,18 +319,18 @@ Client-side filtering, sorting, and pagination over subscription data.
 import { useList } from 'betterspace/react'
 
 const { data, hasMore, isLoading, loadMore, page, totalCount } = useList(
-  rows,      // T[] from useTable
-  isReady,   // boolean from useTable
+  rows, // T[] from useTable
+  isReady, // boolean from useTable
   {
     where: {
       published: true,
       category: 'tech',
-      or: [{ category: 'news' }],
+      or: [{ category: 'news' }]
     },
     sort: { field: 'updatedAt', direction: 'desc' },
     search: { query: 'hello', fields: ['title', 'content'] },
     pageSize: 20,
-    page: 1,  // controlled (optional)
+    page: 1 // controlled (optional)
   }
 )
 ```
@@ -358,11 +362,15 @@ const heartbeat = useReducer(reducers.presence_heartbeat_presence)
 
 const { users, updatePresence } = usePresence(
   presenceRows,
-  async () => heartbeat({ roomId: 'main', data: JSON.stringify({ cursor: { x: 0, y: 0 } }) }),
+  async () =>
+    heartbeat({
+      roomId: 'main',
+      data: JSON.stringify({ cursor: { x: 0, y: 0 } })
+    }),
   {
     enabled: true,
     heartbeatIntervalMs: 15_000,
-    ttlMs: 30_000,
+    ttlMs: 30_000
   }
 )
 
@@ -387,12 +395,14 @@ Handles file upload with progress tracking and pre-signed URL flow.
 import { useUpload } from 'betterspace/react'
 
 const { upload, isUploading, progress, error, url } = useUpload({
-  apiEndpoint: '/api/upload/presign',  // default
-  getPresignedUrl: async (file) => { /* custom presign logic */ },
+  apiEndpoint: '/api/upload/presign', // default
+  getPresignedUrl: async file => {
+    /* custom presign logic */
+  },
   registerFile: async ({ contentType, filename, size, storageKey }) => {
     // Called after upload succeeds
     return { storageId: storageKey, url: undefined }
-  },
+  }
 })
 
 const result = await upload(file, { signal: abortController.signal })
@@ -410,7 +420,7 @@ import { useInfiniteList } from 'betterspace/react'
 
 const { data, hasMore, loadMore, totalCount } = useInfiniteList(rows, isReady, {
   pageSize: 20,
-  sort: { updatedAt: 'desc' },
+  sort: { updatedAt: 'desc' }
 })
 ```
 
@@ -424,7 +434,7 @@ Client-side full-text search over subscription data.
 import { useSearch } from 'betterspace/react'
 
 const results = useSearch(posts, query, {
-  fields: ['title', 'content'],
+  fields: ['title', 'content']
 })
 ```
 
@@ -437,15 +447,8 @@ Multi-select state management for list UIs.
 ```typescript
 import { useBulkSelection } from 'betterspace/react'
 
-const {
-  selected,
-  toggle,
-  toggleAll,
-  clear,
-  isSelected,
-  isAllSelected,
-  count,
-} = useBulkSelection(posts.map(p => p.id))
+const { selected, toggle, toggleAll, clear, isSelected, isAllSelected, count } =
+  useBulkSelection(posts.map(p => p.id))
 ```
 
 * * *
@@ -503,11 +506,23 @@ import { SchemaPlayground } from 'betterspace/react'
 Provider setup helpers are exported from `betterspace/react`:
 
 ```typescript
-import { createFileUploader, createSpacetimeClient, createTokenStore, toWsUri } from 'betterspace/react'
+import {
+  createFileUploader,
+  createSpacetimeClient,
+  createTokenStore,
+  toWsUri
+} from 'betterspace/react'
 
 const tokenStore = createTokenStore()
-const uri = toWsUri(process.env.NEXT_PUBLIC_SPACETIMEDB_URL ?? 'http://localhost:3000')
-const client = createSpacetimeClient({ DbConnection, moduleName: 'my-app', tokenStore, uri })
+const uri = toWsUri(
+  process.env.NEXT_PUBLIC_SPACETIMEDB_URL ?? 'http://localhost:3000'
+)
+const client = createSpacetimeClient({
+  DbConnection,
+  moduleName: 'my-app',
+  tokenStore,
+  uri
+})
 const uploader = createFileUploader('/api/upload/presign')
 ```
 
@@ -522,7 +537,7 @@ Convert between `Identity` objects and hex strings.
 ```typescript
 import { identityToHex, identityFromHex } from 'betterspace'
 
-const hex = identityToHex(identity)  // 'c200725ff16b4c1d...'
+const hex = identityToHex(identity) // 'c200725ff16b4c1d...'
 const identity = identityFromHex(hex)
 ```
 
@@ -546,8 +561,8 @@ Convert between numeric IDs and wire format strings (for URLs, etc.).
 ```typescript
 import { idToWire, idFromWire } from 'betterspace'
 
-const wire = idToWire(42)    // '42'
-const id = idFromWire('42')  // 42
+const wire = idToWire(42) // '42'
+const id = idFromWire('42') // 42
 ```
 
 ### zodFromTable
@@ -560,7 +575,7 @@ import { zodFromTable } from 'betterspace'
 
 const schema = zodFromTable(tables.post.columns, {
   exclude: ['published'],
-  optional: ['content'],
+  optional: ['content']
 })
 ```
 
@@ -569,7 +584,10 @@ const schema = zodFromTable(tables.post.columns, {
 Generate AWS Signature V4 pre-signed URLs for S3/MinIO.
 
 ```typescript
-import { createS3UploadPresignedUrl, createS3DownloadPresignedUrl } from 'betterspace/server'
+import {
+  createS3UploadPresignedUrl,
+  createS3DownloadPresignedUrl
+} from 'betterspace/server'
 
 const uploadUrl = await createS3UploadPresignedUrl({
   accessKeyId: '...',
@@ -579,7 +597,7 @@ const uploadUrl = await createS3UploadPresignedUrl({
   region: 'us-east-1',
   key: 'uploads/file.jpg',
   contentType: 'image/jpeg',
-  expiresInSeconds: 900,  // 15 minutes
+  expiresInSeconds: 900 // 15 minutes
 })
 ```
 
@@ -610,14 +628,18 @@ betterspace currently ships **36 structured error codes** (`ErrorCode`), defined
 Parse errors on the client:
 
 ```typescript
-import { extractErrorData, getErrorCode, getErrorMessage } from 'betterspace/server'
+import {
+  extractErrorData,
+  getErrorCode,
+  getErrorMessage
+} from 'betterspace/server'
 
 try {
   await createPost(data)
 } catch (error) {
-  const code = getErrorCode(error)  // 'NOT_FOUND' | 'FORBIDDEN' | ...
-  const message = getErrorMessage(error)  // human-readable string
-  const detail = extractErrorData(error)  // full ErrorData object
+  const code = getErrorCode(error) // 'NOT_FOUND' | 'FORBIDDEN' | ...
+  const message = getErrorMessage(error) // human-readable string
+  const detail = extractErrorData(error) // full ErrorData object
 }
 ```
 

@@ -244,6 +244,7 @@ Audited `spacetimedb/react` exports by examining generated bindings and testing.
 ### React SDK Exports
 
 From `spacetimedb/react`:
+
 - `SpacetimeDBProvider` — wraps app with connection context
 - `useSpacetimeDB()` — returns `{ getConnection, isActive }`
 - `useTable(tables.tableName)` — returns `[rows: T[], isReady: boolean]`
@@ -269,6 +270,7 @@ From `spacetimedb/react`:
 SpacetimeDB React SDK provides the core primitives: subscribe to tables, call reducers,
 connection management.
 Betterspace needs to add:
+
 1. `usePaginatedTable` — client-side pagination over subscription data
 2. `useIdentity` — expose current identity
 3. Error boundary wrapper
@@ -463,7 +465,7 @@ No need for multi-module architecture.
 ### Decision Gate Input
 
 **Gate 11 (Module Structure):** Use single module for all demo apps.
-Prefix table names by domain (blog_, chat_, movie_, org_). Single module simplifies
+Prefix table names by domain (blog*, chat*, movie*, org*). Single module simplifies
 deployment and subscriptions.
 
 * * *
@@ -518,6 +520,7 @@ For local dev, mock external APIs or use Next.js API routes as proxy.
 ### Built-in Audit
 
 **u32 vs u64 Recommendation: Use u32 for all auto-increment IDs.**
+
 - u32 → `number` — works everywhere (JSON, URLs, React keys, forms)
 - u64 → `bigint` — breaks JSON.stringify, needs .toString() for URLs/keys
 - u32 max: ~4.2 billion rows per table — more than sufficient for demo apps
@@ -553,6 +556,7 @@ pain. Document u64 as opt-in.
 
 SpacetimeDB handles TypeScript compilation during `spacetime publish`. No separate build
 step needed. For monorepo integration:
+
 - Module lives in its own directory (e.g., `packages/be/spacetimedb/`)
 - `spacetime publish --module-path packages/be/spacetimedb/` from repo root
 - `spacetime generate --module-path packages/be/spacetimedb/ --out-dir packages/betterspace/src/generated/`
@@ -562,6 +566,7 @@ step needed. For monorepo integration:
 
 Tested schema composition: multiple tables + reducers compose into single `schema({})`
 call. Factories can return table definitions that compose:
+
 ```typescript
 const table1 = table({...}, {...});
 const table2 = table({...}, {...});
@@ -668,6 +673,7 @@ If not, keep manual `spacetime:up`, `spacetime:publish`, `spacetime:generate` sc
 
 **Decision: NO full binding layer needed.** SpacetimeDB’s React SDK provides `useTable`,
 `useReducer`, `SpacetimeDBProvider`, `useSpacetimeDB`. Build thin utility hooks:
+
 - `usePaginatedTable` (client-side pagination)
 - `useIdentity` (current identity access)
 - Error boundary wrapper
@@ -733,8 +739,8 @@ No custom error protocol.
 
 ### Gate 11: Module Structure
 
-**Decision: Single module for all demo apps.** Prefix table names by domain (blog_,
-chat_, movie_, org_). Single module simplifies deployment.
+**Decision: Single module for all demo apps.** Prefix table names by domain (blog*,
+chat*, movie*, org*). Single module simplifies deployment.
 
 ### Gate 12: Build Pipeline
 
@@ -769,6 +775,7 @@ compilation. Monorepo via `--module-path`. Factory composition works.
 
 SpacetimeDB does NOT have infrastructure-level rate limiting (per-connection or
 per-Identity). Options:
+
 - (a) Reimplement via table tracking request counts per Identity per time window —
   simple but adds write overhead to every reducer call
 - (b) Defer to post-v1 — acceptable for demo apps

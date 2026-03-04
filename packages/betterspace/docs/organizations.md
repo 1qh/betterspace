@@ -13,71 +13,66 @@ import { makeOrg, makeOrgCrud } from 'betterspace/server'
 import { schema, t, table } from 'spacetimedb/server'
 
 const org = table(
-  { public: true },
-  {
-    id: t.u32().autoInc().primaryKey(),
-    name: t.string(),
-    slug: t.string().unique(),
-    avatarId: t.string().optional(),
-    updatedAt: t.timestamp(),
-    userId: t.identity().index(),  // owner
-  }
-),
-
-orgMember = table(
-  { public: true },
-  {
-    id: t.u32().autoInc().primaryKey(),
-    orgId: t.u32().index(),
-    userId: t.identity().index(),
-    isAdmin: t.bool(),
-    updatedAt: t.timestamp(),
-  }
-),
-
-orgInvite = table(
-  { public: true },
-  {
-    id: t.u32().autoInc().primaryKey(),
-    orgId: t.u32().index(),
-    email: t.string(),
-    token: t.string().unique(),
-    isAdmin: t.bool(),
-    expiresAt: t.number(),
-  }
-),
-
-orgJoinRequest = table(
-  { public: true },
-  {
-    id: t.u32().autoInc().primaryKey(),
-    orgId: t.u32().index(),
-    userId: t.identity().index(),
-    status: t.string().index(),
-    message: t.string().optional(),
-  }
-),
-
-// Org-scoped resource table
-project = table(
-  { public: true },
-  {
-    id: t.u32().autoInc().primaryKey(),
-    orgId: t.u32().index(),
-    name: t.string(),
-    description: t.string().optional(),
-    updatedAt: t.timestamp(),
-    userId: t.identity().index(),
-  }
-),
-
-spacetimedb = schema({
-  org,
-  orgMember,
-  orgInvite,
-  orgJoinRequest,
-  project,
-})
+    { public: true },
+    {
+      id: t.u32().autoInc().primaryKey(),
+      name: t.string(),
+      slug: t.string().unique(),
+      avatarId: t.string().optional(),
+      updatedAt: t.timestamp(),
+      userId: t.identity().index() // owner
+    }
+  ),
+  orgMember = table(
+    { public: true },
+    {
+      id: t.u32().autoInc().primaryKey(),
+      orgId: t.u32().index(),
+      userId: t.identity().index(),
+      isAdmin: t.bool(),
+      updatedAt: t.timestamp()
+    }
+  ),
+  orgInvite = table(
+    { public: true },
+    {
+      id: t.u32().autoInc().primaryKey(),
+      orgId: t.u32().index(),
+      email: t.string(),
+      token: t.string().unique(),
+      isAdmin: t.bool(),
+      expiresAt: t.number()
+    }
+  ),
+  orgJoinRequest = table(
+    { public: true },
+    {
+      id: t.u32().autoInc().primaryKey(),
+      orgId: t.u32().index(),
+      userId: t.identity().index(),
+      status: t.string().index(),
+      message: t.string().optional()
+    }
+  ),
+  // Org-scoped resource table
+  project = table(
+    { public: true },
+    {
+      id: t.u32().autoInc().primaryKey(),
+      orgId: t.u32().index(),
+      name: t.string(),
+      description: t.string().optional(),
+      updatedAt: t.timestamp(),
+      userId: t.identity().index()
+    }
+  ),
+  spacetimedb = schema({
+    org,
+    orgMember,
+    orgInvite,
+    orgJoinRequest,
+    project
+  })
 ```
 
 ## makeOrg factory
@@ -88,7 +83,7 @@ const orgFns = makeOrg(spacetimedb, {
   fields: {
     name: t.string(),
     slug: t.string(),
-    avatarId: t.string().optional(),
+    avatarId: t.string().optional()
   },
 
   // Builder types for reducer parameters
@@ -101,7 +96,7 @@ const orgFns = makeOrg(spacetimedb, {
     inviteId: t.u32(),
     requestId: t.u32(),
     newOwnerId: t.identity(),
-    message: t.string(),
+    message: t.string()
   },
 
   // Table accessors
@@ -114,7 +109,7 @@ const orgFns = makeOrg(spacetimedb, {
   orgMemberPk: tbl => tbl.id,
   orgMemberByOrgIndex: tbl => ({
     filterByOrg: orgId => tbl.orgId.filter(orgId),
-    [Symbol.iterator]: () => tbl[Symbol.iterator](),
+    [Symbol.iterator]: () => tbl[Symbol.iterator]()
   }),
   orgMemberByUserIndex: tbl => tbl.userId,
 
@@ -122,7 +117,7 @@ const orgFns = makeOrg(spacetimedb, {
   orgInvitePk: tbl => tbl.id,
   orgInviteByOrgIndex: tbl => ({
     filterByOrg: orgId => tbl.orgId.filter(orgId),
-    [Symbol.iterator]: () => tbl[Symbol.iterator](),
+    [Symbol.iterator]: () => tbl[Symbol.iterator]()
   }),
   orgInviteByTokenIndex: tbl => tbl.token,
 
@@ -130,7 +125,7 @@ const orgFns = makeOrg(spacetimedb, {
   orgJoinRequestPk: tbl => tbl.id,
   orgJoinRequestByOrgIndex: tbl => ({
     filterByOrg: orgId => tbl.orgId.filter(orgId),
-    [Symbol.iterator]: () => tbl[Symbol.iterator](),
+    [Symbol.iterator]: () => tbl[Symbol.iterator]()
   }),
   orgJoinRequestByOrgStatusIndex: tbl => ({
     filterByOrgStatus: (orgId, status) => {
@@ -139,7 +134,7 @@ const orgFns = makeOrg(spacetimedb, {
         if (row.status === status) out.push(row)
       return out
     },
-    [Symbol.iterator]: () => tbl[Symbol.iterator](),
+    [Symbol.iterator]: () => tbl[Symbol.iterator]()
   }),
 
   // Cascade delete: when an org is deleted, delete its resources
@@ -151,9 +146,9 @@ const orgFns = makeOrg(spacetimedb, {
           rows.push({ id: row.id })
         return rows
       },
-      deleteById: (db, id) => db.project.id.delete(id as number),
-    },
-  ],
+      deleteById: (db, id) => db.project.id.delete(id as number)
+    }
+  ]
 })
 ```
 
@@ -198,14 +193,14 @@ const projectCrud = makeOrgCrud(spacetimedb, {
   expectedUpdatedAtField: t.timestamp(),
   fields: {
     name: t.string(),
-    description: t.string().optional(),
+    description: t.string().optional()
   },
   idField: t.u32(),
   orgIdField: t.u32(),
   orgMemberTable: db => db.orgMember,
   pk: tbl => tbl.id,
   table: db => db.project,
-  tableName: 'project',
+  tableName: 'project'
 })
 ```
 
@@ -215,6 +210,7 @@ The `create_project` reducer requires `orgId` in addition to the fields.
 It checks that the caller is a member of that org before inserting.
 
 The `update_project` and `rm_project` reducers check that the caller is either:
+
 - An org admin, or
 - The original creator of the row (`userId === ctx.sender`)
 
@@ -294,9 +290,7 @@ import { useReducer } from 'spacetimedb/react'
 import { reducers } from '@/generated/module_bindings'
 
 const CreateProject = () => {
-  const createProject = useOrgMutation(
-    useReducer(reducers.create_project)
-  )
+  const createProject = useOrgMutation(useReducer(reducers.create_project))
 
   const handleSubmit = async (name: string) => {
     // orgId is injected automatically from OrgProvider context
@@ -313,12 +307,12 @@ views filtered by `ctx.sender`:
 ```typescript
 // In your SpacetimeDB module
 const privateData = table(
-  { public: false },  // clients cannot subscribe directly
+  { public: false }, // clients cannot subscribe directly
   {
     id: t.u32().autoInc().primaryKey(),
     orgId: t.u32().index(),
     content: t.string(),
-    userId: t.identity().index(),
+    userId: t.identity().index()
   }
 )
 
@@ -342,9 +336,9 @@ the owner):
 import { canEditResource } from 'betterspace/react'
 
 const canEdit = canEditResource({
-  resource: wiki,           // must have userId field
-  editorsList: wiki.editors ?? [],  // array of { userId }
+  resource: wiki, // must have userId field
+  editorsList: wiki.editors ?? [], // array of { userId }
   isAdmin: org.isAdmin,
-  userId: currentIdentity.toHexString(),
+  userId: currentIdentity.toHexString()
 })
 ```

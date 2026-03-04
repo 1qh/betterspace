@@ -24,7 +24,7 @@ const postCrud = makeCrud(spacetimedb, {
   idField: t.u32(),
   pk: tbl => tbl.id,
   table: db => db.post,
-  tableName: 'post',
+  tableName: 'post'
 })
 ```
 
@@ -42,7 +42,7 @@ spacetimedb.reducer(
       content: args.content,
       published: args.published,
       updatedAt: ctx.timestamp,
-      userId: ctx.sender,
+      userId: ctx.sender
     })
   }
 )
@@ -50,32 +50,35 @@ spacetimedb.reducer(
 // update_post
 spacetimedb.reducer(
   { name: 'update_post' },
-  { id: t.u32(), title: t.string().optional(), content: t.string().optional(), published: t.bool().optional() },
+  {
+    id: t.u32(),
+    title: t.string().optional(),
+    content: t.string().optional(),
+    published: t.bool().optional()
+  },
   (ctx, args) => {
     const post = ctx.db.post.id.find(args.id)
     if (!post) throw new SenderError('NOT_FOUND: post:update')
-    if (!post.userId.isEqual(ctx.sender)) throw new SenderError('FORBIDDEN: post:update')
+    if (!post.userId.isEqual(ctx.sender))
+      throw new SenderError('FORBIDDEN: post:update')
     ctx.db.post.id.update({
       ...post,
       ...(args.title !== undefined && { title: args.title }),
       ...(args.content !== undefined && { content: args.content }),
       ...(args.published !== undefined && { published: args.published }),
-      updatedAt: ctx.timestamp,
+      updatedAt: ctx.timestamp
     })
   }
 )
 
 // rm_post
-spacetimedb.reducer(
-  { name: 'rm_post' },
-  { id: t.u32() },
-  (ctx, { id }) => {
-    const post = ctx.db.post.id.find(id)
-    if (!post) throw new SenderError('NOT_FOUND: post:rm')
-    if (!post.userId.isEqual(ctx.sender)) throw new SenderError('FORBIDDEN: post:rm')
-    ctx.db.post.id.delete(id)
-  }
-)
+spacetimedb.reducer({ name: 'rm_post' }, { id: t.u32() }, (ctx, { id }) => {
+  const post = ctx.db.post.id.find(id)
+  if (!post) throw new SenderError('NOT_FOUND: post:rm')
+  if (!post.userId.isEqual(ctx.sender))
+    throw new SenderError('FORBIDDEN: post:rm')
+  ctx.db.post.id.delete(id)
+})
 ```
 
 ## Step 2: replace factory calls with manual reducers
@@ -86,10 +89,12 @@ In your module file, replace:
 // Before (with betterspace)
 import { makeCrud } from 'betterspace/server'
 
-const postCrud = makeCrud(spacetimedb, { /* config */ })
+const postCrud = makeCrud(spacetimedb, {
+  /* config */
+})
 
 const reducers = spacetimedb.exportGroup({
-  ...postCrud.exports,
+  ...postCrud.exports
 })
 ```
 
@@ -109,24 +114,30 @@ const createPost = spacetimedb.reducer(
       content: args.content,
       published: args.published,
       updatedAt: ctx.timestamp,
-      userId: ctx.sender,
+      userId: ctx.sender
     })
   }
 )
 
 const updatePost = spacetimedb.reducer(
   { name: 'update_post' },
-  { id: t.u32(), title: t.string().optional(), content: t.string().optional(), published: t.bool().optional() },
+  {
+    id: t.u32(),
+    title: t.string().optional(),
+    content: t.string().optional(),
+    published: t.bool().optional()
+  },
   (ctx, args) => {
     const post = ctx.db.post.id.find(args.id)
     if (!post) throw new SenderError('NOT_FOUND: post:update')
-    if (!post.userId.isEqual(ctx.sender)) throw new SenderError('FORBIDDEN: post:update')
+    if (!post.userId.isEqual(ctx.sender))
+      throw new SenderError('FORBIDDEN: post:update')
     ctx.db.post.id.update({
       ...post,
       ...(args.title !== undefined && { title: args.title }),
       ...(args.content !== undefined && { content: args.content }),
       ...(args.published !== undefined && { published: args.published }),
-      updatedAt: ctx.timestamp,
+      updatedAt: ctx.timestamp
     })
   }
 )
@@ -137,7 +148,8 @@ const rmPost = spacetimedb.reducer(
   (ctx, { id }) => {
     const post = ctx.db.post.id.find(id)
     if (!post) throw new SenderError('NOT_FOUND: post:rm')
-    if (!post.userId.isEqual(ctx.sender)) throw new SenderError('FORBIDDEN: post:rm')
+    if (!post.userId.isEqual(ctx.sender))
+      throw new SenderError('FORBIDDEN: post:rm')
     ctx.db.post.id.delete(id)
   }
 )
@@ -145,7 +157,7 @@ const rmPost = spacetimedb.reducer(
 const reducers = spacetimedb.exportGroup({
   create_post: createPost,
   update_post: updatePost,
-  rm_post: rmPost,
+  rm_post: rmPost
 })
 ```
 

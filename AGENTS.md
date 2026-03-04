@@ -93,8 +93,8 @@ Run `bun fix` to auto-fix and verify all linters pass (zero errors, warnings all
 
 ### Philosophy
 
-Same UI, fewest DOM nodes.** Every element must *earn its place If you can delete it and
-nothing breaks (semantics, layout, behavior, required styling) → it shouldn’t exist.
+Same UI, fewest DOM nodes.\** Every element must *earn its place If you can delete it
+and nothing breaks (semantics, layout, behavior, required styling) → it shouldn’t exist.
 Wrappers require justification in code review.
 
 ### When a node is allowed ("real reasons")
@@ -102,25 +102,21 @@ Wrappers require justification in code review.
 A DOM node is allowed only if it provides at least 1 of:
 
 - Semantics / accessibility
-
   - Correct elements: `ul/li`, `button`, `label`, `form`, `fieldset/legend`, `nav`,
     `section`, etc.
   - Required relationships / focus behavior / ARIA patterns.
 
 - Layout constraint you cannot apply to an existing node
-
   - Needs its own containing block / positioning context / clipping / scroll container /
     stacking context.
   - Examples: `relative`, `overflow-*`, `sticky`, `isolation`, `z-*`, `transform`,
     `contain-*`, `min-w-0` (truncation), etc.
 
 - Behavior
-
   - Measurement refs, observers, portals target, event boundary, virtualization/scroll
     container.
 
 - Component API necessity
-
   - You truly can’t pass props/classes to the real root (and you considered `as` /
     `asChild` / prop forwarding).
 
@@ -160,9 +156,9 @@ JSX-only grouping
 - You want clarity and low coupling (child internals can change).
 
 ```tsx
-<div className='divide-y'>
+<div className="divide-y">
   {items.map(i => (
-    <Row key={i.id} item={i} className='px-3 py-2' />
+    <Row key={i.id} item={i} className="px-3 py-2" />
   ))}
 </div>
 ```
@@ -250,7 +246,11 @@ Wrapper only for JSX
 List semantics (wrapper is OK)
 
 ```tsx
-<ul className='space-y-2'>{items.map(i => <li key={i.id}>{i.name}</li>)}</ul>
+<ul className="space-y-2">
+  {items.map(i => (
+    <li key={i.id}>{i.name}</li>
+  ))}
+</ul>
 ```
 
 ### Review checklist (strict)
@@ -403,7 +403,7 @@ before any data access:
 import { connection } from 'next/server'
 
 const Page = async () => {
-  await connection()  // signals dynamic rendering
+  await connection() // signals dynamic rendering
   return <ClientComponent />
 }
 ```

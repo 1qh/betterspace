@@ -27,11 +27,12 @@ zodFromTable(columns, {
   exclude: ['published'],
 
   // Make these fields optional in the schema
-  optional: ['content'],
+  optional: ['content']
 })
 ```
 
 Auto-excluded fields (unless explicitly included):
+
 - `identity` columns (e.g., `userId`)
 - `timestamp` columns (e.g., `updatedAt`)
 - Auto-increment primary keys (e.g., `id`)
@@ -45,7 +46,7 @@ import { tables } from '@/generated/module_bindings'
 
 // For creating a post: exclude published (defaults to false)
 const createPostSchema = zodFromTable(tables.post.columns, {
-  exclude: ['published'],
+  exclude: ['published']
 })
 
 // For editing: all fields optional
@@ -156,11 +157,11 @@ const form = useForm({
       if (data?.code === 'CONFLICT') {
         form.setFieldMeta('title', meta => ({
           ...meta,
-          errors: ['A post with this title already exists'],
+          errors: ['A post with this title already exists']
         }))
       }
     }
-  },
+  }
 })
 ```
 
@@ -181,11 +182,11 @@ const S3_CONFIG = {
   secretAccessKey: process.env.S3_SECRET_ACCESS_KEY!,
   bucket: process.env.S3_BUCKET!,
   endpoint: process.env.S3_ENDPOINT ?? 'http://localhost:9000',
-  region: process.env.S3_REGION ?? 'us-east-1',
+  region: process.env.S3_REGION ?? 'us-east-1'
 }
 
 export const POST = async (req: Request) => {
-  const { filename, contentType, size } = await req.json() as {
+  const { filename, contentType, size } = (await req.json()) as {
     filename: string
     contentType: string
     size: number
@@ -196,14 +197,14 @@ export const POST = async (req: Request) => {
   const presigned = await createS3UploadPresignedUrl({
     ...S3_CONFIG,
     key,
-    contentType,
+    contentType
   })
 
   return NextResponse.json({
     uploadUrl: presigned.url,
     storageKey: key,
     headers: presigned.headers,
-    method: 'PUT',
+    method: 'PUT'
   })
 }
 ```
