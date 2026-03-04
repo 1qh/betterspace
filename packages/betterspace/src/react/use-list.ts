@@ -22,7 +22,7 @@ interface SortObject<T extends Rec> {
 interface UseListOptions<T extends Rec = Rec> {
   page?: number
   pageSize?: number
-  search?: { fields: (keyof T & string)[]; query: string }
+  search?: { debounceMs?: number; fields: (keyof T & string)[]; query: string }
   sort?: ListSort<T>
   where?: ListWhere<T>
 }
@@ -100,7 +100,21 @@ const DEFAULT_PAGE_SIZE = 50,
    */
   useList = <T extends Rec>(data: readonly T[], isReady: boolean, options?: UseListOptions<T>) => {
     const pageSize = options?.pageSize ?? DEFAULT_PAGE_SIZE,
-      [currentPage, setCurrentPage] = useState(options?.page ?? 1),
+      rawQuery = options?.search?.query ?? '',
+      debounceMs = options?.search?.debounceMs,
+      [debouncedQuery, setDebouncedQuery] = useState(rawQuery),
+      [currentPage, setCurrentPage] = useState(options?.page ?? 1)
+
+    useEffect(() => {
+      if (!debounceMs) {
+        setDebouncedQuery(rawQuery)
+        return
+      }
+      const id = setTimeout(() => setDebouncedQuery(rawQuery), debounceMs)
+      return () => clearTimeout(id)
+    }, [debounceMs, rawQuery])
+
+    const searchQuery = debounceMs ? debouncedQuery : rawQuery,
       filtered = useMemo(() => {
         if (!options?.where) return data
         const out: T[] = []
@@ -108,13 +122,12 @@ const DEFAULT_PAGE_SIZE = 50,
         return out
       }, [data, options?.where]),
       searched = useMemo(() => {
-        const q = options?.search?.query ?? '',
-          fields = options?.search?.fields ?? []
-        if (q === '' || fields.length === 0) return filtered
+        const fields = options?.search?.fields ?? []
+        if (searchQuery === '' || fields.length === 0) return filtered
         const out: T[] = []
-        for (const row of filtered) if (searchMatches(row, q, fields)) out.push(row)
+        for (const row of filtered) if (searchMatches(row, searchQuery, fields)) out.push(row)
         return out
-      }, [filtered, options?.search]),
+      }, [filtered, searchQuery, options?.search?.fields]),
       sorted = useMemo(() => sortData(searched, options?.sort), [searched, options?.sort]),
       totalCount = sorted.length,
       cappedPageSize = Math.max(1, pageSize),
@@ -144,7 +157,26 @@ const DEFAULT_PAGE_SIZE = 50,
       page: currentPage,
       totalCount
     }
-  }
+  },
+
+/** Computes an `own` boolean on each row using a predicate function.
+ * @param rows - Source rows
+ * @param isOwn - Predicate returning true for owned rows, or null/undefined to mark all false
+ * @returns Rows augmented with `own` field
+ * @example
+ * ```ts
+ * const blogs = useOwnRows(allBlogs, identity ? b => b.userId.isEqual(identity) : null)
+ * ```
+ */
+ useOwnRows = <T extends Rec>(
+  rows: readonly T[],
+  isOwn: ((row: T) => boolean) | null | undefined
+): (T & { own: boolean })[] =>
+  useMemo(() => {
+    const out: (T & { own: boolean })[] = []
+    for (const row of rows) out.push({ ...row, own: isOwn ? isOwn(row) : false })
+    return out
+  }, [rows, isOwn])
 
 export type { ListWhere, UseListOptions, WhereGroup }
-export { DEFAULT_PAGE_SIZE, useList }
+export { DEFAULT_PAGE_SIZE, useList, useOwnRows }
