@@ -5,10 +5,12 @@ import { array, boolean, date, number, object, optional, string, enum as zenum }
 import type { AccessEntry, FactoryCall } from '../check'
 import type { CheckResult } from '../doctor'
 import type { DevtoolsProps } from '../react/devtools-panel'
+import type { ConflictData } from '../react/form'
 import type { MutationType, PendingMutation } from '../react/optimistic-store'
 import type { PlaygroundProps } from '../react/schema-playground'
+import type { BulkResult } from '../react/use-bulk-mutate'
 import type { InfiniteListOptions } from '../react/use-infinite-list'
-import type { UseListOptions } from '../react/use-list'
+import type { ListWhere, UseListOptions, WhereGroup } from '../react/use-list'
 import type { MutateOptions } from '../react/use-mutate'
 import type { PresenceUser, UsePresenceOptions, UsePresenceResult } from '../react/use-presence'
 import type { UseSearchOptions, UseSearchResult } from '../react/use-search'
@@ -102,6 +104,7 @@ import { makeErrorHandler } from '../react/error-toast'
 import { buildMeta, getMeta } from '../react/form'
 import { createOptimisticStore, makeTempId } from '../react/optimistic-store'
 import { canEditResource } from '../react/org'
+import { collectSettled } from '../react/use-bulk-mutate'
 import { DEFAULT_PAGE_SIZE } from '../react/use-list'
 import { DEFAULT_DEBOUNCE_MS } from '../react/use-search'
 import { fetchWithRetry, withRetry } from '../retry'
@@ -2876,6 +2879,88 @@ describe('useList search option', () => {
       search: { fields: [], query: 'hello' }
     }
     expect(opts.search?.fields).toHaveLength(0)
+  })
+})
+
+describe('useList where typing', () => {
+  test('UseListOptions typed where accepts string field', () => {
+    const opts = {
+      where: { title: 'hello' }
+    } satisfies UseListOptions<{ published: boolean; title: string }>
+    expect(opts.where?.title).toBe('hello')
+  })
+
+  test('UseListOptions typed where accepts boolean field', () => {
+    const opts = {
+      where: { published: true }
+    } satisfies UseListOptions<{ published: boolean; title: string }>
+    expect(opts.where?.published).toBe(true)
+  })
+
+  test('UseListOptions typed where accepts own field', () => {
+    const opts = {
+      where: { own: true }
+    } satisfies UseListOptions<{ published: boolean; title: string }>
+    expect(opts.where?.own).toBe(true)
+  })
+
+  test('UseListOptions typed where accepts ComparisonOp values', () => {
+    const opts = {
+      where: { price: { $gt: 10 } }
+    } satisfies UseListOptions<{ price: number }>
+    expect((opts.where?.price as { $gt?: number })?.$gt).toBe(10)
+  })
+
+  test('UseListOptions typed where accepts or groups', () => {
+    const opts = {
+      where: { or: [{ title: 'a' }, { own: true }] }
+    } satisfies UseListOptions<{ title: string }>
+    expect(opts.where?.or).toHaveLength(2)
+  })
+
+  test('UseListOptions default generic keeps backwards-compatible where keys', () => {
+    const opts: UseListOptions = { where: { anything: 'goes', own: true } }
+    expect(opts.where?.own).toBe(true)
+  })
+
+  test('ListWhere and WhereGroup exports are importable and usable', () => {
+    const group: WhereGroup<{ title: string }> = { own: true, title: 'hello' },
+      where: ListWhere<{ title: string }> = { or: [{ title: 'a' }, { own: true }], title: 'hello' }
+    expect(group.title).toBe('hello')
+    expect(where.or).toHaveLength(2)
+  })
+})
+
+describe('collectSettled helper', () => {
+  test('collectSettled splits fulfilled values from errors', () => {
+    const settled: PromiseSettledResult<number>[] = [
+        { status: 'fulfilled', value: 1 },
+        { reason: new Error('boom'), status: 'rejected' },
+        { status: 'fulfilled', value: 2 }
+      ],
+      { errors, results } = collectSettled(settled),
+      bulk: BulkResult<number> = { errors, results, settled }
+    expect(results).toEqual([1, 2])
+    expect(errors).toHaveLength(1)
+    expect(bulk.settled).toHaveLength(3)
+  })
+})
+
+describe('ConflictData typing', () => {
+  test('ConflictData generic keeps current and incoming typed', () => {
+    const conflict = {
+      code: 'CONFLICT',
+      current: { title: 'current' },
+      incoming: { title: 'incoming' }
+    } satisfies ConflictData<{ title: string }>
+    expect(conflict.current.title).toBe('current')
+    expect(conflict.incoming.title).toBe('incoming')
+  })
+
+  test('ConflictData default generic uses unknown payloads', () => {
+    const conflict: ConflictData = { code: 'CONFLICT', current: { title: 'x' } },
+      { current } = conflict
+    expect(current).toBeDefined()
   })
 })
 

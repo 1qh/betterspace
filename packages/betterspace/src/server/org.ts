@@ -431,7 +431,113 @@ const makeOptionalFields = (fields: OrgFieldBuilders) => {
       }
 
     return mergeReducerExports(lifecycleReducers, memberReducers, inviteReducers, joinReducers)
-  }
+  },
+  asRec = (x: unknown) => x as Record<string, unknown>,
+  wrapByOrgIndex = <Row, OrgId>(
+    tbl: Iterable<Row> & { orgId: { filter: (orgId: OrgId) => Iterable<Row> } }
+  ): { [Symbol.iterator]: () => Iterator<Row>; filterByOrg: (orgId: OrgId) => Iterable<Row> } => ({
+    filterByOrg: (orgId: OrgId) => tbl.orgId.filter(orgId),
+    [Symbol.iterator]: () => tbl[Symbol.iterator]()
+  }),
+  /** @see {@link makeOrg} for the full org lifecycle API */
+  makeOrgTables = <
+    DB,
+    OrgId,
+    MemberId,
+    InviteId,
+    RequestId,
+    OrgRow extends OrgRowLike<OrgId> & { slug: string; userId: Identity },
+    MemberRow extends OrgMemberRowLike<MemberId, OrgId>,
+    InviteRow extends OrgInviteRowLike<InviteId, OrgId>,
+    JoinRequestRow extends OrgJoinRequestRowLike<RequestId, OrgId>
+  >(tables: {
+    org: (db: DB) => Iterable<OrgRow> & {
+      id: { delete: (id: OrgId) => boolean; find: (id: OrgId) => null | OrgRow; update: (row: OrgRow) => OrgRow }
+      insert: (row: OrgRow) => OrgRow
+      slug: Iterable<OrgRow>
+      userId: Iterable<OrgRow>
+    }
+    orgInvite: (db: DB) => OrgInviteTableLike<InviteRow> & {
+      id: { delete: (id: InviteId) => boolean; find: (id: InviteId) => InviteRow | null }
+      orgId: { filter: (orgId: OrgId) => Iterable<InviteRow> }
+      token: Iterable<InviteRow>
+    }
+    orgJoinRequest: (db: DB) => OrgJoinRequestTableLike<JoinRequestRow> & {
+      id: {
+        delete: (id: RequestId) => boolean
+        find: (id: RequestId) => JoinRequestRow | null
+        update: (row: JoinRequestRow) => JoinRequestRow
+      }
+      orgId: { filter: (orgId: OrgId) => Iterable<JoinRequestRow> }
+    }
+    orgMember: (db: DB) => OrgMemberTableLike<MemberRow> & {
+      id: {
+        delete: (id: MemberId) => boolean
+        find: (id: MemberId) => MemberRow | null
+        update: (row: MemberRow) => MemberRow
+      }
+      orgId: { filter: (orgId: OrgId) => Iterable<MemberRow> }
+      userId: Iterable<MemberRow>
+    }
+  }): Pick<
+    OrgConfig<DB, OrgId, MemberId, InviteId, RequestId, Identity, OrgRow, MemberRow, InviteRow, JoinRequestRow>,
+    | 'orgByUserIndex'
+    | 'orgInviteByOrgIndex'
+    | 'orgInviteByTokenIndex'
+    | 'orgInvitePk'
+    | 'orgInviteTable'
+    | 'orgJoinRequestByOrgIndex'
+    | 'orgJoinRequestByOrgStatusIndex'
+    | 'orgJoinRequestPk'
+    | 'orgJoinRequestTable'
+    | 'orgMemberByOrgIndex'
+    | 'orgMemberByUserIndex'
+    | 'orgMemberPk'
+    | 'orgMemberTable'
+    | 'orgPk'
+    | 'orgSlugIndex'
+    | 'orgTable'
+  > => ({
+    orgByUserIndex: tbl => asRec(tbl).userId as Iterable<OrgRow>,
+    orgInviteByOrgIndex: tbl =>
+      wrapByOrgIndex(
+        asRec(tbl) as unknown as Iterable<InviteRow> & { orgId: { filter: (orgId: OrgId) => Iterable<InviteRow> } }
+      ),
+    orgInviteByTokenIndex: tbl => asRec(tbl).token as Iterable<InviteRow>,
+    orgInvitePk: tbl => asRec(tbl).id as OrgInvitePkLike<InviteRow, InviteId>,
+    orgInviteTable: tables.orgInvite as (db: DB) => OrgInviteTableLike<InviteRow>,
+    orgJoinRequestByOrgIndex: tbl =>
+      wrapByOrgIndex(
+        asRec(tbl) as unknown as Iterable<JoinRequestRow> & {
+          orgId: { filter: (orgId: OrgId) => Iterable<JoinRequestRow> }
+        }
+      ),
+    orgJoinRequestByOrgStatusIndex: tbl => {
+      const table = asRec(tbl) as unknown as Iterable<JoinRequestRow> & {
+        orgId: { filter: (orgId: OrgId) => Iterable<JoinRequestRow> }
+      }
+      return {
+        filterByOrgStatus: (orgId: OrgId, status: 'approved' | 'pending' | 'rejected') => {
+          const out: JoinRequestRow[] = []
+          for (const row of table.orgId.filter(orgId)) if (row.status === status) out.push(row)
+          return out
+        },
+        [Symbol.iterator]: () => table[Symbol.iterator]()
+      }
+    },
+    orgJoinRequestPk: tbl => asRec(tbl).id as OrgJoinRequestPkLike<JoinRequestRow, RequestId>,
+    orgJoinRequestTable: tables.orgJoinRequest as (db: DB) => OrgJoinRequestTableLike<JoinRequestRow>,
+    orgMemberByOrgIndex: tbl =>
+      wrapByOrgIndex(
+        asRec(tbl) as unknown as Iterable<MemberRow> & { orgId: { filter: (orgId: OrgId) => Iterable<MemberRow> } }
+      ),
+    orgMemberByUserIndex: tbl => asRec(tbl).userId as Iterable<MemberRow>,
+    orgMemberPk: tbl => asRec(tbl).id as OrgMemberPkLike<MemberRow, MemberId>,
+    orgMemberTable: tables.orgMember as (db: DB) => OrgMemberTableLike<MemberRow>,
+    orgPk: tbl => asRec(tbl).id as OrgPkLike<OrgRow, OrgId>,
+    orgSlugIndex: tbl => asRec(tbl).slug as Iterable<OrgRow>,
+    orgTable: tables.org as (db: DB) => Iterable<OrgRow> & { insert: (row: OrgRow) => OrgRow }
+  })
 
 export type {
   CascadeTableConfig,
@@ -452,4 +558,4 @@ export type {
 export type { OrgInviteRowLike } from './org-invites'
 export type { OrgJoinRequestRowLike } from './org-join'
 export type { OrgMemberRowLike, OrgRowLike } from './org-members'
-export { makeOrg }
+export { makeOrg, makeOrgTables }

@@ -28,7 +28,7 @@ export {
   time
 } from './helpers'
 export { auditLog, composeMiddleware, inputSanitize, slowQueryWarn } from './middleware'
-export { makeOrg } from './org'
+export { makeOrg, makeOrgTables } from './org'
 export type { InviteDocLike, JoinRequestItem, OrgDocLike, OrgMemberItem, OrgUserLike } from './org'
 export { checkMembership, makeOrgCrud, orgCascade } from './org-crud'
 export { HEARTBEAT_INTERVAL_MS, makePresence, PRESENCE_TTL_MS, presenceTable } from './presence'

@@ -2,10 +2,12 @@
 
 import { useCallback, useEffect, useMemo, useState } from 'react'
 
+import type { ComparisonOp } from '../server/types'
+
 import { matchW } from '../server/helpers'
 
 type ListSort<T extends Rec> = SortMap<T> | SortObject<T>
-type ListWhere = WhereGroup & { or?: WhereGroup[] }
+type ListWhere<T extends Rec> = WhereGroup<T> & { or?: WhereGroup<T>[] }
 
 type Rec = Record<string, unknown>
 
@@ -22,10 +24,11 @@ interface UseListOptions<T extends Rec = Rec> {
   pageSize?: number
   search?: { fields: (keyof T & string)[]; query: string }
   sort?: ListSort<T>
-  where?: ListWhere
+  where?: ListWhere<T>
 }
 
-type WhereGroup = Rec & { own?: boolean }
+type WhereFieldValue<V> = ComparisonOp<V> | V
+type WhereGroup<T extends Rec> = { [K in keyof T & string]?: WhereFieldValue<T[K]> } & { own?: boolean }
 
 /** Default page size used by `useList`. */
 const DEFAULT_PAGE_SIZE = 50,
@@ -143,5 +146,5 @@ const DEFAULT_PAGE_SIZE = 50,
     }
   }
 
-export type { UseListOptions }
+export type { ListWhere, UseListOptions, WhereGroup }
 export { DEFAULT_PAGE_SIZE, useList }

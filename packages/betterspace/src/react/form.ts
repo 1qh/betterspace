@@ -99,15 +99,15 @@ type Api<T extends Record<string, unknown>> = ReactFormExtendedApi<
 >
 
 /** Conflict payload returned by optimistic concurrency checks. */
-interface ConflictData {
+interface ConflictData<T = unknown> {
   code: string
-  current?: unknown
-  incoming?: unknown
+  current?: T
+  incoming?: T
 }
 
 /** Return shape produced by Betterspace `useForm`. */
 interface FormReturn<T extends Record<string, unknown>, S extends ZodObject<ZodRawShape>> {
-  conflict: ConflictData | null
+  conflict: ConflictData<T> | null
   error: Error | null
   fieldErrors: Record<string, string>
   instance: Api<T>
@@ -122,14 +122,14 @@ interface FormReturn<T extends Record<string, unknown>, S extends ZodObject<ZodR
 }
 
 const submitError = (error: unknown): Error => new Error(getErrorMessage(error), { cause: error }),
-  handleConflict = (error: unknown): ConflictData | null => {
+  handleConflict = <T = unknown>(error: unknown): ConflictData<T> | null => {
     if (getErrorCode(error) !== 'CONFLICT') return null
     if (!isRecord(error)) return { code: 'CONFLICT' }
     const data = isRecord(error.data) ? error.data : undefined
     return {
       code: 'CONFLICT',
-      current: data?.current,
-      incoming: data?.incoming
+      current: data?.current as T | undefined,
+      incoming: data?.incoming as T | undefined
     }
   },
   /** Creates a typed form instance with schema validation and conflict handling.
@@ -151,7 +151,7 @@ const submitError = (error: unknown): Error => new Error(getErrorMessage(error),
     values
   }: {
     autoSave?: { debounceMs: number; enabled: boolean }
-    onConflict?: (data: ConflictData) => void
+    onConflict?: (data: ConflictData<output<S>>) => void
     onError?: ((e: unknown) => void) | false
     onSubmit: (d: output<S>, force?: boolean) => output<S> | Promise<output<S> | undefined> | undefined
     onSuccess?: () => void
@@ -160,7 +160,7 @@ const submitError = (error: unknown): Error => new Error(getErrorMessage(error),
     values?: Widen<output<S>>
   }) => {
     const resolved = values ?? dv(schema),
-      [conflict, setConflict] = useState<ConflictData | null>(null),
+      [conflict, setConflict] = useState<ConflictData<output<S>> | null>(null),
       [er, setEr] = useState<Error | null>(null),
       [fieldErrors, setFieldErrors] = useState<Record<string, string>>({}),
       [forceSubmit, setForceSubmit] = useState(false),
@@ -189,7 +189,7 @@ const submitError = (error: unknown): Error => new Error(getErrorMessage(error),
             setLastSaved(Date.now())
             onSuccess?.()
           } catch (error) {
-            const conflictData = handleConflict(error)
+            const conflictData = handleConflict<output<S>>(error)
             if (conflictData) {
               setConflict(conflictData)
               onConflict?.(conflictData)
@@ -270,7 +270,7 @@ const submitError = (error: unknown): Error => new Error(getErrorMessage(error),
   }: {
     autoSave?: { debounceMs: number; enabled: boolean }
     mutate: (args: Record<string, unknown>) => Promise<void>
-    onConflict?: (data: ConflictData) => void
+    onConflict?: (data: ConflictData<output<S>>) => void
     onError?: ((e: unknown) => void) | false
     onSuccess?: () => void
     resetOnSuccess?: boolean

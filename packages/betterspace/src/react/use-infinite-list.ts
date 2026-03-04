@@ -2,17 +2,19 @@
 
 import { useCallback, useMemo, useState } from 'react'
 
+import type { ComparisonOp } from '../server/types'
+
 import { matchW } from '../server/helpers'
 
 /** Client-side infinite-list options for filtering and sorting. */
-interface InfiniteListOptions {
+interface InfiniteListOptions<T extends Rec = Rec> {
   batchSize?: number
-  sort?: ListSort<Rec>
-  where?: ListWhere
+  sort?: ListSort<T>
+  where?: ListWhere<T>
 }
 type ListSort<T extends Rec> = SortMap<T> | SortObject<T>
 
-type ListWhere = WhereGroup & { or?: WhereGroup[] }
+type ListWhere<T extends Rec> = WhereGroup<T> & { or?: WhereGroup<T>[] }
 
 type Rec = Record<string, unknown>
 type SortDirection = 'asc' | 'desc'
@@ -22,7 +24,8 @@ interface SortObject<T extends Rec> {
   field: keyof T & string
 }
 
-type WhereGroup = Rec & { own?: boolean }
+type WhereFieldValue<V> = ComparisonOp<V> | V
+type WhereGroup<T extends Rec> = { [K in keyof T & string]?: WhereFieldValue<T[K]> } & { own?: boolean }
 
 /** Default batch size used by `useInfiniteList`. */
 const DEFAULT_BATCH_SIZE = 50,
@@ -78,7 +81,7 @@ const DEFAULT_BATCH_SIZE = 50,
    * const list = useInfiniteList(rows, ready, { batchSize: 25 })
    * ```
    */
-  useInfiniteList = <T extends Rec>(data: T[], isReady: boolean, options?: InfiniteListOptions) => {
+  useInfiniteList = <T extends Rec>(data: T[], isReady: boolean, options?: InfiniteListOptions<T>) => {
     const batchSize = Math.max(1, options?.batchSize ?? DEFAULT_BATCH_SIZE),
       [visibleCount, setVisibleCount] = useState(batchSize),
       filtered = useMemo(() => {
@@ -103,5 +106,5 @@ const DEFAULT_BATCH_SIZE = 50,
     }
   }
 
-export type { InfiniteListOptions }
+export type { InfiniteListOptions, ListWhere as InfiniteListWhere }
 export { DEFAULT_BATCH_SIZE, useInfiniteList }

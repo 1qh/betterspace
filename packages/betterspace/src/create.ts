@@ -2,6 +2,7 @@
 /* eslint-disable no-console */
 /** biome-ignore-all lint/style/noProcessEnv: cli */
 
+import { execSync } from 'node:child_process'
 import { existsSync, mkdirSync, writeFileSync } from 'node:fs'
 import { join } from 'node:path'
 
@@ -134,6 +135,45 @@ export default BlogPage
   ENV_LOCAL = `SPACETIME_SERVER_URL=http://localhost:3000
 NEXT_PUBLIC_SPACETIME_SERVER_URL=http://localhost:3000
 `,
+  TSCONFIG = JSON.stringify(
+    {
+      compilerOptions: {
+        allowJs: true,
+        esModuleInterop: true,
+        incremental: true,
+        isolatedModules: true,
+        jsx: 'preserve',
+        lib: ['dom', 'dom.iterable', 'esnext'],
+        module: 'esnext',
+        moduleResolution: 'bundler',
+        noEmit: true,
+        resolveJsonModule: true,
+        skipLibCheck: true,
+        strict: true,
+        target: 'es2017'
+      },
+      exclude: ['node_modules'],
+      include: ['**/*.ts', '**/*.tsx']
+    },
+    null,
+    2
+  ),
+  DEP_LIST = ['betterspace', 'spacetimedb', 'zod'],
+  installDeps = (cwd: string) => {
+    const missing: string[] = []
+    for (const dep of DEP_LIST) if (!existsSync(join(cwd, 'node_modules', dep))) missing.push(dep)
+    if (missing.length === 0) {
+      console.log(`  ${dim('deps already installed')}`)
+      return
+    }
+    console.log(`  installing ${missing.join(', ')}...`)
+    try {
+      execSync(`bun add ${missing.join(' ')}`, { cwd, stdio: 'pipe' })
+      console.log(`  ${green('✓')} installed ${missing.length} package${missing.length > 1 ? 's' : ''}`)
+    } catch {
+      console.log(`  ${yellow('⚠')} install failed — run ${dim(`bun add ${missing.join(' ')}`)} manually`)
+    }
+  },
   BACKEND_FILES: [string, string][] = [
     ['tables.ts', TABLES_TS],
     ['schema.ts', SCHEMA_TS],
@@ -201,8 +241,24 @@ NEXT_PUBLIC_SPACETIME_SERVER_URL=http://localhost:3000
     if (created > 0) console.log(`${green('✓')} Created ${created} file${created > 1 ? 's' : ''}.`)
     if (skipped > 0) console.log(`${yellow('⚠')} Skipped ${skipped} existing file${skipped > 1 ? 's' : ''}.`)
     console.log(`\n${bold('Next steps:')}`)
-    console.log(`  ${dim('$')} bun add betterspace spacetimedb zod`)
     console.log(`  ${dim('$')} spacetime publish && spacetime generate && bun dev\n`)
+  },
+  writeConfigFile = (path: string, name: string, content: string) => {
+    if (existsSync(path)) console.log(`  ${yellow('skip')} ${name} ${dim('(exists)')}`)
+    else {
+      writeFileSync(path, content)
+      console.log(`  ${green('✓')} ${name}`)
+    }
+  },
+  scaffold = (cwd: string, moduleDir: string, appDir: string) => {
+    const b = writeFilesToDir(join(cwd, moduleDir), moduleDir, BACKEND_FILES),
+      f = writeFilesToDir(join(cwd, appDir), appDir, FRONTEND_FILES)
+    writeConfigFile(join(cwd, '.env.local'), '.env.local', ENV_LOCAL)
+    writeConfigFile(join(cwd, 'tsconfig.json'), 'tsconfig.json', TSCONFIG)
+    if (existsSync(join(cwd, 'package.json'))) installDeps(cwd)
+    else
+      console.log(`  ${yellow('⚠')} no package.json — run ${dim('bun init && bun add betterspace spacetimedb zod')} first`)
+    return { created: b.created + f.created, skipped: b.skipped + f.skipped }
   },
   init = (args: string[] = []) => {
     const { appDir, help, moduleDir } = parseFlags(args)
@@ -211,15 +267,8 @@ NEXT_PUBLIC_SPACETIME_SERVER_URL=http://localhost:3000
       return
     }
     console.log(`\n${bold('Scaffolding betterspace project...')}\n`)
-    const b = writeFilesToDir(join(process.cwd(), moduleDir), moduleDir, BACKEND_FILES),
-      f = writeFilesToDir(join(process.cwd(), appDir), appDir, FRONTEND_FILES),
-      envPath = join(process.cwd(), '.env.local')
-    if (existsSync(envPath)) console.log(`  ${yellow('skip')} .env.local ${dim('(exists)')}`)
-    else {
-      writeFileSync(envPath, ENV_LOCAL)
-      console.log(`  ${green('✓')} .env.local`)
-    }
-    printSummary(b.created + f.created, b.skipped + f.skipped)
+    const { created, skipped } = scaffold(process.cwd(), moduleDir, appDir)
+    printSummary(created, skipped)
   }
 
 if (process.argv[1]?.endsWith('create.ts') || process.argv[1]?.endsWith('create-betterspace-app'))

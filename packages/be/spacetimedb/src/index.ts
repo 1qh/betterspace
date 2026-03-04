@@ -1,4 +1,4 @@
-import { makeOrg, setupCrud } from 'betterspace/server'
+import { makeOrg, makeOrgTables, setupCrud } from 'betterspace/server'
 import { schema, t, table } from 'spacetimedb/server'
 
 const messagePart = t.object('MessagePart', {
@@ -321,38 +321,12 @@ const messagePart = t.object('MessagePart', {
       name: t.string(),
       slug: t.string()
     },
-    orgByUserIndex: tbl => tbl.userId,
-    orgInviteByOrgIndex: tbl => ({
-      filterByOrg: orgId => tbl.orgId.filter(orgId),
-      [Symbol.iterator]: () => tbl[Symbol.iterator]()
-    }),
-    orgInviteByTokenIndex: tbl => tbl.token,
-    orgInvitePk: tbl => tbl.id,
-    orgInviteTable: db => db.orgInvite,
-    orgJoinRequestByOrgIndex: tbl => ({
-      filterByOrg: orgId => tbl.orgId.filter(orgId),
-      [Symbol.iterator]: () => tbl[Symbol.iterator]()
-    }),
-    orgJoinRequestByOrgStatusIndex: tbl => ({
-      filterByOrgStatus: (orgId, status) => {
-        const out: unknown[] = []
-        for (const row of tbl.orgId.filter(orgId)) if (row.status === status) out.push(row)
-        return out
-      },
-      [Symbol.iterator]: () => tbl[Symbol.iterator]()
-    }),
-    orgJoinRequestPk: tbl => tbl.id,
-    orgJoinRequestTable: db => db.orgJoinRequest,
-    orgMemberByOrgIndex: tbl => ({
-      filterByOrg: orgId => tbl.orgId.filter(orgId),
-      [Symbol.iterator]: () => tbl[Symbol.iterator]()
-    }),
-    orgMemberByUserIndex: tbl => tbl.userId,
-    orgMemberPk: tbl => tbl.id,
-    orgMemberTable: db => db.orgMember,
-    orgPk: tbl => tbl.id,
-    orgSlugIndex: tbl => tbl.slug,
-    orgTable: db => db.org
+    ...makeOrgTables({
+      org: db => db.org,
+      orgInvite: db => db.orgInvite,
+      orgJoinRequest: db => db.orgJoinRequest,
+      orgMember: db => db.orgMember
+    })
   }),
   projectCrud = orgCrud('project', {
     description: t.string().optional(),

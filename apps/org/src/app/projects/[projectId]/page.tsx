@@ -18,6 +18,7 @@ import { Input } from '@a/ui/input'
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@a/ui/select'
 import { Skeleton } from '@a/ui/skeleton'
 import { EditorsSection } from 'betterspace/components'
+import { useBulkMutate } from 'betterspace/react'
 import { enumToOptions } from 'betterspace/zod'
 import { Check, Pencil, Plus, Trash, X } from 'lucide-react'
 import Link from 'next/link'
@@ -158,7 +159,21 @@ const TaskRow = ({ canAssign, canEdit, members, onAssign, onDelete, onToggle, on
       removeTask = useReducer(reducers.rmTask),
       [title, setTitle] = useState(''),
       [priority, setPriority] = useState<Priority>('medium'),
-      [selected, setSelected] = useState<Set<number>>(new Set())
+      [selected, setSelected] = useState<Set<number>>(new Set()),
+      bulkDelete = useBulkMutate(removeTask, {
+        onError: fail,
+        onSuccess: count => {
+          toast.success(`${count} task(s) deleted`)
+          setSelected(new Set())
+        }
+      }),
+      bulkUpdate = useBulkMutate(updateTask, {
+        onError: fail,
+        onSuccess: count => {
+          toast.success(`${count} task(s) updated`)
+          setSelected(new Set())
+        }
+      })
 
     for (const p of allProfiles) profileByUserId.set(p.userId.toHexString(), p)
 
@@ -229,47 +244,27 @@ const TaskRow = ({ canAssign, canEdit, members, onAssign, onDelete, onToggle, on
       },
       handleBulkDelete = () => {
         if (selected.size === 0) return
-        const run = async () => {
-          const jobs: Promise<void>[] = []
-          for (const id of selected) jobs.push(removeTask({ id }))
-          await Promise.all(jobs)
-        }
-        run()
-          .then(() => {
-            toast.success(`${selected.size} task(s) deleted`)
-            setSelected(new Set())
-            return null
-          })
-          .catch(fail)
+        const items: { id: number }[] = []
+        for (const id of selected) items.push({ id })
+        bulkDelete.run(items)
       },
       handleBulkComplete = (completed: boolean) => {
         if (selected.size === 0) return
-        const run = async () => {
-          const jobs: Promise<void>[] = []
-          for (const id of selected) {
-            const current = tasks.find(t => t.id === id)
-            if (current)
-              jobs.push(
-                updateTask({
-                  assigneeId: current.assigneeId,
-                  completed,
-                  expectedUpdatedAt: current.updatedAt,
-                  id,
-                  priority: current.priority,
-                  projectId: current.projectId,
-                  title: current.title
-                })
-              )
-          }
-          await Promise.all(jobs)
+        const items: Parameters<typeof updateTask>[0][] = []
+        for (const id of selected) {
+          const current = tasks.find(t => t.id === id)
+          if (current)
+            items.push({
+              assigneeId: current.assigneeId,
+              completed,
+              expectedUpdatedAt: current.updatedAt,
+              id,
+              priority: current.priority,
+              projectId: current.projectId,
+              title: current.title
+            })
         }
-        run()
-          .then(() => {
-            toast.success(`${selected.size} task(s) updated`)
-            setSelected(new Set())
-            return null
-          })
-          .catch(fail)
+        bulkUpdate.run(items)
       }
 
     return (
