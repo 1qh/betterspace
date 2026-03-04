@@ -6,11 +6,10 @@ import { Conversation, ConversationContent, ConversationEmptyState } from '@a/ui
 import { PromptInput, PromptInputFooter, PromptInputSubmit, PromptInputTextarea } from '@a/ui/ai-elements/prompt-input'
 import { Label } from '@a/ui/label'
 import { Switch } from '@a/ui/switch'
-import { toastFieldError, useMutation } from 'betterspace/react'
+import { useMutation } from 'betterspace/react'
 import { SparklesIcon } from 'lucide-react'
 import { useRouter } from 'next/navigation'
 import { useEffect, useRef, useState, useTransition } from 'react'
-import { toast } from 'sonner'
 import { useReducer, useSpacetimeDB, useTable } from 'spacetimedb/react'
 
 const Page = () => {
@@ -18,18 +17,10 @@ const Page = () => {
     pendingTitle = useRef<null | string>(null),
     createChat = useMutation(useReducer, reducers.createChat, {
       getName: () => 'chat.create',
-      onSettled: (_args, error) => {
-        if (
-          error &&
-          !toastFieldError(error, message => {
-            toast.error(message)
-          })
-        )
-          toast.error('Unable to create chat')
-      },
       onSuccess: () => {
         pendingTitle.current = null
-      }
+      },
+      toast: { error: 'Unable to create chat' }
     }),
     { identity } = useSpacetimeDB(),
     [allChats] = useTable(tables.chat),

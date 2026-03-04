@@ -13,7 +13,6 @@ import { clearActiveOrgCookie } from 'betterspace/next'
 import { useMutation } from 'betterspace/react'
 import { useRouter } from 'next/navigation'
 import { useState } from 'react'
-import { toast } from 'sonner'
 import { useReducer, useTable } from 'spacetimedb/react'
 
 import { useOrg } from '~/hook/use-org'
@@ -25,30 +24,15 @@ const OrgSettingsPage = () => {
     { canDeleteOrg, isAdmin, isOwner, org } = useOrg(),
     removeOrg = useMutation(useReducer, reducers.orgRemove, {
       getName: () => `org.remove:${org._id}`,
-      onSettled: (_args, error) => {
-        if (error) toast.error('Failed to delete organization')
-      },
-      onSuccess: () => {
-        toast.success('Organization deleted')
-      }
+      toast: { error: 'Failed to delete organization', success: 'Organization deleted' }
     }),
     leaveOrg = useMutation(useReducer, reducers.orgLeave, {
       getName: () => `org.leave:${org._id}`,
-      onSettled: (_args, error) => {
-        if (error) toast.error('Failed to leave organization')
-      },
-      onSuccess: () => {
-        toast.success('You have left the organization')
-      }
+      toast: { error: 'Failed to leave organization', success: 'You have left the organization' }
     }),
     transferOwnership = useMutation(useReducer, reducers.orgTransferOwnership, {
       getName: () => `org.transferOwnership:${org._id}`,
-      onSettled: (_args, error) => {
-        if (error) toast.error('Failed to transfer ownership')
-      },
-      onSuccess: () => {
-        toast.success('Ownership transferred')
-      }
+      toast: { error: 'Failed to transfer ownership', success: 'Ownership transferred' }
     }),
     [allMembers] = useTable(tables.orgMember),
     members = allMembers.filter((m: OrgMember) => m.orgId === Number(org._id)),

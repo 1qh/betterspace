@@ -37,13 +37,7 @@ const isPlaywrightTest = process.env.NEXT_PUBLIC_PLAYWRIGHT === '1',
   Delete = ({ id, onOptimisticRemove }: { id: number; onOptimisticRemove?: () => void }) => {
     const rmBlog = useMutation(useReducer, reducers.rmBlog, {
         getName: () => 'blog.rm',
-        onSettled: (args, error) => {
-          if (!error) return
-          toast.error(`Delete failed for #${args.id}`)
-        },
-        onSuccess: () => {
-          toast.success('Deleted')
-        }
+        toast: { error: 'Delete failed', success: 'Deleted' }
       }),
       { execute, isPending } = useOptimisticMutation({
         mutate: rmBlog,
@@ -91,13 +85,7 @@ const isPlaywrightTest = process.env.NEXT_PUBLIC_PLAYWRIGHT === '1',
     const [open, setOpen] = useState(false),
       create = useMutation(useReducer, reducers.createBlog, {
         getName: () => 'blog.create',
-        onSettled: (_args, error) => {
-          if (!error) return
-          toast.error('Create failed')
-        },
-        onSuccess: () => {
-          toast.success('Created')
-        }
+        toast: { error: 'Create failed', success: 'Created' }
       }),
       form = useForm({
         onSubmit: async d => {

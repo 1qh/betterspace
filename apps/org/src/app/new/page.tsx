@@ -5,10 +5,9 @@ import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@a/ui
 import { FieldGroup } from '@a/ui/field'
 import slugify from '@sindresorhus/slugify'
 import { Form, useForm } from 'betterspace/components'
-import { toastFieldError, useMutation } from 'betterspace/react'
+import { useMutation } from 'betterspace/react'
 import { useRouter } from 'next/navigation'
 import { useEffect, useRef } from 'react'
-import { toast } from 'sonner'
 import { useReducer } from 'spacetimedb/react'
 
 import { orgTeam } from '~/schema'
@@ -17,15 +16,7 @@ const NewOrgPage = () => {
   const router = useRouter(),
     create = useMutation(useReducer, reducers.orgCreate, {
       getName: () => 'org.create',
-      onSettled: (_args, error) => {
-        if (error)
-          toastFieldError(error, message => {
-            toast.error(message)
-          })
-      },
-      onSuccess: () => {
-        toast.success('Organization created')
-      }
+      toast: { error: 'Failed to create organization', success: 'Organization created' }
     }),
     form = useForm({
       onSubmit: async d => {

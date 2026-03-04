@@ -10,11 +10,10 @@ import { Card, CardContent, CardHeader, CardTitle } from '@a/ui/card'
 import { FieldGroup } from '@a/ui/field'
 import { Skeleton } from '@a/ui/skeleton'
 import { AutoSaveIndicator, Form, PermissionGuard, useForm } from 'betterspace/components'
-import { toastFieldError, useMutation } from 'betterspace/react'
+import { useMutation } from 'betterspace/react'
 import { pickValues } from 'betterspace/zod'
 import { useRouter } from 'next/navigation'
 import { use } from 'react'
-import { toast } from 'sonner'
 import { useReducer, useSpacetimeDB, useTable } from 'spacetimedb/react'
 
 import { useOrg } from '~/hook/use-org'
@@ -27,24 +26,11 @@ const EditWikiForm = ({ wikiId }: { wikiId: number }) => {
       wiki = wikis.find((w: Wiki) => w.id === wikiId && w.orgId === Number(org._id)),
       remove = useMutation(useReducer, reducers.rmWiki, {
         getName: () => `wiki.rm:${wikiId}`,
-        onSettled: (_args, error) => {
-          if (error) toast.error('Failed to delete wiki page')
-        },
-        onSuccess: () => {
-          toast.success('Wiki page deleted')
-        }
+        toast: { error: 'Failed to delete wiki page', success: 'Wiki page deleted' }
       }),
       update = useMutation(useReducer, reducers.updateWiki, {
         getName: () => `wiki.update:${wikiId}`,
-        onSettled: (_args, error) => {
-          if (error)
-            toastFieldError(error, message => {
-              toast.error(message)
-            })
-        },
-        onSuccess: () => {
-          toast.success('Wiki page saved')
-        }
+        toast: { error: 'Failed to save wiki page', success: 'Wiki page saved' }
       }),
       form = useForm({
         onSubmit: async d => {

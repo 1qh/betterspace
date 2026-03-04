@@ -6,10 +6,9 @@ import { reducers } from '@a/be/spacetimedb'
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@a/ui/card'
 import { FieldGroup } from '@a/ui/field'
 import { Form, useForm } from 'betterspace/components'
-import { setActiveOrgCookieClient, toastFieldError, useMutation } from 'betterspace/react'
+import { setActiveOrgCookieClient, useMutation } from 'betterspace/react'
 import { pickValues } from 'betterspace/zod'
 import { useRouter } from 'next/navigation'
-import { toast } from 'sonner'
 import { useReducer } from 'spacetimedb/react'
 
 import { orgTeamUpdate } from '~/schema'
@@ -22,15 +21,7 @@ const OrgSettingsForm = ({ org: o }: OrgSettingsFormProps) => {
   const router = useRouter(),
     update = useMutation(useReducer, reducers.orgUpdate, {
       getName: () => `org.update:${o._id}`,
-      onSettled: (_args, error) => {
-        if (error)
-          toastFieldError(error, message => {
-            toast.error(message)
-          })
-      },
-      onSuccess: () => {
-        toast.success('Settings updated')
-      }
+      toast: { error: 'Failed to update settings', success: 'Settings updated' }
     }),
     form = useForm({
       onSubmit: async d => {

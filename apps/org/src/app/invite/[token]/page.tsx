@@ -9,7 +9,6 @@ import { useMutation } from 'betterspace/react'
 import { CheckCircle, XCircle } from 'lucide-react'
 import { useRouter } from 'next/navigation'
 import { use, useState } from 'react'
-import { toast } from 'sonner'
 import { useReducer } from 'spacetimedb/react'
 
 const AcceptInvitePage = ({ params }: { params: Promise<{ token: string }> }) => {
@@ -25,8 +24,8 @@ const AcceptInvitePage = ({ params }: { params: Promise<{ token: string }> }) =>
       },
       onSuccess: () => {
         setAccepted(true)
-        toast.success('Welcome to the organization!')
-      }
+      },
+      toast: { success: 'Welcome to the organization!' }
     }),
     handleAccept = () => {
       acceptInvite({ token })

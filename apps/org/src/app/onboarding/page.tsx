@@ -4,7 +4,7 @@ import { reducers, tables } from '@a/be/spacetimedb'
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@a/ui/card'
 import { FieldGroup } from '@a/ui/field'
 import { defineSteps } from 'betterspace/components'
-import { toastFieldError, useMutation } from 'betterspace/react'
+import { useMutation } from 'betterspace/react'
 import { toast } from 'sonner'
 import { useReducer, useSpacetimeDB, useTable } from 'spacetimedb/react'
 
@@ -38,27 +38,11 @@ const { StepForm, useStepper } = defineSteps(
       },
       upsert = useMutation(useReducer, reducers.upsertOrgProfile, {
         getName: () => 'orgProfile.upsert',
-        onSettled: (_args, error) => {
-          if (error)
-            toastFieldError(error, message => {
-              toast.error(message)
-            })
-        },
-        onSuccess: () => {
-          toast.success('Profile saved')
-        }
+        toast: { error: 'Failed to save profile', success: 'Profile saved' }
       }),
       create = useMutation(useReducer, reducers.orgCreate, {
         getName: () => 'org.create.onboarding',
-        onSettled: (_args, error) => {
-          if (error)
-            toastFieldError(error, message => {
-              toast.error(message)
-            })
-        },
-        onSuccess: () => {
-          toast.success('Organization ready')
-        }
+        toast: { error: 'Failed to create organization', success: 'Organization ready' }
       }),
       stepper = useStepper({
         onSubmit: async d => {

@@ -6444,7 +6444,7 @@ describe('typed error handling (R10.5)', () => {
       expect(result.ok).toBe(false)
       const { error } = result as MutationFail
       expect(error.code).toBe('NOT_FOUND')
-      expect(error.message).toBe('Not found')
+      expect(error.message).toBe(ERROR_MESSAGES.NOT_FOUND)
     })
 
     test('creates failure result with code and custom message', () => {
@@ -6486,7 +6486,7 @@ describe('typed error handling (R10.5)', () => {
     test('default message comes from ERROR_MESSAGES', () => {
       const result = fail('RATE_LIMITED')
       expect(result.ok).toBe(false)
-      expect((result as MutationFail).error.message).toBe('Too many requests')
+      expect((result as MutationFail).error.message).toBe(ERROR_MESSAGES.RATE_LIMITED)
     })
 
     test('every ErrorCode produces a valid fail result', () => {
@@ -6937,7 +6937,7 @@ describe('rich error metadata (R11.2)', () => {
     test('detail without table or retryAfter returns base message', () => {
       const e = makeSenderError({ code: 'NOT_FOUND' }),
         detail = getErrorDetail(e)
-      expect(detail).toBe('Not found')
+      expect(detail).toBe(ERROR_MESSAGES.NOT_FOUND)
     })
   })
 

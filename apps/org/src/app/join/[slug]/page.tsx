@@ -6,10 +6,9 @@ import { Button } from '@a/ui/button'
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@a/ui/card'
 import { Skeleton } from '@a/ui/skeleton'
 import { Form, OrgAvatar, useForm } from 'betterspace/components'
-import { setActiveOrgCookieClient, toastFieldError, useMutation } from 'betterspace/react'
+import { setActiveOrgCookieClient, useMutation } from 'betterspace/react'
 import { useRouter } from 'next/navigation'
 import { use } from 'react'
-import { toast } from 'sonner'
 import { useReducer, useSpacetimeDB, useTable } from 'spacetimedb/react'
 
 import { joinRequest } from '~/schema'
@@ -32,24 +31,11 @@ const JoinPage = ({ params }: { params: Promise<{ slug: string }> }) => {
       identity && org ? members.find(m => m.orgId === org.id && m.userId.toHexString() === identity.toHexString()) : null,
     cancelRequest = useMutation(useReducer, reducers.orgCancelJoin, {
       getName: () => 'org.cancelJoin',
-      onSettled: (_args, error) => {
-        if (error) toast.error('Failed to cancel request')
-      },
-      onSuccess: () => {
-        toast.success('Request cancelled')
-      }
+      toast: { error: 'Failed to cancel request', success: 'Request cancelled' }
     }),
     requestJoin = useMutation(useReducer, reducers.orgRequestJoin, {
       getName: () => 'org.requestJoin',
-      onSettled: (_args, error) => {
-        if (error)
-          toastFieldError(error, message => {
-            toast.error(message)
-          })
-      },
-      onSuccess: () => {
-        toast.success('Join request sent')
-      }
+      toast: { error: 'Join request failed', success: 'Join request sent' }
     }),
     form = useForm({
       onSubmit: async d => {

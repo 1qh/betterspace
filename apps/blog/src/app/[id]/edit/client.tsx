@@ -28,12 +28,9 @@ const Publish = ({
   }: Omit<ComponentProps<'div'>, 'id'> & { id: number; published: boolean }) => {
     const update = useMutation(useReducer, reducers.updateBlog, {
         getName: () => 'blog.update.publish',
-        onSettled: (_args, error) => {
-          if (!error) return
-          toast.error('Failed to update publish status')
-        },
-        onSuccess: (_result, args) => {
-          toast.success(args.published ? 'Published' : 'Unpublished')
+        toast: {
+          error: 'Failed to update publish status',
+          success: (_result, args) => (args.published ? 'Published' : 'Unpublished')
         }
       }),
       [pending, go] = useTransition()
@@ -68,13 +65,7 @@ const Publish = ({
   Edit = ({ blog }: { blog: Blog }) => {
     const update = useMutation(useReducer, reducers.updateBlog, {
         getName: () => 'blog.update.edit',
-        onSettled: (_args, error) => {
-          if (!error) return
-          toast.error('Autosave failed')
-        },
-        onSuccess: () => {
-          toast.success('Saved')
-        }
+        toast: { error: 'Autosave failed', success: 'Saved' }
       }),
       form = useForm({
         autoSave: { debounceMs: 2000, enabled: true },
@@ -158,13 +149,7 @@ const Publish = ({
   Setting = ({ blog }: { blog: Blog }) => {
     const update = useMutation(useReducer, reducers.updateBlog, {
         getName: () => 'blog.update.settings',
-        onSettled: (_args, error) => {
-          if (!error) return
-          toast.error('Failed to save settings')
-        },
-        onSuccess: () => {
-          toast.success('Saved')
-        }
+        toast: { error: 'Failed to save settings', success: 'Saved' }
       }),
       form = useForm({
         onSubmit: async d => {

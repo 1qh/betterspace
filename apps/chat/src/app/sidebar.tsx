@@ -7,7 +7,6 @@ import { toIdentityKey } from '@a/fe/utils'
 import { Spinner } from '@a/ui/spinner'
 import { useMutation } from 'betterspace/react'
 import { Check } from 'lucide-react'
-import { toast } from 'sonner'
 import { useReducer, useSpacetimeDB, useTable } from 'spacetimedb/react'
 
 import ChatSidebar from './chat-sidebar'
@@ -17,12 +16,7 @@ const Sb = () => {
     [allChats, isReady] = useTable(tables.chat),
     deleteChat = useMutation(useReducer, reducers.rmChat, {
       getName: args => `chat.rm:${args.id}`,
-      onSettled: (_args, error) => {
-        if (error) toast.error('Failed to delete conversation')
-      },
-      onSuccess: () => {
-        toast.success('Conversation deleted')
-      }
+      toast: { error: 'Failed to delete conversation', success: 'Conversation deleted' }
     }),
     identityKey = toIdentityKey(identity),
     chats: Chat[] = allChats

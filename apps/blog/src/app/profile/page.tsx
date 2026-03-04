@@ -19,13 +19,7 @@ const Page = () => {
     profile = profiles.find(p => identity && p.userId.isEqual(identity)) ?? null,
     upsert = useMutation(useReducer, reducers.upsertBlogProfile, {
       getName: () => 'blogProfile.upsert',
-      onSettled: (_args, error) => {
-        if (!error) return
-        toast.error('Profile save failed')
-      },
-      onSuccess: () => {
-        toast.success('Profile saved')
-      }
+      toast: { error: 'Profile save failed', success: 'Profile saved' }
     }),
     shouldShowContent = isReady || isPlaywright,
     form = useForm({

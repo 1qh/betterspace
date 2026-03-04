@@ -8,11 +8,10 @@ import { reducers } from '@a/be/spacetimedb'
 import { Badge } from '@a/ui/badge'
 import { Input } from '@a/ui/input'
 import { Skeleton } from '@a/ui/skeleton'
-import { toastFieldError, useMutation } from 'betterspace/react'
+import { useMutation } from 'betterspace/react'
 import { ArrowLeft } from 'lucide-react'
 import Link from 'next/link'
 import { useState, useTransition } from 'react'
-import { toast } from 'sonner'
 import { useReducer } from 'spacetimedb/react'
 
 const TMDB_IMG = 'https://image.tmdb.org/t/p/w300',
@@ -165,15 +164,7 @@ const fetchMovie = async (id: number): Promise<MovieDetailData> => {
   Page = () => {
     const createMovie = useMutation(useReducer, reducers.createMovie, {
         getName: args => `movie.create:${args.tmdbId}`,
-        onSettled: (_args, error) => {
-          if (error)
-            toastFieldError(error, message => {
-              toast.error(message)
-            })
-        },
-        onSuccess: () => {
-          toast.success('Movie cached')
-        }
+        toast: { error: 'Failed to cache movie', success: 'Movie cached' }
       }),
       [id, setId] = useState(''),
       [cacheStatus, setCacheStatus] = useState(''),

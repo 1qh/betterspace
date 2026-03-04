@@ -11,11 +11,10 @@ import { Card, CardContent, CardHeader, CardTitle } from '@a/ui/card'
 import { FieldGroup } from '@a/ui/field'
 import { Skeleton } from '@a/ui/skeleton'
 import { Form, PermissionGuard, useForm } from 'betterspace/components'
-import { toastFieldError, useMutation } from 'betterspace/react'
+import { useMutation } from 'betterspace/react'
 import { pickValues } from 'betterspace/zod'
 import { useRouter } from 'next/navigation'
 import { use } from 'react'
-import { toast } from 'sonner'
 import { useReducer, useSpacetimeDB, useTable } from 'spacetimedb/react'
 
 import { useOrg } from '~/hook/use-org'
@@ -28,24 +27,11 @@ const EditProjectForm = ({ projectId, taskCount }: { projectId: number; taskCoun
       project = projects.find((p: Project) => p.id === projectId && p.orgId === Number(org._id)),
       remove = useMutation(useReducer, reducers.rmProject, {
         getName: () => `project.rm:${projectId}`,
-        onSettled: (_args, error) => {
-          if (error) toast.error('Failed to delete project')
-        },
-        onSuccess: () => {
-          toast.success('Project deleted')
-        }
+        toast: { error: 'Failed to delete project', success: 'Project deleted' }
       }),
       update = useMutation(useReducer, reducers.updateProject, {
         getName: () => `project.update:${projectId}`,
-        onSettled: (_args, error) => {
-          if (error)
-            toastFieldError(error, message => {
-              toast.error(message)
-            })
-        },
-        onSuccess: () => {
-          toast.success('Project updated')
-        }
+        toast: { error: 'Failed to update project', success: 'Project updated' }
       }),
       form = useForm({
         onSubmit: async d => {
