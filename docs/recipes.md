@@ -178,7 +178,7 @@ export const POST = async (req: Request) => {
 ```typescript
 'use client'
 
-import useUpload from 'betterspace/react'
+import { useUpload } from 'betterspace/react'
 import { useReducer } from 'spacetimedb/react'
 import { reducers } from '@/generated/module_bindings'
 

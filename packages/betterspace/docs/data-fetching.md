@@ -87,6 +87,9 @@ useList(data, isReady, {
   // Or shorthand:
   sort: { updatedAt: 'desc' },
 
+  // Text search across selected fields
+  search: { query: 'draft', fields: ['title', 'content'] },
+
   // Pagination
   pageSize: 20,
   page: 1,  // controlled page (optional)

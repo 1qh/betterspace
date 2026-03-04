@@ -183,7 +183,7 @@ const orgFns = makeOrg(spacetimedb, {
 | `membership` | Get caller's membership in an org |
 | `members` | List all members of an org |
 
-> **Known limitation:** The org management reducers are currently no-op stubs in the SpacetimeDB port. The factory generates the reducer signatures and wires them up, but the full business logic (cascade deletes, invite token validation, etc.) is being ported incrementally. Check the current implementation status before relying on these in production.
+All reducers above are generated with typed signatures and runtime checks for org permissions, ownership transfers, invites, and join-request workflows.
 
 ## makeOrgCrud factory
 

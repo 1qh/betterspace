@@ -48,36 +48,34 @@ const deletePost = spacetimedb.reducer(
 
 ~40 lines for 3 reducers. No validation, no file cleanup, no conflict detection.
 
-With betterspace:
+With betterspace `setupCrud()`:
 
 ```tsx
-const blogCrud = makeCrud(spacetimedb, {
-  fields: { category: t.string(), content: t.string(), coverImage: t.string().optional(),
-    published: t.bool(), title: t.string() },
-  idField: t.u32(), pk: tbl => tbl.id, table: db => db.blog, tableName: 'blog'
+const { crud } = setupCrud(spacetimedb, { expectedUpdatedAtField: t.timestamp(), idField: t.u32() })
+
+const blogCrud = crud('blog', {
+  category: t.string(), content: t.string(), coverImage: t.string().optional(),
+  published: t.bool(), title: t.string()
 })
 ```
 
-4 lines. 8 reducers. Auth, ownership, Zod validation, file upload with auto-cleanup, conflict detection, author enrichment — all included.
+4 lines. `create`/`update`/`rm` reducers with auth, ownership, validation hooks, and conflict detection — all included.
 
-## 471 Lines → 93 Reducers
+## Less Boilerplate, Same Capability
 
-The entire backend for 4 production apps — blog, chat, org collaboration, and movie search — is **471 lines of consumer code**. That's schemas, setup, and module files combined. Those 471 lines produce **93 fully typed, authenticated reducers**.
+The backend for 4 production apps — blog, chat, org collaboration, and movie search — stays compact consumer code while preserving typed reducers, auth checks, hooks, and real-time subscriptions.
 
 Here's a full org-scoped CRUD with per-item editor permissions and soft delete:
 
 ```tsx
-const wikiCrud = makeOrgCrud(spacetimedb, {
-  fields: { content: t.string().optional(), deletedAt: t.timestamp().optional(),
-    editors: t.array(t.identity()).optional(), slug: t.string(),
-    status: t.string(), title: t.string() },
-  idField: t.u32(), orgIdField: t.u32(), options: { softDelete: true },
-  orgMemberTable: db => db.orgMember, pk: tbl => tbl.id,
-  table: db => db.wiki, tableName: 'wiki'
-})
+const wikiCrud = orgCrud('wiki', {
+  content: t.string().optional(), deletedAt: t.timestamp().optional(),
+  editors: t.array(t.identity()).optional(), slug: t.string(),
+  status: t.string(), title: t.string()
+}, { softDelete: true })
 ```
 
-One config. 12 reducers. Role-based access, editor ACL, soft delete with restore, bulk operations — all generated.
+One call. Role-based access, editor ACL, soft delete with restore, and bulk operations — all generated.
 
 > [See all backend code: packages/be/spacetimedb/src/](https://github.com/1qh/betterspace/tree/main/packages/be/spacetimedb/src)
 
@@ -100,7 +98,7 @@ One config. 12 reducers. Role-based access, editor ACL, soft delete with restore
 | External API cache with TTL + auto-refresh | 0 |
 | Branded types — compile-time factory mismatch prevention | 0 |
 | Typed error handling with discriminated result unions | 0 |
-| Unified CLI — 7 commands (`init`, `add`, `check`, `doctor`, `codegen`, `docs`, `migrate`) | 0 |
+| Unified CLI — 10 commands (`init`, `add`, `check`, `dev`, `docs`, `doctor`, `generate`, `migrate`, `use`, `viz`) | 0 |
 | Project health score (`betterspace check --health`) | 0 |
 | Schema preview (`betterspace check --schema`) | 0 |
 | Browser devtools panel (subscriptions, mutations, cache, errors) | 0 |
@@ -112,7 +110,10 @@ One config. 12 reducers. Role-based access, editor ACL, soft delete with restore
 | Guarded API wrapper — runtime typo detection | 0 |
 | Test utilities (`createTestContext`, `callReducer`, `queryTable`) | 0 |
 | CLI scaffold with best-practice defaults | 0 |
-| CLI table scaffolding (`betterspace add`) | 0 |
+| CLI table scaffolding (`betterspace add`) + interactive mode | 0 |
+| `setupCrud()` convenience wrapper for CRUD boilerplate reduction | 0 |
+| `useList` text search (`search: { query, fields }`) | 0 |
+| Provider utilities (`toWsUri`, `createTokenStore`, `createFileUploader`, `createSpacetimeClient`) | 0 |
 | Live subscription data tracking in devtools | 0 |
 | Descriptive branded type error messages (`AssertSchema`, `SchemaTypeError`) | 0 |
 | ESLint plugin — 16 rules (`api-casing`, `form-field-exists`, `require-error-boundary`, ...) | 0 |
@@ -198,6 +199,16 @@ betterspace doctor --schema-file=t.ts
 
 Checks 7 categories: schema consistency, endpoint coverage, index coverage, access levels, ESLint config, and dependency versions. Outputs pass/warn/fail for each check with a health score from 0–100.
 
+### CLI: `betterspace dev`
+
+Start the integrated local development workflow:
+
+```bash
+betterspace dev
+```
+
+This command orchestrates local setup tasks used during day-to-day development.
+
 ### CLI: `betterspace add`
 
 Scaffold a new table with schema, endpoint, and page component in one command:
@@ -211,6 +222,17 @@ betterspace add movie --type=cache --fields="title:string,tmdb_id:number"
 ```
 
 Generates schema definition, reducer config, and page component. Skips existing files. Supports all 5 table types (owned, org, singleton, cache, child) with field types `string`, `boolean`, `number`, and `enum()`.
+
+When you run `betterspace add` with no table name in a TTY, it enters interactive mode and prompts for type, parent table (for child tables), and fields.
+
+### React provider utilities
+
+`betterspace/react` exports provider helpers to reduce setup boilerplate:
+
+- `toWsUri(uri)` converts `http(s)` endpoints to `ws(s)` endpoints
+- `createTokenStore(key?)` persists auth tokens in localStorage + cookie
+- `createFileUploader(presignEndpoint)` builds a `FileApi` uploader from a presign endpoint
+- `createSpacetimeClient({ DbConnection, uri, moduleName, tokenStore })` builds and caches a configured builder
 
 ### ESLint Plugin
 
@@ -253,8 +275,8 @@ bun add betterspace
 |--------|--------------|
 | `betterspace` | `guardApi`, `strictApi`, `zodFromTable`, identity helpers |
 | `betterspace/schema` | `makeOwned`, `makeOrgScoped`, `makeBase`, `makeSingleton`, `child`, `cvFile`, `cvFiles`, `orgSchema` |
-| `betterspace/server` | `makeCrud`, `makeChildCrud`, `makeOrgCrud`, `makeSingletonCrud`, `makeCacheCrud`, `makeOrg`, `makeFileUpload`, `makePresence`, table helpers, middleware, error handling, test utilities |
-| `betterspace/react` | `useList`, `useSearch`, `usePresence`, `useBulkSelection`, `useMutate`, `useInfiniteList`, `useUpload`, `useSoftDelete`, `useCacheEntry`, `useOptimisticMutation`, `useErrorToast`, `BetterspaceDevtools`, `SchemaPlayground`, org hooks |
+| `betterspace/server` | `setupCrud`, `setup`, `makeCrud`, `makeChildCrud`, `makeOrgCrud`, `makeSingletonCrud`, `makeCacheCrud`, `makeOrg`, `makeFileUpload`, `makePresence`, table helpers, middleware, error handling, test utilities |
+| `betterspace/react` | `useList`, `useSearch`, `usePresence`, `useBulkSelection`, `useMutate`, `useInfiniteList`, `useUpload`, `useSoftDelete`, `useCacheEntry`, `useOptimisticMutation`, `useErrorToast`, `toWsUri`, `createTokenStore`, `createFileUploader`, `createSpacetimeClient`, `BetterspaceDevtools`, `SchemaPlayground`, org hooks |
 | `betterspace/components` | `Form`, `ConflictDialog`, `AutoSaveIndicator`, `OfflineIndicator`, `PermissionGuard`, `ErrorBoundary`, `FileApiProvider`, `OrgAvatar`, `RoleBadge`, `EditorsSection`, `defineSteps` |
 | `betterspace/next` | `getToken`, `isAuthenticated`, `setActiveOrgCookie`, `clearActiveOrgCookie`, `getActiveOrg`, `makeImageRoute` |
 | `betterspace/eslint` | `plugin`, `recommended`, 16 lint rules |
@@ -326,7 +348,7 @@ const owned = {
 ### 2. Define SpacetimeDB tables + generate reducers
 
 ```tsx
-import { makeCrud } from 'betterspace/server'
+import { setupCrud } from 'betterspace/server'
 import { schema, t, table } from 'spacetimedb/server'
 
 const blog = table({ public: true }, {
@@ -337,14 +359,20 @@ const blog = table({ public: true }, {
 
 const spacetimedb = schema({ blog })
 
-const blogCrud = makeCrud(spacetimedb, {
-  fields: owned.blog, idField: t.u32(), pk: tbl => tbl.id,
-  table: db => db.blog, tableName: 'blog'
+const { crud, allExports } = setupCrud(spacetimedb, {
+  expectedUpdatedAtField: t.timestamp(), idField: t.u32()
 })
 
-export const reducers = spacetimedb.exportGroup({ ...blogCrud.exports })
+const blogCrud = crud('blog', {
+  category: t.string(), content: t.string(),
+  coverImage: t.string().optional(), published: t.bool(), title: t.string()
+})
+
+export const reducers = spacetimedb.exportGroup(allExports())
 export default spacetimedb
 ```
+
+`setupCrud()` eliminates repeated `idField`, `pk`, `table` boilerplate across tables. For fine-grained control, use `makeCrud()` directly (see [API Reference](docs/api-reference.md)).
 
 ### 3. Publish the module
 
@@ -400,7 +428,7 @@ Everything works out of the box. Opt out only when needed.
 |----------|-----------|------:|
 | Web | Playwright E2E | 220 |
 | Backend | SpacetimeDB test utilities | 219 |
-| Library | bun:test | 900 |
+| Library | bun:test (`src/__tests__/`) | 906 |
 
 ## Documentation
 
@@ -424,7 +452,7 @@ The library is independently testable without the demo apps:
 
 ```bash
 cd packages/betterspace
-bun test          # 900 library-only tests, no SpacetimeDB needed
+bun test src/__tests__/  # 906 library-only tests, no SpacetimeDB needed
 bun lint          # library-scoped linting
 bun typecheck     # library-only type checking
 ```

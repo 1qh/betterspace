@@ -147,6 +147,30 @@ export { reducers }
 export default spacetimedb
 ```
 
+### Optional: reduce setup boilerplate with `setupCrud()`
+
+If you are defining multiple tables, `setupCrud()` lets you reuse defaults and table lookup wiring:
+
+```typescript
+import { setupCrud } from 'betterspace/server'
+
+const s = setupCrud(spacetimedb, {
+  expectedUpdatedAtField: t.timestamp(),
+  idField: t.u32(),
+})
+
+const postCrud = s.crud('post', {
+  title: t.string(),
+  content: t.string(),
+  published: t.bool(),
+})
+
+const profileCrud = s.singletonCrud('profile', {
+  displayName: t.string(),
+  bio: t.string().optional(),
+})
+```
+
 ## Publish the module
 
 ```bash
@@ -183,16 +207,25 @@ Wrap your app with `SpacetimeDBProvider`:
 'use client'
 
 import { SpacetimeDBProvider } from 'spacetimedb/react'
+import { createSpacetimeClient, createTokenStore } from 'betterspace/react'
 import { DbConnection } from '@/generated/module_bindings'
 
 const SPACETIMEDB_URL = process.env.NEXT_PUBLIC_SPACETIMEDB_URL ?? 'ws://localhost:3000'
 const MODULE_NAME = process.env.NEXT_PUBLIC_MODULE_NAME ?? 'my-app'
+const tokenStore = createTokenStore()
 
 export const Providers = ({ children }: { children: React.ReactNode }) => (
   <SpacetimeDBProvider
     uri={SPACETIMEDB_URL}
     module={MODULE_NAME}
-    createConnection={() => DbConnection.builder()}
+    createConnection={() =>
+      createSpacetimeClient({
+        DbConnection,
+        moduleName: MODULE_NAME,
+        tokenStore,
+        uri: SPACETIMEDB_URL,
+      })
+    }
   >
     {children}
   </SpacetimeDBProvider>

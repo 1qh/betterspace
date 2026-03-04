@@ -268,6 +268,36 @@ const fileCrud = makeFileUpload(spacetimedb, {
 
 ---
 
+### setupCrud
+
+`setupCrud` is a convenience wrapper around `setup` that reduces repetitive table wiring for `crud`, `orgCrud`, `childCrud`, `singletonCrud`, `cacheCrud`, and `fileUpload`.
+
+```typescript
+import { setupCrud } from 'betterspace/server'
+
+const s = setupCrud(spacetimedb, {
+  expectedUpdatedAtField: t.timestamp(),
+  idField: t.u32(),
+  orgIdField: t.u32(),
+})
+
+const postCrud = s.crud('post', {
+  title: t.string(),
+  content: t.string(),
+})
+
+const uploadFns = s.fileUpload('file', 'file', {
+  contentType: t.string(),
+  filename: t.string(),
+  size: t.number(),
+  storageKey: t.string(),
+})
+
+const reducers = spacetimedb.exportGroup(s.allExports())
+```
+
+---
+
 ## React hooks
 
 All hooks are imported from `betterspace/react`.
@@ -289,6 +319,7 @@ const { data, hasMore, isLoading, loadMore, page, totalCount } = useList(
       or: [{ category: 'news' }],
     },
     sort: { field: 'updatedAt', direction: 'desc' },
+    search: { query: 'hello', fields: ['title', 'content'] },
     pageSize: 20,
     page: 1,  // controlled (optional)
   }
@@ -348,7 +379,7 @@ updatePresence({ cursor: { x: 100, y: 200 } })
 Handles file upload with progress tracking and pre-signed URL flow.
 
 ```typescript
-import useUpload from 'betterspace/react'
+import { useUpload } from 'betterspace/react'
 
 const { upload, isUploading, progress, error, url } = useUpload({
   apiEndpoint: '/api/upload/presign',  // default
@@ -419,7 +450,7 @@ const {
 Tracks browser online/offline state.
 
 ```typescript
-import useOnlineStatus from 'betterspace/react'
+import { useOnlineStatus } from 'betterspace/react'
 
 const isOnline = useOnlineStatus()
 ```
@@ -445,7 +476,7 @@ import { OrgProvider } from 'betterspace/react'
 Development panel showing active subscriptions, pending mutations, and errors.
 
 ```typescript
-import BetterspaceDevtools from 'betterspace/react'
+import { BetterspaceDevtools } from 'betterspace/react'
 
 // Add to your layout (dev only)
 {process.env.NODE_ENV === 'development' && <BetterspaceDevtools />}
@@ -456,9 +487,22 @@ import BetterspaceDevtools from 'betterspace/react'
 Interactive schema explorer for development.
 
 ```typescript
-import SchemaPlayground from 'betterspace/react'
+import { SchemaPlayground } from 'betterspace/react'
 
 <SchemaPlayground tables={tables} />
+```
+
+### Provider utilities
+
+Provider setup helpers are exported from `betterspace/react`:
+
+```typescript
+import { createFileUploader, createSpacetimeClient, createTokenStore, toWsUri } from 'betterspace/react'
+
+const tokenStore = createTokenStore()
+const uri = toWsUri(process.env.NEXT_PUBLIC_SPACETIMEDB_URL ?? 'http://localhost:3000')
+const client = createSpacetimeClient({ DbConnection, moduleName: 'my-app', tokenStore, uri })
+const uploader = createFileUploader('/api/upload/presign')
 ```
 
 ---
@@ -538,22 +582,26 @@ const uploadUrl = await createS3UploadPresignedUrl({
 
 Reducers throw `SenderError('CODE: message')`. The client receives the error with the message intact.
 
+betterspace currently ships **36 structured error codes** (`ErrorCode`), defined in `ERROR_MESSAGES`.
+
 | Code | Description |
 |------|-------------|
+| `ALREADY_ORG_MEMBER` | Already a member of this organization |
 | `NOT_FOUND` | Row doesn't exist |
 | `FORBIDDEN` | Caller doesn't own the row |
+| `NOT_AUTHORIZED` | Caller lacks permission for this operation |
 | `NOT_ORG_MEMBER` | Caller is not a member of the org |
 | `CONFLICT` | `expectedUpdatedAt` doesn't match current value |
 | `NOT_AUTHENTICATED` | Caller has a zero identity (unauthenticated) |
 | `INVALID_FILE_TYPE` | File content type not in allowed list |
 | `FILE_TOO_LARGE` | File size exceeds limit |
 | `RATE_LIMITED` | Too many requests (if rate limiting is implemented) |
-| `INVALID_TIMESTAMP` | Timestamp conversion failed |
+| `VALIDATION_FAILED` | Input failed schema validation |
 
 Parse errors on the client:
 
 ```typescript
-import { extractErrorData, getErrorCode, getErrorMessage } from 'betterspace'
+import { extractErrorData, getErrorCode, getErrorMessage } from 'betterspace/server'
 
 try {
   await createPost(data)

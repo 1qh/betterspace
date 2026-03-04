@@ -338,7 +338,7 @@ await ctx.storage.getUrl(storageId)  // get download URL
 // 2. Client uploads directly to S3/MinIO
 // 3. Client calls register_upload_file reducer to record the upload
 
-import useUpload from 'betterspace/react'
+import { useUpload } from 'betterspace/react'
 
 const { upload } = useUpload({
   apiEndpoint: '/api/upload/presign',
