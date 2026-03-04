@@ -101,6 +101,19 @@ const WRAPPERS: ReadonlySet<DefType> = new Set<DefType>([
   },
   /** Computes a default value for a single schema field. */
   defaultValue = (schema: unknown): unknown => {
+    let cur = schema as undefined | ZodSchema
+    while (cur && typeof cur === 'object' && 'type' in cur) {
+      if (cur.type === 'prefault') {
+        const { factory } = cur.def as { factory?: () => unknown }
+        if (typeof factory === 'function') return factory()
+      }
+      if (cur.type === 'default') {
+        const { defaultValue: defaultVal } = cur.def as { defaultValue?: unknown }
+        if (defaultVal !== undefined) return defaultVal
+      }
+      if (!WRAPPERS.has(cur.type)) break
+      cur = (cur.def as { innerType?: ZodSchema }).innerType
+    }
     const { schema: base, type } = unwrapZod(schema),
       fk = cvFileKindOf(schema)
     if (fk === 'file') return null

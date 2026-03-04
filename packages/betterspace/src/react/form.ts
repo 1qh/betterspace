@@ -60,14 +60,18 @@ const getMax = (schema: undefined | ZodSchema): number | undefined => {
    * @param schema - Zod field schema
    * @returns Derived field metadata
    */
-  readRegistryMeta = (schema: unknown): { description?: string; title?: string } => {
+  readRegistryMeta = (schema: unknown): { description?: string; max?: number; title?: string } => {
     if (!schema || typeof schema !== 'object' || !('_zod' in schema)) return {}
     try {
       const reg = globalRegistry.get(schema as ZodType)
       if (!reg) return {}
-      const out: { description?: string; title?: string } = {}
+      const out: { description?: string; max?: number; title?: string } = {}
       if (typeof reg.title === 'string') out.title = reg.title
       if (typeof reg.description === 'string') out.description = reg.description
+      if (typeof reg.max === 'number') out.max = reg.max
+      else if (typeof reg.maximum === 'number') out.max = reg.maximum
+      else if (typeof reg.maxLength === 'number') out.max = reg.maxLength
+      else if (typeof reg.maxItems === 'number') out.max = reg.maxItems
       return out
     } catch {
       return {}
@@ -78,10 +82,10 @@ const getMax = (schema: undefined | ZodSchema): number | undefined => {
       fileKind = cvFileKindOf(schema),
       reg = readRegistryMeta(schema)
     if (fileKind === 'file') return { kind: 'file', ...reg }
-    if (fileKind === 'files') return { kind: 'files', max: getMax(base), ...reg }
+    if (fileKind === 'files') return { kind: 'files', max: reg.max ?? getMax(base), ...reg }
     if (isArrayType(type)) {
       const el = unwrapZod(elementOf(base))
-      return { kind: isStringType(el.type) ? 'stringArray' : 'unknown', max: getMax(base), ...reg }
+      return { kind: isStringType(el.type) ? 'stringArray' : 'unknown', max: reg.max ?? getMax(base), ...reg }
     }
     if (isStringType(type)) return { kind: 'string', ...reg }
     if (isNumberType(type)) return { kind: 'number', ...reg }
