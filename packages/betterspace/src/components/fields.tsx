@@ -49,14 +49,23 @@ const CAMEL_RE = /(?<lower>[a-z\d])(?<upper>[A-Z])/gu,
   }>(null),
   useFCtx = () => {
     const c = use(FormContext)
-    if (!c) throw new Error('Field must be inside <Form>')
+    if (!c)
+      throw new Error(
+        '[betterspace] Field must be inside <Form>. Wrap your field components with <Form schema={...}> from betterspace/components.'
+      )
     return c
   },
   useField = (name: string, kind: FieldKind) => {
     const ctx = useFCtx(),
       info = ctx.meta[name]
-    if (!info) throw new Error(`Unknown field: ${name}`)
-    if (info.kind !== kind) throw new Error(`Field ${name} is not ${kind}`)
+    if (!info)
+      throw new Error(
+        `[betterspace] Unknown field: "${name}". Available fields: ${Object.keys(ctx.meta).join(', ') || '(none)'}. Check your Zod schema — the field name must match a key in the schema passed to <Form>.`
+      )
+    if (info.kind !== kind)
+      throw new Error(
+        `[betterspace] Field "${name}" has kind "${info.kind}", but <${kind.charAt(0).toUpperCase() + kind.slice(1)}> expects kind "${kind}". Use the field component that matches the schema type (e.g. z.string() → <Text>, z.number() → <Num>, z.boolean() → <Toggle>, z.enum() → <Choose>).`
+      )
     return { form: ctx.form, info, schema: ctx.schema, serverErrors: ctx.serverErrors }
   },
   /**
@@ -71,7 +80,9 @@ const CAMEL_RE = /(?<lower>[a-z\d])(?<upper>[A-Z])/gu,
       const opts = (inner as { options: readonly string[] }).options
       return opts.map(v => ({ label: v.charAt(0).toUpperCase() + v.slice(1), value: v }))
     }
-    throw new Error(`Choose: field "${name}" has no enum options. Pass options prop.`)
+    throw new Error(
+      `[betterspace] Choose: field "${name}" has no enum options. Define the field as z.enum(["opt1", "opt2"]) in your schema, or pass an explicit options={[{ label: "...", value: "..." }]} prop to <Choose>.`
+    )
   },
   /**
    * Renders a server-side field validation error for one form input.

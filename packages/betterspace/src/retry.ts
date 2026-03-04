@@ -24,11 +24,19 @@ const DEFAULT_OPTIONS: Required<RetryOptions> = {
   },
   validateRetryOptions = (opts: Required<RetryOptions>) => {
     if (opts.maxAttempts < 1)
-      throw new Error(`[betterspace] withRetry: maxAttempts must be >= 1 (got ${opts.maxAttempts})`)
+      throw new Error(
+        `[betterspace] withRetry: maxAttempts must be >= 1 (got ${opts.maxAttempts}). Default: ${DEFAULT_OPTIONS.maxAttempts}.`
+      )
     if (opts.initialDelayMs < 0)
-      throw new Error(`[betterspace] withRetry: initialDelayMs must be >= 0 (got ${opts.initialDelayMs})`)
-    if (opts.maxDelayMs < 0) throw new Error(`[betterspace] withRetry: maxDelayMs must be >= 0 (got ${opts.maxDelayMs})`)
-    if (opts.base < 1) throw new Error(`[betterspace] withRetry: base must be >= 1 (got ${opts.base})`)
+      throw new Error(
+        `[betterspace] withRetry: initialDelayMs must be >= 0 (got ${opts.initialDelayMs}). Default: ${DEFAULT_OPTIONS.initialDelayMs}ms.`
+      )
+    if (opts.maxDelayMs < 0)
+      throw new Error(
+        `[betterspace] withRetry: maxDelayMs must be >= 0 (got ${opts.maxDelayMs}). Default: ${DEFAULT_OPTIONS.maxDelayMs}ms.`
+      )
+    if (opts.base < 1)
+      throw new Error(`[betterspace] withRetry: base must be >= 1 (got ${opts.base}). Default: ${DEFAULT_OPTIONS.base}.`)
   },
   /** Retries an async function with exponential backoff and jitter. */
   withRetry = async <T>(fn: () => Promise<T>, options: RetryOptions = {}): Promise<T> => {

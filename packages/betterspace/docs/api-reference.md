@@ -1034,6 +1034,101 @@ function.
 
 * * *
 
+### useErrorToast
+
+Creates a stable, memoized callback that toasts Betterspace errors with optional
+per-code handlers. Ideal for use in React event handlers and mutation callbacks.
+Import from `betterspace/react`.
+
+**Signature:**
+
+```typescript
+const useErrorToast = (options: ErrorToastOptions) => (error: unknown) => void
+```
+
+```typescript
+interface ErrorToastOptions {
+  handlers?: Partial<Record<ErrorCode, (data: ErrorData) => void>> & {
+    default?: (error: unknown) => void
+  }
+  toast: ToastFn
+}
+```
+
+**Example:**
+
+```typescript
+import { useErrorToast } from 'betterspace/react'
+import { toast } from 'sonner'
+
+const Page = () => {
+  const handleError = useErrorToast({ toast: toast.error })
+
+  const onSubmit = async () => {
+    try {
+      await save(data)
+    } catch (error) {
+      handleError(error)
+    }
+  }
+}
+```
+
+With per-code handlers:
+
+```typescript
+const handleError = useErrorToast({
+  toast: toast.error,
+  handlers: {
+    NOT_AUTHENTICATED: () => router.push('/login'),
+    FORBIDDEN: () => toast.error('No permission')
+  }
+})
+```
+
+When an error matches a code in `handlers`, that handler runs instead of the default
+toast. For unmatched codes, the error message is toasted via the provided `toast`
+function. The returned callback is referentially stable (memoized with `useCallback`).
+
+* * *
+
+### defaultOnError
+
+The default mutation error handler used by all Betterspace mutation hooks (`useMutate`,
+`useMutation`, `useOrgMutation`). Handles `NOT_AUTHENTICATED` and `RATE_LIMITED` errors
+with user-friendly toasts, and falls back to toasting the error message for all other
+codes. Import from `betterspace/react`.
+
+**Signature:**
+
+```typescript
+const defaultOnError = (error: unknown) => void
+```
+
+**Behavior:**
+
+| Error code | Toast message |
+| --- | --- |
+| `NOT_AUTHENTICATED` | “Please log in” |
+| `RATE_LIMITED` | “Too many requests, retry in Xs” (with `retryAfter`) or “Too many requests, try again later” |
+| Any other | The error message from the response |
+
+**Example — override for a single mutation:**
+
+```typescript
+import { defaultOnError, useMutate } from 'betterspace/react'
+
+const save = useMutate(api.post.create, {
+  onError: error => {
+    // custom handling, then fall back
+    if (isSpecialCase(error)) return handleSpecial(error)
+    defaultOnError(error)
+  }
+})
+```
+
+* * *
+
 ## React components
 
 ### OrgProvider
@@ -1488,36 +1583,51 @@ import type {
   ConflictData,
   CreateSpacetimeClientOptions,
   DevtoolsProps,
+  ErrorData,
+  ErrorHandler,
   ErrorToastOptions,
   FieldKind,
   FieldMeta,
   FieldMetaMap,
   FormReturn,
   InfiniteListOptions,
+  InfiniteListResult,
   InfiniteListWhere,
+  ListSort,
   ListWhere,
   MutateOptions,
   MutateToast,
   MutationType,
+  MutationFail,
+  MutationOk,
+  MutationResult,
   OptimisticOptions,
   PendingMutation,
   PlaygroundProps,
   PresenceRefs,
   PresenceUser,
+  SkipInfiniteListResult,
+  SkipListResult,
   SoftDeleteOpts,
+  SortDirection,
+  SortMap,
+  SortObject,
   SpacetimeConnectionBuilder,
   SpacetimeConnectionFactory,
   ToastFn,
   TokenStore,
+  TypedFieldErrors,
   UseBulkMutateOptions,
   UseBulkSelectionOpts,
   UseCacheEntryOptions,
   UseCacheEntryResult,
   UseListOptions,
+  UseListResult,
   UsePresenceOptions,
   UsePresenceResult,
   UseSearchOptions,
   UseSearchResult,
+  WhereFieldValue,
   WhereGroup,
   Widen
 } from 'betterspace/react'

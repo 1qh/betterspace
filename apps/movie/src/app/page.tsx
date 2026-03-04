@@ -2,9 +2,10 @@
 'use client'
 
 import { Input } from '@a/ui/input'
-import { useOnlineStatus } from 'betterspace/react'
+import { useErrorToast, useOnlineStatus } from 'betterspace/react'
 import Link from 'next/link'
 import { useState, useTransition } from 'react'
+import { toast } from 'sonner'
 
 interface SearchResult {
   id: number
@@ -120,9 +121,13 @@ const TMDB_IMG = 'https://image.tmdb.org/t/p/w200',
   ),
   Page = () => {
     const isOnline = useOnlineStatus(),
+      handleError = useErrorToast({
+        toast: (msg: string) => {
+          toast.error(msg)
+        }
+      }),
       [query, setQuery] = useState(''),
       [results, setResults] = useState<SearchResult[]>([]),
-      [searchError, setSearchError] = useState(''),
       [pending, go] = useTransition()
 
     return (
@@ -139,13 +144,12 @@ const TMDB_IMG = 'https://image.tmdb.org/t/p/w200',
           onSubmit={e => {
             e.preventDefault()
             if (!query.trim()) return
-            setSearchError('')
             go(async () => {
               try {
                 setResults(await searchMovies(query.trim()))
-              } catch {
+              } catch (error) {
                 setResults([])
-                setSearchError('Unable to search TMDB right now')
+                handleError(error)
               }
             })
           }}>
@@ -161,7 +165,6 @@ const TMDB_IMG = 'https://image.tmdb.org/t/p/w200',
             You are offline — search requires an internet connection
           </p>
         )}
-        {searchError ? <p className='text-sm text-destructive'>{searchError}</p> : null}
         {results.length ? (
           <div data-testid='movie-results'>
             {results.map(m => (
