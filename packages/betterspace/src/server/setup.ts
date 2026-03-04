@@ -461,6 +461,7 @@ const dbTable: (db: unknown, name: string) => unknown = (db, name) => (db as Rec
     return {
       allExports: s.allExports,
 
+      // eslint-disable-next-line @typescript-eslint/max-params
       cacheCrud: (
         tableName: string,
         keyName: string,
@@ -479,6 +480,7 @@ const dbTable: (db: unknown, name: string) => unknown = (db, name) => (db as Rec
           tableName
         }),
 
+      // eslint-disable-next-line @typescript-eslint/max-params
       childCrud: (
         tableName: string,
         parent: { foreignKey: string; table: string },
@@ -512,6 +514,7 @@ const dbTable: (db: unknown, name: string) => unknown = (db, name) => (db as Rec
 
       exports: s.exports,
 
+      // eslint-disable-next-line @typescript-eslint/max-params
       fileUpload: (
         namespace: string,
         tableName: string,

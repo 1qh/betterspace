@@ -2833,6 +2833,52 @@ describe('Fix #9: useList accepts optional pageSize', () => {
   })
 })
 
+describe('useList search option', () => {
+  test('UseListOptions accepts search with typed fields', () => {
+    const opts: UseListOptions<{ content: string; tags: string[]; title: string }> = {
+      search: { fields: ['title', 'content'], query: 'hello' }
+    }
+    expect(opts.search?.query).toBe('hello')
+    expect(opts.search?.fields).toEqual(['title', 'content'])
+  })
+
+  test('UseListOptions search fields are typed to row keys', () => {
+    const valid: UseListOptions<{ content: string; title: string }> = {
+      search: { fields: ['title'], query: 'test' }
+    }
+    expect(valid.search?.fields).toEqual(['title'])
+    type SearchFields = NonNullable<UseListOptions<{ content: string; title: string }>['search']>['fields']
+    const check: SearchFields = ['content', 'title']
+    expect(check).toHaveLength(2)
+  })
+
+  test('UseListOptions search is optional', () => {
+    const opts: UseListOptions = { pageSize: 20 }
+    expect(opts.search).toBeUndefined()
+  })
+
+  test('UseListOptions generic default allows any fields', () => {
+    const opts: UseListOptions = {
+      search: { fields: ['anything', 'goes'], query: 'test' }
+    }
+    expect(opts.search?.fields).toHaveLength(2)
+  })
+
+  test('UseListOptions search with empty query', () => {
+    const opts: UseListOptions<{ title: string }> = {
+      search: { fields: ['title'], query: '' }
+    }
+    expect(opts.search?.query).toBe('')
+  })
+
+  test('UseListOptions search with empty fields', () => {
+    const opts: UseListOptions<{ title: string }> = {
+      search: { fields: [], query: 'hello' }
+    }
+    expect(opts.search?.fields).toHaveLength(0)
+  })
+})
+
 describe('Fix #10: isTestMode production safety', () => {
   test('isTestMode returns true when SPACETIMEDB_TEST_MODE=true and NODE_ENV=test', () => {
     const origTest = process.env.SPACETIMEDB_TEST_MODE,
@@ -7486,8 +7532,8 @@ describe('betterspace add command', () => {
   })
 
   describe('add function', () => {
-    test('add with --help returns zero counts', () => {
-      const result = add(['--help'])
+    test('add with --help returns zero counts', async () => {
+      const result = await add(['--help'])
       expect(result).toEqual({ created: 0, skipped: 0 })
     })
   })

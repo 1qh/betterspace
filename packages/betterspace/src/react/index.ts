@@ -34,6 +34,13 @@ export {
   useOrgMutation,
   useOrgQuery
 } from './org'
+export type {
+  CreateSpacetimeClientOptions,
+  SpacetimeConnectionBuilder,
+  SpacetimeConnectionFactory,
+  TokenStore
+} from './provider'
+export { createFileUploader, createSpacetimeClient, createTokenStore, toWsUri } from './provider'
 export type { PlaygroundProps } from './schema-playground'
 export { default as SchemaPlayground } from './schema-playground'
 export { useBulkSelection } from './use-bulk-selection'

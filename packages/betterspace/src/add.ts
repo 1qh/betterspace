@@ -4,6 +4,7 @@
 
 import { existsSync, mkdirSync, writeFileSync } from 'node:fs'
 import { join } from 'node:path'
+import { createInterface } from 'node:readline/promises'
 
 interface AddFlags {
   appDir: string
@@ -291,22 +292,47 @@ export default ${component}Page
     console.log(`  ${green('✓')} ${label}`)
     return true
   },
-  add = (args: string[] = []) => {
-    const flags = parseAddFlags(args)
-    if (flags.help) {
-      printAddHelp()
-      return { created: 0, skipped: 0 }
+  isInteractive = () => typeof process.stdin.isTTY === 'boolean' && process.stdin.isTTY,
+  promptInteractive = async (): Promise<AddFlags> => {
+    const rl = createInterface({ input: process.stdin, output: process.stdout })
+    try {
+      console.log(`\n${bold('betterspace add')} ${dim('— interactive mode')}\n`)
+      const name = (await rl.question(`${bold('Table name:')} `)).trim()
+      if (!name) {
+        console.log(`${red('Error:')} table name is required.`)
+        process.exit(1)
+      }
+      const typeStr =
+        (await rl.question(`${bold('Type')} ${dim('(owned, org, singleton, cache, child)')} [owned]: `)).trim() || 'owned'
+      if (!TABLE_TYPES.has(typeStr as TableType)) {
+        console.log(`${red('Invalid type:')} ${typeStr}`)
+        process.exit(1)
+      }
+      const type = typeStr as TableType
+      let parent = ''
+      if (type === 'child') {
+        parent = (await rl.question(`${bold('Parent table:')} `)).trim()
+        if (!parent) {
+          console.log(`${red('Error:')} parent table is required for child type.`)
+          process.exit(1)
+        }
+      }
+      const fieldsRaw = (
+          await rl.question(`${bold('Fields')} ${dim('(e.g. title:string,done:boolean,bio:string?)')} [defaults]: `)
+        ).trim(),
+        fields: ParsedField[] = []
+      if (fieldsRaw)
+        for (const f of fieldsRaw.split(',')) {
+          const parsed = parseFieldDef(f)
+          if (parsed) fields.push(parsed)
+          else console.log(`${yellow('warn')} Skipping invalid field: ${f}`)
+        }
+      return { appDir: 'src/app', fields, help: false, moduleDir: 'module', name, parent, type }
+    } finally {
+      rl.close()
     }
-    if (!flags.name) {
-      console.log(`${red('Error:')} table name is required.\n`)
-      printAddHelp()
-      process.exit(1)
-    }
-    if (flags.type === 'child' && !flags.parent) {
-      console.log(`${red('Error:')} --parent is required for child type.\n`)
-      process.exit(1)
-    }
-
+  },
+  addSync = (flags: AddFlags) => {
     const fields = flags.fields.length > 0 ? flags.fields : defaultFields(flags.type),
       modulePath = join(process.cwd(), flags.moduleDir),
       appPath = join(process.cwd(), flags.appDir)
@@ -353,6 +379,27 @@ export default ${component}Page
     console.log(`  ${dim('3.')} Run spacetime publish and spacetime generate\n`)
 
     return { created, skipped }
+  },
+  add = async (args: string[] = []) => {
+    const flags = parseAddFlags(args)
+    if (flags.help) {
+      printAddHelp()
+      return { created: 0, skipped: 0 }
+    }
+    if (!flags.name && isInteractive()) {
+      const interactiveFlags = await promptInteractive()
+      return addSync(interactiveFlags)
+    }
+    if (!flags.name) {
+      console.log(`${red('Error:')} table name is required.\n`)
+      printAddHelp()
+      process.exit(1)
+    }
+    if (flags.type === 'child' && !flags.parent) {
+      console.log(`${red('Error:')} --parent is required for child type.\n`)
+      process.exit(1)
+    }
+    return addSync(flags)
   }
 
 if (process.argv[1]?.endsWith('add.ts')) add(process.argv.slice(2))

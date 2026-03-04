@@ -10,6 +10,7 @@ const bold = (s: string) => `\u001B[1m${s}\u001B[0m`,
   COMMANDS: Record<string, { description: string; script: string }> = {
     add: { description: 'Add a new table/reducer to your project', script: 'add.ts' },
     check: { description: 'Validate schema/reducer consistency', script: 'check.ts' },
+    dev: { description: 'Start integrated local development workflow', script: '' },
     docs: { description: 'Generate API documentation', script: 'docs-gen.ts' },
     doctor: { description: 'Run project diagnostics', script: 'doctor.ts' },
     generate: { description: 'Generate project files (docker-compose, etc.)', script: '' },
@@ -38,13 +39,16 @@ else if (!(cmd in COMMANDS)) {
   init(rest)
 } else if (cmd === 'add') {
   const { add } = await import('./add')
-  add(rest)
+  await add(rest)
 } else if (cmd === 'use') {
   const { switchTarget } = await import('./use')
   switchTarget(rest)
 } else if (cmd === 'generate') {
   const { generate } = await import('./generate')
   generate(rest)
+} else if (cmd === 'dev') {
+  const { dev } = await import('./dev')
+  await dev(rest)
 } else {
   const entry = COMMANDS[cmd]
   if (!entry) process.exit(1)

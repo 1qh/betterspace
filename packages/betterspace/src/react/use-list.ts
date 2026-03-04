@@ -16,11 +16,12 @@ interface SortObject<T extends Rec> {
   direction?: SortDirection
   field: keyof T & string
 }
-/** Client-side list options for filtering, sorting, and pagination. */
-interface UseListOptions {
+/** Client-side list options for filtering, sorting, searching, and pagination. */
+interface UseListOptions<T extends Rec = Rec> {
   page?: number
   pageSize?: number
-  sort?: ListSort<Rec>
+  search?: { fields: (keyof T & string)[]; query: string }
+  sort?: ListSort<T>
   where?: ListWhere
 }
 
@@ -28,6 +29,16 @@ type WhereGroup = Rec & { own?: boolean }
 
 /** Default page size used by `useList`. */
 const DEFAULT_PAGE_SIZE = 50,
+  searchMatches = <T extends Rec>(row: T, query: string, fields: (keyof T & string)[]): boolean => {
+    const lower = query.toLowerCase()
+    for (const field of fields) {
+      const val = row[field]
+      if (typeof val === 'string' && val.toLowerCase().includes(lower)) return true
+      if (Array.isArray(val))
+        for (const item of val) if (typeof item === 'string' && item.toLowerCase().includes(lower)) return true
+    }
+    return false
+  },
   toSortableString = (value: unknown): string => {
     if (typeof value === 'string') return value
     if (typeof value === 'number' || typeof value === 'boolean' || typeof value === 'bigint') return String(value)
@@ -70,17 +81,21 @@ const DEFAULT_PAGE_SIZE = 50,
     out.sort((a, b) => compareValues(a[config.field], b[config.field]) * factor)
     return out
   },
-  /** Builds a paginated, filterable list view from in-memory rows.
+  /** Builds a paginated, filterable, searchable list view from in-memory rows.
    * @param data - Source rows
    * @param isReady - Subscription readiness state
-   * @param options - Pagination and filtering options
+   * @param options - Pagination, filtering, sorting, and search options
    * @returns List state and pagination controls
    * @example
    * ```ts
-   * const list = useList(rows, ready, { pageSize: 20, where: { own: true } })
+   * const list = useList(rows, ready, {
+   *   pageSize: 20,
+   *   where: { own: true },
+   *   search: { query: 'hello', fields: ['title', 'content'] }
+   * })
    * ```
    */
-  useList = <T extends Rec>(data: T[], isReady: boolean, options?: UseListOptions) => {
+  useList = <T extends Rec>(data: T[], isReady: boolean, options?: UseListOptions<T>) => {
     const pageSize = options?.pageSize ?? DEFAULT_PAGE_SIZE,
       [currentPage, setCurrentPage] = useState(options?.page ?? 1),
       filtered = useMemo(() => {
@@ -89,7 +104,15 @@ const DEFAULT_PAGE_SIZE = 50,
         for (const row of data) if (matchW(row, options.where)) out.push(row)
         return out
       }, [data, options?.where]),
-      sorted = useMemo(() => sortData(filtered, options?.sort), [filtered, options?.sort]),
+      searched = useMemo(() => {
+        const q = options?.search?.query ?? '',
+          fields = options?.search?.fields ?? []
+        if (q === '' || fields.length === 0) return filtered
+        const out: T[] = []
+        for (const row of filtered) if (searchMatches(row, q, fields)) out.push(row)
+        return out
+      }, [filtered, options?.search]),
+      sorted = useMemo(() => sortData(searched, options?.sort), [searched, options?.sort]),
       totalCount = sorted.length,
       cappedPageSize = Math.max(1, pageSize),
       visibleCount = currentPage * cappedPageSize,

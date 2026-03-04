@@ -13,27 +13,23 @@ const Page = () => {
   const [allBlogs, isReady] = useTable(tables.blog),
     { identity } = useSpacetimeDB(),
     blogs = useMemo(
-      () =>
-        [...allBlogs]
-          .toSorted((a, b) => b.id - a.id)
-          .map(b => ({ ...b, own: identity ? b.userId.isEqual(identity) : false })),
+      () => allBlogs.map(b => ({ ...b, own: identity ? b.userId.isEqual(identity) : false })),
       [allBlogs, identity]
     ),
-    { data, hasMore, isLoading, loadMore } = useList(blogs, isReady, {
-      where: { or: [{ published: true }, { own: true }] }
-    }),
     [removedIds, setRemovedIds] = useState<Set<number>>(new Set()),
     [query, setQuery] = useState(''),
-    deferredQuery = useDeferredValue(query.toLowerCase()),
-    filtered = data.filter(b => {
-      if (removedIds.has(b.id)) return false
-      if (!deferredQuery) return true
-      return (
-        b.title.toLowerCase().includes(deferredQuery) ||
-        b.content.toLowerCase().includes(deferredQuery) ||
-        b.tags?.some(t => t.toLowerCase().includes(deferredQuery))
-      )
+    deferredQuery = useDeferredValue(query),
+    { data, hasMore, isLoading, loadMore } = useList(blogs, isReady, {
+      search: { fields: ['title', 'content', 'tags'], query: deferredQuery },
+      sort: { direction: 'desc', field: 'id' },
+      where: { or: [{ published: true }, { own: true }] }
     }),
+    filtered = useMemo(() => {
+      if (removedIds.size === 0) return data
+      const out: typeof data = []
+      for (const b of data) if (!removedIds.has(b.id)) out.push(b)
+      return out
+    }, [data, removedIds]),
     handleRemove = useCallback((id: number) => {
       setRemovedIds(prev => new Set(prev).add(id))
     }, [])
