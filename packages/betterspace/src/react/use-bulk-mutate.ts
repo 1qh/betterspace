@@ -21,6 +21,7 @@ interface BulkResult<R> {
 interface UseBulkMutateOptions {
   onError?: ((error: unknown) => void) | false
   onProgress?: (progress: BulkProgress) => void
+  onSettled?: (result: BulkResult<unknown>) => void
   onSuccess?: (count: number) => void
 }
 
@@ -68,7 +69,9 @@ const collectSettled = <R>(settled: PromiseSettledResult<R>[]): { errors: unknow
               { errors, results } = collectSettled(settled)
             if (errors.length > 0 && errorHandler) errorHandler(errors[0])
             if (results.length > 0) options?.onSuccess?.(results.length)
-            return { errors, results, settled }
+            const bulkResult = { errors, results, settled }
+            options?.onSettled?.(bulkResult)
+            return bulkResult
           } finally {
             setIsPending(false)
             setProgress(null)

@@ -1,3 +1,16 @@
+export type { ErrorData, ErrorHandler, MutationFail, MutationOk, MutationResult } from '../server/helpers'
+export {
+  extractErrorData,
+  fail,
+  getErrorCode,
+  getErrorDetail,
+  getErrorMessage,
+  handleError,
+  isErrorCode,
+  isMutationError,
+  matchError,
+  ok
+} from '../server/helpers'
 export {
   clearErrors,
   clearMutations,

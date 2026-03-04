@@ -4,10 +4,12 @@
 
 import type { ErrorInfo, ReactNode } from 'react'
 
+import { cn } from '@a/ui'
 import { Component } from 'react'
 
 interface ErrorBoundaryProps {
   children: ReactNode
+  className?: string
   fallback?: (props: { error: Error; resetErrorBoundary: () => void }) => ReactNode
   onError?: (error: Error, errorInfo: ErrorInfo) => void
 }
@@ -53,7 +55,7 @@ class BetterspaceErrorBoundary extends Component<ErrorBoundaryProps, ErrorBounda
 
   async render() {
     const { error } = this.state,
-      { children, fallback } = this.props
+      { children, className, fallback } = this.props
 
     if (!error) return children
 
@@ -63,7 +65,7 @@ class BetterspaceErrorBoundary extends Component<ErrorBoundaryProps, ErrorBounda
       message = readErrorMessage(error)
 
     return (
-      <div className='flex min-h-[200px] items-center justify-center p-6'>
+      <div className={cn('flex min-h-[200px] items-center justify-center p-6', className)}>
         <div className='max-w-md space-y-3 text-center'>
           {code ? <span className='rounded-sm bg-red-100 px-2 py-1 font-mono text-xs text-red-700'>{code}</span> : null}
           <h2 className='text-lg font-semibold text-zinc-900 dark:text-zinc-100'>Something went wrong</h2>

@@ -18,7 +18,7 @@ export type { DevError, DevSubscription } from './react/devtools'
 export type { Api, ConflictData, FieldKind, FieldMeta, FieldMetaMap, FormReturn } from './react/form'
 export type { OrgContextValue, OrgDoc, OrgProviderProps } from './react/org'
 export type { SoftDeleteOpts, ToastFn } from './react/use-soft-delete'
-export type { ErrorData, ErrorHandler } from './server/helpers'
+export type { ErrorData, ErrorHandler, MutationFail, MutationOk, MutationResult } from './server/helpers'
 export { identityEquals, identityFromHex, identityToHex, idFromWire, idToWire } from './server/helpers'
 export type {
   Ab,
