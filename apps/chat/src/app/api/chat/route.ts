@@ -1,5 +1,3 @@
-export const maxDuration = 60
-
 import type { UIMessage } from 'ai'
 
 import { createUIMessageStream, createUIMessageStreamResponse } from 'ai'
@@ -134,6 +132,7 @@ const WEATHER_LOCATION_RE = /weather(?:\s+in)?\s+(?<location>[a-zA-Z\s-]+)/u,
 
     return createUIMessageStreamResponse({ stream })
   },
-  DELETE = () => withUnavailable()
+  DELETE = () => withUnavailable(),
+  maxDuration = 60
 
-export { DELETE, POST }
+export { DELETE, maxDuration, POST }

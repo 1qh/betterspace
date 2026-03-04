@@ -262,7 +262,7 @@ test.describe
       await cleanupTestUsers()
     })
 
-    test('member exists in org', async () => {
+    test('member exists in org', () => {
       expect(memberUserId).toBeDefined()
     })
 
