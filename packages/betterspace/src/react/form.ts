@@ -77,6 +77,11 @@ const getMax = (schema: undefined | ZodSchema): number | undefined => {
       return {}
     }
   },
+  /**
+   * Infers rendering metadata from a single schema field.
+   * @param schema Field schema or wrapped schema value.
+   * @returns UI metadata used by Betterspace form fields.
+   */
   getMeta = (schema: unknown): FieldMeta => {
     const { schema: base, type } = unwrapZod(schema),
       fileKind = cvFileKindOf(schema),

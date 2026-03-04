@@ -19,6 +19,11 @@ interface UseBulkSelectionOpts {
   undoMs?: number
 }
 
+/**
+ * Manages selected row ids and provides bulk delete with optional undo.
+ * @param options Selection state inputs and bulk mutation handlers.
+ * @returns Selection state plus toggle, clear, and bulk-delete actions.
+ */
 const useBulkSelection = ({
   bulkRm,
   items,

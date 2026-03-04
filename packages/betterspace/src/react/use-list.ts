@@ -41,6 +41,13 @@ const DEFAULT_PAGE_SIZE = 50,
     page: 1,
     totalCount: 0
   },
+  /**
+   * Builds a paginated list view from local rows with where/search/sort.
+   * @param data Source rows.
+   * @param isReady Subscription readiness state.
+   * @param options Pagination, filtering, search, and sorting options.
+   * @returns Visible rows, pagination state, and load-more controls.
+   */
   useList = <T extends Rec>(data: readonly T[], isReady: boolean, options?: 'skip' | UseListOptions<T>) => {
     const skipped = options === 'skip',
       opts = skipped ? undefined : options,

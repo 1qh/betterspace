@@ -25,6 +25,11 @@ interface UseBulkMutateOptions {
   onSuccess?: (count: number) => void
 }
 
+/**
+ * Splits settled promises into successful results and errors.
+ * @param settled Settled mutation results.
+ * @returns Collected fulfilled values and rejection reasons.
+ */
 const collectSettled = <R>(settled: PromiseSettledResult<R>[]): { errors: unknown[]; results: R[] } => {
     const results: R[] = [],
       errors: unknown[] = []
@@ -33,6 +38,12 @@ const collectSettled = <R>(settled: PromiseSettledResult<R>[]): { errors: unknow
       else errors.push(s.reason)
     return { errors, results }
   },
+  /**
+   * Runs a mutation across many items with progress and aggregate outcomes.
+   * @param mutate Mutation function called for each item.
+   * @param options Optional error, progress, and completion callbacks.
+   * @returns Pending state, current progress, and a `run` executor.
+   */
   useBulkMutate = <A, R = void>(mutate: (args: A) => Promise<R>, options?: UseBulkMutateOptions) => {
     const [isPending, setIsPending] = useState(false),
       [progress, setProgress] = useState<BulkProgress | null>(null),

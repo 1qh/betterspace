@@ -59,6 +59,11 @@ const CAMEL_RE = /(?<lower>[a-z\d])(?<upper>[A-Z])/gu,
     if (info.kind !== kind) throw new Error(`Field ${name} is not ${kind}`)
     return { form: ctx.form, info, schema: ctx.schema, serverErrors: ctx.serverErrors }
   },
+  /**
+   * Converts a camelCase field name into a human-readable label.
+   * @param name Field key name.
+   * @returns Generated label text.
+   */
   deriveLabel = (name: string): string => name.replace(CAMEL_RE, '$1 $2').replace(FIRST_CHAR_RE, c => c.toUpperCase()),
   defaultEnumOptions = (schema: ZodObject<ZodRawShape>, name: string): { label: string; value: string }[] => {
     const { schema: inner } = unwrapZod(schema.shape[name])
@@ -68,6 +73,11 @@ const CAMEL_RE = /(?<lower>[a-z\d])(?<upper>[A-Z])/gu,
     }
     throw new Error(`Choose: field "${name}" has no enum options. Pass options prop.`)
   },
+  /**
+   * Renders a server-side field validation error for one form input.
+   * @param props Field name plus div props.
+   * @returns Error element when present, otherwise `null`.
+   */
   ServerFieldError = ({ className, name, ...props }: ComponentProps<'div'> & { name: string }) => {
     const ctx = useFCtx(),
       msg = ctx.serverErrors[name]

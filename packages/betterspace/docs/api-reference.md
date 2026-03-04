@@ -899,9 +899,17 @@ const isOnline = useOnlineStatus()
 
 ### useForm
 
-Form state management hook that integrates Zod schemas with react-hook-form.
-Provides auto-derived field labels, conflict detection, and typed field errors.
-See [Forms guide](forms.md) for full usage.
+Form state management hook that integrates Zod schemas with TanStack Form.
+Provides auto-derived field labels, conflict detection, auto-save, and typed field
+errors. See [Forms guide](forms.md) for full usage.
+
+Two versions are available:
+
+- **`betterspace/react`** — Base hook: form state, validation, conflict detection,
+  auto-save. Use when building custom form UI.
+- **`betterspace/components`** — Enhanced wrapper: adds navigation guards
+  (`useWithGuard`) to prevent losing unsaved changes.
+  Use with the built-in `<Form>` component and typed field components.
 
 ```typescript
 import { useForm } from 'betterspace/react'
@@ -918,18 +926,45 @@ const form = useForm({
 
 ### useFormMutation
 
-Combines `useForm` with `useMutation` for forms that submit via SpacetimeDB reducers.
-Handles loading state, error toasts, and field validation automatically.
+Combines `useForm` with a mutation function for forms that submit via SpacetimeDB
+reducers. Handles loading state, error toasts, and field validation automatically.
+
+Available from both `betterspace/react` (base) and `betterspace/components` (with
+navigation guard).
 
 ```typescript
 import { useFormMutation } from 'betterspace/react'
 
-const { form, isPending } = useFormMutation({
+const form = useFormMutation({
   schema: blogSchema,
-  reducer: reducers.blogCreate,
+  mutate: api.blogs.create,
   toast: { success: 'Created', error: 'Failed' }
 })
 ```
+
+### Form component and field components
+
+The `<Form>` component from `betterspace/components` renders a typed form with automatic
+field layout. It accepts a `render` callback that receives typed field accessors:
+
+```typescript
+import { Form, useForm } from 'betterspace/components'
+
+const form = useForm({ schema, values, onSubmit })
+
+<Form form={form} render={f => (
+  <>
+    <f.Text name="title" />
+    <f.Toggle name="published" />
+    <f.Num name="rating" />
+  </>
+)} />
+```
+
+14 built-in field components: `Text`, `Num`, `Toggle`, `Datepick`, `Timepick`,
+`Colorpick`, `Slider`, `Rating`, `Choose`, `Combobox`, `MultiSelect`, `File`, `Files`,
+`Arr`. Each accepts the field name as a typed prop — misspelling a field name is a type
+error.
 
 * * *
 

@@ -45,6 +45,13 @@ const TOKEN_BYTES = 24,
     for (const b of bytes) token += b.toString(TOKEN_RADIX).padStart(2, '0').slice(0, 2)
     return token.slice(0, TOKEN_LENGTH)
   },
+  /**
+   * Writes a structured JSON log entry to the console.
+   * @param level Log level name.
+   * @param msg Log message identifier.
+   * @param data Optional structured metadata.
+   * @returns Nothing.
+   */
   log = (level: 'debug' | 'error' | 'info' | 'warn', msg: string, data?: Record<string, unknown>) => {
     // eslint-disable-next-line no-console
     console[level](JSON.stringify({ level, msg, ts: Date.now(), ...data }))
@@ -61,6 +68,11 @@ const TOKEN_BYTES = 24,
       })
     }
   },
+  /**
+   * Checks whether a value is a non-null record object.
+   * @param v Value to inspect.
+   * @returns `true` when the value is a record.
+   */
   isRecord = (v: unknown): v is Record<string, unknown> => Boolean(v) && typeof v === 'object',
   isComparisonOp = (val: unknown): val is ComparisonOp<unknown> =>
     typeof val === 'object' &&
@@ -86,10 +98,35 @@ const TOKEN_BYTES = 24,
     throw new SenderError(serializeError(data))
   },
   noFetcher = (): never => err('NO_FETCHER'),
+  /**
+   * Builds a timestamp payload used on created/updated docs.
+   * @param timestamp Optional timestamp override.
+   * @returns Object containing `updatedAt`.
+   */
   time = (timestamp?: number) => ({ updatedAt: timestamp ?? Date.now() }),
+  /**
+   * Converts a Spacetime identity into its hex string form.
+   * @param identity Identity value from SpacetimeDB.
+   * @returns Hex string identity.
+   */
   identityToHex = (identity: Identity): string => identity.toHexString(),
+  /**
+   * Parses a hex identity string into a Spacetime identity object.
+   * @param hex Hex string identity.
+   * @returns Parsed Spacetime identity.
+   */
   identityFromHex = (hex: string): Identity => Identity.fromString(hex),
+  /**
+   * Converts numeric ids to wire-safe string values.
+   * @param id Numeric id.
+   * @returns String id for transport.
+   */
   idToWire = String as unknown as (id: number) => string,
+  /**
+   * Parses a wire id string into a number.
+   * @param str Wire id string.
+   * @returns Parsed numeric id.
+   */
   idFromWire = (str: string): number => {
     if (!str.trim()) err('VALIDATION_FAILED', { message: 'Wire id must not be empty' })
     const id = Number(str)
@@ -339,6 +376,12 @@ const TOKEN_BYTES = 24,
   dbDelete = async (db: DbLike, id: string) => {
     await db.delete(id)
   },
+  /**
+   * Enforces per-key mutation rate limits using a backing `rateLimit` table.
+   * @param db Database adapter.
+   * @param opts Rate-limit configuration and key context.
+   * @returns Nothing.
+   */
   checkRateLimit = async (
     db: DbLike,
     opts: { config: RateLimitConfig; key: string; table: string; timestamp?: number }
@@ -416,6 +459,11 @@ type MutationResult<T> = MutationFail | MutationOk<T>
 /** Typed field errors narrowed to specific schema keys. */
 type TypedFieldErrors<S extends ZodObject<ZodRawShape>> = Partial<Record<keyof ZodOutput<S> & string, string>>
 
+/**
+ * Parses serialized reducer error text into Betterspace error data.
+ * @param message Error message text from thrown reducer errors.
+ * @returns Parsed Betterspace error payload when recognized.
+ */
 const parseSenderMessage = (message: string): ErrorData | undefined => {
     const sep = message.indexOf(':')
     if (sep <= 0) return
@@ -443,7 +491,11 @@ const parseSenderMessage = (message: string): ErrorData | undefined => {
 
     return { ...data, message: rest }
   },
-  /** Extracts typed Betterspace error metadata from unknown error values. */
+  /**
+   * Extracts typed Betterspace error metadata from unknown error values.
+   * @param e Unknown error input.
+   * @returns Parsed Betterspace error payload when available.
+   */
   extractErrorData = (e: unknown): ErrorData | undefined => {
     if (isRecord(e)) {
       const { data } = e as { data?: unknown }
@@ -465,16 +517,28 @@ const parseSenderMessage = (message: string): ErrorData | undefined => {
     }
     if (e instanceof Error) return parseSenderMessage(e.message)
   },
-  /** Returns an error code when the input is a Betterspace error payload. */
+  /**
+   * Returns an error code when the input is a Betterspace error payload.
+   * @param e Unknown error input.
+   * @returns Betterspace error code when present.
+   */
   getErrorCode = (e: unknown): ErrorCode | undefined => extractErrorData(e)?.code,
-  /** Returns a user-friendly error message for unknown error input. */
+  /**
+   * Returns a user-friendly error message for unknown error input.
+   * @param e Unknown error input.
+   * @returns User-facing error message.
+   */
   getErrorMessage = (e: unknown): string => {
     const d = extractErrorData(e)
     if (d) return d.message ?? ERROR_MESSAGES[d.code]
     if (e instanceof Error) return e.message
     return 'Unknown error'
   },
-  /** Returns detailed error text including table/op metadata when available. */
+  /**
+   * Returns detailed error text including table/op metadata when available.
+   * @param e Unknown error input.
+   * @returns Detailed diagnostic error message.
+   */
   getErrorDetail = (e: unknown): string => {
     const d = extractErrorData(e)
     if (!d) return e instanceof Error ? e.message : 'Unknown error'
@@ -483,7 +547,12 @@ const parseSenderMessage = (message: string): ErrorData | undefined => {
     if (d.retryAfter !== undefined) detail += ` (retry after ${d.retryAfter}ms)`
     return detail
   },
-  /** Dispatches an error to code-specific handlers with default fallback. */
+  /**
+   * Dispatches an error to code-specific handlers with default fallback.
+   * @param e Unknown error input.
+   * @param handlers Error handlers keyed by Betterspace code.
+   * @returns Nothing.
+   */
   handleError = (e: unknown, handlers: ErrorHandler): void => {
     const d = extractErrorData(e)
     if (d) {
@@ -495,21 +564,44 @@ const parseSenderMessage = (message: string): ErrorData | undefined => {
     }
     handlers.default?.(e)
   },
-  /** Wraps a successful mutation value in a typed result shape. */
+  /**
+   * Wraps a successful mutation value in a typed result shape.
+   * @param value Mutation return value.
+   * @returns Successful mutation result wrapper.
+   */
   ok = <T>(value: T): MutationResult<T> => ({ ok: true, value }),
-  /** Creates a failed mutation result with optional detail metadata. */
+  /**
+   * Creates a failed mutation result with optional detail metadata.
+   * @param code Betterspace error code.
+   * @param detail Optional additional error details.
+   * @returns Failed mutation result wrapper.
+   */
   fail = (code: ErrorCode, detail?: Omit<ErrorData, 'code'>): MutationResult<never> => ({
     error: { code, message: ERROR_MESSAGES[code], ...detail },
     ok: false
   }),
-  /** Returns true when an error value contains Betterspace error metadata. */
+  /**
+   * Returns true when an error value contains Betterspace error metadata.
+   * @param e Unknown error input.
+   * @returns `true` when Betterspace error data is present.
+   */
   isMutationError = (e: unknown): e is ErrorData => extractErrorData(e) !== undefined,
-  /** Returns true when an error matches a specific Betterspace error code. */
+  /**
+   * Returns true when an error matches a specific Betterspace error code.
+   * @param e Unknown error input.
+   * @param code Betterspace error code to compare.
+   * @returns `true` when the error has the provided code.
+   */
   isErrorCode = (e: unknown, code: ErrorCode): boolean => {
     const d = extractErrorData(e)
     return d?.code === code
   },
-  /** Pattern-matches Betterspace errors to code-specific handlers. */
+  /**
+   * Pattern-matches Betterspace errors to code-specific handlers.
+   * @param e Unknown error input.
+   * @param handlers Error handlers keyed by code plus fallback `_`.
+   * @returns Handler return value when a match exists.
+   */
   matchError = <R>(
     e: unknown,
     handlers: Partial<Record<ErrorCode, (data: ErrorData) => R>> & { _?: (error: unknown) => R }
@@ -527,8 +619,8 @@ const parseSenderMessage = (message: string): ErrorData | undefined => {
     return d?.fieldErrors as TypedFieldErrors<S> | undefined
   },
   /** Returns the first field error message from a Betterspace error, or `undefined` if none.
-   * @param e - Unknown error value
-   * @returns First field error string, or undefined
+   * @param e Unknown error value.
+   * @returns First field error string, or `undefined`.
    * @example
    * ```ts
    * const msg = getFirstFieldError(error)
@@ -544,6 +636,11 @@ const parseSenderMessage = (message: string): ErrorData | undefined => {
       if (v) return v
     }
   },
+  /**
+   * Creates a query helper that checks uniqueness for a given field value.
+   * @param options Table, field, optional index, and query builder wrapper.
+   * @returns A typed query procedure that reports whether the value is unique.
+   */
   makeUnique = ({ field, index, pq, table }: { field: string; index?: string; pq: Qb; table: string }) =>
     typed(
       pq({

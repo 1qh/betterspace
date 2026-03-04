@@ -126,6 +126,10 @@ const listeners: (() => void)[] = [],
     if (errorStore.length > MAX_ERRORS) errorStore.length = MAX_ERRORS
     notify()
   },
+  /**
+   * Clears stored devtool errors.
+   * @returns Nothing.
+   */
   clearErrors = () => {
     errorStore.length = 0
     notify()
@@ -224,6 +228,12 @@ const listeners: (() => void)[] = [],
     mutationStore.length = 0
     notify()
   },
+  /**
+   * Adds a synthetic Betterspace error to the devtools store.
+   * @param code Error code to inject.
+   * @param opts Optional message and metadata payload.
+   * @returns Nothing.
+   */
   injectError = (code: ErrorCode, opts?: { detail?: string; message?: string; op?: string; table?: string }) => {
     const data: ErrorData = { code, ...opts },
       entry: DevError = {
@@ -238,6 +248,10 @@ const listeners: (() => void)[] = [],
     if (errorStore.length > MAX_ERRORS) errorStore.length = MAX_ERRORS
     notify()
   },
+  /**
+   * Subscribes React components to Betterspace devtools state.
+   * @returns Snapshot of errors, mutations, subscriptions, cache, and connection state.
+   */
   useDevErrors = () => {
     const [, setTick] = useState(0),
       spacetime = useSpacetimeDB(),

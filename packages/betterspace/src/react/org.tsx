@@ -63,7 +63,11 @@ const EMPTY_ORGS: OrgMembership[] = [],
     for (const c of document.cookie.split('; ')) if (c.startsWith(COOKIE_PREFIX)) return c.slice(COOKIE_PREFIX.length)
     return null
   },
-  /** Persists active organization identifiers in client cookies. */
+  /**
+   * Persists active organization identifiers in client cookies.
+   * @param options Org id and slug to store.
+   * @returns Nothing.
+   */
   setActiveOrgCookieClient = ({ orgId, slug }: { orgId: string; slug: string }) => {
     if (typeof document === 'undefined') return
     const maxAge = ONE_YEAR_SECONDS
@@ -95,7 +99,11 @@ const EMPTY_ORGS: OrgMembership[] = [],
       }, [setActiveOrgId])
     return { activeOrg, activeOrgId, clearActiveOrg, isLoading: false, setActiveOrg }
   },
-  /** Provides organization role state and active-org switching helpers. */
+  /**
+   * Provides organization role state and active-org switching helpers.
+   * @param props Provider props including current org, role, and children.
+   * @returns Context providers for org and active-org state.
+   */
   OrgProvider = <O extends OrgDoc, M>({
     children,
     membership,
@@ -127,25 +135,39 @@ const EMPTY_ORGS: OrgMembership[] = [],
       </ActiveOrgContext>
     )
   },
-  /** Reads the organization context and throws outside `OrgProvider`. */
+  /**
+   * Reads the organization context and throws outside `OrgProvider`.
+   * @returns The typed org context value.
+   */
   useOrg = <O extends OrgDoc = OrgDoc, M = unknown>() => {
     const ctx = use(OrgContext)
     if (!ctx) throw new Error('useOrg must be used inside OrgProvider')
     return ctx as OrgContextValue<O, M>
   },
-  /** Reads active-org selection helpers and state. */
+  /**
+   * Reads active-org selection helpers and state.
+   * @returns The typed active-org state.
+   */
   useActiveOrg = <O extends OrgDoc = OrgDoc>() => {
     const ctx = use(ActiveOrgContext)
     if (!ctx) throw new Error('useActiveOrg must be used inside OrgProvider')
     return ctx as unknown as ActiveOrgState<O>
   },
-  /** Returns all org memberships for the current user context. */
+  /**
+   * Returns all org memberships for the current user context.
+   * @returns Membership list with loading metadata.
+   */
   useMyOrgs = <O extends OrgDoc = OrgDoc>() => {
     const ctx = use(OrgContext)
     if (!ctx) return { isLoading: false, orgs: [] as OrgMembership<O>[] }
     return { isLoading: false, orgs: ctx.orgs as OrgMembership<O>[] }
   },
-  /** Injects the active org id into query args unless explicitly skipped. */
+  /**
+   * Injects the active org id into query args unless explicitly skipped.
+   * @param query Query hook or function to invoke.
+   * @param args Query arguments or `'skip'`.
+   * @returns Query result when executed, otherwise `undefined`.
+   */
   useOrgQuery = (
     query: ((queryArgs: Record<string, unknown>) => unknown) | undefined,
     args?: 'skip' | Record<string, unknown>
@@ -154,7 +176,11 @@ const EMPTY_ORGS: OrgMembership[] = [],
     if (!(query && args !== 'skip')) return
     return query({ ...args, orgId })
   },
-  /** Wraps a mutation and automatically injects `orgId` into args. */
+  /**
+   * Wraps a mutation and automatically injects `orgId` into args.
+   * @param mutation Mutation function that accepts args with org id.
+   * @returns Callback that merges caller args with current org id.
+   */
   useOrgMutation = (mutation: (args: Record<string, unknown>) => Promise<unknown>) => {
     const { orgId } = useOrg()
     return useCallback(
@@ -162,7 +188,11 @@ const EMPTY_ORGS: OrgMembership[] = [],
       [mutation, orgId]
     )
   },
-  /** Checks if a user can edit an org-owned resource. */
+  /**
+   * Checks if a user can edit an org-owned resource.
+   * @param options Resource owner, editor list, and user role context.
+   * @returns `true` when the user can edit the resource.
+   */
   canEditResource = ({
     editorsList,
     isAdmin,
@@ -178,8 +208,9 @@ const EMPTY_ORGS: OrgMembership[] = [],
     for (const editor of editorsList) if (editor.userId === userId) return true
     return false
   },
-  /** Creates pre-typed org hooks for app-specific org and membership shapes.
-   * @returns Typed wrappers around org context hooks
+  /**
+   * Creates pre-typed org hooks for app-specific org and membership shapes.
+   * @returns Typed wrappers around org context hooks.
    */
   createOrgHooks = <O extends OrgDoc = OrgDoc, M = unknown>() => ({
     useActiveOrg: () => useActiveOrg<O>(),

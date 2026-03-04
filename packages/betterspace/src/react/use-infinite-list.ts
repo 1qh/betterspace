@@ -34,6 +34,13 @@ const DEFAULT_BATCH_SIZE = 50,
     loadMore: noop,
     totalCount: 0
   },
+  /**
+   * Builds an infinite-scroll view from local rows with where/search/sort.
+   * @param data Source rows.
+   * @param isReady Subscription readiness state.
+   * @param options Filtering, searching, sorting, and batch-size options.
+   * @returns Visible rows plus load-more and loading metadata.
+   */
   useInfiniteList = <T extends Rec>(data: T[], isReady: boolean, options?: 'skip' | InfiniteListOptions<T>) => {
     const skipped = options === 'skip',
       opts = skipped ? undefined : options,

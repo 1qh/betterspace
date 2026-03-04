@@ -31,6 +31,13 @@ const normalizeQuery = (query: string): string => query.trim().toLowerCase(),
   },
   DEFAULT_DEBOUNCE_MS = 300,
   SKIP_SEARCH: UseSearchResult<never> = { isSearching: true, results: [] },
+  /**
+   * Filters rows by a debounced text query across selected fields.
+   * @param data Source rows to search.
+   * @param isReady Whether upstream data is ready for searching.
+   * @param options Search configuration or `'skip'` to disable searching.
+   * @returns Search results and searching state for UI rendering.
+   */
   useSearch = <T extends Rec>(data: T[], isReady: boolean, options: 'skip' | UseSearchOptions): UseSearchResult<T> => {
     const skipped = options === 'skip',
       opts = skipped ? { debounceMs: DEFAULT_DEBOUNCE_MS, fields: [] as string[], query: '' } : options,

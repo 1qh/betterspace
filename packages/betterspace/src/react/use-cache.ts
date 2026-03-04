@@ -30,12 +30,18 @@ const isDev = typeof process !== 'undefined' && process.env.NODE_ENV !== 'produc
     try {
       await load(args)
     } catch (error) {
-      String(error)
+      // eslint-disable-next-line no-console
+      console.error('[betterspace] Cache load failed:', error)
     } finally {
       loadingRef.current = false
       setIsLoading(false)
     }
   },
+  /**
+   * Reads a cache row and auto-loads it when stale or missing.
+   * @param options Cache table, load function, key args, and current row value.
+   * @returns Cache row state with staleness, loading, and refresh controls.
+   */
   useCacheEntry = <A extends Record<string, unknown>, T extends Record<string, unknown>>({
     args,
     data,

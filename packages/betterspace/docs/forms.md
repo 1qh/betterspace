@@ -58,7 +58,58 @@ const profileSchema = zodFromTable(tables.blogProfile.columns)
 export { createPostSchema, editPostSchema, profileSchema }
 ```
 
-## Integration with @tanstack/react-form
+## Built-in Form (recommended)
+
+betterspace provides a complete form solution with typed fields, auto-save, conflict
+detection, and navigation guards.
+Import from `betterspace/components`:
+
+```typescript
+import { Form, useForm } from 'betterspace/components'
+
+const MyForm = ({ data }) => {
+  const form = useForm({
+    schema: postSchema,
+    values: data,
+    onSubmit: async values => {
+      await save(values)
+      return values
+    }
+  })
+
+  return (
+    <Form form={form} render={f => (
+      <>
+        <f.Text name="title" />
+        <f.Text name="content" />
+        <f.Toggle name="published" />
+      </>
+    )} />
+  )
+}
+```
+
+Field names are type-checked — `<f.Text name="typo" />` is a compile error.
+14 built-in field components: `Text`, `Num`, `Toggle`, `Datepick`, `Timepick`,
+`Colorpick`, `Slider`, `Rating`, `Choose`, `Combobox`, `MultiSelect`, `File`, `Files`,
+`Arr`.
+
+For mutation-backed forms, use `useFormMutation`:
+
+```typescript
+import { Form, useFormMutation } from 'betterspace/components'
+
+const form = useFormMutation({
+  schema: postSchema,
+  mutate: api.posts.create,
+  toast: { success: 'Created', error: 'Failed' }
+})
+```
+
+## Integration with @tanstack/react-form (manual)
+
+If you need full control over form rendering, you can use @tanstack/react-form directly
+with betterspace’s Zod schemas:
 
 ```bash
 bun add @tanstack/react-form zod
