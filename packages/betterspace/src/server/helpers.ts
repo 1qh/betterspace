@@ -304,7 +304,7 @@ const TOKEN_BYTES = 24,
         code,
         fieldErrors,
         fields,
-        message: fields.length ? `Invalid: ${fields.join(', ')}` : 'Validation failed'
+        message: fields.length ? `Invalid: ${fields.join(', ')}` : ERROR_MESSAGES.VALIDATION_FAILED
       })
     )
   },

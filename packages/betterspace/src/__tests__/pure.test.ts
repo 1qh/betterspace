@@ -3083,7 +3083,7 @@ describe('Fix #10: isTestMode production safety', () => {
 describe('VALIDATION_FAILED error code', () => {
   test('VALIDATION_FAILED exists in ERROR_MESSAGES', () => {
     expect(ERROR_MESSAGES).toHaveProperty('VALIDATION_FAILED')
-    expect(ERROR_MESSAGES.VALIDATION_FAILED).toBe('Validation failed')
+    expect(ERROR_MESSAGES.VALIDATION_FAILED).toBe('One or more fields failed validation — check your input')
   })
 
   test('VALIDATION_FAILED is a valid ErrorCode', () => {
@@ -3115,7 +3115,7 @@ describe('VALIDATION_FAILED error code', () => {
 
   test('getErrorMessage falls back to ERROR_MESSAGES for VALIDATION_FAILED', () => {
     const msg = getErrorMessage(makeSenderError({ code: 'VALIDATION_FAILED' }))
-    expect(msg).toBe('Validation failed')
+    expect(msg).toBe('One or more fields failed validation — check your input')
   })
 
   test('handleError routes VALIDATION_FAILED', () => {
@@ -3164,7 +3164,7 @@ describe('errValidation with VALIDATION_FAILED', () => {
       const d = extractErrorData(error)
       expect(d?.code).toBe('VALIDATION_FAILED')
       expect(d?.fields).toEqual([])
-      expect(d?.message).toBe('Validation failed')
+      expect(d?.message).toBe(ERROR_MESSAGES.VALIDATION_FAILED)
     }
   })
 
@@ -3516,8 +3516,8 @@ describe('ERROR_MESSAGES completeness', () => {
 
   test('VALIDATION_FAILED is distinct from INVALID_WHERE', () => {
     expect(ERROR_MESSAGES.VALIDATION_FAILED).not.toBe(ERROR_MESSAGES.INVALID_WHERE)
-    expect(ERROR_MESSAGES.VALIDATION_FAILED).toBe('Validation failed')
-    expect(ERROR_MESSAGES.INVALID_WHERE).toBe('Invalid filters')
+    expect(ERROR_MESSAGES.VALIDATION_FAILED).toBe('One or more fields failed validation — check your input')
+    expect(ERROR_MESSAGES.INVALID_WHERE).toBe('Invalid filter parameters — check field names and values')
   })
 })
 
