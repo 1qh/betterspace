@@ -6,17 +6,32 @@ import { Conversation, ConversationContent, ConversationEmptyState } from '@a/ui
 import { PromptInput, PromptInputFooter, PromptInputSubmit, PromptInputTextarea } from '@a/ui/ai-elements/prompt-input'
 import { Label } from '@a/ui/label'
 import { Switch } from '@a/ui/switch'
+import { getFieldErrors, useMutate } from 'betterspace/react'
 import { SparklesIcon } from 'lucide-react'
 import { useRouter } from 'next/navigation'
 import { useEffect, useRef, useState, useTransition } from 'react'
+import { toast } from 'sonner'
 import { useReducer, useSpacetimeDB, useTable } from 'spacetimedb/react'
 
 const Page = () => {
   const router = useRouter(),
-    createChat = useReducer(reducers.createChat),
+    pendingTitle = useRef<null | string>(null),
+    createChatRaw = useReducer(reducers.createChat),
+    createChat = useMutate(createChatRaw, {
+      getName: () => 'chat.create',
+      onSettled: (_args, error) => {
+        if (!error) return
+        const fieldErrors = getFieldErrors(error),
+          [firstError] = Object.values(fieldErrors ?? {})
+        if (typeof firstError === 'string' && firstError.length > 0) toast.error(firstError)
+        else toast.error('Unable to create chat')
+      },
+      onSuccess: () => {
+        pendingTitle.current = null
+      }
+    }),
     { identity } = useSpacetimeDB(),
     [allChats] = useTable(tables.chat),
-    pendingTitle = useRef<null | string>(null),
     [isSubmitting, setIsSubmitting] = useState(false),
     [isPublic, setIsPublic] = useState(false),
     [isPending, startTransition] = useTransition(),

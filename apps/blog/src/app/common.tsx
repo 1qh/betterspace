@@ -20,7 +20,7 @@ import { Dialog, DialogContent, DialogTrigger } from '@a/ui/dialog'
 import { FieldGroup } from '@a/ui/field'
 import { Spinner } from '@a/ui/spinner'
 import { Form, useForm } from 'betterspace/components'
-import { useOptimisticMutation } from 'betterspace/react'
+import { getFieldErrors, useMutate, useOptimisticMutation } from 'betterspace/react'
 import { format, formatDistance } from 'date-fns'
 import { Pencil, Plus, Send, Trash, UserRound } from 'lucide-react'
 import Link from 'next/link'
@@ -35,7 +35,17 @@ import { Publish } from './[id]/edit/client'
 // eslint-disable-next-line no-restricted-properties
 const isPlaywrightTest = process.env.NEXT_PUBLIC_PLAYWRIGHT === '1',
   Delete = ({ id, onOptimisticRemove }: { id: number; onOptimisticRemove?: () => void }) => {
-    const rmBlog = useReducer(reducers.rmBlog),
+    const rmBlogRaw = useReducer(reducers.rmBlog),
+      rmBlog = useMutate(rmBlogRaw, {
+        getName: () => 'blog.rm',
+        onSettled: (args, error) => {
+          if (!error) return
+          toast.error(`Delete failed for #${args.id}`)
+        },
+        onSuccess: () => {
+          toast.success('Deleted')
+        }
+      }),
       { execute, isPending } = useOptimisticMutation({
         mutate: rmBlog,
         onOptimistic: () => {
@@ -43,9 +53,6 @@ const isPlaywrightTest = process.env.NEXT_PUBLIC_PLAYWRIGHT === '1',
         },
         onRollback: () => {
           toast.error('Failed to delete')
-        },
-        onSuccess: () => {
-          toast.success('Deleted')
         }
       })
     return isPending ? (
@@ -83,10 +90,20 @@ const isPlaywrightTest = process.env.NEXT_PUBLIC_PLAYWRIGHT === '1',
   },
   Create = () => {
     const [open, setOpen] = useState(false),
-      create = useReducer(reducers.createBlog),
+      createRaw = useReducer(reducers.createBlog),
+      create = useMutate(createRaw, {
+        getName: () => 'blog.create',
+        onSettled: (_args, error) => {
+          if (!error) return
+          toast.error('Create failed')
+        },
+        onSuccess: () => {
+          toast.success('Created')
+        }
+      }),
       form = useForm({
         onSubmit: async d => {
-          await create({
+          const payload = {
             attachments: d.attachments,
             category: d.category,
             content: d.content,
@@ -94,13 +111,19 @@ const isPlaywrightTest = process.env.NEXT_PUBLIC_PLAYWRIGHT === '1',
             published: isPlaywrightTest,
             tags: d.tags,
             title: d.title
-          })
+          }
+          try {
+            await create(payload)
+          } catch (error) {
+            const fieldErrors = getFieldErrors<typeof createBlog>(error)
+            if (fieldErrors?.title) toast.error(fieldErrors.title)
+            throw error
+          }
           return d
         },
         onSuccess: () => {
           form.reset()
           setOpen(false)
-          toast.success('Created')
         },
         schema: createBlog
       })
@@ -128,20 +151,52 @@ const isPlaywrightTest = process.env.NEXT_PUBLIC_PLAYWRIGHT === '1',
           <Form
             className='flex flex-col gap-4'
             form={form}
-            render={({ Arr, File, Files, Submit, Text }) => (
+            render={({ Arr, Choose, File, Files, Submit, Text }) => (
               <>
                 <FieldGroup>
-                  <Text data-testid='blog-title' name='title' placeholder='My awesome post' />
-                  <Text data-testid='blog-category' name='category' placeholder='Category' />
-                  <Text className='min-h-32' data-testid='blog-content' multiline name='content' placeholder='Write...' />
-                  <File accept='image/*' data-testid='blog-cover-image' maxSize={5 * 1024 * 1024} name='coverImage' />
+                  <Text
+                    data-testid='blog-title'
+                    helpText='Use a concise, clear title.'
+                    name='title'
+                    placeholder='My awesome post'
+                    required
+                  />
+                  <Choose
+                    data-testid='blog-category'
+                    helpText='Choose the best matching topic.'
+                    name='category'
+                    required
+                  />
+                  <Text
+                    className='min-h-32'
+                    data-testid='blog-content'
+                    helpText='At least 3 characters.'
+                    multiline
+                    name='content'
+                    placeholder='Write...'
+                    required
+                  />
+                  <File
+                    accept='image/*'
+                    data-testid='blog-cover-image'
+                    helpText='Optional cover image.'
+                    maxSize={5 * 1024 * 1024}
+                    name='coverImage'
+                  />
                   <Files
                     accept='image/*,application/pdf'
                     data-testid='blog-attachments'
+                    helpText='Optional attachments, up to 5 files.'
                     maxSize={10 * 1024 * 1024}
                     name='attachments'
                   />
-                  <Arr data-testid='blog-tags' name='tags' placeholder='Add tag...' transform={s => s.toLowerCase()} />
+                  <Arr
+                    data-testid='blog-tags'
+                    helpText='Press Enter to add each tag.'
+                    name='tags'
+                    placeholder='Add tag...'
+                    transform={s => s.toLowerCase()}
+                  />
                 </FieldGroup>
                 <Submit className='ml-auto' data-testid='create-blog-submit' Icon={Send}>
                   Create

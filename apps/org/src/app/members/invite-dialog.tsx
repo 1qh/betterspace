@@ -4,6 +4,7 @@ import { reducers } from '@a/be/spacetimedb'
 import { Button } from '@a/ui/button'
 import { Dialog, DialogContent, DialogDescription, DialogHeader, DialogTitle, DialogTrigger } from '@a/ui/dialog'
 import { Form, useForm } from 'betterspace/components'
+import { getFieldErrors, useMutate } from 'betterspace/react'
 import { Plus } from 'lucide-react'
 import { useState } from 'react'
 import { toast } from 'sonner'
@@ -17,11 +18,21 @@ interface InviteDialogProps {
 
 const InviteDialog = ({ orgId }: InviteDialogProps) => {
   const [open, setOpen] = useState(false),
-    sendInvite = useReducer(reducers.orgSendInvite),
+    sendInviteRaw = useReducer(reducers.orgSendInvite),
+    sendInvite = useMutate(sendInviteRaw, {
+      getName: () => `org.invite:${orgId}`,
+      onSettled: (_args, error) => {
+        if (!error) return
+        const fieldErrors = getFieldErrors<typeof invite>(error)
+        if (fieldErrors?.email) toast.error(fieldErrors.email)
+      },
+      onSuccess: () => {
+        toast.success('Invite sent')
+      }
+    }),
     form = useForm({
       onSubmit: async d => {
         await sendInvite({ ...d, orgId: Number(orgId) })
-        toast.success('Invite sent')
         setOpen(false)
         return d
       },
@@ -47,8 +58,14 @@ const InviteDialog = ({ orgId }: InviteDialogProps) => {
           form={form}
           render={({ Submit, Text, Toggle }) => (
             <>
-              <Text name='email' placeholder='email@example.com' type='email' />
-              <Toggle name='isAdmin' trueLabel='Invite as admin' />
+              <Text
+                helpText='A valid email address is required.'
+                name='email'
+                placeholder='email@example.com'
+                required
+                type='email'
+              />
+              <Toggle helpText='Enable to grant admin permissions.' name='isAdmin' trueLabel='Invite as admin' />
               <Submit className='w-full'>Create invite link</Submit>
             </>
           )}

@@ -4,6 +4,7 @@ import { reducers, tables } from '@a/be/spacetimedb'
 import { FieldGroup } from '@a/ui/field'
 import { Spinner } from '@a/ui/spinner'
 import { Form, useForm } from 'betterspace/components'
+import { getFieldErrors, useMutate } from 'betterspace/react'
 import Link from 'next/link'
 import { toast } from 'sonner'
 import { useReducer, useSpacetimeDB, useTable } from 'spacetimedb/react'
@@ -16,21 +17,34 @@ const Page = () => {
     // eslint-disable-next-line no-restricted-properties
     isPlaywright = process.env.NEXT_PUBLIC_PLAYWRIGHT === '1',
     profile = profiles.find(p => identity && p.userId.isEqual(identity)) ?? null,
-    upsert = useReducer(reducers.upsertBlogProfile),
-    shouldShowContent = isReady || isPlaywright,
-    form = useForm({
-      onSubmit: async d => {
-        await upsert({
-          avatar: d.avatar ?? undefined,
-          bio: d.bio,
-          displayName: d.displayName,
-          notifications: d.notifications,
-          theme: d.theme
-        })
-        return d
+    upsertRaw = useReducer(reducers.upsertBlogProfile),
+    upsert = useMutate(upsertRaw, {
+      getName: () => 'blogProfile.upsert',
+      onSettled: (_args, error) => {
+        if (!error) return
+        toast.error('Profile save failed')
       },
       onSuccess: () => {
         toast.success('Profile saved')
+      }
+    }),
+    shouldShowContent = isReady || isPlaywright,
+    form = useForm({
+      onSubmit: async d => {
+        try {
+          await upsert({
+            avatar: d.avatar ?? undefined,
+            bio: d.bio,
+            displayName: d.displayName,
+            notifications: d.notifications,
+            theme: d.theme
+          })
+        } catch (error) {
+          const fieldErrors = getFieldErrors<typeof profileSchema>(error)
+          if (fieldErrors?.displayName) toast.error(fieldErrors.displayName)
+          throw error
+        }
+        return d
       },
       schema: profileSchema,
       values: shouldShowContent
@@ -66,11 +80,23 @@ const Page = () => {
         render={({ Choose, File, Submit, Text, Toggle }) => (
           <>
             <FieldGroup className='gap-5'>
-              <Text data-testid='profile-displayName' name='displayName' />
-              <Text className='min-h-24' data-testid='profile-bio' multiline name='bio' />
-              <Choose data-testid='profile-theme' name='theme' />
-              <Toggle data-testid='profile-notifications' falseLabel='Off' name='notifications' trueLabel='On' />
-              <File accept='image/*' data-testid='profile-avatar' maxSize={5 * 1024 * 1024} name='avatar' />
+              <Text data-testid='profile-displayName' helpText='Shown to other users.' name='displayName' required />
+              <Text className='min-h-24' data-testid='profile-bio' helpText='Optional short bio.' multiline name='bio' />
+              <Choose data-testid='profile-theme' helpText='Pick your preferred appearance.' name='theme' required />
+              <Toggle
+                data-testid='profile-notifications'
+                falseLabel='Off'
+                helpText='Enable activity notifications.'
+                name='notifications'
+                trueLabel='On'
+              />
+              <File
+                accept='image/*'
+                data-testid='profile-avatar'
+                helpText='Optional avatar image.'
+                maxSize={5 * 1024 * 1024}
+                name='avatar'
+              />
             </FieldGroup>
             <Submit className='ml-auto' data-testid='profile-submit'>
               Save

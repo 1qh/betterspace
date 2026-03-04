@@ -5,6 +5,7 @@
 import { reducers } from '@a/be/spacetimedb'
 import { Button } from '@a/ui/button'
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@a/ui/card'
+import { useMutate } from 'betterspace/react'
 import { CheckCircle, XCircle } from 'lucide-react'
 import { useRouter } from 'next/navigation'
 import { use, useState } from 'react'
@@ -16,12 +17,21 @@ const AcceptInvitePage = ({ params }: { params: Promise<{ token: string }> }) =>
     router = useRouter(),
     [accepted, setAccepted] = useState(false),
     [inviteError, setInviteError] = useState<null | string>(null),
-    acceptInvite = useReducer(reducers.orgAcceptInvite),
+    acceptInviteRaw = useReducer(reducers.orgAcceptInvite),
+    acceptInvite = useMutate(acceptInviteRaw, {
+      getName: () => 'org.acceptInvite',
+      onSettled: (_args, error) => {
+        if (!error) return
+        setInviteError(error instanceof Error ? error.message : 'Invalid or expired invite')
+      },
+      onSuccess: () => {
+        setAccepted(true)
+        toast.success('Welcome to the organization!')
+      }
+    }),
     handleAccept = () => {
       acceptInvite({ token })
         .then(() => {
-          setAccepted(true)
-          toast.success('Welcome to the organization!')
           setTimeout(() => router.push('/'), 1500)
         })
         .catch((acceptError: unknown) => {

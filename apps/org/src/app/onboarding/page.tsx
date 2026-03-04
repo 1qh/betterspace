@@ -4,6 +4,7 @@ import { reducers, tables } from '@a/be/spacetimedb'
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@a/ui/card'
 import { FieldGroup } from '@a/ui/field'
 import { defineSteps } from 'betterspace/components'
+import { getFieldErrors, useMutate } from 'betterspace/react'
 import { toast } from 'sonner'
 import { useReducer, useSpacetimeDB, useTable } from 'spacetimedb/react'
 
@@ -35,8 +36,30 @@ const { StepForm, useStepper } = defineSteps(
           displayName: profile?.displayName ?? ''
         }
       },
-      upsert = useReducer(reducers.upsertOrgProfile),
-      create = useReducer(reducers.orgCreate),
+      upsertRaw = useReducer(reducers.upsertOrgProfile),
+      upsert = useMutate(upsertRaw, {
+        getName: () => 'orgProfile.upsert',
+        onSettled: (_args, error) => {
+          if (!error) return
+          const fieldErrors = getFieldErrors<typeof profileStep>(error)
+          if (fieldErrors?.displayName) toast.error(fieldErrors.displayName)
+        },
+        onSuccess: () => {
+          toast.success('Profile saved')
+        }
+      }),
+      createRaw = useReducer(reducers.orgCreate),
+      create = useMutate(createRaw, {
+        getName: () => 'org.create.onboarding',
+        onSettled: (_args, error) => {
+          if (!error) return
+          const fieldErrors = getFieldErrors<typeof orgStep>(error)
+          if (fieldErrors?.slug) toast.error(fieldErrors.slug)
+        },
+        onSuccess: () => {
+          toast.success('Organization ready')
+        }
+      }),
       stepper = useStepper({
         onSubmit: async d => {
           await upsert({
@@ -72,9 +95,9 @@ const { StepForm, useStepper } = defineSteps(
                 id='profile'
                 render={({ File, Text }) => (
                   <FieldGroup>
-                    <Text name='displayName' />
-                    <Text multiline name='bio' />
-                    <File accept='image/*' name='avatar' />
+                    <Text helpText='Visible to your organization.' name='displayName' required />
+                    <Text helpText='Optional short bio.' multiline name='bio' />
+                    <File accept='image/*' helpText='Optional avatar image.' name='avatar' />
                   </FieldGroup>
                 )}
               />
@@ -82,8 +105,8 @@ const { StepForm, useStepper } = defineSteps(
                 id='org'
                 render={({ Text }) => (
                   <FieldGroup>
-                    <Text name='name' />
-                    <Text label='URL Slug' name='slug' />
+                    <Text helpText='Organization display name.' name='name' required />
+                    <Text helpText='Lowercase letters, numbers, and dashes.' label='URL Slug' name='slug' required />
                   </FieldGroup>
                 )}
               />
@@ -91,7 +114,12 @@ const { StepForm, useStepper } = defineSteps(
                 id='appearance'
                 render={({ File }) => (
                   <FieldGroup>
-                    <File accept='image/*' label='Organization Avatar' name='orgAvatar' />
+                    <File
+                      accept='image/*'
+                      helpText='Optional organization avatar.'
+                      label='Organization Avatar'
+                      name='orgAvatar'
+                    />
                   </FieldGroup>
                 )}
               />
@@ -99,8 +127,13 @@ const { StepForm, useStepper } = defineSteps(
                 id='preferences'
                 render={({ Choose, Toggle }) => (
                   <FieldGroup>
-                    <Choose name='theme' options={themeOptions} />
-                    <Toggle falseLabel='Off' name='notifications' trueLabel='On' />
+                    <Choose helpText='Pick your preferred theme.' name='theme' options={themeOptions} required />
+                    <Toggle
+                      falseLabel='Off'
+                      helpText='Enable activity notifications.'
+                      name='notifications'
+                      trueLabel='On'
+                    />
                   </FieldGroup>
                 )}
               />

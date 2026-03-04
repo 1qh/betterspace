@@ -6,7 +6,7 @@ import { Button } from '@a/ui/button'
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@a/ui/card'
 import { Skeleton } from '@a/ui/skeleton'
 import { Form, OrgAvatar, useForm } from 'betterspace/components'
-import { setActiveOrgCookieClient } from 'betterspace/react'
+import { getFieldErrors, setActiveOrgCookieClient, useMutate } from 'betterspace/react'
 import { useRouter } from 'next/navigation'
 import { use } from 'react'
 import { toast } from 'sonner'
@@ -30,13 +30,32 @@ const JoinPage = ({ params }: { params: Promise<{ slug: string }> }) => {
         : null,
     membership =
       identity && org ? members.find(m => m.orgId === org.id && m.userId.toHexString() === identity.toHexString()) : null,
-    cancelRequest = useReducer(reducers.orgCancelJoin),
-    requestJoin = useReducer(reducers.orgRequestJoin),
+    cancelRequestRaw = useReducer(reducers.orgCancelJoin),
+    cancelRequest = useMutate(cancelRequestRaw, {
+      getName: () => 'org.cancelJoin',
+      onSettled: (_args, error) => {
+        if (error) toast.error('Failed to cancel request')
+      },
+      onSuccess: () => {
+        toast.success('Request cancelled')
+      }
+    }),
+    requestJoinRaw = useReducer(reducers.orgRequestJoin),
+    requestJoin = useMutate(requestJoinRaw, {
+      getName: () => 'org.requestJoin',
+      onSettled: (_args, error) => {
+        if (!error) return
+        const fieldErrors = getFieldErrors<typeof joinRequest>(error)
+        if (fieldErrors?.message) toast.error(fieldErrors.message)
+      },
+      onSuccess: () => {
+        toast.success('Join request sent')
+      }
+    }),
     form = useForm({
       onSubmit: async d => {
         if (!org) return d
         await requestJoin({ message: d.message ?? undefined, orgId: org.id })
-        toast.success('Join request sent')
         return d
       },
       resetOnSuccess: true,
@@ -46,7 +65,6 @@ const JoinPage = ({ params }: { params: Promise<{ slug: string }> }) => {
       if (!myRequest) return
       try {
         await cancelRequest({ requestId: myRequest.id })
-        toast.success('Request cancelled')
       } catch (error) {
         fail(error)
       }
@@ -88,7 +106,13 @@ const JoinPage = ({ params }: { params: Promise<{ slug: string }> }) => {
               form={form}
               render={({ Submit, Text }) => (
                 <>
-                  <Text multiline name='message' placeholder='Optional message to the admins...' rows={3} />
+                  <Text
+                    helpText='Optional note for organization admins.'
+                    multiline
+                    name='message'
+                    placeholder='Optional message to the admins...'
+                    rows={3}
+                  />
                   <Submit className='w-full'>Request to Join</Submit>
                 </>
               )}

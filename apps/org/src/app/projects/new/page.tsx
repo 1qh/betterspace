@@ -1,20 +1,32 @@
 'use client'
 
 import { reducers } from '@a/be/spacetimedb'
-import { orgScoped } from '@a/be/z'
 import { Card, CardContent, CardHeader, CardTitle } from '@a/ui/card'
 import { FieldGroup } from '@a/ui/field'
 import { Form, useForm } from 'betterspace/components'
+import { getFieldErrors, useMutate } from 'betterspace/react'
 import { useRouter } from 'next/navigation'
 import { toast } from 'sonner'
 import { useReducer } from 'spacetimedb/react'
 
 import { useOrg } from '~/hook/use-org'
+import { project } from '~/schema'
 
 const NewProjectPage = () => {
   const router = useRouter(),
     { org } = useOrg(),
-    createProject = useReducer(reducers.createProject),
+    createProjectRaw = useReducer(reducers.createProject),
+    createProject = useMutate(createProjectRaw, {
+      getName: () => 'project.create',
+      onSettled: (_args, error) => {
+        if (!error) return
+        const fieldErrors = getFieldErrors<typeof project>(error)
+        if (fieldErrors?.name) toast.error(fieldErrors.name)
+      },
+      onSuccess: () => {
+        toast.success('Project created')
+      }
+    }),
     form = useForm({
       onSubmit: async d => {
         await createProject({
@@ -24,12 +36,11 @@ const NewProjectPage = () => {
           orgId: Number(org._id),
           status: d.status
         })
-        toast.success('Project created')
         router.push('/projects')
         return d
       },
       resetOnSuccess: true,
-      schema: orgScoped.project
+      schema: project
     })
 
   return (
@@ -45,9 +56,9 @@ const NewProjectPage = () => {
             render={({ Choose, Submit, Text }) => (
               <>
                 <FieldGroup>
-                  <Text name='name' placeholder='Project name' />
-                  <Text multiline name='description' />
-                  <Choose name='status' />
+                  <Text helpText='Keep it short and clear.' name='name' placeholder='Project name' required />
+                  <Text helpText='Optional context for the team.' multiline name='description' />
+                  <Choose helpText='Current project state.' name='status' />
                 </FieldGroup>
                 <Submit className='w-full'>Create project</Submit>
               </>

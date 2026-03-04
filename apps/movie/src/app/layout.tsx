@@ -11,7 +11,7 @@ const Layout = ({ children }: { children: ReactNode }) => (
   <html lang='en' suppressHydrationWarning>
     <body className='min-h-screen bg-background font-sans tracking-tight text-foreground antialiased'>
       <Suspense>
-        <ErrorBoundary>
+        <ErrorBoundary className='mx-auto max-w-4xl'>
           <SpacetimeProvider noAuth>
             <ThemeProvider attribute='class' defaultTheme='system' enableSystem>
               {children}

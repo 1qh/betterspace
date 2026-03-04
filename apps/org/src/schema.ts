@@ -1,8 +1,17 @@
 import { org, orgScoped, singleton } from '@a/be/z'
 import { cvFile } from 'betterspace/schema'
+import { schemaVariants } from 'betterspace/zod'
 import { boolean, email, object, string } from 'zod/v4'
 
-const orgTeam = org.team.omit({ avatarId: true }),
+const orgTeamSchema = org.team.omit({ avatarId: true }),
+  wikiSchema = orgScoped.wiki.omit({ content: true }).extend({ content: string().optional() }),
+  orgTeamVariants = schemaVariants(orgTeamSchema, ['name', 'slug']),
+  projectVariants = schemaVariants(orgScoped.project, ['name']),
+  wikiVariants = schemaVariants(wikiSchema, ['slug', 'status', 'title']),
+  orgTeam = orgTeamVariants.create,
+  orgTeamUpdate = orgTeamVariants.update as ReturnType<typeof orgTeamSchema.partial>,
+  project = projectVariants.create,
+  projectUpdate = projectVariants.update as ReturnType<typeof orgScoped.project.partial>,
   invite = object({ email: email(), isAdmin: boolean() }),
   joinRequest = object({ message: string().optional() }),
   profileStep = singleton.orgProfile.pick({ avatar: true, bio: true, displayName: true }),
@@ -15,7 +24,21 @@ const orgTeam = org.team.omit({ avatarId: true }),
   appearanceStep = object({
     orgAvatar: cvFile().nullable().optional()
   }),
-  wiki = orgScoped.wiki.omit({ content: true }).extend({ content: string().optional() }),
+  wiki = wikiVariants.create,
+  wikiUpdate = wikiVariants.update as ReturnType<typeof wikiSchema.partial>,
   preferencesStep = singleton.orgProfile.pick({ notifications: true, theme: true })
 
-export { appearanceStep, invite, joinRequest, orgStep, orgTeam, preferencesStep, profileStep, wiki }
+export {
+  appearanceStep,
+  invite,
+  joinRequest,
+  orgStep,
+  orgTeam,
+  orgTeamUpdate,
+  preferencesStep,
+  profileStep,
+  project,
+  projectUpdate,
+  wiki,
+  wikiUpdate
+}

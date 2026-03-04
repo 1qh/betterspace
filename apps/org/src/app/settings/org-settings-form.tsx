@@ -6,13 +6,13 @@ import { reducers } from '@a/be/spacetimedb'
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@a/ui/card'
 import { FieldGroup } from '@a/ui/field'
 import { Form, useForm } from 'betterspace/components'
-import { setActiveOrgCookieClient } from 'betterspace/react'
+import { getFieldErrors, setActiveOrgCookieClient, useMutate } from 'betterspace/react'
 import { pickValues } from 'betterspace/zod'
 import { useRouter } from 'next/navigation'
 import { toast } from 'sonner'
 import { useReducer } from 'spacetimedb/react'
 
-import { orgTeam } from '~/schema'
+import { orgTeamUpdate } from '~/schema'
 
 interface OrgSettingsFormProps {
   org: Org & { _id: string }
@@ -20,18 +20,33 @@ interface OrgSettingsFormProps {
 
 const OrgSettingsForm = ({ org: o }: OrgSettingsFormProps) => {
   const router = useRouter(),
-    update = useReducer(reducers.orgUpdate),
+    updateRaw = useReducer(reducers.orgUpdate),
+    update = useMutate(updateRaw, {
+      getName: () => `org.update:${o._id}`,
+      onSettled: (_args, error) => {
+        if (!error) return
+        const fieldErrors = getFieldErrors<typeof orgTeamUpdate>(error)
+        if (fieldErrors?.slug) toast.error(fieldErrors.slug)
+      },
+      onSuccess: () => {
+        toast.success('Settings updated')
+      }
+    }),
     form = useForm({
       onSubmit: async d => {
-        await update({ ...d, avatarId: undefined, orgId: Number(o._id) })
-        toast.success('Settings updated')
-        if (d.slug !== o.slug) setActiveOrgCookieClient({ orgId: o._id, slug: d.slug })
+        await update({
+          avatarId: undefined,
+          name: d.name ?? undefined,
+          orgId: Number(o._id),
+          slug: d.slug ?? undefined
+        })
+        if (typeof d.slug === 'string' && d.slug !== o.slug) setActiveOrgCookieClient({ orgId: o._id, slug: d.slug })
 
         router.push('/settings')
         return d
       },
-      schema: orgTeam,
-      values: pickValues(orgTeam, o)
+      schema: orgTeamUpdate,
+      values: pickValues(orgTeamUpdate, o)
     }),
     slug = form.watch('slug')
 
@@ -48,8 +63,8 @@ const OrgSettingsForm = ({ org: o }: OrgSettingsFormProps) => {
           render={({ Submit, Text }) => (
             <>
               <FieldGroup>
-                <Text name='name' />
-                <Text name='slug' />
+                <Text helpText='Public organization name.' name='name' required />
+                <Text helpText='Lowercase letters, numbers, and dashes.' name='slug' required />
               </FieldGroup>
               <p className='text-xs text-muted-foreground'>/{slug}</p>
               <Submit>Save changes</Submit>

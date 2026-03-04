@@ -10,6 +10,7 @@ import { Button } from '@a/ui/button'
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@a/ui/card'
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@a/ui/select'
 import { clearActiveOrgCookie } from 'betterspace/next'
+import { useMutate } from 'betterspace/react'
 import { useRouter } from 'next/navigation'
 import { useState } from 'react'
 import { toast } from 'sonner'
@@ -22,9 +23,36 @@ import OrgSettingsForm from './org-settings-form'
 const OrgSettingsPage = () => {
   const router = useRouter(),
     { canDeleteOrg, isAdmin, isOwner, org } = useOrg(),
-    removeOrg = useReducer(reducers.orgRemove),
-    leaveOrg = useReducer(reducers.orgLeave),
-    transferOwnership = useReducer(reducers.orgTransferOwnership),
+    removeOrgRaw = useReducer(reducers.orgRemove),
+    removeOrg = useMutate(removeOrgRaw, {
+      getName: () => `org.remove:${org._id}`,
+      onSettled: (_args, error) => {
+        if (error) toast.error('Failed to delete organization')
+      },
+      onSuccess: () => {
+        toast.success('Organization deleted')
+      }
+    }),
+    leaveOrgRaw = useReducer(reducers.orgLeave),
+    leaveOrg = useMutate(leaveOrgRaw, {
+      getName: () => `org.leave:${org._id}`,
+      onSettled: (_args, error) => {
+        if (error) toast.error('Failed to leave organization')
+      },
+      onSuccess: () => {
+        toast.success('You have left the organization')
+      }
+    }),
+    transferOwnershipRaw = useReducer(reducers.orgTransferOwnership),
+    transferOwnership = useMutate(transferOwnershipRaw, {
+      getName: () => `org.transferOwnership:${org._id}`,
+      onSettled: (_args, error) => {
+        if (error) toast.error('Failed to transfer ownership')
+      },
+      onSuccess: () => {
+        toast.success('Ownership transferred')
+      }
+    }),
     [allMembers] = useTable(tables.orgMember),
     members = allMembers.filter((m: OrgMember) => m.orgId === Number(org._id)),
     [transferTarget, setTransferTarget] = useState<string>('')
@@ -39,7 +67,6 @@ const OrgSettingsPage = () => {
       leaveOrg({ orgId: Number(org._id) })
         .then(async () => {
           await clearActiveOrgCookie()
-          toast.success('You have left the organization')
           router.push('/')
         })
         .catch(fail)
@@ -51,7 +78,6 @@ const OrgSettingsPage = () => {
       if (!confirm('Are you sure? You will become an admin and lose owner privileges.')) return
       transferOwnership({ newOwnerId: target.userId, orgId: Number(org._id) })
         .then(() => {
-          toast.success('Ownership transferred')
           router.refresh()
         })
         .catch(fail)
@@ -62,7 +88,6 @@ const OrgSettingsPage = () => {
       removeOrg({ orgId: Number(org._id) })
         .then(async () => {
           await clearActiveOrgCookie()
-          toast.success('Organization deleted')
           router.push('/')
         })
         .catch(fail)

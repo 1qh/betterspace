@@ -11,6 +11,7 @@ import { Popover, PopoverContent, PopoverTrigger } from '@a/ui/popover'
 import { Spinner } from '@a/ui/spinner'
 import { Switch } from '@a/ui/switch'
 import { AutoSaveIndicator, Form, useForm } from 'betterspace/components'
+import { getFieldErrors, useMutate } from 'betterspace/react'
 import { Settings } from 'lucide-react'
 import Link from 'next/link'
 import { useTransition } from 'react'
@@ -25,7 +26,17 @@ const Publish = ({
     published,
     ...props
   }: Omit<ComponentProps<'div'>, 'id'> & { id: number; published: boolean }) => {
-    const update = useReducer(reducers.updateBlog),
+    const updateRaw = useReducer(reducers.updateBlog),
+      update = useMutate(updateRaw, {
+        getName: () => 'blog.update.publish',
+        onSettled: (_args, error) => {
+          if (!error) return
+          toast.error('Failed to update publish status')
+        },
+        onSuccess: (_result, args) => {
+          toast.success(args.published ? 'Published' : 'Unpublished')
+        }
+      }),
       [pending, go] = useTransition()
     return (
       <div className={cn('flex items-center gap-2', className)} data-testid='publish-toggle' {...props}>
@@ -48,7 +59,6 @@ const Publish = ({
                 tags: undefined,
                 title: undefined
               })
-              toast.success(published ? 'Unpublished' : 'Published')
             })
           }
           size='default'
@@ -57,11 +67,21 @@ const Publish = ({
     )
   },
   Edit = ({ blog }: { blog: Blog }) => {
-    const update = useReducer(reducers.updateBlog),
+    const updateRaw = useReducer(reducers.updateBlog),
+      update = useMutate(updateRaw, {
+        getName: () => 'blog.update.edit',
+        onSettled: (_args, error) => {
+          if (!error) return
+          toast.error('Autosave failed')
+        },
+        onSuccess: () => {
+          toast.success('Saved')
+        }
+      }),
       form = useForm({
         autoSave: { debounceMs: 2000, enabled: true },
         onSubmit: async d => {
-          await update({
+          const payload = {
             attachments: d.attachments,
             category: d.category,
             content: d.content,
@@ -71,7 +91,14 @@ const Publish = ({
             published: d.published,
             tags: d.tags,
             title: d.title
-          })
+          }
+          try {
+            await update(payload)
+          } catch (error) {
+            const fieldErrors = getFieldErrors<typeof editBlog>(error)
+            if (fieldErrors?.title) toast.error(fieldErrors.title)
+            throw error
+          }
           return d
         },
         schema: editBlog,
@@ -92,16 +119,36 @@ const Publish = ({
           <>
             <Err error={form.error} />
             <FieldGroup className='gap-5'>
-              <Text data-testid='edit-title' name='title' />
-              <Text className='min-h-64' data-testid='edit-content' multiline name='content' />
-              <File accept='image/*' data-testid='edit-cover-image' maxSize={5 * 1024 * 1024} name='coverImage' />
+              <Text data-testid='edit-title' helpText='A clear title improves discoverability.' name='title' required />
+              <Text
+                className='min-h-64'
+                data-testid='edit-content'
+                helpText='Keep it readable and specific.'
+                multiline
+                name='content'
+                required
+              />
+              <File
+                accept='image/*'
+                data-testid='edit-cover-image'
+                helpText='Optional cover image.'
+                maxSize={5 * 1024 * 1024}
+                name='coverImage'
+              />
               <Files
                 accept='image/*,application/pdf'
                 data-testid='edit-attachments'
+                helpText='Optional supporting files.'
                 maxSize={10 * 1024 * 1024}
                 name='attachments'
               />
-              <Arr data-testid='edit-tags' name='tags' placeholder='Add tag...' transform={s => s.toLowerCase()} />
+              <Arr
+                data-testid='edit-tags'
+                helpText='Press Enter to add each tag.'
+                name='tags'
+                placeholder='Add tag...'
+                transform={s => s.toLowerCase()}
+              />
             </FieldGroup>
             <AutoSaveIndicator className='ml-auto block' data-testid='auto-save-indicator' lastSaved={form.lastSaved} />
           </>
@@ -110,7 +157,17 @@ const Publish = ({
     )
   },
   Setting = ({ blog }: { blog: Blog }) => {
-    const update = useReducer(reducers.updateBlog),
+    const updateRaw = useReducer(reducers.updateBlog),
+      update = useMutate(updateRaw, {
+        getName: () => 'blog.update.settings',
+        onSettled: (_args, error) => {
+          if (!error) return
+          toast.error('Failed to save settings')
+        },
+        onSuccess: () => {
+          toast.success('Saved')
+        }
+      }),
       form = useForm({
         onSubmit: async d => {
           await update({
@@ -126,9 +183,6 @@ const Publish = ({
           })
           return d
         },
-        onSuccess: () => {
-          toast.success('Saved')
-        },
         schema: editBlog,
         values: { category: blog.category, published: blog.published }
       })
@@ -136,11 +190,16 @@ const Publish = ({
       <Form
         className='flex flex-col gap-4'
         form={form}
-        render={({ Submit, Text, Toggle }) => (
+        render={({ Choose, Submit, Toggle }) => (
           <>
             <FieldGroup className='gap-5'>
-              <Text name='category' />
-              <Toggle falseLabel='Draft' name='published' trueLabel='Published' />
+              <Choose helpText='Choose how this post is categorized.' name='category' required />
+              <Toggle
+                falseLabel='Draft'
+                helpText='Publish when ready to make it visible.'
+                name='published'
+                trueLabel='Published'
+              />
             </FieldGroup>
             <Submit>Save</Submit>
           </>

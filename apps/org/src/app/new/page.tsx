@@ -5,6 +5,7 @@ import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@a/ui
 import { FieldGroup } from '@a/ui/field'
 import slugify from '@sindresorhus/slugify'
 import { Form, useForm } from 'betterspace/components'
+import { getFieldErrors, useMutate } from 'betterspace/react'
 import { useRouter } from 'next/navigation'
 import { useEffect, useRef } from 'react'
 import { toast } from 'sonner'
@@ -14,11 +15,21 @@ import { orgTeam } from '~/schema'
 
 const NewOrgPage = () => {
   const router = useRouter(),
-    create = useReducer(reducers.orgCreate),
+    createRaw = useReducer(reducers.orgCreate),
+    create = useMutate(createRaw, {
+      getName: () => 'org.create',
+      onSettled: (_args, error) => {
+        if (!error) return
+        const fieldErrors = getFieldErrors<typeof orgTeam>(error)
+        if (fieldErrors?.slug) toast.error(fieldErrors.slug)
+      },
+      onSuccess: () => {
+        toast.success('Organization created')
+      }
+    }),
     form = useForm({
       onSubmit: async d => {
         await create({ ...d, avatarId: undefined })
-        toast.success('Organization created')
         router.push('/')
         return d
       },
@@ -47,8 +58,14 @@ const NewOrgPage = () => {
             render={({ Submit, Text }) => (
               <>
                 <FieldGroup>
-                  <Text name='name' placeholder='Acme Inc' />
-                  <Text label='URL slug' name='slug' placeholder='acme-inc' />
+                  <Text helpText='Public organization name.' name='name' placeholder='Acme Inc' required />
+                  <Text
+                    helpText='Lowercase letters, numbers, and dashes.'
+                    label='URL slug'
+                    name='slug'
+                    placeholder='acme-inc'
+                    required
+                  />
                 </FieldGroup>
                 <p className='text-xs text-muted-foreground'>/{slug || 'your-slug'}</p>
                 <Submit className='w-full'>Create organization</Submit>

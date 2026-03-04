@@ -4,6 +4,7 @@ import { reducers } from '@a/be/spacetimedb'
 import { Card, CardContent, CardHeader, CardTitle } from '@a/ui/card'
 import { FieldGroup } from '@a/ui/field'
 import { Form, useForm } from 'betterspace/components'
+import { getFieldErrors, useMutate } from 'betterspace/react'
 import { useRouter } from 'next/navigation'
 import { toast } from 'sonner'
 import { useReducer } from 'spacetimedb/react'
@@ -14,7 +15,18 @@ import { wiki } from '~/schema'
 const NewWikiPage = () => {
   const router = useRouter(),
     { org } = useOrg(),
-    createWiki = useReducer(reducers.createWiki),
+    createWikiRaw = useReducer(reducers.createWiki),
+    createWiki = useMutate(createWikiRaw, {
+      getName: () => 'wiki.create',
+      onSettled: (_args, error) => {
+        if (!error) return
+        const fieldErrors = getFieldErrors<typeof wiki>(error)
+        if (fieldErrors?.title) toast.error(fieldErrors.title)
+      },
+      onSuccess: () => {
+        toast.success('Wiki page created')
+      }
+    }),
     form = useForm({
       onSubmit: async d => {
         await createWiki({
@@ -26,7 +38,6 @@ const NewWikiPage = () => {
           status: d.status,
           title: d.title
         })
-        toast.success('Wiki page created')
         router.push('/wiki')
         return d
       },
@@ -47,10 +58,10 @@ const NewWikiPage = () => {
             render={({ Choose, Submit, Text }) => (
               <>
                 <FieldGroup>
-                  <Text name='title' placeholder='Page title' />
-                  <Text name='slug' placeholder='my-wiki-page' />
-                  <Text multiline name='content' />
-                  <Choose name='status' />
+                  <Text helpText='Page heading shown in wiki lists.' name='title' placeholder='Page title' required />
+                  <Text helpText='URL-safe slug used in links.' name='slug' placeholder='my-wiki-page' required />
+                  <Text helpText='Optional draft content.' multiline name='content' />
+                  <Choose helpText='Publish when content is ready.' name='status' required />
                 </FieldGroup>
                 <Submit className='w-full'>Create wiki page</Submit>
               </>

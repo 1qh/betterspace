@@ -10,21 +10,43 @@ import { Card, CardContent, CardHeader, CardTitle } from '@a/ui/card'
 import { FieldGroup } from '@a/ui/field'
 import { Skeleton } from '@a/ui/skeleton'
 import { AutoSaveIndicator, Form, PermissionGuard, useForm } from 'betterspace/components'
+import { getFieldErrors, useMutate } from 'betterspace/react'
 import { pickValues } from 'betterspace/zod'
 import { useRouter } from 'next/navigation'
 import { use } from 'react'
+import { toast } from 'sonner'
 import { useReducer, useSpacetimeDB, useTable } from 'spacetimedb/react'
 
 import { useOrg } from '~/hook/use-org'
-import { wiki as wikiSchema } from '~/schema'
+import { wikiUpdate } from '~/schema'
 
 const EditWikiForm = ({ wikiId }: { wikiId: number }) => {
     const router = useRouter(),
       { org } = useOrg(),
       [wikis] = useTable(tables.wiki),
       wiki = wikis.find((w: Wiki) => w.id === wikiId && w.orgId === Number(org._id)),
-      remove = useReducer(reducers.rmWiki),
-      update = useReducer(reducers.updateWiki),
+      removeRaw = useReducer(reducers.rmWiki),
+      remove = useMutate(removeRaw, {
+        getName: () => `wiki.rm:${wikiId}`,
+        onSettled: (_args, error) => {
+          if (error) toast.error('Failed to delete wiki page')
+        },
+        onSuccess: () => {
+          toast.success('Wiki page deleted')
+        }
+      }),
+      updateRaw = useReducer(reducers.updateWiki),
+      update = useMutate(updateRaw, {
+        getName: () => `wiki.update:${wikiId}`,
+        onSettled: (_args, error) => {
+          if (!error) return
+          const fieldErrors = getFieldErrors<typeof wikiUpdate>(error)
+          if (fieldErrors?.title) toast.error(fieldErrors.title)
+        },
+        onSuccess: () => {
+          toast.success('Wiki page saved')
+        }
+      }),
       form = useForm({
         onSubmit: async d => {
           await update({
@@ -39,8 +61,8 @@ const EditWikiForm = ({ wikiId }: { wikiId: number }) => {
           })
           return d
         },
-        schema: wikiSchema,
-        values: wiki ? pickValues(wikiSchema, wiki) : undefined
+        schema: wikiUpdate,
+        values: wiki ? pickValues(wikiUpdate, wiki) : undefined
       }),
       handleDelete = () => {
         remove({ id: wikiId }).then(() => router.push('/wiki'))
@@ -55,10 +77,10 @@ const EditWikiForm = ({ wikiId }: { wikiId: number }) => {
         render={({ Choose, Text }) => (
           <>
             <FieldGroup>
-              <Text name='title' placeholder='Page title' />
-              <Text name='slug' placeholder='my-wiki-page' />
-              <Text multiline name='content' />
-              <Choose name='status' />
+              <Text helpText='Page heading shown in wiki lists.' name='title' placeholder='Page title' required />
+              <Text helpText='URL-safe slug used in links.' name='slug' placeholder='my-wiki-page' required />
+              <Text helpText='Optional draft content.' multiline name='content' />
+              <Choose helpText='Publish when content is ready.' name='status' required />
             </FieldGroup>
             <div className='flex items-center gap-2'>
               <AutoSaveIndicator data-testid='auto-save-indicator' lastSaved={form.lastSaved} />

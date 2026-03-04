@@ -1,13 +1,18 @@
 /* eslint-disable @next/next/no-img-element */
 // biome-ignore-all lint/correctness/useImageSize: x
 'use client'
+import type { base } from '@a/be/z'
+import type { InferCreate } from 'betterspace'
+
 import { reducers } from '@a/be/spacetimedb'
 import { Badge } from '@a/ui/badge'
 import { Input } from '@a/ui/input'
 import { Skeleton } from '@a/ui/skeleton'
+import { getFieldErrors, useMutate } from 'betterspace/react'
 import { ArrowLeft } from 'lucide-react'
 import Link from 'next/link'
 import { useState, useTransition } from 'react'
+import { toast } from 'sonner'
 import { useReducer } from 'spacetimedb/react'
 
 const TMDB_IMG = 'https://image.tmdb.org/t/p/w300',
@@ -102,24 +107,9 @@ const TMDB_IMG = 'https://image.tmdb.org/t/p/w300',
       }
     ]
   ]),
-  formatMoney = (n: null | number) => (n ? `$${(n / 1_000_000).toFixed(1)}M` : 'N/A')
+  formatMoney = (n: number | undefined) => (n ? `$${(n / 1_000_000).toFixed(1)}M` : 'N/A')
 
-interface MovieDetailData {
-  backdropPath: null | string
-  budget: null | number
-  genres: { id: number; name: string }[]
-  originalTitle: string
-  overview: string
-  posterPath: null | string
-  releaseDate: string
-  revenue: null | number
-  runtime: null | number
-  tagline: null | string
-  title: string
-  tmdbId: number
-  voteAverage: number
-  voteCount: number
-}
+type MovieDetailData = InferCreate<typeof base.movie>
 
 interface TmdbMovieResponse {
   backdrop_path: null | string
@@ -156,16 +146,16 @@ const fetchMovie = async (id: number): Promise<MovieDetailData> => {
     if (!response.ok) throw new Error('Movie not found')
     const payload = (await response.json()) as TmdbMovieResponse
     return {
-      backdropPath: payload.backdrop_path,
-      budget: payload.budget || null,
+      backdropPath: payload.backdrop_path ?? undefined,
+      budget: payload.budget || undefined,
       genres: payload.genres,
       originalTitle: payload.original_title,
       overview: payload.overview,
-      posterPath: payload.poster_path,
+      posterPath: payload.poster_path ?? undefined,
       releaseDate: payload.release_date,
-      revenue: payload.revenue || null,
-      runtime: payload.runtime,
-      tagline: payload.tagline || null,
+      revenue: payload.revenue || undefined,
+      runtime: payload.runtime ?? undefined,
+      tagline: payload.tagline || undefined,
       title: payload.title,
       tmdbId: payload.id,
       voteAverage: payload.vote_average,
@@ -173,7 +163,19 @@ const fetchMovie = async (id: number): Promise<MovieDetailData> => {
     }
   },
   Page = () => {
-    const createMovie = useReducer(reducers.createMovie),
+    const createMovieRaw = useReducer(reducers.createMovie),
+      createMovie = useMutate(createMovieRaw, {
+        getName: args => `movie.create:${args.tmdbId}`,
+        onSettled: (_args, error) => {
+          if (!error) return
+          const fieldErrors = getFieldErrors(error),
+            [firstError] = Object.values(fieldErrors ?? {})
+          if (typeof firstError === 'string' && firstError.length > 0) toast.error(firstError)
+        },
+        onSuccess: () => {
+          toast.success('Movie cached')
+        }
+      }),
       [id, setId] = useState(''),
       [cacheStatus, setCacheStatus] = useState(''),
       [lastTmdbId, setLastTmdbId] = useState<null | number>(null),
@@ -224,7 +226,7 @@ const fetchMovie = async (id: number): Promise<MovieDetailData> => {
                     voteCount: loadedMovie.voteCount
                   })
                 } catch (error) {
-                  if (error instanceof Error) setFetchError(m => m)
+                  if (error instanceof Error) setFetchError(error.message)
                 }
               } catch {
                 setFetchError('Movie not found')
