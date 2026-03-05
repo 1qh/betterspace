@@ -8,7 +8,7 @@ import eslint from '@eslint/js'
 import { configs as perfectionist } from 'eslint-plugin-perfectionist'
 import preferArrow from 'eslint-plugin-prefer-arrow-functions'
 import turbo from 'eslint-plugin-turbo'
-import { defineConfig, globalIgnores } from 'eslint/config'
+import { defineConfig } from 'eslint/config'
 import { join } from 'node:path'
 import tseslint from 'typescript-eslint'
 
@@ -27,7 +27,6 @@ export { warnToError }
 
 export default defineConfig(
   includeIgnoreFile(join(import.meta.dirname, '../../.gitignore')),
-  globalIgnores(['module_bindings']),
   perfectionist['recommended-natural'],
   { ignores: ['postcss.config.mjs'] },
   {

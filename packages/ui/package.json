@@ -10,7 +10,6 @@
   },
   "scripts": {
     "clean": "git clean -xdf .cache .turbo dist node_modules",
-    "lint": "true",
     "typecheck": "tsc --noEmit --emitDeclarationOnly false"
   },
   "dependencies": {
