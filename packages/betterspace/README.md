@@ -148,7 +148,7 @@ all generated.
 | `useBulkMutate` live progress tracking (`onProgress`, `BulkProgress`, `progress`) | 0 |
 | `partialValues(schema, values)` — fill update args without listing every field | 0 |
 | CLI `betterspace init` pre-flight checks (SpacetimeDB CLI + Docker) | 0 |
-| 15+ named type exports from `betterspace/react` | 0 |
+| 50+ named type exports from `betterspace/react` | 0 |
 | Provider utilities (`toWsUri`, `createTokenStore`, `createFileUploader`, `createSpacetimeClient`) | 0 |
 | Live subscription data tracking in devtools | 0 |
 | Descriptive branded type error messages (`AssertSchema`, `SchemaTypeError`) | 0 |
@@ -339,7 +339,7 @@ bun add betterspace
 | `betterspace` | `guardApi`, `strictApi`, `zodFromTable`, identity helpers |
 | `betterspace/schema` | `makeOwned`, `makeOrgScoped`, `makeBase`, `makeSingleton`, `child`, `cvFile`, `cvFiles`, `orgSchema` |
 | `betterspace/server` | `setupCrud`, `setup`, `makeCrud`, `makeChildCrud`, `makeOrgCrud`, `makeSingletonCrud`, `makeCacheCrud`, `makeOrg`, `makeFileUpload`, `makePresence`, table helpers, middleware, error handling, test utilities |
-| `betterspace/react` | `useList`, `useOwnRows`, `useSearch`, `usePresence`, `useBulkSelection`, `useMutate`, `useMutation`, `useBulkMutate`, `useInfiniteList`, `useUpload`, `useSoftDelete`, `useCacheEntry`, `useOptimisticMutation`, `useForm`, `useFormMutation`, `useErrorToast`, `toWsUri`, `createTokenStore`, `createFileUploader`, `createSpacetimeClient`, `BetterspaceDevtools`, `SchemaPlayground`, org hooks, 15+ named types |
+| `betterspace/react` | `useList`, `useOwnRows`, `useSearch`, `usePresence`, `useBulkSelection`, `useMutate`, `useMutation`, `useBulkMutate`, `useInfiniteList`, `useUpload`, `useSoftDelete`, `useCacheEntry`, `useOptimisticMutation`, `useForm`, `useFormMutation`, `useErrorToast`, `toWsUri`, `createTokenStore`, `createFileUploader`, `createSpacetimeClient`, `BetterspaceDevtools`, `SchemaPlayground`, org hooks, 50+ named types |
 | `betterspace/components` | `Form`, `useForm`, `useFormMutation`, `ConflictDialog`, `AutoSaveIndicator`, `OfflineIndicator`, `PermissionGuard`, `ErrorBoundary`, `FileApiProvider`, `OrgAvatar`, `RoleBadge`, `EditorsSection`, `defineSteps`, 14 typed field components |
 | `betterspace/next` | `getToken`, `isAuthenticated`, `setActiveOrgCookie`, `clearActiveOrgCookie`, `getActiveOrg`, `makeImageRoute` |
 | `betterspace/eslint` | `plugin`, `recommended`, 16 lint rules |
@@ -510,8 +510,8 @@ It also auto-installs dependencies and creates `tsconfig.json` — no manual set
 
 | Platform | Framework | Tests |
 | --- | --- | ---: |
-| Web | Playwright E2E | 220 |
-| Backend | SpacetimeDB test utilities | 219 |
+| Web | Playwright E2E | 248 |
+| Backend | SpacetimeDB test utilities | 25 |
 | Library | bun:test (`src/__tests__/`) | 1018 |
 
 ## Documentation

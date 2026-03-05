@@ -1784,16 +1784,41 @@ please review and try again” rather than a bare “Conflict”).
 | Code | Description |
 | --- | --- |
 | `ALREADY_ORG_MEMBER` | Already a member of this organization |
-| `NOT_FOUND` | Row doesn’t exist |
-| `FORBIDDEN` | Caller doesn’t own the row |
-| `NOT_AUTHORIZED` | Caller lacks permission for this operation |
-| `NOT_ORG_MEMBER` | Caller is not a member of the org |
-| `CONFLICT` | `expectedUpdatedAt` doesn’t match current value |
-| `NOT_AUTHENTICATED` | Caller has a zero identity (unauthenticated) |
-| `INVALID_FILE_TYPE` | File content type not in allowed list |
-| `FILE_TOO_LARGE` | File size exceeds limit |
-| `RATE_LIMITED` | Too many requests (if rate limiting is implemented) |
-| `VALIDATION_FAILED` | Input failed schema validation |
+| `CANNOT_MODIFY_ADMIN` | Admins cannot modify other admins |
+| `CANNOT_MODIFY_OWNER` | Cannot modify the owner |
+| `CHUNK_ALREADY_UPLOADED` | Chunk already uploaded |
+| `CHUNK_NOT_FOUND` | Chunk not found |
+| `CONFLICT` | This record was modified by someone else — please review and try again |
+| `EDITOR_REQUIRED` | Editor permission required |
+| `FILE_NOT_FOUND` | The requested file could not be found or has been deleted |
+| `FILE_TOO_LARGE` | File exceeds the maximum allowed size |
+| `FORBIDDEN` | You do not have permission to perform this action |
+| `INCOMPLETE_UPLOAD` | Upload is incomplete — some chunks are still missing |
+| `INSUFFICIENT_ORG_ROLE` | Insufficient permissions for this organization role |
+| `INVALID_FILE_TYPE` | Invalid file type |
+| `INVALID_INVITE` | Invalid invite |
+| `INVALID_MESSAGE` | Invalid message |
+| `INVALID_SESSION_STATE` | Invalid session state |
+| `INVALID_TOOL_ARGS` | Invalid tool arguments |
+| `INVALID_WHERE` | Invalid filter parameters — check field names and values |
+| `INVITE_EXPIRED` | Invite has expired |
+| `JOIN_REQUEST_EXISTS` | Join request already exists |
+| `LIMIT_EXCEEDED` | Request limit exceeded — please try again later |
+| `MESSAGE_NOT_SAVED` | Message not saved |
+| `MUST_TRANSFER_OWNERSHIP` | Must transfer ownership before leaving |
+| `NO_FETCHER` | No fetcher configured |
+| `NO_PRECEDING_USER_MESSAGE` | No preceding user message |
+| `NOT_AUTHENTICATED` | Please log in to continue |
+| `NOT_AUTHORIZED` | You are not authorized to access this resource |
+| `NOT_FOUND` | The requested resource could not be found |
+| `NOT_ORG_MEMBER` | Not a member of this organization |
+| `ORG_SLUG_TAKEN` | Organization slug already taken |
+| `RATE_LIMITED` | Too many requests — please wait before trying again |
+| `SESSION_NOT_FOUND` | Session not found |
+| `TARGET_MUST_BE_ADMIN` | Can only transfer ownership to an admin |
+| `UNAUTHORIZED` | Authentication required — please log in |
+| `USER_NOT_FOUND` | User not found |
+| `VALIDATION_FAILED` | One or more fields failed validation — check your input |
 
 Parse errors on the client:
 
