@@ -1,49 +1,20 @@
+import { makeSchema } from 'betterspace/server'
 import { schema, t, table } from 'spacetimedb/server'
 
 import { org as orgFields, orgScoped, owned, singleton } from '../../t'
 
-const messagePart = t.object('MessagePart', {
+const { childTable, orgScopedTable, ownedTable, singletonTable } = makeSchema({ t, table }),
+  messagePart = t.object('MessagePart', {
     file: t.string().optional(),
     image: t.string().optional(),
     name: t.string().optional(),
     text: t.string().optional(),
     type: t.string()
   }),
-  movieGenre = t.object('MovieGenre', {
-    id: t.number(),
-    name: t.string()
-  }),
-  blog = table(
-    { public: true },
-    {
-      ...owned.blog,
-      id: t.u32().autoInc().primaryKey(),
-      published: t.bool().index(),
-      updatedAt: t.timestamp(),
-      userId: t.identity().index()
-    }
-  ),
-  chat = table(
-    { public: true },
-    {
-      ...owned.chat,
-      id: t.u32().autoInc().primaryKey(),
-      isPublic: t.bool().index(),
-      updatedAt: t.timestamp(),
-      userId: t.identity().index()
-    }
-  ),
-  message = table(
-    { public: true },
-    {
-      chatId: t.u32().index(),
-      id: t.u32().autoInc().primaryKey(),
-      parts: t.array(messagePart),
-      role: t.string(),
-      updatedAt: t.timestamp(),
-      userId: t.identity().index()
-    }
-  ),
+  movieGenre = t.object('MovieGenre', { id: t.number(), name: t.string() }),
+  blog = ownedTable(owned.blog, { published: t.bool().index() }),
+  chat = ownedTable(owned.chat, { isPublic: t.bool().index() }),
+  message = childTable('chatId', { parts: t.array(messagePart), role: t.string() }),
   movie = table(
     { public: true },
     {
@@ -67,32 +38,9 @@ const messagePart = t.object('MessagePart', {
       voteCount: t.number()
     }
   ),
-  blogProfile = table(
-    { public: true },
-    {
-      ...singleton.blogProfile,
-      updatedAt: t.timestamp(),
-      userId: t.identity().index()
-    }
-  ),
-  orgProfile = table(
-    { public: true },
-    {
-      ...singleton.orgProfile,
-      updatedAt: t.timestamp(),
-      userId: t.identity().index()
-    }
-  ),
-  org = table(
-    { public: true },
-    {
-      ...orgFields.team,
-      id: t.u32().autoInc().primaryKey(),
-      slug: t.string().unique(),
-      updatedAt: t.timestamp(),
-      userId: t.identity().index()
-    }
-  ),
+  blogProfile = singletonTable(singleton.blogProfile),
+  orgProfile = singletonTable(singleton.orgProfile),
+  org = ownedTable(orgFields.team, { slug: t.string().unique() }),
   orgMember = table(
     { public: true },
     {
@@ -124,37 +72,11 @@ const messagePart = t.object('MessagePart', {
       userId: t.identity().index()
     }
   ),
-  project = table(
-    { public: true },
-    {
-      ...orgScoped.project,
-      id: t.u32().autoInc().primaryKey(),
-      orgId: t.u32().index(),
-      updatedAt: t.timestamp(),
-      userId: t.identity().index()
-    }
-  ),
-  task = table(
-    { public: true },
-    {
-      ...orgScoped.task,
-      id: t.u32().autoInc().primaryKey(),
-      orgId: t.u32().index(),
-      projectId: t.u32().index(),
-      updatedAt: t.timestamp(),
-      userId: t.identity().index()
-    }
-  ),
-  wiki = table(
-    { indexes: [{ accessor: 'orgIdSlug', algorithm: 'btree' as const, columns: ['orgId', 'slug'] }], public: true },
-    {
-      ...orgScoped.wiki,
-      id: t.u32().autoInc().primaryKey(),
-      orgId: t.u32().index(),
-      updatedAt: t.timestamp(),
-      userId: t.identity().index()
-    }
-  ),
+  project = orgScopedTable(orgScoped.project),
+  task = orgScopedTable(orgScoped.task, { projectId: t.u32().index() }),
+  wiki = orgScopedTable(orgScoped.wiki, undefined, {
+    indexes: [{ accessor: 'orgIdSlug', algorithm: 'btree' as const, columns: ['orgId', 'slug'] }]
+  }),
   file = table(
     { public: true },
     {
