@@ -200,7 +200,7 @@ const defineSteps = <const Defs extends readonly [StepDef, ...StepDef[]]>(...def
               <button
                 aria-current={isActive ? 'step' : undefined}
                 className={cn(
-                  'flex size-8 shrink-0 items-center justify-center rounded-full font-medium text-sm transition-colors',
+                  'flex size-8 shrink-0 items-center justify-center rounded-full text-sm font-medium transition-colors',
                   isActive && 'bg-primary text-primary-foreground',
                   isCompleted && 'cursor-pointer bg-primary/20 text-primary',
                   !(isActive || isCompleted) && 'bg-muted text-muted-foreground'
@@ -326,7 +326,7 @@ const defineSteps = <const Defs extends readonly [StepDef, ...StepDef[]]>(...def
           <div className={cn('space-y-6', className)} {...props}>
             {indicator ? <StepIndicator currentIndex={currentIdx} inner={s.inner} steps={s.steps} /> : null}
             {s.error ? (
-              <p className='rounded-lg bg-destructive/10 p-3 text-destructive text-sm' role='alert'>
+              <p className='rounded-lg bg-destructive/10 p-3 text-sm text-destructive' role='alert'>
                 {s.error.message}
               </p>
             ) : null}

@@ -56,7 +56,7 @@ const isPlaywrightTest = process.env.NEXT_PUBLIC_PLAYWRIGHT === '1',
         <AlertDialogTrigger asChild>
           <button
             aria-label='Delete blog'
-            className='size-8 rounded-lg p-1.5 hover:bg-destructive/10 hover:text-destructive group-hover:block'
+            className='size-8 rounded-lg p-1.5 group-hover:block hover:bg-destructive/10 hover:text-destructive'
             data-testid='delete-blog-trigger'
             type='button'>
             <Trash className='size-full stroke-1' />
@@ -215,7 +215,7 @@ const isPlaywrightTest = process.env.NEXT_PUBLIC_PLAYWRIGHT === '1',
         <UserRound className='size-8 shrink-0 rounded-full bg-border stroke-1 pt-0.5 text-background' />
         <div className='mx-2'>
           <p className='text-sm'>Author</p>
-          <div className='flex items-center gap-1 text-muted-foreground text-xs' title={format(updatedAtDate, 'PPPPpp')}>
+          <div className='flex items-center gap-1 text-xs text-muted-foreground' title={format(updatedAtDate, 'PPPPpp')}>
             {formatDistance(updatedAtDate, new Date(), { addSuffix: true })}
             <p>•</p>
             <p className='rounded-full bg-muted-foreground px-1.5 text-background capitalize'>{category}</p>
@@ -231,7 +231,7 @@ const isPlaywrightTest = process.env.NEXT_PUBLIC_PLAYWRIGHT === '1',
           <>
             <Publish className='mr-2 ml-auto' id={id} published={published} />
             <Link href={`/${id}/edit`}>
-              <Pencil className='size-8 rounded-lg stroke-1 p-1.5 hover:bg-muted group-hover:block' />
+              <Pencil className='size-8 rounded-lg stroke-1 p-1.5 group-hover:block hover:bg-muted' />
             </Link>
             <Delete id={id} onOptimisticRemove={onOptimisticRemove} />
           </>
@@ -263,10 +263,10 @@ const isPlaywrightTest = process.env.NEXT_PUBLIC_PLAYWRIGHT === '1',
             width={1000}
           />
         ) : null}
-        <p className='font-medium text-xl' data-testid='blog-card-title'>
+        <p className='text-xl font-medium' data-testid='blog-card-title'>
           {title}
         </p>
-        <p className='line-clamp-3 text-muted-foreground text-xs' data-testid='blog-card-content'>
+        <p className='line-clamp-3 text-xs text-muted-foreground' data-testid='blog-card-content'>
           {content}
         </p>
       </Link>

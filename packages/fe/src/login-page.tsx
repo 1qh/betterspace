@@ -33,7 +33,7 @@ const LoginPage = ({ emailLoginPath = '/login/email', redirectTo = '/' }: LoginP
         Continue with Google
       </Button>
       <Link
-        className='block text-center font-light text-muted-foreground text-sm transition-all duration-300 hover:font-normal hover:text-foreground'
+        className='block text-center text-sm font-light text-muted-foreground transition-all duration-300 hover:font-normal hover:text-foreground'
         href={emailLoginPath}>
         Log in with email
       </Link>

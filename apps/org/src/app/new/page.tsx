@@ -58,7 +58,7 @@ const NewOrgPage = () => {
                     required
                   />
                 </FieldGroup>
-                <p className='text-muted-foreground text-xs'>/{slug || 'your-slug'}</p>
+                <p className='text-xs text-muted-foreground'>/{slug || 'your-slug'}</p>
                 <Submit className='w-full'>Create organization</Submit>
               </>
             )}

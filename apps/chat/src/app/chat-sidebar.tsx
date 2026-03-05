@@ -67,7 +67,7 @@ const ChatSidebar = <T extends Thread>({ basePath, getTitle, onDelete, threads }
                   <MessageSquareIcon className='size-4' />
                   <span className='flex-1 truncate'>{getTitle ? getTitle(t) : (t.title ?? 'Untitled')}</span>
                   <button
-                    className='flex size-6 cursor-pointer items-center justify-center rounded-sm border-none bg-transparent p-0 opacity-0 transition-opacity hover:bg-accent group-hover/item:opacity-100'
+                    className='flex size-6 cursor-pointer items-center justify-center rounded-sm border-none bg-transparent p-0 opacity-0 transition-opacity group-hover/item:opacity-100 hover:bg-accent'
                     data-testid='delete-thread-button'
                     onClick={e => {
                       handleDelete(e, t.id)

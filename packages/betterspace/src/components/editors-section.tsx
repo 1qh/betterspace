@@ -80,7 +80,7 @@ const EditorsSection = ({
         </CardContent>
       ) : (
         <CardContent>
-          <p className='text-muted-foreground text-sm'>No editors assigned</p>
+          <p className='text-sm text-muted-foreground'>No editors assigned</p>
         </CardContent>
       )}
     </Card>

@@ -43,7 +43,7 @@ const AcceptInvitePage = ({ params }: { params: Promise<{ token: string }> }) =>
         <Card className='w-full max-w-md text-center'>
           <CardContent className='py-8'>
             <CheckCircle className='mx-auto mb-4 size-16 text-green-500' />
-            <h2 className='font-bold text-xl'>You&apos;re in!</h2>
+            <h2 className='text-xl font-bold'>You&apos;re in!</h2>
             <p className='text-muted-foreground'>Redirecting to organization...</p>
           </CardContent>
         </Card>
@@ -56,7 +56,7 @@ const AcceptInvitePage = ({ params }: { params: Promise<{ token: string }> }) =>
         <Card className='w-full max-w-md text-center'>
           <CardContent className='py-8'>
             <XCircle className='mx-auto mb-4 size-16 text-destructive' />
-            <h2 className='font-bold text-xl'>Invite failed</h2>
+            <h2 className='text-xl font-bold'>Invite failed</h2>
             <p className='text-muted-foreground'>{inviteError}</p>
           </CardContent>
         </Card>

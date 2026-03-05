@@ -211,7 +211,7 @@ const Publish = ({
           <Popover>
             <PopoverTrigger asChild>
               <Settings
-                className='size-8 rounded-lg stroke-1 p-1.5 hover:bg-muted group-hover:block'
+                className='size-8 rounded-lg stroke-1 p-1.5 group-hover:block hover:bg-muted'
                 data-testid='settings-trigger'
               />
             </PopoverTrigger>

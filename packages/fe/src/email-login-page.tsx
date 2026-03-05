@@ -44,7 +44,7 @@ const EmailLoginPage = () => {
         {login ? 'Continue with email' : 'Create account with email'}
       </Button>
       <button
-        className='text-muted-foreground text-sm hover:text-foreground'
+        className='text-sm text-muted-foreground hover:text-foreground'
         onClick={() => setLogin(!login)}
         type='button'>
         {login ? "Don't have an account? Sign up" : 'Already have an account? Log in'}

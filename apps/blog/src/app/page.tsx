@@ -46,7 +46,7 @@ const Page = () => {
       <List blogs={filtered} onRemove={handleRemove} />
       {!query && hasMore && !isLoading ? (
         <button
-          className='mx-auto mt-4 block text-muted-foreground text-sm hover:text-foreground'
+          className='mx-auto mt-4 block text-sm text-muted-foreground hover:text-foreground'
           onClick={() => loadMore()}
           type='button'>
           Load more

@@ -95,7 +95,7 @@ const DEFAULT_ASYNC_DEBOUNCE_MS = 300,
     if (!msg) return null
     return (
       <div
-        className={cn('font-normal text-destructive text-sm', className)}
+        className={cn('text-sm font-normal text-destructive', className)}
         data-slot='server-field-error'
         role='alert'
         {...props}>
@@ -207,7 +207,7 @@ const DEFAULT_ASYNC_DEBOUNCE_MS = 300,
                     placeholder={tags.length > 0 ? undefined : placeholder}
                   />
                 </div>
-                {helpText ? <p className='text-muted-foreground text-sm'>{helpText}</p> : null}
+                {helpText ? <p className='text-sm text-muted-foreground'>{helpText}</p> : null}
                 {inv ? <FieldError errors={f.state.meta.errors} id={errorId} /> : null}
                 <ServerFieldError name={name} />
               </Field>
@@ -273,7 +273,7 @@ const DEFAULT_ASYNC_DEBOUNCE_MS = 300,
                     ))}
                   </SelectContent>
                 </Select>
-                {helpText ? <p className='text-muted-foreground text-sm'>{helpText}</p> : null}
+                {helpText ? <p className='text-sm text-muted-foreground'>{helpText}</p> : null}
                 {inv ? <FieldError errors={f.state.meta.errors} id={errorId} /> : null}
                 <ServerFieldError name={name} />
               </Field>
@@ -339,7 +339,7 @@ const DEFAULT_ASYNC_DEBOUNCE_MS = 300,
                     value={val}
                   />
                 </div>
-                {helpText ? <p className='text-muted-foreground text-sm'>{helpText}</p> : null}
+                {helpText ? <p className='text-sm text-muted-foreground'>{helpText}</p> : null}
                 {inv ? <FieldError errors={f.state.meta.errors} id={errorId} /> : null}
                 <ServerFieldError name={name} />
               </Field>
@@ -432,7 +432,7 @@ const DEFAULT_ASYNC_DEBOUNCE_MS = 300,
                     </Command>
                   </PopoverContent>
                 </Popover>
-                {helpText ? <p className='text-muted-foreground text-sm'>{helpText}</p> : null}
+                {helpText ? <p className='text-sm text-muted-foreground'>{helpText}</p> : null}
                 {inv ? <FieldError errors={f.state.meta.errors} id={errorId} /> : null}
                 <ServerFieldError name={name} />
               </Field>
@@ -519,7 +519,7 @@ const DEFAULT_ASYNC_DEBOUNCE_MS = 300,
                     </Button>
                   ) : null}
                 </div>
-                {helpText ? <p className='text-muted-foreground text-sm'>{helpText}</p> : null}
+                {helpText ? <p className='text-sm text-muted-foreground'>{helpText}</p> : null}
                 {inv ? <FieldError errors={f.state.meta.errors} id={errorId} /> : null}
                 <ServerFieldError name={name} />
               </Field>
@@ -530,7 +530,7 @@ const DEFAULT_ASYNC_DEBOUNCE_MS = 300,
     },
     Err: ({ className, error, ...props }: ComponentProps<'p'> & { error: Error | null }) =>
       error ? (
-        <p className={cn('rounded-lg bg-destructive/10 p-3 text-destructive text-sm', className)} {...props} role='alert'>
+        <p className={cn('rounded-lg bg-destructive/10 p-3 text-sm text-destructive', className)} {...props} role='alert'>
           {error.message}
         </p>
       ) : null,
@@ -574,7 +574,7 @@ const DEFAULT_ASYNC_DEBOUNCE_MS = 300,
                 maxSize={maxSize}
                 {...props}
               />
-              {helpText ? <p className='text-muted-foreground text-sm'>{helpText}</p> : null}
+              {helpText ? <p className='text-sm text-muted-foreground'>{helpText}</p> : null}
               <ServerFieldError name={name} />
             </>
           )}
@@ -625,7 +625,7 @@ const DEFAULT_ASYNC_DEBOUNCE_MS = 300,
                 multiple
                 {...props}
               />
-              {helpText ? <p className='text-muted-foreground text-sm'>{helpText}</p> : null}
+              {helpText ? <p className='text-sm text-muted-foreground'>{helpText}</p> : null}
               <ServerFieldError name={name} />
             </>
           )}
@@ -723,7 +723,7 @@ const DEFAULT_ASYNC_DEBOUNCE_MS = 300,
                     })}
                   </div>
                 ) : null}
-                {helpText ? <p className='text-muted-foreground text-sm'>{helpText}</p> : null}
+                {helpText ? <p className='text-sm text-muted-foreground'>{helpText}</p> : null}
                 {inv ? <FieldError errors={f.state.meta.errors} id={errorId} /> : null}
                 <ServerFieldError name={name} />
               </Field>
@@ -778,7 +778,7 @@ const DEFAULT_ASYNC_DEBOUNCE_MS = 300,
                   value={f.state.value ?? ''}
                   {...props}
                 />
-                {helpText ? <p className='text-muted-foreground text-sm'>{helpText}</p> : null}
+                {helpText ? <p className='text-sm text-muted-foreground'>{helpText}</p> : null}
                 {inv ? <FieldError errors={f.state.meta.errors} id={errorId} /> : null}
                 <ServerFieldError name={name} />
               </Field>
@@ -834,7 +834,7 @@ const DEFAULT_ASYNC_DEBOUNCE_MS = 300,
                     />
                   ))}
                 </div>
-                {helpText ? <p className='text-muted-foreground text-sm'>{helpText}</p> : null}
+                {helpText ? <p className='text-sm text-muted-foreground'>{helpText}</p> : null}
                 {inv ? <FieldError errors={f.state.meta.errors} id={errorId} /> : null}
                 <ServerFieldError name={name} />
               </Field>
@@ -882,7 +882,7 @@ const DEFAULT_ASYNC_DEBOUNCE_MS = 300,
                       {required ? <span className='text-destructive'> *</span> : null}
                     </FieldLabel>
                   )}
-                  <span className='text-muted-foreground text-sm'>{val}</span>
+                  <span className='text-sm text-muted-foreground'>{val}</span>
                 </div>
                 <UISlider
                   aria-describedby={inv ? errorId : undefined}
@@ -898,7 +898,7 @@ const DEFAULT_ASYNC_DEBOUNCE_MS = 300,
                   // oxlint-disable-next-line react-perf/jsx-no-new-array-as-prop
                   value={[val]}
                 />
-                {helpText ? <p className='text-muted-foreground text-sm'>{helpText}</p> : null}
+                {helpText ? <p className='text-sm text-muted-foreground'>{helpText}</p> : null}
                 {inv ? <FieldError errors={f.state.meta.errors} id={errorId} /> : null}
                 <ServerFieldError name={name} />
               </Field>
@@ -983,13 +983,13 @@ const DEFAULT_ASYNC_DEBOUNCE_MS = 300,
                   )}
                   <div className='flex items-center gap-2'>
                     {validating ? (
-                      <div className='flex items-center gap-1 text-muted-foreground text-xs'>
+                      <div className='flex items-center gap-1 text-xs text-muted-foreground'>
                         <Spinner className='size-3' />
                         <span>Validating...</span>
                       </div>
                     ) : null}
                     {maxLength ? (
-                      <span className='text-muted-foreground text-xs'>
+                      <span className='text-xs text-muted-foreground'>
                         {String(val).length}/{maxLength}
                       </span>
                     ) : null}
@@ -1007,7 +1007,7 @@ const DEFAULT_ASYNC_DEBOUNCE_MS = 300,
                   value={val}
                   {...props}
                 />
-                {helpText ? <p className='text-muted-foreground text-sm'>{helpText}</p> : null}
+                {helpText ? <p className='text-sm text-muted-foreground'>{helpText}</p> : null}
                 {inv ? <FieldError errors={f.state.meta.errors} id={errorId} /> : null}
                 <ServerFieldError name={name} />
               </Field>
@@ -1061,7 +1061,7 @@ const DEFAULT_ASYNC_DEBOUNCE_MS = 300,
                   type='time'
                   value={f.state.value ?? ''}
                 />
-                {helpText ? <p className='text-muted-foreground text-sm'>{helpText}</p> : null}
+                {helpText ? <p className='text-sm text-muted-foreground'>{helpText}</p> : null}
                 {inv ? <FieldError errors={f.state.meta.errors} id={errorId} /> : null}
                 <ServerFieldError name={name} />
               </Field>
@@ -1113,7 +1113,7 @@ const DEFAULT_ASYNC_DEBOUNCE_MS = 300,
                     {required ? <span className='text-destructive'> *</span> : null}
                   </FieldLabel>
                 </div>
-                {helpText ? <p className='text-muted-foreground text-sm'>{helpText}</p> : null}
+                {helpText ? <p className='text-sm text-muted-foreground'>{helpText}</p> : null}
                 {inv ? <FieldError errors={f.state.meta.errors} id={errorId} /> : null}
                 <ServerFieldError name={name} />
               </Field>

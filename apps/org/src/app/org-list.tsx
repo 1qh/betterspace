@@ -29,7 +29,7 @@ const OrgList = ({ orgs }: { orgs: OrgItem[] }) => {
           <OrgAvatar name={o.name} size='lg' src={o.avatarId ? `/api/image?id=${o.avatarId}` : undefined} />
           <div className='flex-1'>
             <div className='font-medium'>{o.name}</div>
-            <div className='text-muted-foreground text-sm'>/{o.slug}</div>
+            <div className='text-sm text-muted-foreground'>/{o.slug}</div>
           </div>
           <RoleBadge role={o.role} />
         </button>

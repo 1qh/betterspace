@@ -69,8 +69,8 @@ class BetterspaceErrorBoundary extends Component<ErrorBoundaryProps, ErrorBounda
     return (
       <div className={cn('flex min-h-[200px] items-center justify-center p-6', className)}>
         <div className='max-w-md space-y-3 text-center'>
-          {code ? <span className='rounded-sm bg-red-100 px-2 py-1 font-mono text-red-700 text-xs'>{code}</span> : null}
-          <h2 className='font-semibold text-lg text-zinc-900 dark:text-zinc-100'>Something went wrong</h2>
+          {code ? <span className='rounded-sm bg-red-100 px-2 py-1 font-mono text-xs text-red-700'>{code}</span> : null}
+          <h2 className='text-lg font-semibold text-zinc-900 dark:text-zinc-100'>Something went wrong</h2>
           <p className='text-sm text-zinc-600 dark:text-zinc-400'>{message}</p>
           <button
             className='rounded-md bg-zinc-900 px-4 py-2 text-sm text-white hover:bg-zinc-700 dark:bg-zinc-100 dark:text-zinc-900 dark:hover:bg-zinc-300'

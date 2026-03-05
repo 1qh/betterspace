@@ -36,21 +36,21 @@ const ConflictDialog = ({
       {...props}
       onEscapeKeyDown={() => onResolve('cancel')}
       onInteractOutside={() => onResolve('cancel')}>
-      <h2 className='font-semibold text-lg'>Conflict Detected</h2>
-      <p className='text-muted-foreground text-sm'>
+      <h2 className='text-lg font-semibold'>Conflict Detected</h2>
+      <p className='text-sm text-muted-foreground'>
         This record was modified by someone else. Choose how to resolve the conflict.
       </p>
       {conflict?.current || conflict?.incoming ? (
         <div className='space-y-3'>
           {conflict.current ? (
             <div className='rounded-lg bg-muted p-3'>
-              <p className='mb-1 font-medium text-muted-foreground text-xs'>Server version:</p>
+              <p className='mb-1 text-xs font-medium text-muted-foreground'>Server version:</p>
               <pre className='text-xs'>{JSON.stringify(conflict.current, null, 2)}</pre>
             </div>
           ) : null}
           {conflict.incoming ? (
             <div className='rounded-lg bg-muted p-3'>
-              <p className='mb-1 font-medium text-muted-foreground text-xs'>Your version:</p>
+              <p className='mb-1 text-xs font-medium text-muted-foreground'>Your version:</p>
               <pre className='text-xs'>{JSON.stringify(conflict.incoming, null, 2)}</pre>
             </div>
           ) : null}
@@ -210,7 +210,7 @@ const useWithGuard = <T extends Record<string, unknown>, S extends ZodObject<Zod
             instance.handleSubmit()
           }}>
           {showError && error ? (
-            <p className='mb-4 rounded-lg bg-destructive/10 p-3 text-destructive text-sm' role='alert'>
+            <p className='mb-4 rounded-lg bg-destructive/10 p-3 text-sm text-destructive' role='alert'>
               {error.message}
             </p>
           ) : null}
@@ -254,7 +254,7 @@ const useWithGuard = <T extends Record<string, unknown>, S extends ZodObject<Zod
 
     if (!lastSaved) return null
     return (
-      <span className={cn('text-muted-foreground text-xs', className)} {...props}>
+      <span className={cn('text-xs text-muted-foreground', className)} {...props}>
         {ago < JUST_SAVED_THRESHOLD ? 'Saved' : `Saved ${ago}s ago`}
       </span>
     )

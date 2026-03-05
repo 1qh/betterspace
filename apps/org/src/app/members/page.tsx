@@ -12,7 +12,7 @@ const MembersPage = () => {
   return (
     <div className='space-y-6'>
       <div className='flex items-center justify-between'>
-        <h1 className='font-bold text-2xl'>Members</h1>
+        <h1 className='text-2xl font-bold'>Members</h1>
         {canManageMembers ? <InviteDialog orgId={org._id} /> : null}
       </div>
       <MemberList />

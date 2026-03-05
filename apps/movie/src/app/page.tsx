@@ -106,7 +106,7 @@ const TMDB_IMG = 'https://image.tmdb.org/t/p/w200',
           src={`${TMDB_IMG}${movie.poster_path}`}
         />
       ) : (
-        <div className='flex h-32 w-20 shrink-0 items-center justify-center rounded-sm bg-muted text-muted-foreground text-xs'>
+        <div className='flex h-32 w-20 shrink-0 items-center justify-center rounded-sm bg-muted text-xs text-muted-foreground'>
           No image
         </div>
       )}
@@ -114,10 +114,10 @@ const TMDB_IMG = 'https://image.tmdb.org/t/p/w200',
         <p className='font-medium' data-testid='movie-title'>
           {movie.title}
         </p>
-        <p className='text-muted-foreground text-xs' data-testid='movie-meta'>
+        <p className='text-xs text-muted-foreground' data-testid='movie-meta'>
           {movie.release_date.slice(0, 4)} • {movie.vote_average.toFixed(1)} • ID: {movie.tmdb_id}
         </p>
-        <p className='line-clamp-2 text-muted-foreground text-sm'>{movie.overview}</p>
+        <p className='line-clamp-2 text-sm text-muted-foreground'>{movie.overview}</p>
       </div>
     </div>
   ),
@@ -135,8 +135,8 @@ const TMDB_IMG = 'https://image.tmdb.org/t/p/w200',
     return (
       <div className='mx-auto flex max-w-2xl flex-col gap-4 p-4' data-testid='movie-search-page'>
         <div className='flex items-center justify-between'>
-          <h1 className='font-semibold text-xl'>Movie Search</h1>
-          <Link className='text-muted-foreground text-sm hover:text-foreground' href='/fetch'>
+          <h1 className='text-xl font-semibold'>Movie Search</h1>
+          <Link className='text-sm text-muted-foreground hover:text-foreground' href='/fetch'>
             Fetch by ID →
           </Link>
         </div>
@@ -163,7 +163,7 @@ const TMDB_IMG = 'https://image.tmdb.org/t/p/w200',
           />
         </form>
         {isOnline ? null : (
-          <p className='rounded-md bg-destructive/10 px-3 py-2 text-destructive text-sm' data-testid='offline-banner'>
+          <p className='rounded-md bg-destructive/10 px-3 py-2 text-sm text-destructive' data-testid='offline-banner'>
             You are offline — search requires an internet connection
           </p>
         )}

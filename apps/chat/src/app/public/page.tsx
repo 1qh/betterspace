@@ -17,7 +17,7 @@ const Page = () => {
     })
   return (
     <div className='mx-auto max-w-3xl p-4' data-testid='public-chats-page'>
-      <h1 className='mb-4 font-semibold text-xl'>Public Chats</h1>
+      <h1 className='mb-4 text-xl font-semibold'>Public Chats</h1>
       <Input
         className='mb-4'
         onChange={e => setQuery(e.target.value)}

@@ -17,7 +17,7 @@ const LoginLayout = ({ children }: { children: ReactNode }) => (
   ),
   AuthLayout = ({ children, provider }: AuthLayoutProps) => (
     <html lang='en' suppressHydrationWarning>
-      <body className='min-h-screen bg-background font-sans text-foreground tracking-tight antialiased'>
+      <body className='min-h-screen bg-background font-sans tracking-tight text-foreground antialiased'>
         <Suspense>
           {provider(
             <ThemeProvider attribute='class' defaultTheme='system' enableSystem>
