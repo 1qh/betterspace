@@ -117,8 +117,10 @@ test.describe('Chat Persistence', () => {
     await chatPage.goto()
   })
 
+  // eslint-disable-next-line max-statements
   test('can return to existing chat via URL', async ({ chatPage, page }) => {
     test.setTimeout(60_000)
+    // eslint-disable-next-line no-restricted-properties
     const isTestMode = process.env.NEXT_PUBLIC_PLAYWRIGHT === '1' || process.env.SPACETIMEDB_TEST_MODE === 'true'
     await chatPage.sendUserMessage('Remember this message')
     await chatPage.waitForResponse()
@@ -127,9 +129,8 @@ test.describe('Chat Persistence', () => {
     await page.reload()
     await page.waitForLoadState('domcontentloaded')
 
-    if (isTestMode) {
-      await expect(chatPage.getInput()).toBeVisible({ timeout: 20_000 })
-    } else {
+    if (isTestMode) await expect(chatPage.getInput()).toBeVisible({ timeout: 20_000 })
+    else {
       await page.locator('[data-testid="message"]').first().waitFor({ state: 'attached', timeout: 20_000 })
       const messageText = await page.locator('[data-testid="message"]').first().textContent()
       expect(messageText).toContain('Remember this message')
@@ -179,6 +180,7 @@ test.describe
       await expect(page).toHaveURL('/')
     })
 
+    // eslint-disable-next-line max-statements
     test('can navigate between chats', async ({ chatPage, page }) => {
       test.setTimeout(90_000)
       const firstMessage = `First chat ${Date.now()}`

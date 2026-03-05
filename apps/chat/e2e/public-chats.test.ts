@@ -27,6 +27,7 @@ test.describe
       await login(page)
     })
 
+    // eslint-disable-next-line max-statements
     test('creating a public chat shows it on /public page', async ({ chatPage, page }) => {
       test.setTimeout(90_000)
 
@@ -46,6 +47,7 @@ test.describe
       await expect(publicItem).toBeVisible({ timeout: 15_000 })
     })
 
+    // eslint-disable-next-line max-statements
     test('clicking a public chat navigates to it', async ({ chatPage, page }) => {
       test.setTimeout(90_000)
 
@@ -66,6 +68,7 @@ test.describe
       await expect(page).toHaveURL(CHAT_URL_PATTERN)
     })
 
+    // eslint-disable-next-line max-statements
     test('private chat does not appear on /public page', async ({ chatPage, page }) => {
       test.setTimeout(90_000)
 

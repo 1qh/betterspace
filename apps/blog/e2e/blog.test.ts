@@ -91,8 +91,8 @@ test.describe
     })
 
     test('edit form shows current values', async ({ blogPage, page }) => {
-      const title = `Pre-filled Blog ${Date.now()}`
-      const content = 'Pre-filled content'
+      const title = `Pre-filled Blog ${Date.now()}`,
+        content = 'Pre-filled content'
       await blogPage.createBlog(title, content)
       const card = blogPage.getBlogCards().filter({ hasText: title }).first()
 
@@ -130,6 +130,7 @@ test.describe
       await expect(page.getByTestId('auto-save-indicator')).not.toBeVisible()
     })
 
+    // eslint-disable-next-line max-statements
     test('auto-save persists changes after reload', async ({ blogPage, page }) => {
       const title = `Persist Blog ${Date.now()}`
       await blogPage.createBlog(title, 'Original content')
@@ -148,6 +149,7 @@ test.describe
       await expect(page.getByTestId('edit-content').first().locator('textarea')).toHaveValue(newContent)
     })
 
+    // eslint-disable-next-line max-statements
     test('can toggle publish status', async ({ blogPage, page }) => {
       const title = `Toggle Blog ${Date.now()}`
       await blogPage.createBlog(title, 'Content')

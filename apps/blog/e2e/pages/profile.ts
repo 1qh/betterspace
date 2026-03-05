@@ -31,11 +31,6 @@ class ProfilePage extends BasePage {
     return this.$('profile-avatar', 'input[type="file"]')
   }
 
-  public async uploadAvatar(filePath: string): Promise<void> {
-    const [fileChooser] = await Promise.all([this.page.waitForEvent('filechooser'), this.getAvatarDropzone().click()])
-    await fileChooser.setFiles(filePath)
-  }
-
   public getAvatarPreview(): Locator {
     return this.$('profile-avatar', 'img')
   }
@@ -80,6 +75,10 @@ class ProfilePage extends BasePage {
     return this.$('profile-theme', 'button')
   }
 
+  public getToast(text: string): Locator {
+    return this.page.getByText(text)
+  }
+
   public async goto(): Promise<void> {
     await this.page.goto('/profile')
     await this.page.locator('[data-testid="profile-page"]').waitFor()
@@ -93,8 +92,9 @@ class ProfilePage extends BasePage {
     await this.getSubmitButton().click()
   }
 
-  public getToast(text: string): Locator {
-    return this.page.getByText(text)
+  public async uploadAvatar(filePath: string): Promise<void> {
+    const [fileChooser] = await Promise.all([this.page.waitForEvent('filechooser'), this.getAvatarDropzone().click()])
+    await fileChooser.setFiles(filePath)
   }
 }
 

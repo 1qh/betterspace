@@ -26,15 +26,19 @@ const getToken = async (): Promise<string> => {
   const response = await fetch(IDENTITY_URL, { method: 'POST' })
   if (!response.ok) throw new Error('Failed to mint SpacetimeDB identity token')
   const payload = (await response.json()) as IdentityResponse
+  // eslint-disable-next-line require-atomic-updates
   cachedToken = payload.token
   return cachedToken
 }
 
+// eslint-disable-next-line @typescript-eslint/no-empty-function
 process.on('uncaughtException', () => {})
+// eslint-disable-next-line @typescript-eslint/no-empty-function
 process.on('unhandledRejection', () => {})
 
 serve({
-  async fetch(req, server) {
+  // eslint-disable-next-line max-statements
+  fetch: async (req, server) => {
     try {
       const url = new URL(req.url)
 
@@ -73,20 +77,20 @@ serve({
   },
   port: 3210,
   websocket: {
-    close(ws) {
+    close: ws => {
       const data = ws.data as ProxySocketData
       data.upstream?.close()
     },
-    message(ws, message) {
+    message: (ws, message) => {
       const data = ws.data as ProxySocketData
       if (data.ready && data.upstream) {
         data.upstream.send(message)
         return
       }
-      data.queue = data.queue ?? []
+      data.queue ??= []
       data.queue.push(message)
     },
-    open(ws) {
+    open: ws => {
       const data = ws.data as ProxySocketData,
         upstream = new WebSocket(data.url)
 
@@ -98,6 +102,7 @@ serve({
         for (const msg of queue) upstream.send(msg)
         data.queue = undefined
       })
+      // eslint-disable-next-line @typescript-eslint/strict-void-return
       upstream.addEventListener('message', event => ws.send(event.data as string))
       upstream.addEventListener('close', () => ws.close())
       upstream.addEventListener('error', () => ws.close())

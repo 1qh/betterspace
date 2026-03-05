@@ -12,13 +12,15 @@ interface OrgMembershipLike {
   }
 }
 
+// eslint-disable-next-line max-statements
 const login = async (page: Page) => {
     await ensureTestUser()
-    const token = await getTestToken()
-    const orgs = await tc.query<OrgMembershipLike[]>(api.org.myOrgs, {})
-    let activeOrgId = ''
-    let activeOrgSlug = ''
-    let latestId = -1
+    const token = await getTestToken(),
+      // eslint-disable-next-line @typescript-eslint/no-unsafe-member-access
+      orgs = await tc.query<OrgMembershipLike[]>(api.org.myOrgs, {})
+    let activeOrgId = '',
+      activeOrgSlug = '',
+      latestId = -1
     for (const item of orgs) {
       const id = Number.parseInt(item.org._id, 10)
       if (Number.isFinite(id) && id >= latestId) {
@@ -51,7 +53,7 @@ const login = async (page: Page) => {
       await tc.raw.mutation('reset_all_data', {})
     } catch (error) {
       const parsed = extractErrorCode(error)
-      if (!(parsed && parsed.code === 'NOT_IMPLEMENTED')) throw error
+      if (!(parsed?.code === 'NOT_IMPLEMENTED')) throw error
     }
   }
 
