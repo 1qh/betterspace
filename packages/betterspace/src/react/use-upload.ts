@@ -179,19 +179,19 @@ const DEFAULT_API_ENDPOINT = '/api/upload/presign',
       [isUploading, setIsUploading] = useState(false),
       [error, setError] = useState<null | string>(null),
       [url, setUrl] = useState<null | string>(null),
-      latestUploadId = useRef(0),
-      activeUploads = useRef(0),
+      latestUploadIdRef = useRef(0),
+      activeUploadsRef = useRef(0),
       getPresignedUrl =
         config?.getPresignedUrl ??
         (async (file: File) => requestPresignedUrl(config?.apiEndpoint ?? DEFAULT_API_ENDPOINT, file)),
       beginUpload = () => {
-        activeUploads.current += 1
+        activeUploadsRef.current += 1
         setIsUploading(true)
         setError(null)
       },
       endUpload = () => {
-        activeUploads.current -= 1
-        if (activeUploads.current <= 0) setIsUploading(false)
+        activeUploadsRef.current -= 1
+        if (activeUploadsRef.current <= 0) setIsUploading(false)
       },
       register = async (file: File, storageKey: string): Promise<RegisteredFile | undefined> => {
         if (!config?.registerFile) return
@@ -203,14 +203,14 @@ const DEFAULT_API_ENDPOINT = '/api/upload/presign',
         })
       },
       setUploadProgress = (uploadId: number, value: number) => {
-        if (uploadId === latestUploadId.current) setProgress(value)
+        if (uploadId === latestUploadIdRef.current) setProgress(value)
       },
       onUploadError = (code: UploadErrorCode) => {
         setError(code)
       },
       completeUpload = (uploadId: number, storageId: string, nextUrl?: string): UploadResult => {
         if (nextUrl) setUrl(nextUrl)
-        if (uploadId === latestUploadId.current) setProgress(100)
+        if (uploadId === latestUploadIdRef.current) setProgress(100)
         return { ok: true, storageId, url: nextUrl }
       },
       runUpload = async (file: File, uploadId: number, signal?: AbortSignal): Promise<UploadResult> => {
@@ -224,8 +224,8 @@ const DEFAULT_API_ENDPOINT = '/api/upload/presign',
         return completeUpload(uploadId, registered?.storageId ?? presigned.storageKey, registered?.url)
       },
       upload = async (file: File, options?: UploadCallOptions): Promise<UploadResult> => {
-        const uploadId = latestUploadId.current + 1
-        latestUploadId.current = uploadId
+        const uploadId = latestUploadIdRef.current + 1
+        latestUploadIdRef.current = uploadId
         beginUpload()
         setProgress(0)
         try {

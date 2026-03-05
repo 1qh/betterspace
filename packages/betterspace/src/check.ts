@@ -203,14 +203,16 @@ const schemaMarkers = ['schema(', 'table(', 't.'],
   printSchemaPreview = (content: string, calls: FactoryCall[]) => {
     const tables = extractSchemaFields(content)
     console.log(bold('Schema Preview\n'))
-    if (!tables.length) {
+    if (tables.length === 0) {
       console.log(dim('  No tables found in schema file.\n'))
       return
     }
     for (const t of tables) {
       const call = calls.find(c => c.table === t.table),
         eps = call ? endpointsForFactory(call) : []
-      console.log(`  ${bold(t.table)} ${dim(`(${t.factory})`)}${eps.length ? ` ${dim(`[${eps.length} reducers]`)}` : ''}`)
+      console.log(
+        `  ${bold(t.table)} ${dim(`(${t.factory})`)}${eps.length > 0 ? ` ${dim(`[${eps.length} reducers]`)}` : ''}`
+      )
       for (const f of t.fields) console.log(`    ${f.field.padEnd(20)} ${dim(f.type)}`)
       console.log('')
     }
@@ -275,7 +277,7 @@ const schemaMarkers = ['schema(', 'table(', 't.'],
           message: `Reducer group for "${call.table}" in ${call.file} — table name does not match filename`
         })
 
-    if (!issues.length) {
+    if (issues.length === 0) {
       console.log(green('✓ All checks passed\n'))
       return
     }
@@ -285,9 +287,9 @@ const schemaMarkers = ['schema(', 'table(', 't.'],
     for (const issue of errors) console.log(`${red('✗')} ${issue.file ? `${dim(issue.file)} ` : ''}${issue.message}`)
     for (const issue of warnings) console.log(`${yellow('⚠')} ${issue.file ? `${dim(issue.file)} ` : ''}${issue.message}`)
     console.log(
-      `\n${errors.length ? red(`${errors.length} error(s)`) : ''}${errors.length && warnings.length ? ', ' : ''}${warnings.length ? yellow(`${warnings.length} warning(s)`) : ''}\n`
+      `\n${errors.length > 0 ? red(`${errors.length} error(s)`) : ''}${errors.length > 0 && warnings.length > 0 ? ', ' : ''}${warnings.length > 0 ? yellow(`${warnings.length} warning(s)`) : ''}\n`
     )
-    if (errors.length) process.exit(1)
+    if (errors.length > 0) process.exit(1)
   },
   FACTORY_DEFAULT_INDEXES: Record<string, TableIndex[]> = {
     makeCacheCrud: [],
@@ -403,7 +405,7 @@ const schemaMarkers = ['schema(', 'table(', 't.'],
       console.log(`  ${bold(call.table)} ${dim(`(${call.factory})`)} ${dim(`— ${call.file}`)}`)
       for (const idx of allIndexes)
         console.log(`    ${green('✓')} ${idx.name} ${dim(`[${idx.fields.join(', ')}]`)} ${dim(`(${idx.type})`)}`)
-      if (!allIndexes.length) console.log(`    ${dim('(no indexes detected)')}`)
+      if (allIndexes.length === 0) console.log(`    ${dim('(no indexes detected)')}`)
       const tableWhereFields = whereByTable.get(call.table)
       if (tableWhereFields)
         for (const field of tableWhereFields)
@@ -418,7 +420,7 @@ const schemaMarkers = ['schema(', 'table(', 't.'],
       console.log('')
     }
     console.log(`${bold(String(totalIndexes))} indexes across ${bold(String(calls.length))} tables\n`)
-    if (issues.length) {
+    if (issues.length > 0) {
       console.log(bold('Performance Suggestions\n'))
       for (const issue of issues)
         console.log(`  ${yellow('⚠')} ${issue.file ? `${dim(issue.file)} ` : ''}${issue.message}`)
@@ -549,18 +551,18 @@ const schemaMarkers = ['schema(', 'table(', 't.'],
     console.log(`  ${dim('Reducers:')}    ${totalEndpoints}`)
     console.log(`  ${dim('Indexes:')}     ${totalIndexes}`)
     console.log(`  ${dim('Access:')}      ${[...accessLevels].join(', ')}\n`)
-    if (errors.length) {
+    if (errors.length > 0) {
       console.log(`  ${red('Errors')} ${dim(`(-${HEALTH_ERROR_PENALTY} pts each)`)}\n`)
       for (const issue of errors) console.log(`    ${red('✗')} ${issue.file ? `${dim(issue.file)} ` : ''}${issue.message}`)
       console.log('')
     }
-    if (warnings.length) {
+    if (warnings.length > 0) {
       console.log(`  ${yellow('Warnings')} ${dim(`(-${HEALTH_WARN_PENALTY} pts each)`)}\n`)
       for (const issue of warnings)
         console.log(`    ${yellow('⚠')} ${issue.file ? `${dim(issue.file)} ` : ''}${issue.message}`)
       console.log('')
     }
-    if (!allIssues.length) console.log(`  ${green('✓ No issues found')}\n`)
+    if (allIssues.length === 0) console.log(`  ${green('✓ No issues found')}\n`)
     console.log(
       `  ${dim('Run')} betterspace check --schema ${dim('for schema preview')}\n` +
         `  ${dim('Run')} betterspace check --endpoints ${dim('for reducer list')}\n` +

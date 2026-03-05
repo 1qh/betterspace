@@ -127,8 +127,8 @@ const green = (s: string) => `\u001B[32m${s}\u001B[0m`,
     return false
   },
   sleep = async (ms: number): Promise<void> =>
-    new Promise(resolvePromise => {
-      setTimeout(resolvePromise, ms)
+    new Promise(_resolve => {
+      setTimeout(_resolve, ms)
     }),
   pingSpacetime = async (): Promise<boolean> => {
     const urls = ['http://localhost:3000/v1/ping', 'http://localhost:3000/database/ping'],

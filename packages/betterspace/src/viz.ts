@@ -147,7 +147,7 @@ const isSchemaFile = (content: string): boolean => {
       for (const f of t.fields) console.log(`    ${dim('│')} ${f.name}: ${dim(f.type)}`)
       console.log('')
     }
-    if (children.length) {
+    if (children.length > 0) {
       console.log(bold('Relationships\n'))
       for (const child of children)
         console.log(`  ${bold(child.parent)} -> ${bold(child.name)} ${dim(`(${child.foreignKey})`)}`)

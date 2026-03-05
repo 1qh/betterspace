@@ -1,3 +1,4 @@
+/* eslint-disable @typescript-eslint/max-params */
 import type { AlgebraicTypeType, ReducerExport, TypeBuilder } from 'spacetimedb/server'
 
 import type { GlobalHookCtx, GlobalHooks, Middleware, Rec } from './types'
@@ -343,7 +344,8 @@ const isPromiseLike = (value: unknown): value is PromiseLike<unknown> => {
   },
   /** Low-level factory that creates CRUD builders from shared SpacetimeDB config. */
   setup = (spacetimedb: SpacetimeDbLike, config: SetupConfig = {}) => {
-    const middlewareHooks = config.middleware?.length ? composeMiddleware(...config.middleware) : undefined,
+    const middlewareHooks =
+        config.middleware && config.middleware.length > 0 ? composeMiddleware(...config.middleware) : undefined,
       globalHooks = mergeGlobalHooks(config.hooks, middlewareHooks),
       accumulatedExports: ReducerExportRecord = {},
       crud = (factoryConfig: Parameters<typeof makeCrud>[1]) => {
@@ -465,7 +467,6 @@ const dbTable: (db: unknown, name: string) => unknown = (db, name) => (db as Rec
     return {
       allExports: s.allExports,
 
-      // eslint-disable-next-line @typescript-eslint/max-params
       cacheCrud: (
         tableName: string,
         keyName: string,
@@ -484,7 +485,6 @@ const dbTable: (db: unknown, name: string) => unknown = (db, name) => (db as Rec
           tableName
         }),
 
-      // eslint-disable-next-line @typescript-eslint/max-params
       childCrud: (
         tableName: string,
         parent: { foreignKey: string; table: string },
@@ -518,7 +518,6 @@ const dbTable: (db: unknown, name: string) => unknown = (db, name) => (db as Rec
 
       exports: s.exports,
 
-      // eslint-disable-next-line @typescript-eslint/max-params
       fileUpload: (
         namespace: string,
         tableName: string,

@@ -155,7 +155,7 @@ const dim = (s: string) => `\u001B[2m${s}\u001B[0m`,
       lines.push(`**Source:** \`${call.file}\``)
       if (desc) lines.push('', desc)
       lines.push('')
-      if (fields?.length) {
+      if (fields && fields.length > 0) {
         lines.push('### Schema Fields', '')
         lines.push('| Field | Type |')
         lines.push('|-------|------|')
@@ -238,7 +238,7 @@ const dim = (s: string) => `\u001B[2m${s}\u001B[0m`,
         if (fm.groups?.field) keys.push(fm.groups.field)
         fm = fieldPat.exec(ifaceMatch[1])
       }
-      if (keys.length) return `{ ${keys.join(', ')} }`
+      if (keys.length > 0) return `{ ${keys.join(', ')} }`
     }
     return ''
   },
@@ -260,7 +260,7 @@ const dim = (s: string) => `\u001B[2m${s}\u001B[0m`,
     if (!existsSync(indexPath)) return 0
     const indexContent = readFileSync(indexPath, 'utf8'),
       reExports = resolveReExports(indexContent)
-    if (!reExports.length) return 0
+    if (reExports.length === 0) return 0
     lines.push(`## ${ep.label}`, '')
     lines.push('| Export | Kind | Description | Signature |')
     lines.push('|--------|------|-------------|-----------|')
@@ -340,7 +340,8 @@ const dim = (s: string) => `\u001B[2m${s}\u001B[0m`,
         fields = tableFields.get(call.table)
       total += eps.length
       console.log(`${bold(call.table)} ${dim(`(${call.factory})`)} ${dim(`— ${call.file}`)}`)
-      if (fields?.length) console.log(`  ${dim('fields:')} ${fields.map(f => `${f.name}: ${f.type}`).join(', ')}`)
+      if (fields && fields.length > 0)
+        console.log(`  ${dim('fields:')} ${fields.map(f => `${f.name}: ${f.type}`).join(', ')}`)
       console.log(`  ${dim('reducers:')} ${eps.join(', ')}`)
       console.log('')
     }

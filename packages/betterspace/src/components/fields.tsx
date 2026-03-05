@@ -175,7 +175,7 @@ const DEFAULT_ASYNC_DEBOUNCE_MS = 300,
                     aria-invalid={inv}
                     className={cn(
                       'peer ml-1 w-0 flex-1 outline-none placeholder:text-muted-foreground placeholder:capitalize',
-                      tags.length ? 'placeholder:opacity-0' : 'pl-1',
+                      tags.length > 0 ? 'placeholder:opacity-0' : 'pl-1',
                       inputClassName
                     )}
                     disabled={disabled}
@@ -199,12 +199,12 @@ const DEFAULT_ASYNC_DEBOUNCE_MS = 300,
 
                         f.handleChange([...new Set([...tags, v])])
                         e.currentTarget.value = ''
-                      } else if (e.key === 'Backspace' && tags.length && !value.trim()) {
+                      } else if (e.key === 'Backspace' && tags.length > 0 && !value.trim()) {
                         e.preventDefault()
                         f.removeValue(tags.length - 1)
                       }
                     }}
-                    placeholder={tags.length ? undefined : placeholder}
+                    placeholder={tags.length > 0 ? undefined : placeholder}
                   />
                 </div>
                 {helpText ? <p className='text-sm text-muted-foreground'>{helpText}</p> : null}
@@ -690,7 +690,7 @@ const DEFAULT_ASYNC_DEBOUNCE_MS = 300,
                     disabled={disabled}
                     id={f.name}
                     onBlur={f.handleBlur}>
-                    <SelectValue placeholder={selected.length ? `${selected.length} selected` : placeholder} />
+                    <SelectValue placeholder={selected.length > 0 ? `${selected.length} selected` : placeholder} />
                   </SelectTrigger>
                   <SelectContent>
                     {options.map(o => (
@@ -700,7 +700,7 @@ const DEFAULT_ASYNC_DEBOUNCE_MS = 300,
                     ))}
                   </SelectContent>
                 </Select>
-                {selected.length ? (
+                {selected.length > 0 ? (
                   <div className='flex flex-wrap gap-1'>
                     {selected.map(v => {
                       const opt = options.find(o => o.value === v)

@@ -244,6 +244,7 @@ const listeners: (() => void)[] = [],
   },
   /** Subscribes to the devtools error store for rendering error UI. */
   useDevErrors = () => {
+    // eslint-disable-next-line react/hook-use-state
     const [, setTick] = useState(0),
       spacetime = useSpacetimeDB(),
       { connectionError, connectionId, identity, isActive, token } = spacetime
@@ -276,6 +277,7 @@ const listeners: (() => void)[] = [],
         push: pushError,
         subscriptions: [...subStore.values()]
       }),
+      // eslint-disable-next-line react-hooks/exhaustive-deps
       [errorStore.length, mutationStore.length, subStore.size, cacheStore.size, connectionStore]
     )
   }

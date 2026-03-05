@@ -58,7 +58,7 @@ const ALPHA = 'abcdefghijklmnopqrstuvwxyz',
   },
   getEnumOptions = (schema: ZodType): readonly string[] | undefined => {
     const opts = (schema as { options?: readonly string[] }).options
-    return opts?.length ? opts : undefined
+    return opts && opts.length > 0 ? opts : undefined
   },
   generateStringValue = (base: undefined | ZodType): string => {
     const opts = base ? getEnumOptions(base) : undefined

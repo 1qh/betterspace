@@ -211,7 +211,7 @@ const TOKEN_BYTES = 24,
     storage: StorageLike
   }) => {
     const { doc, fileFields, next, storage } = opts
-    if (!fileFields.length) return
+    if (fileFields.length === 0) return
     const del = new Set<string>()
     for (const f of fileFields) {
       const prev = doc[f]
@@ -251,7 +251,7 @@ const TOKEN_BYTES = 24,
     fileFields: string[]
     storage: StorageLike
   }): Promise<WithUrls<D>> => {
-    if (!fileFields.length) return doc as WithUrls<D>
+    if (fileFields.length === 0) return doc as WithUrls<D>
     const o = { ...doc } as Record<string, unknown>,
       getUrl = async (x: unknown) => {
         const id = toId(x)
@@ -303,7 +303,7 @@ const TOKEN_BYTES = 24,
     vid?: null | string
   ) => {
     const gs = groupList(w)
-    if (!gs.length) return true
+    if (gs.length === 0) return true
     for (const g of gs) {
       const entries = Object.entries(g)
       let ok = true
@@ -338,7 +338,7 @@ const TOKEN_BYTES = 24,
         code,
         fieldErrors,
         fields,
-        message: fields.length ? `Invalid: ${fields.join(', ')}` : ERROR_MESSAGES.VALIDATION_FAILED
+        message: fields.length > 0 ? `Invalid: ${fields.join(', ')}` : ERROR_MESSAGES.VALIDATION_FAILED
       })
     )
   },

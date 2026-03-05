@@ -197,7 +197,10 @@ const WRAPPERS: ReadonlySet<DefType> = new Set<DefType>([
     }
   } = <S extends ZodObject<ZodRawShape>>(schema: S, requiredOnUpdate?: (keyof output<S>)[]) => ({
     create: schema,
-    update: requiredOnUpdate?.length ? requiredPartial(schema, requiredOnUpdate as (keyof S['shape'])[]) : schema.partial()
+    update:
+      requiredOnUpdate && requiredOnUpdate.length > 0
+        ? requiredPartial(schema, requiredOnUpdate as (keyof S['shape'])[])
+        : schema.partial()
   })
 
 export type { CvMeta, DefType, ZodSchema }

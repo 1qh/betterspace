@@ -63,7 +63,7 @@ const searchMatches = <T extends Rec>(row: T, query: string, fields: (keyof T & 
         field: (sort as SortObject<T>).field
       }
     const keys = Object.keys(sort)
-    if (!keys.length) return null
+    if (keys.length === 0) return null
     const key = keys[0] as keyof T & string,
       direction = (sort as Record<string, SortDirection>)[key] ?? 'desc'
     return { direction, field: key }

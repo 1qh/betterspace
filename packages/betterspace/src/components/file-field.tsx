@@ -180,6 +180,7 @@ const FileApiContext = createContext<FileApi | null>(null),
           inputRef.current?.click()
         }
       }}
+      // oxlint-disable-next-line jsx-a11y/prefer-tag-over-role
       role='button'
       tabIndex={0}>
       <input {...inputProps} aria-describedby={inv ? errorId : undefined} aria-invalid={inv} />
@@ -343,7 +344,7 @@ const FileApiContext = createContext<FileApi | null>(null),
       raw: unknown = f.state.value as unknown,
       vals = useMemo(() => (multiple ? ((raw ?? []) as string[]) : raw ? [raw as string] : []), [multiple, raw]),
       inv = f.state.meta.isTouched && !f.state.meta.isValid,
-      canAdd = multiple ? !max || vals.length < max : !vals.length,
+      canAdd = multiple ? !max || vals.length < max : vals.length === 0,
       { isUploading, progress, reset, upload } = useFileUpload(uploadFile),
       errorId = `${f.name}-error`,
       onDropAsync = useCallback(
@@ -353,7 +354,7 @@ const FileApiContext = createContext<FileApi | null>(null),
             return
           }
           const ids = await uploadFiles({ accepted, compressImg, upload })
-          if (!ids.length) return
+          if (ids.length === 0) return
           if (multiple) f.handleChange([...vals, ...ids])
           else if (ids[0]) f.handleChange(ids[0])
         },

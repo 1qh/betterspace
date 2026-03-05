@@ -240,6 +240,7 @@ const useWithGuard = <T extends Record<string, unknown>, S extends ZodObject<Zod
       setAgo(calcAgo())
       const id = setInterval(() => setAgo(calcAgo()), REFRESH_INTERVAL)
       return () => clearInterval(id)
+      // eslint-disable-next-line react-hooks/exhaustive-deps
     }, [lastSaved])
 
     if (!lastSaved) return null

@@ -188,9 +188,9 @@ const bold = (s: string) => `\u001B[1m${s}\u001B[0m`,
       schemaIssues = checkSchemaConsistency(moduleDir, schemaFile),
       schemaErrors = schemaIssues.filter(i => i.level === 'error'),
       schemaWarns = schemaIssues.filter(i => i.level === 'warn')
-    if (schemaErrors.length)
+    if (schemaErrors.length > 0)
       results.push({ details: schemaErrors.map(e => e.message), status: 'fail', title: 'Schema Consistency' })
-    else if (schemaWarns.length)
+    else if (schemaWarns.length > 0)
       results.push({
         details: [`${tables.length} tables, ${calls.length} reducer groups, ${schemaWarns.length} warning(s)`],
         status: 'warn',
@@ -212,7 +212,7 @@ const bold = (s: string) => `\u001B[1m${s}\u001B[0m`,
     })
 
     const indexIssues = checkIndexCoverage(moduleDir, calls)
-    if (indexIssues.length)
+    if (indexIssues.length > 0)
       results.push({
         details: [`${indexIssues.length} unindexed where clause(s)`, ...indexIssues.map(i => i.message)],
         status: 'warn',
