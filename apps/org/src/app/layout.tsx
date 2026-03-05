@@ -26,6 +26,8 @@ const ORG_PATHS = ['/dashboard', '/members', '/projects', '/wiki', '/settings'],
   toOrgId = (id: number) => `${id}`,
   OrgRedirect = ({ orgId, slug, to }: { orgId: string; slug: string; to: string }) => (
     <script
+      // oxlint-disable-next-line react/no-danger
+      // eslint-disable-next-line react/no-danger, @eslint-react/dom/no-dangerously-set-innerhtml
       dangerouslySetInnerHTML={{
         __html: `window.location.href="/api/set-org?orgId=${encodeURIComponent(orgId)}&slug=${encodeURIComponent(slug)}&to=${encodeURIComponent(to)}"`
       }}
@@ -101,10 +103,16 @@ const ORG_PATHS = ['/dashboard', '/members', '/projects', '/wiki', '/settings'],
       </OrgLayoutClient>
     )
   },
-  Layout = ({ children }: { children: ReactNode }) => (
-    <AuthLayout provider={inner => <SpacetimeProvider fileApi>{inner}</SpacetimeProvider>}>
+  renderSpacetimeProvider = (inner: ReactNode): ReactNode => <SpacetimeProvider fileApi>{inner}</SpacetimeProvider>,
+  LayoutContent = ({ children }: { children: ReactNode }) => (
+    <>
       <OrgLayoutInner>{children}</OrgLayoutInner>
       <BetterspaceDevtools position='bottom-right' />
+    </>
+  ),
+  Layout = ({ children }: { children: ReactNode }) => (
+    <AuthLayout provider={renderSpacetimeProvider}>
+      <LayoutContent>{children}</LayoutContent>
     </AuthLayout>
   )
 

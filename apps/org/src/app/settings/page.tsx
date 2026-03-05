@@ -1,5 +1,6 @@
 /* oxlint-disable promise/prefer-await-to-then, promise/always-return */
 /* eslint-disable no-alert */
+/** biome-ignore-all lint/suspicious/noAlert: demo page uses native confirm */
 'use client'
 
 import type { OrgMember } from '@a/be/spacetimedb/types'
@@ -43,7 +44,6 @@ const OrgSettingsPage = () => {
 
   const adminMembers = members.filter(m => m.isAdmin),
     handleLeave = () => {
-      /** biome-ignore lint/suspicious/noAlert: demo page uses native confirm */
       if (!confirm('Are you sure you want to leave this organization?')) return
       leaveOrg({ orgId: Number(org._id) })
         .then(async () => {
@@ -55,7 +55,6 @@ const OrgSettingsPage = () => {
     handleTransfer = () => {
       const target = adminMembers.find(m => m.userId.toHexString() === transferTarget)
       if (!target) return
-      /** biome-ignore lint/suspicious/noAlert: demo page uses native confirm */
       if (!confirm('Are you sure? You will become an admin and lose owner privileges.')) return
       transferOwnership({ newOwnerId: target.userId, orgId: Number(org._id) })
         .then(() => {
@@ -64,7 +63,6 @@ const OrgSettingsPage = () => {
         .catch(fail)
     },
     handleDelete = () => {
-      /** biome-ignore lint/suspicious/noAlert: demo page uses native confirm */
       if (!confirm('Are you sure? This will delete all data.')) return
       removeOrg({ orgId: Number(org._id) })
         .then(async () => {

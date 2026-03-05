@@ -13,7 +13,7 @@ const Page = () => {
   const [allBlogs, isReady] = useTable(tables.blog),
     { identity } = useSpacetimeDB(),
     blogs = useOwnRows(allBlogs, identity ? (b: (typeof allBlogs)[number]) => b.userId.isEqual(identity) : null),
-    [removedIds, setRemovedIds] = useState<Set<number>>(new Set()),
+    [removedIds, setRemovedIds] = useState<Set<number>>(() => new Set()),
     [query, setQuery] = useState(''),
     { data, hasMore, isLoading, loadMore } = useList(blogs, isReady, {
       search: { debounceMs: 200, fields: ['title', 'content', 'tags'], query },

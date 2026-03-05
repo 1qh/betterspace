@@ -23,6 +23,7 @@ const ProjectsPage = () => {
     [allProjects, isProjectsReady] = useTable(tables.project),
     orgProjects = allProjects
       .filter((p: Project) => p.orgId === Number(org._id))
+      // oxlint-disable-next-line oxc/no-map-spread
       .map((p: Project) => ({ ...p, _id: `${p.id}` })),
     [query, setQuery] = useState(''),
     { results: projects } = useSearch(orgProjects, isProjectsReady, {

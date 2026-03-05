@@ -18,6 +18,7 @@ const metadata: Metadata = { description: 'betterspace chat demo', title: 'Chat'
     for (const p of PUBLIC_PATHS) if (pathname === p || pathname.startsWith(`${p}/`)) return true
     return false
   },
+  renderSpacetimeProvider = (inner: ReactNode): ReactNode => <SpacetimeProvider>{inner}</SpacetimeProvider>,
   Layout = async ({ children }: { children: ReactNode }) => {
     const pathname = (await headers()).get('x-pathname') ?? '/',
       token = (await cookies()).get('spacetimedb_token')?.value,
@@ -29,7 +30,7 @@ const metadata: Metadata = { description: 'betterspace chat demo', title: 'Chat'
     const showSidebar = !isPublicPath(pathname)
 
     return (
-      <AuthLayout provider={inner => <SpacetimeProvider>{inner}</SpacetimeProvider>}>
+      <AuthLayout provider={renderSpacetimeProvider}>
         {showSidebar ? (
           <SidebarProvider>
             <Sidebar />

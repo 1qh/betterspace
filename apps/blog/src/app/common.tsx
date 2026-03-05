@@ -219,7 +219,7 @@ const isPlaywrightTest = process.env.NEXT_PUBLIC_PLAYWRIGHT === '1',
             {formatDistance(updatedAtDate, new Date(), { addSuffix: true })}
             <p>•</p>
             <p className='rounded-full bg-muted-foreground px-1.5 text-background capitalize'>{category}</p>
-            {tags?.length ? (
+            {tags && tags.length > 0 ? (
               <>
                 <p>•</p>
                 <p>{tags.map(tag => `#${tag} `)}</p>
@@ -274,7 +274,7 @@ const isPlaywrightTest = process.env.NEXT_PUBLIC_PLAYWRIGHT === '1',
     </div>
   ),
   List = ({ blogs, onRemove }: { blogs: Blog[]; onRemove?: (id: number) => void }) =>
-    blogs.length ? (
+    blogs.length > 0 ? (
       <div data-testid='blog-list'>
         {blogs.map(b => (
           <Card key={b.id} onOptimisticRemove={onRemove ? () => onRemove(b.id) : undefined} {...b} />

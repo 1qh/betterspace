@@ -167,7 +167,7 @@ const TMDB_IMG = 'https://image.tmdb.org/t/p/w200',
             You are offline — search requires an internet connection
           </p>
         )}
-        {results.length ? (
+        {results.length > 0 ? (
           <div data-testid='movie-results'>
             {results.map(m => (
               <MovieCard key={m.tmdb_id} movie={m} />

@@ -191,7 +191,7 @@ const getToolDisplayName = (toolName: string): string => {
   Client = ({ chatId, initialMessages, readOnly = false }: ClientProps) => {
     const searchParams = useSearchParams(),
       query = searchParams.get('query'),
-      hasAppendedQuery = useRef(false),
+      hasAppendedQueryRef = useRef(false),
       { addToolApprovalResponse, messages, sendMessage, status, stop } = useChat({
         id: chatId,
         messages: initialMessages,
@@ -240,8 +240,8 @@ const getToolDisplayName = (toolName: string): string => {
       }
 
     useEffect(() => {
-      if (query && !hasAppendedQuery.current) {
-        hasAppendedQuery.current = true
+      if (query && !hasAppendedQueryRef.current) {
+        hasAppendedQueryRef.current = true
         sendMessage({ parts: [{ text: query, type: 'text' }], role: 'user' })
         globalThis.history.replaceState({}, '', `/${chatId}`)
       }
@@ -255,6 +255,7 @@ const getToolDisplayName = (toolName: string): string => {
               <ConversationEmptyState
                 data-testid='empty-state'
                 description='Send a message to start a conversation'
+                // oxlint-disable-next-line react-perf/jsx-no-jsx-as-prop
                 icon={<MessageSquareIcon className='size-8' />}
                 title='Start a conversation'
               />

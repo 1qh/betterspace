@@ -29,10 +29,10 @@ const NewOrgPage = () => {
     }),
     name = form.watch('name'),
     slug = form.watch('slug'),
-    autoSlug = useRef(true)
+    autoSlugRef = useRef(true)
 
   useEffect(() => {
-    if (autoSlug.current) form.instance.setFieldValue('slug', slugify(name))
+    if (autoSlugRef.current) form.instance.setFieldValue('slug', slugify(name))
   }, [name, form.instance])
 
   return (

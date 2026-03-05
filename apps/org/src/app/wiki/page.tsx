@@ -29,6 +29,7 @@ const WikiPage = () => {
     orgWikis = allWikis
 
       .filter((w: Wiki) => w.orgId === Number(org._id) && w.deletedAt === undefined)
+      // oxlint-disable-next-line oxc/no-map-spread
       .map((w: Wiki) => ({ ...w, _id: `${w.id}` })),
     { results: wikis } = useSearch(orgWikis, isWikisReady, {
       fields: ['title', 'slug'],
@@ -37,6 +38,7 @@ const WikiPage = () => {
     deletedWikis = allWikis
 
       .filter((w: Wiki) => w.orgId === Number(org._id) && w.deletedAt !== undefined)
+      // oxlint-disable-next-line oxc/no-map-spread
       .map((w: Wiki) => ({ ...w, _id: `${w.id}` })),
     updateWiki = useReducer(reducers.updateWiki),
     restoreMut = async (args: { id: string }) => {

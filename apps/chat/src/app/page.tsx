@@ -14,11 +14,11 @@ import { useReducer, useSpacetimeDB, useTable } from 'spacetimedb/react'
 
 const Page = () => {
   const router = useRouter(),
-    pendingTitle = useRef<null | string>(null),
+    pendingTitleRef = useRef<null | string>(null),
     createChat = useMutation(useReducer, reducers.createChat, {
       getName: () => 'chat.create',
       onSuccess: () => {
-        pendingTitle.current = null
+        pendingTitleRef.current = null
       },
       toast: { error: 'Unable to create chat' }
     }),
@@ -30,15 +30,15 @@ const Page = () => {
     identityKey = toIdentityKey(identity)
 
   useEffect(() => {
-    if (!pendingTitle.current) return
-    const title = pendingTitle.current
+    if (!pendingTitleRef.current) return
+    const title = pendingTitleRef.current
     let newestChat: (typeof allChats)[number] | undefined
     for (const c of allChats)
       if (c.title === title && toIdentityKey(c.userId) === identityKey && (!newestChat || c.id > newestChat.id))
         newestChat = c
 
     if (newestChat) {
-      pendingTitle.current = null
+      pendingTitleRef.current = null
       const query = encodeURIComponent(title)
       startTransition(() => router.push(`/${newestChat.id}?query=${query}`))
     }
@@ -47,11 +47,11 @@ const Page = () => {
   const handleSubmit = async ({ text }: { text: string }) => {
     if (!text.trim() || isSubmitting) return
     setIsSubmitting(true)
-    pendingTitle.current = text
+    pendingTitleRef.current = text
     try {
       await createChat({ isPublic, title: text })
     } catch {
-      pendingTitle.current = null
+      pendingTitleRef.current = null
     } finally {
       setIsSubmitting(false)
     }
@@ -63,6 +63,7 @@ const Page = () => {
           <ConversationEmptyState
             data-testid='empty-state'
             description='Ask me about the weather anywhere in the world'
+            // oxlint-disable-next-line react-perf/jsx-no-jsx-as-prop
             icon={<SparklesIcon className='size-8' />}
             title='How can I help you today?'
           />

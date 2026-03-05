@@ -62,8 +62,8 @@ interface TaskRowProps {
 
 const TaskRow = ({ canAssign, canEdit, members, onAssign, onDelete, onToggle, onUpdate, task: t }: TaskRowProps) => {
     const [editing, setEditing] = useState(false),
-      [editTitle, setEditTitle] = useState(t.title),
-      [editPriority, setEditPriority] = useState<Priority>(asPriority(t.priority)),
+      [editTitle, setEditTitle] = useState(() => t.title),
+      [editPriority, setEditPriority] = useState<Priority>(() => asPriority(t.priority)),
       handleSave = () => {
         if (!editTitle.trim()) return
 
@@ -158,7 +158,7 @@ const TaskRow = ({ canAssign, canEdit, members, onAssign, onDelete, onToggle, on
       removeTask = useReducer(reducers.rmTask),
       [title, setTitle] = useState(''),
       [priority, setPriority] = useState<Priority>('medium'),
-      [selected, setSelected] = useState<Set<number>>(new Set()),
+      [selected, setSelected] = useState<Set<number>>(() => new Set()),
       bulkDelete = useBulkMutate(removeTask, {
         onError: fail,
         onProgress: p => {
