@@ -24,15 +24,16 @@ const ORG_PATHS = ['/dashboard', '/members', '/projects', '/wiki', '/settings'],
     return false
   },
   toOrgId = (id: number) => `${id}`,
+  /* eslint-disable react/no-danger, @eslint-react/dom/no-dangerously-set-innerhtml */
   OrgRedirect = ({ orgId, slug, to }: { orgId: string; slug: string; to: string }) => (
     <script
-      // oxlint-disable-next-line react/no-danger
-      // eslint-disable-next-line react/no-danger, @eslint-react/dom/no-dangerously-set-innerhtml
+      // oxlint-disable-next-line react/no-danger, react-perf/jsx-no-new-object-as-prop
       dangerouslySetInnerHTML={{
         __html: `window.location.href="/api/set-org?orgId=${encodeURIComponent(orgId)}&slug=${encodeURIComponent(slug)}&to=${encodeURIComponent(to)}"`
       }}
     />
   ),
+  /* eslint-enable react/no-danger, @eslint-react/dom/no-dangerously-set-innerhtml */
   readActiveOrgId = () => {
     if (typeof document === 'undefined') return null
     const cookies = document.cookie.split('; ')
@@ -55,6 +56,7 @@ const ORG_PATHS = ['/dashboard', '/members', '/projects', '/wiki', '/settings'],
       activeOrgId = readActiveOrgId(),
       [playwrightWaitExpired, setPlaywrightWaitExpired] = useState(false)
 
+    /** biome-ignore lint/correctness/useExhaustiveDependencies: retrigger on navigation */
     useEffect(() => {
       if (!isPlaywright) return
       setPlaywrightWaitExpired(false)
@@ -70,6 +72,7 @@ const ORG_PATHS = ['/dashboard', '/members', '/projects', '/wiki', '/settings'],
 
     if (!(isPlaywright || (orgsReady && membersReady))) return null
 
+    // oxlint-disable-next-line react-perf/jsx-no-new-array-as-prop
     const myOrgItems = identity
       ? members
           .filter((m: OrgMember) => m.userId.toHexString() === identity.toHexString())

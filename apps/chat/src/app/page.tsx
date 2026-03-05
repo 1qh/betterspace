@@ -42,7 +42,7 @@ const Page = () => {
       const query = encodeURIComponent(title)
       startTransition(() => router.push(`/${newestChat.id}?query=${query}`))
     }
-  }, [allChats, identityKey, router, startTransition])
+  }, [allChats, identityKey, router])
 
   const handleSubmit = async ({ text }: { text: string }) => {
     if (!text.trim() || isSubmitting) return

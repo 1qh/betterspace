@@ -17,6 +17,7 @@ const ChatInput = ({ disabled = false, isBusy, onAbort, onSubmit, placeholder = 
       if (!text.trim() || isSubmitting || isBusy) return
       setIsSubmitting(true)
       try {
+        /** biome-ignore lint/nursery/useAwaitThenable: onSubmit may be async */
         await onSubmit(text)
       } finally {
         setIsSubmitting(false)
