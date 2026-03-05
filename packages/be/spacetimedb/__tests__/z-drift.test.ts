@@ -1,5 +1,5 @@
-import { describe, expect, test } from 'bun:test'
 import { base, org, orgScoped, owned, singleton } from '@a/be/z'
+import { describe, expect, test } from 'bun:test'
 
 const s = (o: Record<string, unknown>) => Object.keys(o).sort()
 

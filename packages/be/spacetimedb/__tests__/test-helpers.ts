@@ -1,7 +1,7 @@
+import type { TestContext, TestUser } from 'betterspace/server'
+
 // oxlint-disable max-params
 import { callReducer, cleanup, createTestContext, queryTable } from 'betterspace/server'
-
-import type { TestContext, TestUser } from 'betterspace/server'
 
 type Row = Record<string, unknown>
 
@@ -21,6 +21,7 @@ const none = { none: [] as [] },
   hasIdentity = (row: Row, identity: string): boolean => {
     const raw = row.user_id
     if (!Array.isArray(raw) || raw.length === 0) return false
+    // eslint-disable-next-line @typescript-eslint/no-unsafe-assignment
     const [first] = raw
     return first === toIdentityCell(identity)
   },
@@ -56,6 +57,7 @@ const none = { none: [] as [] },
   createChat = async (ctx: TestContext, user: TestUser, title: string) => {
     await callReducer(ctx, 'create_chat', { isPublic: false, title }, user)
   },
+  // eslint-disable-next-line @typescript-eslint/max-params
   createMessage = async (ctx: TestContext, user: TestUser, chatId: number, text: string) => {
     await callReducer(
       ctx,
@@ -69,8 +71,8 @@ const none = { none: [] as [] },
     )
   },
   listTable = async (ctx: TestContext, table: string, user?: TestUser) => {
-    const rows = await queryTable(ctx, table, user)
-    const output: Row[] = []
+    const rows = await queryTable(ctx, table, user),
+      output: Row[] = []
     for (const row of rows) if (row && typeof row === 'object') output.push(row as Row)
     return output
   }

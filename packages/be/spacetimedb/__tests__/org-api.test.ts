@@ -1,12 +1,11 @@
-import { describe, expect, test } from 'bun:test'
 import { callReducer } from 'betterspace/server'
+import { describe, expect, test } from 'bun:test'
 
+import { reducers, tables } from '../module_bindings'
 import orgInviteTable from '../module_bindings/org_invite_table'
 import orgJoinRequestTable from '../module_bindings/org_join_request_table'
 import orgMemberTable from '../module_bindings/org_member_table'
 import orgTable from '../module_bindings/org_table'
-import { reducers, tables } from '../module_bindings'
-
 import { none, withCtx } from './test-helpers'
 
 describe('org api port', () => {
@@ -22,9 +21,13 @@ describe('org api port', () => {
   })
 
   test('org management reducers are not exported by current module', () => {
+    // eslint-disable-next-line betterspace/no-unsafe-api-cast
     expect((reducers as Record<string, unknown>).createOrg).toBeUndefined()
+    // eslint-disable-next-line betterspace/no-unsafe-api-cast
     expect((reducers as Record<string, unknown>).updateOrg).toBeUndefined()
+    // eslint-disable-next-line betterspace/no-unsafe-api-cast
     expect((reducers as Record<string, unknown>).getOrg).toBeUndefined()
+    // eslint-disable-next-line betterspace/no-unsafe-api-cast
     expect((reducers as Record<string, unknown>).inviteOrg).toBeUndefined()
   })
 

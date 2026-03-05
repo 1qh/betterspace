@@ -1,16 +1,16 @@
-import { describe, expect, test } from 'bun:test'
 import { callReducer, extractErrorData, getErrorCode } from 'betterspace/server'
+import { describe, expect, test } from 'bun:test'
 
-import { reducers, tables } from '../module_bindings'
 import type { ErrorContext, EventContext, ReducerEventContext, SubscriptionEventContext } from '../module_bindings'
 
+import { reducers, tables } from '../module_bindings'
 import { findMine, getNumber, getString, listTable, none, some, withCtx } from './test-helpers'
 
 describe('binding edges', () => {
   test('binding context types are exported', () => {
     const eventContextType: EventContext | null = null,
-      reducerContextType: ReducerEventContext | null = null,
-      subscriptionContextType: SubscriptionEventContext | null = null,
+      reducerContextType: null | ReducerEventContext = null,
+      subscriptionContextType: null | SubscriptionEventContext = null,
       errorContextType: ErrorContext | null = null
 
     expect(eventContextType).toBeNull()
@@ -42,6 +42,7 @@ describe('runtime edges', () => {
   test('movie create and rm reducers mutate movie rows', async () => {
     await withCtx(async ctx => {
       const [user] = ctx.users
+
       if (!user) throw new Error('Missing test user')
       const tmdbId = Date.now() % 4_000_000_000
       await callReducer(ctx, 'create_movie', {
@@ -76,6 +77,7 @@ describe('runtime edges', () => {
   test('profile upsert creates row tied to caller identity', async () => {
     await withCtx(async ctx => {
       const [user] = ctx.users
+
       if (!user) throw new Error('Missing test user')
       const displayName = `Profile-${Date.now().toString()}`
       await callReducer(ctx, 'upsert_blogProfile', {

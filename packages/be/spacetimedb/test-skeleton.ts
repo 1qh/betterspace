@@ -1,4 +1,5 @@
 // oxlint-disable promise/avoid-new
+/* eslint-disable no-console */
 import { callReducer, cleanup, createTestContext, queryTable } from 'betterspace/server'
 
 interface BlogRow {
@@ -23,9 +24,9 @@ const sleep = async (ms: number) =>
     console.log('[2/6] Creating a blog post...')
     await callReducer(ctx, 'create_blog', { content: 'My first post', title: 'Hello World' })
     await sleep(200)
-    const blogs = (await queryTable(ctx, 'blog')) as BlogRow[]
-    if (blogs.length === 0) throw new Error('No blogs found')
-    const [blog] = blogs
+    const blogs = (await queryTable(ctx, 'blog')) as BlogRow[],
+      [blog] = blogs
+    if (!blog) throw new Error('No blogs found')
     console.log(`  Found ${String(blogs.length)} blog(s)`)
     assert(blogs.length === 1, `Expected 1 blog, got ${String(blogs.length)}`)
     assert(blog.title === 'Hello World', `Expected title "Hello World", got "${blog.title}"`)
@@ -37,15 +38,16 @@ const sleep = async (ms: number) =>
     console.log('[3/6] Updating the blog (same user)...')
     await callReducer(ctx, 'update_blog', [blogId, { none: [] }, { some: 'Updated Title' }])
     await sleep(200)
-    const updated = (await queryTable(ctx, 'blog')) as BlogRow[]
-    if (updated.length === 0) throw new Error('No blogs found after update')
-    const [updatedBlog] = updated
+    const updated = (await queryTable(ctx, 'blog')) as BlogRow[],
+      [updatedBlog] = updated
+    if (!updatedBlog) throw new Error('No blogs found after update')
     assert(updatedBlog.title === 'Updated Title', `Expected "Updated Title", got "${updatedBlog.title}"`)
     console.log(`  Updated title: "${updatedBlog.title}"`)
   },
   testForbidden = async (ctx: Ctx, blogId: number) => {
     console.log('[4/6] Trying update as different user (should fail)...')
     const [, secondUser] = ctx.users
+
     if (!secondUser) return
     let forbidden = false
     try {
@@ -66,12 +68,14 @@ const sleep = async (ms: number) =>
     assert(after.length === 0, `Expected 0 blogs after deletion, got ${String(after.length)}`)
     console.log('  Blog deleted successfully')
   },
+  // eslint-disable-next-line max-statements
   run = async () => {
     console.log('[1/6] Creating test context...')
     const ctx = await createTestContext({ moduleName: 'betterspace', userCount: 2 }),
       [, user2] = ctx.users
+    if (!user2) throw new Error('Missing second test user')
     console.log(`  Connected as ${ctx.defaultUser.identity.slice(0, 12)}...`)
-    console.log(`  Second user: ${user2?.identity.slice(0, 12)}...`)
+    console.log(`  Second user: ${user2.identity.slice(0, 12)}...`)
     const blog = await testCreate(ctx)
     await testUpdate(ctx, blog.id)
     await testForbidden(ctx, blog.id)
@@ -80,7 +84,7 @@ const sleep = async (ms: number) =>
     console.log('\n Walking skeleton PASSED!')
   }
 
-// eslint-disable-next-line unicorn/prefer-top-level-await, promise/prefer-await-to-then, promise/prefer-await-to-callbacks
+// oxlint-disable-next-line unicorn/prefer-top-level-await, promise/prefer-await-to-then, promise/prefer-await-to-callbacks
 run().catch((error: unknown) => {
   console.error('\n Walking skeleton FAILED:', error)
   // oxlint-disable-next-line unicorn/no-process-exit
