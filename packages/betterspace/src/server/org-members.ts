@@ -262,6 +262,7 @@ export type {
   OrgMemberRowLike,
   OrgMemberTableLike,
   OrgPkLike,
+  OrgRole,
   OrgRowLike
 }
 export { makeMemberReducers }

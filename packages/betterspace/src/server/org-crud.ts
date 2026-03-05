@@ -59,6 +59,15 @@ const applyOrgPatch = <Row extends OrgCrudOwnedRow<OrgId>, OrgId>(
     if (!member) throw makeError('NOT_ORG_MEMBER', `${tableName}:${operation}`)
     return member
   },
+  canEdit = ({
+    member,
+    row,
+    sender
+  }: {
+    member: { isAdmin: boolean }
+    row: { userId: Identity }
+    sender: Identity
+  }): boolean => member.isAdmin || identityEquals(row.userId, sender),
   requireCanMutate = ({
     member,
     operation,
@@ -72,8 +81,7 @@ const applyOrgPatch = <Row extends OrgCrudOwnedRow<OrgId>, OrgId>(
     sender: Identity
     tableName: string
   }) => {
-    if (member.isAdmin) return
-    if (!identityEquals(row.userId, sender)) throw makeError('FORBIDDEN', `${tableName}:${operation}`)
+    if (!canEdit({ member, row, sender })) throw makeError('FORBIDDEN', `${tableName}:${operation}`)
   },
   getOrgOwnedRow = <
     OrgId,

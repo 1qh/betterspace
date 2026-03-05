@@ -1,7 +1,9 @@
 /** biome-ignore-all lint/nursery/useConsistentMethodSignatures: bivariant method syntax needed for SDK compat */
 /* eslint-disable @typescript-eslint/max-params */
+import type { Identity, Timestamp } from 'spacetimedb'
 import type { AlgebraicTypeType, ReducerExport, TypeBuilder } from 'spacetimedb/server'
 
+import type { OrgFieldBuilders } from './org'
 import type { GlobalHookCtx, GlobalHooks, Middleware, Rec } from './types'
 import type { CacheFieldBuilders, CacheOptions } from './types/cache'
 import type { CrudFieldBuilders, CrudHooks, CrudOptions } from './types/crud'
@@ -15,7 +17,7 @@ import { makeCrud } from './crud'
 import { makeFileUpload } from './file'
 import { err } from './helpers'
 import { composeMiddleware } from './middleware'
-import { makeOrg } from './org'
+import { makeOrg, makeOrgTables } from './org'
 import { makeOrgCrud } from './org-crud'
 import { makeSingletonCrud } from './singleton'
 
@@ -24,6 +26,12 @@ interface CrudDefaults {
   foreignKeyField?: TypeBuilder<unknown, AlgebraicTypeType>
   idField: TypeBuilder<unknown, AlgebraicTypeType>
   orgIdField?: TypeBuilder<unknown, AlgebraicTypeType>
+}
+
+interface OrgTypeBuilders {
+  bool: () => TypeBuilder<unknown, AlgebraicTypeType>
+  identity: () => TypeBuilder<unknown, AlgebraicTypeType>
+  string: () => TypeBuilder<unknown, AlgebraicTypeType>
 }
 
 type ReducerExportRecord = Record<string, ReducerExport<never, never>>
@@ -538,7 +546,66 @@ const dbTable: (db: unknown, name: string) => unknown = (db, name) => (db as Rec
         return result
       },
 
-      org: s.org,
+      m: (
+        name: string,
+        params: CrudFieldBuilders,
+        handler: (ctx: { db: unknown; sender: Identity; timestamp: Timestamp }, args: unknown) => void
+      ) => {
+        const reducer = spacetimedb.reducer({ name }, params as never, (ctxRaw: unknown, args: unknown) => {
+          const ctx = ctxRaw as { db: unknown; sender?: Identity; timestamp: Timestamp }
+          if (!ctx.sender) throw new Error(`NOT_AUTHENTICATED: ${name}`)
+          handler({ db: ctx.db, sender: ctx.sender, timestamp: ctx.timestamp }, args)
+        }) as ReducerExport<never, never>
+        registerExports(s.exports, { [name]: reducer })
+        return reducer
+      },
+
+      org: (
+        orgFields: OrgFieldBuilders,
+        orgOpts: {
+          cascadeTables?: string[]
+          t: OrgTypeBuilders
+        }
+      ) => {
+        const stdbT = orgOpts.t,
+          cascadeConfigs: {
+            deleteById: (db: unknown, id: unknown) => boolean
+            rowsByOrg: (db: unknown, orgId: unknown) => Iterable<{ id: unknown }>
+          }[] = []
+
+        if (orgOpts.cascadeTables)
+          for (const tableName of orgOpts.cascadeTables)
+            cascadeConfigs.push({
+              deleteById: (db: unknown, id: unknown) =>
+                (dbTable(db, tableName) as { id: { delete: (id: unknown) => boolean } }).id.delete(id),
+              rowsByOrg: (db: unknown, orgId: unknown) =>
+                (
+                  dbTable(db, tableName) as { orgId: { filter: (orgId: unknown) => Iterable<{ id: unknown }> } }
+                ).orgId.filter(orgId)
+            })
+
+        return s.org({
+          builders: {
+            email: stdbT.string(),
+            inviteId: idField,
+            isAdmin: stdbT.bool(),
+            memberId: idField,
+            message: stdbT.string(),
+            newOwnerId: stdbT.identity(),
+            orgId: oIdField,
+            requestId: idField,
+            token: stdbT.string()
+          },
+          cascadeTables: cascadeConfigs.length > 0 ? cascadeConfigs : undefined,
+          fields: orgFields,
+          ...makeOrgTables({
+            org: tblOf('org'),
+            orgInvite: tblOf('orgInvite'),
+            orgJoinRequest: tblOf('orgJoinRequest'),
+            orgMember: tblOf('orgMember')
+          } as never)
+        } as never)
+      },
 
       orgCrud: (
         tableName: string,
@@ -559,6 +626,10 @@ const dbTable: (db: unknown, name: string) => unknown = (db, name) => (db as Rec
           tableName
         }),
 
+      register: (exports: Record<string, ReducerExport<never, never>>) => {
+        registerExports(s.exports, exports)
+      },
+
       singletonCrud: (tableName: string, fields: SingletonFieldBuilders, options?: SingletonOptions) =>
         s.singletonCrud({
           fields,
@@ -569,5 +640,5 @@ const dbTable: (db: unknown, name: string) => unknown = (db, name) => (db as Rec
     }
   }
 
-export type { CrudDefaults }
+export type { CrudDefaults, OrgTypeBuilders }
 export { setup, setupCrud }

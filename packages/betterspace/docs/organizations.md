@@ -143,86 +143,25 @@ const spacetimedb = schema({ ...makeOrgTables(), project })
 
 * * *
 
-## makeOrg factory
+## org factory
 
 ```typescript
-const orgFns = makeOrg(spacetimedb, {
-  // Fields for creating/updating an org
-  fields: {
-    name: t.string(),
-    slug: t.string(),
-    avatarId: t.string().optional()
-  },
+const { org } = setupCrud(spacetimedb, defaults)
 
-  // Builder types for reducer parameters
-  builders: {
-    orgId: t.u32(),
-    memberId: t.u32(),
-    isAdmin: t.bool(),
-    email: t.string(),
-    token: t.string(),
-    inviteId: t.u32(),
-    requestId: t.u32(),
-    newOwnerId: t.identity(),
-    message: t.string()
-  },
-
-  // Table accessors
-  orgTable: db => db.org,
-  orgPk: tbl => tbl.id,
-  orgSlugIndex: tbl => tbl.slug,
-  orgByUserIndex: tbl => tbl.userId,
-
-  orgMemberTable: db => db.orgMember,
-  orgMemberPk: tbl => tbl.id,
-  orgMemberByOrgIndex: tbl => ({
-    filterByOrg: orgId => tbl.orgId.filter(orgId),
-    [Symbol.iterator]: () => tbl[Symbol.iterator]()
-  }),
-  orgMemberByUserIndex: tbl => tbl.userId,
-
-  orgInviteTable: db => db.orgInvite,
-  orgInvitePk: tbl => tbl.id,
-  orgInviteByOrgIndex: tbl => ({
-    filterByOrg: orgId => tbl.orgId.filter(orgId),
-    [Symbol.iterator]: () => tbl[Symbol.iterator]()
-  }),
-  orgInviteByTokenIndex: tbl => tbl.token,
-
-  orgJoinRequestTable: db => db.orgJoinRequest,
-  orgJoinRequestPk: tbl => tbl.id,
-  orgJoinRequestByOrgIndex: tbl => ({
-    filterByOrg: orgId => tbl.orgId.filter(orgId),
-    [Symbol.iterator]: () => tbl[Symbol.iterator]()
-  }),
-  orgJoinRequestByOrgStatusIndex: tbl => ({
-    filterByOrgStatus: (orgId, status) => {
-      const out: unknown[] = []
-      for (const row of tbl.orgId.filter(orgId))
-        if (row.status === status) out.push(row)
-      return out
-    },
-    [Symbol.iterator]: () => tbl[Symbol.iterator]()
-  }),
-
-  // Cascade delete: when an org is deleted, delete its resources
-  cascadeTables: [
-    {
-      rowsByOrg: (db, orgId) => {
-        const rows: { id: unknown }[] = []
-        for (const row of db.project.orgId.filter(orgId))
-          rows.push({ id: row.id })
-        return rows
-      },
-      deleteById: (db, id) => db.project.id.delete(id as number)
-    }
-  ]
+const orgFns = org(orgFields.team, {
+  cascadeTables: ['task', 'project', 'wiki'],
+  t
 })
 ```
 
+`org()` derives all builders, table accessors, and cascade callbacks from the field
+definitions automatically.
+Pass the org fields object and a list of table names to cascade-delete when an org is
+removed.
+
 ## Generated reducers
 
-`makeOrg` generates these reducers:
+`org()` generates these reducers:
 
 | Reducer | Description |
 | --- | --- |

@@ -23,6 +23,7 @@ export {
   isErrorCode,
   isMutationError,
   isRecord,
+  makeUnique,
   matchError,
   ok,
   time
@@ -31,6 +32,8 @@ export { auditLog, composeMiddleware, inputSanitize, slowQueryWarn } from './mid
 export { makeOrg, makeOrgTables } from './org'
 export type { InviteDocLike, JoinRequestItem, OrgDocLike, OrgMemberItem, OrgUserLike } from './org'
 export { checkMembership, makeOrgCrud, orgCascade } from './org-crud'
+export { canEdit, requireOrgMember } from './org-crud-helpers'
+export type { OrgRole } from './org-members'
 export { HEARTBEAT_INTERVAL_MS, makePresence, PRESENCE_TTL_MS, presenceTable } from './presence'
 export {
   baseTable,
@@ -44,9 +47,10 @@ export {
   singletonTable,
   uploadTables
 } from './schema-helpers'
-export type { CrudDefaults } from './setup'
+export type { CrudDefaults, OrgTypeBuilders } from './setup'
 export { setup, setupCrud } from './setup'
 export { makeSingletonCrud } from './singleton'
+export { makeCacheTable, makeChildTable, makeOrgTable, makeOwnedTable, makeSingletonTable } from './stdb-tables'
 export type { TestContext, TestUser } from './test'
 export { asUser, callReducer, cleanup, createTestContext, createTestUser, isTestMode, queryTable } from './test'
 export { discoverModules } from './test-discover'
