@@ -104,7 +104,6 @@
             "noSolidDestructuredProps": "off",
             "noUndeclaredDependencies": "off",
             "noUnresolvedImports": "off",
-            "useExhaustiveDependencies": "off",
             "useImportExtensions": "off",
             "useQwikValidLexicalScope": "off",
             "useUniqueElementIds": "off"
@@ -114,7 +113,6 @@
             "noExcessiveLinesPerFile": "off",
             "noJsxPropsBind": "off",
             "noTernary": "off",
-            "useAwaitThenable": "off",
             "useExplicitType": "off",
             "useSortedClasses": "off"
           },
