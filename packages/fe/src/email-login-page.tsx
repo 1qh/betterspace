@@ -3,12 +3,13 @@
 
 import { Button } from '@a/ui/button'
 import { Input } from '@a/ui/input'
-import { useState } from 'react'
+import { useId, useState } from 'react'
 import { useAuth } from 'react-oidc-context'
 import { toast } from 'sonner'
 
 const EmailLoginPage = () => {
-  const auth = useAuth(),
+  const emailId = useId(),
+    auth = useAuth(),
     [login, setLogin] = useState(true),
     [pending, setPending] = useState(false),
     submitMagicLink = (email: string) => {
@@ -38,12 +39,12 @@ const EmailLoginPage = () => {
           email = typeof emailVal === 'string' ? emailVal.trim() : ''
         submitMagicLink(email)
       }}>
-      <Input autoComplete='email' id='email' name='email' placeholder='Email' />
+      <Input autoComplete='email' id={emailId} name='email' placeholder='Email' />
       <Button disabled={pending} type='submit'>
         {login ? 'Continue with email' : 'Create account with email'}
       </Button>
       <button
-        className='text-sm text-muted-foreground hover:text-foreground'
+        className='text-muted-foreground text-sm hover:text-foreground'
         onClick={() => setLogin(!login)}
         type='button'>
         {login ? "Don't have an account? Sign up" : 'Already have an account? Log in'}

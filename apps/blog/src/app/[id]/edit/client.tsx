@@ -15,7 +15,7 @@ import { AutoSaveIndicator, Form, useForm } from 'betterspace/components'
 import { toastFieldError, useMutation } from 'betterspace/react'
 import { Settings } from 'lucide-react'
 import Link from 'next/link'
-import { useTransition } from 'react'
+import { useId, useTransition } from 'react'
 import { toast } from 'sonner'
 import { useReducer, useSpacetimeDB } from 'spacetimedb/react'
 
@@ -27,7 +27,8 @@ const Publish = ({
     published,
     ...props
   }: Omit<ComponentProps<'div'>, 'id'> & { id: number; published: boolean }) => {
-    const update = useMutation(useReducer, reducers.updateBlog, {
+    const publishId = useId(),
+      update = useMutation(useReducer, reducers.updateBlog, {
         getName: () => 'blog.update.publish',
         toast: {
           error: 'Failed to update publish status',
@@ -37,12 +38,12 @@ const Publish = ({
       [pending, go] = useTransition()
     return (
       <div className={cn('flex items-center gap-2', className)} data-testid='publish-toggle' {...props}>
-        <Label htmlFor='publish'>{pending ? <Spinner /> : published ? 'Published' : 'Draft'}</Label>
+        <Label htmlFor={publishId}>{pending ? <Spinner /> : published ? 'Published' : 'Draft'}</Label>
         <Switch
           checked={published}
           data-testid='publish-switch'
           disabled={pending}
-          id='publish'
+          id={publishId}
           onCheckedChange={() =>
             go(async () => {
               await update({
@@ -210,7 +211,7 @@ const Publish = ({
           <Popover>
             <PopoverTrigger asChild>
               <Settings
-                className='size-8 rounded-lg stroke-1 p-1.5 group-hover:block hover:bg-muted'
+                className='size-8 rounded-lg stroke-1 p-1.5 hover:bg-muted group-hover:block'
                 data-testid='settings-trigger'
               />
             </PopoverTrigger>

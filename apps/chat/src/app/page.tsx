@@ -9,11 +9,12 @@ import { Switch } from '@a/ui/switch'
 import { useMutation } from 'betterspace/react'
 import { SparklesIcon } from 'lucide-react'
 import { useRouter } from 'next/navigation'
-import { useEffect, useRef, useState, useTransition } from 'react'
+import { useEffect, useId, useRef, useState, useTransition } from 'react'
 import { useReducer, useSpacetimeDB, useTable } from 'spacetimedb/react'
 
 const Page = () => {
   const router = useRouter(),
+    publicToggleId = useId(),
     pendingTitleRef = useRef<null | string>(null),
     createChat = useMutation(useReducer, reducers.createChat, {
       getName: () => 'chat.create',
@@ -71,8 +72,8 @@ const Page = () => {
       </Conversation>
       <div className='mx-auto flex w-full max-w-3xl flex-col gap-2'>
         <div className='flex items-center gap-2 px-1'>
-          <Switch checked={isPublic} data-testid='public-toggle' id='public-toggle' onCheckedChange={setIsPublic} />
-          <Label htmlFor='public-toggle'>{isPublic ? 'Public' : 'Private'}</Label>
+          <Switch checked={isPublic} data-testid='public-toggle' id={publicToggleId} onCheckedChange={setIsPublic} />
+          <Label htmlFor={publicToggleId}>{isPublic ? 'Public' : 'Private'}</Label>
         </div>
         <PromptInput onSubmit={handleSubmit}>
           <PromptInputTextarea

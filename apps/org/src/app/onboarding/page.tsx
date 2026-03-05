@@ -76,6 +76,7 @@ const { StepForm, useStepper } = defineSteps(
           </CardHeader>
           <CardContent>
             <StepForm stepper={stepper} submitLabel='Complete'>
+              {/* biome-ignore lint/correctness/useUniqueElementIds: step identifier, not HTML id */}
               <StepForm.Step
                 id='profile'
                 render={({ File, Text }) => (
@@ -86,6 +87,7 @@ const { StepForm, useStepper } = defineSteps(
                   </FieldGroup>
                 )}
               />
+              {/* biome-ignore lint/correctness/useUniqueElementIds: step identifier, not HTML id */}
               <StepForm.Step
                 id='org'
                 render={({ Text }) => (
@@ -95,6 +97,7 @@ const { StepForm, useStepper } = defineSteps(
                   </FieldGroup>
                 )}
               />
+              {/* biome-ignore lint/correctness/useUniqueElementIds: step identifier, not HTML id */}
               <StepForm.Step
                 id='appearance'
                 render={({ File }) => (
@@ -108,6 +111,7 @@ const { StepForm, useStepper } = defineSteps(
                   </FieldGroup>
                 )}
               />
+              {/* biome-ignore lint/correctness/useUniqueElementIds: step identifier, not HTML id */}
               <StepForm.Step
                 id='preferences'
                 render={({ Choose, Toggle }) => (
