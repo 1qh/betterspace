@@ -36,14 +36,11 @@ const EditWikiForm = ({ wikiId }: { wikiId: number }) => {
       form = useForm({
         onSubmit: async d => {
           await update({
-            content: d.content,
+            ...d,
             deletedAt: wiki?.deletedAt,
             editors: wiki?.editors,
             expectedUpdatedAt: wiki?.updatedAt,
-            id: wikiId,
-            slug: d.slug,
-            status: d.status,
-            title: d.title
+            id: wikiId
           })
           return d
         },

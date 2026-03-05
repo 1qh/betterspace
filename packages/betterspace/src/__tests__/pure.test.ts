@@ -7801,6 +7801,30 @@ describe('doctor', () => {
     expect(values.title).toBe('Sprint 3')
   })
 
+  test('partialValues converts null to undefined', () => {
+    const schema = object({ coverImage: string().nullable().optional(), title: string() }),
+      values = partialValues(schema, { coverImage: null, title: 'Hello' })
+    expect(values.coverImage).toBeUndefined()
+    expect(values.title).toBe('Hello')
+  })
+
+  test('partialValues passes through extra keys not in schema', () => {
+    const schema = object({ published: boolean(), title: string() }),
+      values = partialValues(schema, { id: 42, published: true, title: 'X' })
+    expect(values.id).toBe(42)
+    expect(values.published).toBe(true)
+    expect(values.title).toBe('X')
+  })
+
+  test('partialValues fills missing partial schema keys with undefined', () => {
+    const schema = object({ content: string(), published: boolean(), title: string() }).partial(),
+      values = partialValues(schema, { id: 1, published: true })
+    expect((values as Record<string, unknown>).content).toBeUndefined()
+    expect((values as Record<string, unknown>).title).toBeUndefined()
+    expect(values.published).toBe(true)
+    expect(values.id).toBe(1)
+  })
+
   test('useOwnRows is exported from use-list with expected type', async () => {
     const mod = await import('../react/use-list')
     expect(mod).toHaveProperty('useOwnRows')

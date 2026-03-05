@@ -35,14 +35,7 @@ const EditProjectForm = ({ projectId, taskCount }: { projectId: number; taskCoun
       }),
       form = useForm({
         onSubmit: async d => {
-          await update({
-            description: d.description,
-            editors: undefined,
-            expectedUpdatedAt: project?.updatedAt,
-            id: projectId,
-            name: d.name,
-            status: d.status
-          })
+          await update({ ...d, expectedUpdatedAt: project?.updatedAt, id: projectId })
           router.push(`/projects/${projectId}`)
           return d
         },

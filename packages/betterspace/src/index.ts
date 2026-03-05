@@ -78,5 +78,5 @@ export type {
 
 export type { StrictApi }
 export { zodFromTable } from './stdb-zod'
-export type { CvMeta, DefType, ZodSchema } from './zod'
+export type { CvMeta, DefType, UndefinedToOptional, ZodSchema } from './zod'
 export { strictApi }

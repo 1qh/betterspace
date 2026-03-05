@@ -1,10 +1,17 @@
 /* eslint-disable max-statements, complexity */
-import type { core, output, ZodObject, ZodRawShape, ZodType } from 'zod/v4'
+import type { core, input, output, ZodObject, ZodRawShape, ZodType } from 'zod/v4'
 
 /** Marks Betterspace file metadata on Zod fields. */
 type CvMeta = 'file' | 'files'
 /** Represents a raw Zod definition type tag. */
 type DefType = core.$ZodTypeDef['type']
+
+type NullsToUndefined<T> = { [K in keyof T]-?: Exclude<T[K], null> | undefined }
+type UndefinedToOptional<T> = { [K in keyof T as undefined extends T[K] ? K : never]?: T[K] } & {
+  [K in keyof T as undefined extends T[K] ? never : K]: T[K]
+} extends infer U
+  ? { [K in keyof U]: U[K] }
+  : never
 /** Alias for runtime Zod schema values. */
 type ZodSchema = ZodType
 
@@ -150,22 +157,18 @@ const WRAPPERS: ReadonlySet<DefType> = new Set<DefType>([
     for (const k of keys) result[k] = d[k] ?? defaultValue(schema.shape[k])
     return result as output<S>
   },
-  /** Creates an object with all schema keys, filling unspecified ones with `undefined`.
-   * Eliminates boilerplate when calling update reducers that require all fields.
-   * @param schema - Object schema defining the full set of keys
-   * @param values - Partial values to include
-   * @returns Full object with undefined for unspecified keys
-   * @example
-   * ```ts
-   * // Instead of: update({ title: undefined, content: undefined, id, published: true })
-   * update(partialValues(editSchema, { id, published: true }))
-   * ```
-   */
-  partialValues = <S extends ZodObject<ZodRawShape>>(schema: S, values: Partial<output<S>>): output<S> => {
+  partialValues = <S extends ZodObject<ZodRawShape>, V extends Partial<input<S>> & Record<string, unknown>>(
+    schema: S,
+    values: V
+  ): NullsToUndefined<output<S>> & Omit<V, keyof output<S>> => {
     const result: Record<string, unknown> = {},
       keys = Object.keys(schema.shape)
-    for (const k of keys) result[k] = (values as Record<string, unknown>)[k]
-    return result as output<S>
+    for (const k of keys) {
+      const v = (values as Record<string, unknown>)[k]
+      result[k] = v === null ? undefined : v
+    }
+    for (const k of Object.keys(values)) if (!(k in result)) result[k] = (values as Record<string, unknown>)[k]
+    return result as NullsToUndefined<output<S>> & Omit<V, keyof output<S>>
   },
   /** Converts blank optional strings into undefined before submission. */
   coerceOptionals = <S extends ZodObject<ZodRawShape>>(schema: S, data: output<S>): output<S> => {
@@ -203,7 +206,7 @@ const WRAPPERS: ReadonlySet<DefType> = new Set<DefType>([
         : schema.partial()
   })
 
-export type { CvMeta, DefType, ZodSchema }
+export type { CvMeta, DefType, UndefinedToOptional, ZodSchema }
 export {
   coerceOptionals,
   cvFileKindOf,

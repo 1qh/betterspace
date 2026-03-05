@@ -19,7 +19,7 @@ import { Input } from '@a/ui/input'
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@a/ui/select'
 import { Skeleton } from '@a/ui/skeleton'
 import { EditorsSection } from 'betterspace/components'
-import { noop, useBulkMutate } from 'betterspace/react'
+import { noop, relax, useBulkMutate } from 'betterspace/react'
 import { enumToOptions } from 'betterspace/zod'
 import { Check, Pencil, Plus, Trash, X } from 'lucide-react'
 import Link from 'next/link'
@@ -153,8 +153,8 @@ const TaskRow = ({ canAssign, canEdit, members, onAssign, onDelete, onToggle, on
       tasks = allTasks.filter((t: Task) => t.projectId === pid && t.orgId === Number(org._id)),
       members = allMembers.filter((m: OrgMember) => m.orgId === Number(org._id)),
       profileByUserId = new Map<string, OrgProfile>(),
-      createTask = useReducer(reducers.createTask),
-      updateTask = useReducer(reducers.updateTask),
+      createTask = relax(useReducer(reducers.createTask)),
+      updateTask = relax(useReducer(reducers.updateTask)),
       removeTask = useReducer(reducers.rmTask),
       [title, setTitle] = useState(''),
       [priority, setPriority] = useState<Priority>('medium'),
@@ -222,15 +222,7 @@ const TaskRow = ({ canAssign, canEdit, members, onAssign, onDelete, onToggle, on
       handleToggle = (id: number) => {
         const current = tasks.find(t => t.id === id)
         if (!current) return
-        updateTask({
-          assigneeId: current.assigneeId,
-          completed: !current.completed,
-          expectedUpdatedAt: current.updatedAt,
-          id,
-          priority: current.priority,
-          projectId: current.projectId,
-          title: current.title
-        }).catch(fail)
+        updateTask({ completed: !current.completed, expectedUpdatedAt: current.updatedAt, id }).catch(fail)
       },
       handleDeleteTask = (id: number) => {
         removeTask({ id })
@@ -260,16 +252,7 @@ const TaskRow = ({ canAssign, canEdit, members, onAssign, onDelete, onToggle, on
         const items: Parameters<typeof updateTask>[0][] = []
         for (const id of selected) {
           const current = tasks.find(t => t.id === id)
-          if (current)
-            items.push({
-              assigneeId: current.assigneeId,
-              completed,
-              expectedUpdatedAt: current.updatedAt,
-              id,
-              priority: current.priority,
-              projectId: current.projectId,
-              title: current.title
-            })
+          if (current) items.push({ completed, expectedUpdatedAt: current.updatedAt, id })
         }
         bulkUpdate.run(items)
       }
@@ -351,26 +334,15 @@ const TaskRow = ({ canAssign, canEdit, members, onAssign, onDelete, onToggle, on
                           const assignee = userId
                             ? members.find(m => m.userId.toHexString() === userId)?.userId
                             : undefined
-                          updateTask({
-                            assigneeId: assignee,
-                            completed: t.completed,
-                            expectedUpdatedAt: t.updatedAt,
-                            id: t.id,
-                            priority: t.priority,
-                            projectId: t.projectId,
-                            title: t.title
-                          }).catch(fail)
+                          updateTask({ assigneeId: assignee, expectedUpdatedAt: t.updatedAt, id: t.id }).catch(fail)
                         }}
                         onDelete={() => handleDeleteTask(t.id)}
                         onToggle={() => handleToggle(t.id)}
                         onUpdate={async (newTitle, newPriority) => {
                           await updateTask({
-                            assigneeId: t.assigneeId,
-                            completed: t.completed,
                             expectedUpdatedAt: t.updatedAt,
                             id: t.id,
                             priority: newPriority,
-                            projectId: t.projectId,
                             title: newTitle
                           })
                         }}

@@ -13,6 +13,7 @@ import { Spinner } from '@a/ui/spinner'
 import { Switch } from '@a/ui/switch'
 import { AutoSaveIndicator, Form, useForm } from 'betterspace/components'
 import { toastFieldError, useMutation } from 'betterspace/react'
+import { partialValues } from 'betterspace/zod'
 import { Settings } from 'lucide-react'
 import Link from 'next/link'
 import { useId, useTransition } from 'react'
@@ -46,17 +47,7 @@ const Publish = ({
           id={publishId}
           onCheckedChange={() =>
             go(async () => {
-              await update({
-                attachments: undefined,
-                category: undefined,
-                content: undefined,
-                coverImage: undefined,
-                expectedUpdatedAt: undefined,
-                id,
-                published: !published,
-                tags: undefined,
-                title: undefined
-              })
+              await update({ id, published: !published })
             })
           }
           size='default'
@@ -72,19 +63,8 @@ const Publish = ({
       form = useForm({
         autoSave: { debounceMs: 2000, enabled: true },
         onSubmit: async d => {
-          const payload = {
-            attachments: d.attachments,
-            category: d.category,
-            content: d.content,
-            coverImage: d.coverImage ?? undefined,
-            expectedUpdatedAt: undefined,
-            id: blog.id,
-            published: d.published,
-            tags: d.tags,
-            title: d.title
-          }
           try {
-            await update(payload)
+            await update(partialValues(editBlog, { ...d, id: blog.id }))
           } catch (error) {
             toastFieldError(error, message => {
               toast.error(message)
@@ -155,17 +135,7 @@ const Publish = ({
       }),
       form = useForm({
         onSubmit: async d => {
-          await update({
-            attachments: undefined,
-            category: d.category,
-            content: undefined,
-            coverImage: undefined,
-            expectedUpdatedAt: undefined,
-            id: blog.id,
-            published: d.published,
-            tags: undefined,
-            title: undefined
-          })
+          await update({ category: d.category, id: blog.id, published: d.published })
           return d
         },
         schema: editBlog,

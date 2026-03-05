@@ -25,12 +25,7 @@ const OrgSettingsForm = ({ org: o }: OrgSettingsFormProps) => {
     }),
     form = useForm({
       onSubmit: async d => {
-        await update({
-          avatarId: undefined,
-          name: d.name,
-          orgId: Number(o._id),
-          slug: d.slug
-        })
+        await update({ ...d, orgId: Number(o._id) })
         if (typeof d.slug === 'string' && d.slug !== o.slug) setActiveOrgCookieClient({ orgId: o._id, slug: d.slug })
 
         router.push('/settings')

@@ -201,22 +201,7 @@ const fetchMovie = async (id: number): Promise<MovieDetailData> => {
                 setCacheStatus(lastTmdbId === n ? 'Cache Hit' : 'Cache Miss')
                 setLastTmdbId(n)
                 /** biome-ignore lint/nursery/noFloatingPromises: fire-and-forget cache, useMutation handles errors via toast */
-                createMovie({
-                  backdropPath: loadedMovie.backdropPath ?? undefined,
-                  budget: loadedMovie.budget ?? undefined,
-                  genres: loadedMovie.genres,
-                  originalTitle: loadedMovie.originalTitle,
-                  overview: loadedMovie.overview,
-                  posterPath: loadedMovie.posterPath ?? undefined,
-                  releaseDate: loadedMovie.releaseDate,
-                  revenue: loadedMovie.revenue ?? undefined,
-                  runtime: loadedMovie.runtime ?? undefined,
-                  tagline: loadedMovie.tagline ?? undefined,
-                  title: loadedMovie.title,
-                  tmdbId: loadedMovie.tmdbId,
-                  voteAverage: loadedMovie.voteAverage,
-                  voteCount: loadedMovie.voteCount
-                })
+                createMovie(loadedMovie)
               } catch {
                 setFetchError('Movie not found')
                 setMovie(null)

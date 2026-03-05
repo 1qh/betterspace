@@ -20,13 +20,7 @@ const NewProjectPage = () => {
     }),
     form = useForm({
       onSubmit: async d => {
-        await createProject({
-          description: d.description,
-          editors: undefined,
-          name: d.name,
-          orgId: Number(org._id),
-          status: d.status
-        })
+        await createProject({ ...d, orgId: Number(org._id) })
         router.push('/projects')
         return d
       },

@@ -20,15 +20,7 @@ const NewWikiPage = () => {
     }),
     form = useForm({
       onSubmit: async d => {
-        await createWiki({
-          content: d.content,
-          deletedAt: undefined,
-          editors: undefined,
-          orgId: Number(org._id),
-          slug: d.slug,
-          status: d.status,
-          title: d.title
-        })
+        await createWiki({ ...d, orgId: Number(org._id) })
         router.push('/wiki')
         return d
       },

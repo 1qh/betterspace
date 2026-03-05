@@ -292,6 +292,98 @@ DX.
 
 * * *
 
+## Gap 10: Reducer Calls Require `key: undefined` Boilerplate
+
+**Status**: [x] CLOSED
+
+**Problem**: SpacetimeDB generates types where optional fields are `T | undefined` but
+REQUIRED:
+
+```ts
+type UpdateBlogParams = {
+  id: number
+  title: string | undefined
+  content: string | undefined
+  coverImage: string | undefined
+  published: boolean | undefined
+  expectedUpdatedAt: number | undefined
+}
+```
+
+Every update call needed explicit `undefined` for every omitted field:
+
+```ts
+// BEFORE: 6 fields, only 2 meaningful
+updateBlog({
+  id,
+  published: !published,
+  title: undefined,
+  content: undefined,
+  coverImage: undefined,
+  expectedUpdatedAt: undefined
+})
+```
+
+With tables having many columns this becomes untenable.
+
+**lazyconvex**: No issue — Convex mutations accept partial objects naturally.
+
+**betterspace (after)**: `UndefinedToOptional<T>` type transformation + relaxed
+`useMutation` and `relax()` utility:
+
+```ts
+// AFTER: only meaningful fields
+updateBlog({ id, published: !published })
+```
+
+**How it works**:
+
+1. `UndefinedToOptional<T>` — type-level transformation that makes `T | undefined`
+   fields optional:
+
+   ```ts
+   // { id: number; title: string | undefined } → { id: number; title?: string | undefined }
+   type UndefinedToOptional<T> = {
+     [K in keyof T as undefined extends T[K] ? never : K]: T[K]
+   } & {
+     [K in keyof T as undefined extends T[K] ? K : never]?: T[K]
+   } extends infer U
+     ? { [K in keyof U]: U[K] }
+     : never
+   ```
+
+2. `useMutation` — returns relaxed args automatically:
+
+   ```ts
+   const updateBlog = useMutation(useReducer, reducers.updateBlog)
+   updateBlog({ id, published: true }) // only required + changed fields
+   ```
+
+3. `relax()` — for direct `useReducer` calls outside `useMutation`:
+
+   ```ts
+   const updateTask = relax(useReducer(reducers.updateTask))
+   updateTask({ id, completed: true }) // same clean API
+   ```
+
+**Why it’s safe at runtime**: SpacetimeDB’s serializer (`algebraic_type.ts`) accesses
+`value.fieldName` for each schema field.
+Missing JS keys return `undefined`, which serializes as `None`. Both `null` and
+`undefined` are treated as `None`.
+
+**Impact across demo apps**:
+
+| App | Before | After |
+| --- | --- | --- |
+| blog edit | `partialValues(editBlog, { id, published, expectedUpdatedAt: undefined, ... })` | `editBlog({ id, published: !published })` |
+| org tasks | `partialValues(taskUpdate, { id, completed, assigneeId: undefined, ... })` | `taskUpdate({ id, completed: !current.completed })` |
+| org projects | `partialValues(projectUpdate, { ...d, editors: undefined, ... })` | `projectUpdate({ ...d, expectedUpdatedAt, id })` |
+| org wiki | `{ ...d, deletedAt: undefined, editors: undefined, orgId }` | `{ ...d, orgId }` |
+| org settings | `{ ...d, avatarId: undefined, orgId }` | `{ ...d, orgId }` |
+| movie fetch | `createMovie(partialValues(base.movie, loadedMovie))` | `createMovie(loadedMovie)` |
+
+* * *
+
 ## Inherent Platform Differences (NOT Gaps)
 
 These are expected divergences due to SpacetimeDB vs Convex fundamentals:
@@ -310,7 +402,7 @@ These are expected divergences due to SpacetimeDB vs Convex fundamentals:
 
 ## Summary
 
-All 9 DX gaps are **CLOSED**. A developer moving from lazyconvex to betterspace writes
+All 10 DX gaps are **CLOSED**. A developer moving from lazyconvex to betterspace writes
 the same amount of code (or less) for equivalent functionality.
 
 | Gap | Before | After | Status |
@@ -324,3 +416,4 @@ the same amount of code (or less) for equivalent functionality.
 | 7. makeOrg config | 50+ lines | 4 lines | CLOSED |
 | 8. Export assembly | Manual spreads | `allExports()` | CLOSED |
 | 9. Schema verbosity | 205 lines (4.5x) | 127 lines, 1-line tables | CLOSED |
+| 10. `key: undefined` boilerplate | Every omitted field explicit | Only changed fields | CLOSED |

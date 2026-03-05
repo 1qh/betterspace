@@ -6,6 +6,7 @@ import { FieldGroup } from '@a/ui/field'
 import { Spinner } from '@a/ui/spinner'
 import { Form, useForm } from 'betterspace/components'
 import { toastFieldError, useMutation } from 'betterspace/react'
+import { partialValues } from 'betterspace/zod'
 import Link from 'next/link'
 import { toast } from 'sonner'
 import { useReducer, useSpacetimeDB, useTable } from 'spacetimedb/react'
@@ -26,13 +27,7 @@ const Page = () => {
     form = useForm({
       onSubmit: async d => {
         try {
-          await upsert({
-            avatar: d.avatar ?? undefined,
-            bio: d.bio,
-            displayName: d.displayName,
-            notifications: d.notifications,
-            theme: d.theme
-          })
+          await upsert(partialValues(profileSchema, d))
         } catch (error) {
           toastFieldError(error, message => {
             toast.error(message)

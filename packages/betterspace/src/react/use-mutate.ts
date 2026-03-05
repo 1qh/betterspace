@@ -6,6 +6,7 @@ import { useCallback } from 'react'
 import { toast } from 'sonner'
 
 import type { RetryOptions } from '../retry'
+import type { UndefinedToOptional } from '../zod'
 import type { MutationType } from './optimistic-store'
 
 import { withRetry } from '../retry'
@@ -172,15 +173,18 @@ const isDev = typeof process !== 'undefined' && process.env.NODE_ENV !== 'produc
       [errorHandler, isOptimistic, mutate, options, store, successHandler]
     )
   },
-  /** Combines useReducer and useMutate into a single call. */
   useMutation = <A extends Record<string, unknown>, R = void, D = unknown>(
     useReducerHook: (desc: D) => (args: A) => Promise<R>,
     reducer: D,
     options?: MutateOptions<A, R>
-  ): ((args: A) => Promise<R>) => {
-    const raw = useReducerHook(reducer)
-    return useMutate(raw, options)
-  }
+  ): ((args: UndefinedToOptional<A>) => Promise<R>) => {
+    const strict = useMutate(useReducerHook(reducer), options)
+    return async (args: UndefinedToOptional<A>) => strict(args as Record<string, unknown> as A)
+  },
+  relax =
+    <A extends Record<string, unknown>, R>(fn: (args: A) => Promise<R>): ((args: UndefinedToOptional<A>) => Promise<R>) =>
+    async (args: UndefinedToOptional<A>) =>
+      fn(args as Record<string, unknown> as A)
 
 export type { MutateOptions, MutateToast }
-export { defaultOnError, useMutate, useMutation }
+export { defaultOnError, relax, useMutate, useMutation }
