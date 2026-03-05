@@ -1,7 +1,7 @@
 {
   "compilerOptions": {
     "jsx": "preserve",
-    "lib": ["dom", "dom.iterable", "ESNext"],
+    "lib": ["DOM", "DOM.Iterable", "ESNext"],
     "paths": {
       "@a/ui/*": ["./src/*"]
     },

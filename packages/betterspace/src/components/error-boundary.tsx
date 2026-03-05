@@ -50,12 +50,12 @@ class BetterspaceErrorBoundary extends Component<ErrorBoundaryProps, ErrorBounda
     return { error }
   }
 
-  componentDidCatch(error: Error, errorInfo: ErrorInfo) {
+  override componentDidCatch(error: Error, errorInfo: ErrorInfo) {
     const { onError } = this.props
     if (onError) onError(error, errorInfo)
   }
 
-  async render() {
+  override async render() {
     const { error } = this.state,
       { children, className, fallback } = this.props
 

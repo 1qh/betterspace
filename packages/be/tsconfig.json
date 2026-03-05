@@ -1,8 +1,7 @@
 {
   "compilerOptions": {
     "jsx": "preserve",
-    "lib": ["DOM", "ESNext"],
-    "skipLibCheck": true
+    "lib": ["DOM", "ESNext"]
   },
   "exclude": ["node_modules", "**/dist"],
   "extends": "@a/tsconfig/base.json"
