@@ -80,6 +80,7 @@ const ThemeToggle = () => {
   },
   UserMenu = async ({ ...props }: ComponentProps<typeof PopoverPrimitive.Trigger>) => {
     const token = (await cookies()).get('spacetimedb_token')?.value,
+      // oxlint-disable-next-line react-perf/jsx-no-new-object-as-prop
       { email, image, name } = token ? await readUserFromSql(token) : {}
     return (
       <Popover>
