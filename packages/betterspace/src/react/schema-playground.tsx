@@ -66,8 +66,8 @@ const orgScoped = makeOrgScoped({
     return (
       <div className='rounded-lg border border-zinc-800 bg-zinc-900/50 p-3'>
         <div className='flex items-center gap-2'>
-          <span className='font-mono font-medium text-zinc-200'>{table.table}</span>
-          <span className={`rounded-sm px-1.5 py-0.5 text-xs font-medium ${colorClass} bg-zinc-800`}>{table.factory}</span>
+          <span className='font-medium font-mono text-zinc-200'>{table.table}</span>
+          <span className={`rounded-sm px-1.5 py-0.5 font-medium text-xs ${colorClass} bg-zinc-800`}>{table.factory}</span>
         </div>
         {table.fields.length > 0 ? (
           <div className='mt-2 flex flex-wrap gap-1'>
@@ -76,7 +76,7 @@ const orgScoped = makeOrgScoped({
             ))}
           </div>
         ) : null}
-        <div className='mt-2 border-t border-zinc-800 pt-2'>
+        <div className='mt-2 border-zinc-800 border-t pt-2'>
           <p className='mb-1 text-xs text-zinc-500'>Endpoints ({endpoints.length})</p>
           <div className='flex flex-wrap gap-1'>
             {endpoints.map(ep => (
@@ -126,7 +126,7 @@ const orgScoped = makeOrgScoped({
       <div className={`flex flex-col gap-4 lg:flex-row ${className ?? ''}`}>
         <div className='flex min-w-0 flex-1 flex-col'>
           <div className='flex items-center justify-between pb-2'>
-            <span className='text-sm font-medium text-zinc-300'>Schema Definition</span>
+            <span className='font-medium text-sm text-zinc-300'>Schema Definition</span>
             <span className='text-xs text-zinc-500'>
               {tables.length} table{tables.length === 1 ? '' : 's'} · {totalFields} field
               {totalFields === 1 ? '' : 's'}
@@ -142,13 +142,13 @@ const orgScoped = makeOrgScoped({
         </div>
         <div className={`flex min-w-0 flex-1 flex-col ${tableClassName ?? ''}`}>
           <div className='flex items-center justify-between pb-2'>
-            <span className='text-sm font-medium text-zinc-300'>SpacetimeDB Preview</span>
+            <span className='font-medium text-sm text-zinc-300'>SpacetimeDB Preview</span>
             <span className={`text-xs text-zinc-500 ${reducerClassName ?? endpointClassName ?? ''}`}>
               {totalReducers} reducer{totalReducers === 1 ? '' : 's'}
             </span>
           </div>
           {tables.length === 0 ? (
-            <div className='flex flex-1 items-center justify-center rounded-lg border border-dashed border-zinc-800 p-8'>
+            <div className='flex flex-1 items-center justify-center rounded-lg border border-zinc-800 border-dashed p-8'>
               <p className='text-sm text-zinc-500'>
                 {value.trim()
                   ? 'No tables detected. Use defineTables, makeOwned, makeOrgScoped, etc.'

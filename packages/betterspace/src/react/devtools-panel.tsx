@@ -63,7 +63,7 @@ const POSITION_CLASSES: Record<Position, string> = {
       table = error.data?.table,
       op = error.data?.op
     return (
-      <li className='border-b border-red-900/30 last:border-b-0'>
+      <li className='border-red-900/30 border-b last:border-b-0'>
         <button
           className='flex w-full items-start gap-2 px-3 py-2 text-left text-xs hover:bg-red-950/30'
           onClick={() => setExpanded(v => !v)}
@@ -82,7 +82,7 @@ const POSITION_CLASSES: Record<Position, string> = {
                 {op ? `op: ${op}` : ''}
               </p>
             ) : null}
-            <p className='break-all whitespace-pre-wrap text-red-300/90'>{error.detail}</p>
+            <p className='whitespace-pre-wrap break-all text-red-300/90'>{error.detail}</p>
           </div>
         ) : null}
       </li>
@@ -103,7 +103,7 @@ const POSITION_CLASSES: Record<Position, string> = {
       statusLabel = stale ? 'stale' : sub.status,
       latencyLabel = sub.latencyMs > 0 ? `${sub.latencyMs}ms` : ''
     return (
-      <li className='border-b border-zinc-800 last:border-b-0'>
+      <li className='border-zinc-800 border-b last:border-b-0'>
         <button
           className='flex w-full items-center gap-2 px-3 py-2 text-left text-xs hover:bg-zinc-800/50'
           onClick={() => setExpanded(v => !v)}
@@ -125,7 +125,7 @@ const POSITION_CLASSES: Record<Position, string> = {
           <div className='space-y-1 bg-zinc-900/50 px-3 py-2 text-xs'>
             <p className='font-mono text-zinc-500'>args: {sub.args}</p>
             {sub.dataPreview ? (
-              <p className='max-h-32 overflow-y-auto font-mono break-all whitespace-pre-wrap text-zinc-400'>
+              <p className='max-h-32 overflow-y-auto whitespace-pre-wrap break-all font-mono text-zinc-400'>
                 {sub.dataPreview}...
               </p>
             ) : (
@@ -145,7 +145,7 @@ const POSITION_CLASSES: Record<Position, string> = {
             : 'text-blue-400',
       durationLabel = mutation.durationMs > 0 ? `${mutation.durationMs}ms` : 'pending'
     return (
-      <li className='flex items-center gap-2 border-b border-zinc-800 px-3 py-2 text-xs last:border-b-0'>
+      <li className='flex items-center gap-2 border-zinc-800 border-b px-3 py-2 text-xs last:border-b-0'>
         <span
           className={`size-1.5 shrink-0 rounded-full ${mutation.status === 'success' ? 'bg-emerald-400' : mutation.status === 'error' ? 'bg-red-400' : 'animate-pulse bg-blue-400'}`}
         />
@@ -159,7 +159,7 @@ const POSITION_CLASSES: Record<Position, string> = {
     const total = entry.hitCount + entry.missCount,
       hitRate = total > 0 ? Math.round((entry.hitCount / total) * 100) : 0
     return (
-      <li className='flex items-center gap-2 border-b border-zinc-800 px-3 py-2 text-xs last:border-b-0'>
+      <li className='flex items-center gap-2 border-zinc-800 border-b px-3 py-2 text-xs last:border-b-0'>
         <span className={`size-1.5 shrink-0 rounded-full ${entry.stale ? 'bg-yellow-400' : 'bg-emerald-400'}`} />
         <span className='shrink-0 font-mono text-zinc-500'>{entry.table}</span>
         <span className='min-w-0 flex-1 truncate font-mono text-zinc-300'>{entry.key}</span>
@@ -194,7 +194,7 @@ const POSITION_CLASSES: Record<Position, string> = {
             ? 'bg-red-500'
             : 'bg-blue-500'
     return (
-      <li className='flex items-center gap-2 border-b border-zinc-800 px-2 py-1.5 text-xs last:border-b-0'>
+      <li className='flex items-center gap-2 border-zinc-800 border-b px-2 py-1.5 text-xs last:border-b-0'>
         <span className='w-28 shrink-0 truncate font-mono text-zinc-400'>{sub.query}</span>
         <span className='relative h-3 min-w-0 flex-1 rounded-sm bg-zinc-800/50'>
           <span
@@ -251,13 +251,13 @@ const POSITION_CLASSES: Record<Position, string> = {
           title='Betterspace DevTools'
           type='button'>
           {count > 0 ? (
-            <span className='text-sm font-bold'>{count > MAX_BADGE ? `${MAX_BADGE}+` : count}</span>
+            <span className='font-bold text-sm'>{count > MAX_BADGE ? `${MAX_BADGE}+` : count}</span>
           ) : pendingCount > 0 ? (
-            <span className='text-sm font-bold'>{pendingCount}</span>
+            <span className='font-bold text-sm'>{pendingCount}</span>
           ) : staleCount > 0 ? (
-            <span className='text-sm font-bold'>{staleCount}</span>
+            <span className='font-bold text-sm'>{staleCount}</span>
           ) : connWarnCount > 0 ? (
-            <span className='text-sm font-bold'>!</span>
+            <span className='font-bold text-sm'>!</span>
           ) : (
             <span className='text-base'>S</span>
           )}
@@ -267,7 +267,7 @@ const POSITION_CLASSES: Record<Position, string> = {
     return (
       <div
         className={`fixed ${posClass} z-9999 flex w-96 max-w-[calc(100vw-2rem)] flex-col overflow-hidden rounded-lg border border-zinc-800 bg-zinc-950 shadow-2xl ${className ?? ''} ${panelClassName ?? ''}`}>
-        <div className='flex items-center justify-between border-b border-zinc-800 bg-zinc-900 px-3 py-2'>
+        <div className='flex items-center justify-between border-zinc-800 border-b bg-zinc-900 px-3 py-2'>
           <div className='flex gap-1'>
             <TabBtn
               active={tab === 'errors'}
@@ -341,10 +341,10 @@ const POSITION_CLASSES: Record<Position, string> = {
             </button>
           </div>
         </div>
-        <div className='border-b border-zinc-900 bg-zinc-950/80 px-3 py-2'>
+        <div className='border-zinc-900 border-b bg-zinc-950/80 px-3 py-2'>
           <ConnectionBadge connection={connection} />
           {connection.connectionError ? (
-            <p className='mt-1 line-clamp-2 text-xs text-red-300' title={connection.connectionError}>
+            <p className='mt-1 line-clamp-2 text-red-300 text-xs' title={connection.connectionError}>
               {connection.connectionError}
             </p>
           ) : null}

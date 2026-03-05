@@ -55,7 +55,7 @@ const PendingInvites = () => {
               <TableCell>
                 <RoleBadge role={i.isAdmin ? 'admin' : 'member'} />
               </TableCell>
-              <TableCell className='text-sm text-muted-foreground'>{formatExpiry(i.expiresAt)}</TableCell>
+              <TableCell className='text-muted-foreground text-sm'>{formatExpiry(i.expiresAt)}</TableCell>
               <TableCell className='flex gap-1'>
                 <Button onClick={() => handleCopy(i.token)} size='icon' variant='ghost'>
                   <Copy className='size-4' />

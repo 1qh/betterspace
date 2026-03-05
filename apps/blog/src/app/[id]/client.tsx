@@ -36,7 +36,7 @@ const Client = ({ blog }: { blog: Blog | null }) => {
           width={1000}
         />
       ) : null}
-      <p className='mt-2 text-3xl font-bold' data-testid='blog-detail-title'>
+      <p className='mt-2 font-bold text-3xl' data-testid='blog-detail-title'>
         {blog.title}
       </p>
       <p className='whitespace-pre-line' data-testid='blog-detail-content'>

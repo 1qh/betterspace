@@ -55,7 +55,7 @@ const Page = () => {
 
   return (
     <div className='container py-8'>
-      <h1 className='mb-6 text-2xl font-bold'>Your Organizations</h1>
+      <h1 className='mb-6 font-bold text-2xl'>Your Organizations</h1>
       <OrgList
         // oxlint-disable-next-line react-perf/jsx-no-new-array-as-prop
         orgs={myOrgs.map((o: MyOrgsItem) => ({

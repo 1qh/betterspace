@@ -19,7 +19,7 @@ const OrgDashboard = () => {
   return (
     <div className='space-y-6'>
       <div>
-        <h1 className='text-2xl font-bold'>{org.name}</h1>
+        <h1 className='font-bold text-2xl'>{org.name}</h1>
         <div className='flex items-center gap-2 text-muted-foreground'>
           <span>/{org.slug}</span>
           <RoleBadge role={role} />
@@ -33,8 +33,8 @@ const OrgDashboard = () => {
             <CardTitle>Members</CardTitle>
           </CardHeader>
           <CardContent>
-            <div className='text-3xl font-bold'>{members.length}</div>
-            <Link className='text-sm text-primary hover:underline' href='/members'>
+            <div className='font-bold text-3xl'>{members.length}</div>
+            <Link className='text-primary text-sm hover:underline' href='/members'>
               View all members
             </Link>
           </CardContent>
@@ -46,8 +46,8 @@ const OrgDashboard = () => {
             <CardTitle>Projects</CardTitle>
           </CardHeader>
           <CardContent>
-            <div className='text-3xl font-bold'>{projects.length}</div>
-            <Link className='text-sm text-primary hover:underline' href='/projects'>
+            <div className='font-bold text-3xl'>{projects.length}</div>
+            <Link className='text-primary text-sm hover:underline' href='/projects'>
               View all projects
             </Link>
           </CardContent>

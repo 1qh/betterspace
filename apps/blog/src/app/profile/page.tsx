@@ -67,7 +67,7 @@ const Page = () => {
       <Link className='rounded-lg px-3 py-2 hover:bg-muted' data-testid='profile-back' href='/'>
         &larr; Back
       </Link>
-      <h1 className='text-xl font-medium'>{profile ? 'Edit Profile' : 'Set Up Profile'}</h1>
+      <h1 className='font-medium text-xl'>{profile ? 'Edit Profile' : 'Set Up Profile'}</h1>
       <Form
         className='flex flex-col gap-4'
         data-testid='profile-form'

@@ -52,10 +52,10 @@ const ProjectsPage = () => {
     <div className='space-y-6'>
       <div className='flex items-center justify-between'>
         <div className='flex items-center gap-4'>
-          <h1 className='text-2xl font-bold'>Projects</h1>
+          <h1 className='font-bold text-2xl'>Projects</h1>
           {isAdmin && selected.size > 0 ? (
             <div className='flex items-center gap-2'>
-              <span className='text-sm text-muted-foreground'>{selected.size} selected</span>
+              <span className='text-muted-foreground text-sm'>{selected.size} selected</span>
               <Button
                 onClick={() => {
                   handleBulkDelete().catch(fail)
@@ -106,7 +106,7 @@ const ProjectsPage = () => {
                 checked={selected.size === projects.length}
                 onCheckedChange={toggleSelectAll}
               />
-              <span className='text-sm text-muted-foreground'>Select all</span>
+              <span className='text-muted-foreground text-sm'>Select all</span>
             </div>
           ) : null}
           <div className='grid gap-4 md:grid-cols-2 lg:grid-cols-3'>
@@ -127,7 +127,7 @@ const ProjectsPage = () => {
                       <CardTitle>{p.name}</CardTitle>
                     </CardHeader>
                     <CardContent>
-                      <p className='text-sm text-muted-foreground'>{p.description ?? 'No description'}</p>
+                      <p className='text-muted-foreground text-sm'>{p.description ?? 'No description'}</p>
                     </CardContent>
                   </Card>
                 </Link>

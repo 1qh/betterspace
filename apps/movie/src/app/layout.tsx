@@ -11,7 +11,7 @@ import { Suspense } from 'react'
 
 const Layout = ({ children }: { children: ReactNode }) => (
   <html lang='en' suppressHydrationWarning>
-    <body className='min-h-screen bg-background font-sans tracking-tight text-foreground antialiased'>
+    <body className='min-h-screen bg-background font-sans text-foreground tracking-tight antialiased'>
       <Suspense>
         <ErrorBoundary className='mx-auto max-w-4xl'>
           <SpacetimeProvider noAuth>

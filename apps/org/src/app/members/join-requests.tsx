@@ -63,8 +63,8 @@ const JoinRequests = () => {
                 </Avatar>
                 <span>Unknown</span>
               </TableCell>
-              <TableCell className='max-w-48 truncate text-sm text-muted-foreground'>{r.message ?? '-'}</TableCell>
-              <TableCell className='text-sm text-muted-foreground'>-</TableCell>
+              <TableCell className='max-w-48 truncate text-muted-foreground text-sm'>{r.message ?? '-'}</TableCell>
+              <TableCell className='text-muted-foreground text-sm'>-</TableCell>
               <TableCell>
                 <Switch
                   checked={asAdmin[`${r.id}`] ?? false}

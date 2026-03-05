@@ -169,7 +169,7 @@ const getToolDisplayName = (toolName: string): string => {
         data-role='assistant'
         data-testid='message'>
         <SparklesAvatar />
-        <div className='flex max-w-full min-w-0 flex-1 flex-col gap-2'>
+        <div className='flex min-w-0 max-w-full flex-1 flex-col gap-2'>
           {toolParts.map(tp => (
             <ToolPartDisplay
               addToolApprovalResponse={addToolApprovalResponse}

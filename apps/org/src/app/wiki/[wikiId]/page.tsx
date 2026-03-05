@@ -70,7 +70,7 @@ const emptyMembers: never[] = [],
             data-testid='deleted-banner'>
             <div className='flex items-center gap-2 text-destructive'>
               <Trash2 className='size-4' />
-              <span className='text-sm font-medium'>This wiki page has been deleted</span>
+              <span className='font-medium text-sm'>This wiki page has been deleted</span>
             </div>
             <Button data-testid='restore-wiki-detail' onClick={handleRestore} size='sm' variant='outline'>
               <RotateCcw className='mr-1.5 size-3.5' />
@@ -80,7 +80,7 @@ const emptyMembers: never[] = [],
         ) : null}
         <div className='flex items-center justify-between'>
           <div className='flex items-center gap-3'>
-            <h1 className={`text-2xl font-bold ${isDeleted ? 'line-through opacity-60' : ''}`}>{wiki.title}</h1>
+            <h1 className={`font-bold text-2xl ${isDeleted ? 'line-through opacity-60' : ''}`}>{wiki.title}</h1>
             {isDeleted ? (
               <Badge variant='destructive'>deleted</Badge>
             ) : canEditWiki ? null : (
@@ -97,7 +97,7 @@ const emptyMembers: never[] = [],
           ) : null}
         </div>
         <div className='flex items-center gap-2'>
-          <span className='text-sm text-muted-foreground'>{wiki.slug}</span>
+          <span className='text-muted-foreground text-sm'>{wiki.slug}</span>
           <Badge variant={wiki.status === 'published' ? 'default' : 'secondary'}>{wiki.status}</Badge>
         </div>
         {wiki.content ? <p className='text-muted-foreground'>{wiki.content}</p> : null}

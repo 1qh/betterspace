@@ -135,7 +135,7 @@ const FileApiContext = createContext<FileApi | null>(null),
         {/* oxlint-disable-next-line react-perf/jsx-no-new-object-as-prop */}
         <div className='h-full bg-primary transition-all' style={{ width: `${v}%` }} />
       </div>
-      <span className='text-sm text-muted-foreground'>{v}%</span>
+      <span className='text-muted-foreground text-sm'>{v}%</span>
     </div>
   ),
   Preview = ({ id, onRemove }: { id: string; onRemove?: () => void }) => (
@@ -200,8 +200,8 @@ const FileApiContext = createContext<FileApi | null>(null),
           ) : (
             <Upload className='mb-2 size-8 text-muted-foreground' />
           )}
-          <span className='text-sm text-muted-foreground'>Click or drag</span>
-          {maxSize ? <span className='mt-1 text-xs text-muted-foreground'>Max {fmt(maxSize)}</span> : null}
+          <span className='text-muted-foreground text-sm'>Click or drag</span>
+          {maxSize ? <span className='mt-1 text-muted-foreground text-xs'>Max {fmt(maxSize)}</span> : null}
         </>
       )}
     </div>

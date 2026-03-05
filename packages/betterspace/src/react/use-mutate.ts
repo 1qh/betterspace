@@ -37,9 +37,6 @@ const isDev = typeof process !== 'undefined' && process.env.NODE_ENV !== 'produc
   /** Default mutation error handler. Toasts NOT_AUTHENTICATED and RATE_LIMITED with user-friendly messages, falls back to error message for other codes. */
   defaultOnError = (error: unknown) => {
     handleError(error, {
-      default: () => {
-        toast.error(getErrorMessage(error))
-      },
       NOT_AUTHENTICATED: () => {
         toast.error('Please log in')
       },
@@ -50,6 +47,9 @@ const isDev = typeof process !== 'undefined' && process.env.NODE_ENV !== 'produc
             ? `Too many requests, retry in ${Math.ceil(data.retryAfter / 1000)}s`
             : 'Too many requests, try again later'
         )
+      },
+      default: () => {
+        toast.error(getErrorMessage(error))
       }
     })
   },

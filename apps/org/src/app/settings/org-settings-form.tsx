@@ -57,7 +57,7 @@ const OrgSettingsForm = ({ org: o }: OrgSettingsFormProps) => {
                 <Text helpText='Public organization name.' name='name' required />
                 <Text helpText='Lowercase letters, numbers, and dashes.' name='slug' required />
               </FieldGroup>
-              <p className='text-xs text-muted-foreground'>/{slug}</p>
+              <p className='text-muted-foreground text-xs'>/{slug}</p>
               <Submit>Save changes</Submit>
             </>
           )}

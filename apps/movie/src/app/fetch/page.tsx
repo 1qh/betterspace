@@ -180,7 +180,7 @@ const fetchMovie = async (id: number): Promise<MovieDetailData> => {
           <Link className='rounded-lg p-1 hover:bg-muted' href='/'>
             <ArrowLeft className='size-5' />
           </Link>
-          <h1 className='text-xl font-semibold'>Fetch by ID</h1>
+          <h1 className='font-semibold text-xl'>Fetch by ID</h1>
         </div>
         <form
           className='flex gap-2'
@@ -234,11 +234,11 @@ const fetchMovie = async (id: number): Promise<MovieDetailData> => {
             value={id}
           />
         </form>
-        <p className='text-xs text-muted-foreground'>
+        <p className='text-muted-foreground text-xs'>
           Try: 27205 (Inception), 550 (Fight Club), 680 (Pulp Fiction), 155 (The Dark Knight)
         </p>
         {fetchError ? (
-          <p className='text-sm text-destructive' data-testid='movie-error'>
+          <p className='text-destructive text-sm' data-testid='movie-error'>
             {fetchError}
           </p>
         ) : null}
@@ -262,7 +262,7 @@ const fetchMovie = async (id: number): Promise<MovieDetailData> => {
               <Badge data-testid='cache-status' variant='default'>
                 {cacheStatus || 'Fetched from TMDB'}
               </Badge>
-              <span className='text-sm text-muted-foreground' data-testid='movie-id'>
+              <span className='text-muted-foreground text-sm' data-testid='movie-id'>
                 ID: {movie.tmdbId}
               </span>
             </div>
@@ -282,9 +282,9 @@ const fetchMovie = async (id: number): Promise<MovieDetailData> => {
                 />
               ) : null}
               <div className='flex flex-col gap-2'>
-                <h2 className='text-2xl font-bold'>{movie.title}</h2>
+                <h2 className='font-bold text-2xl'>{movie.title}</h2>
                 {movie.originalTitle === movie.title ? null : (
-                  <p className='text-sm text-muted-foreground'>{movie.originalTitle}</p>
+                  <p className='text-muted-foreground text-sm'>{movie.originalTitle}</p>
                 )}
                 {movie.tagline ? <p className='text-muted-foreground italic'>{movie.tagline}</p> : null}
                 <div className='flex flex-wrap gap-1'>

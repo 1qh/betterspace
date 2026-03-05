@@ -82,12 +82,12 @@ const WikiPage = () => {
     <div className='space-y-6'>
       <div className='flex items-center justify-between'>
         <div className='flex items-center gap-4'>
-          <h1 className='text-2xl font-bold'>
-            Wiki <span className='text-base font-normal text-muted-foreground'>({visibleCount})</span>
+          <h1 className='font-bold text-2xl'>
+            Wiki <span className='font-normal text-base text-muted-foreground'>({visibleCount})</span>
           </h1>
           {isAdmin && !showDeleted && selected.size > 0 ? (
             <div className='flex items-center gap-2'>
-              <span className='text-sm text-muted-foreground'>{selected.size} selected</span>
+              <span className='text-muted-foreground text-sm'>{selected.size} selected</span>
               <Button
                 onClick={() => {
                   handleBulkDelete().catch(fail)
@@ -159,7 +159,7 @@ const WikiPage = () => {
                   </div>
                 </CardHeader>
                 <CardContent className='flex items-center justify-between'>
-                  <span className='text-sm text-muted-foreground'>{w.slug}</span>
+                  <span className='text-muted-foreground text-sm'>{w.slug}</span>
                   <Button
                     data-testid='restore-wiki'
                     onClick={() => {
@@ -198,7 +198,7 @@ const WikiPage = () => {
                 checked={selected.size === activeItems.length}
                 onCheckedChange={toggleSelectAll}
               />
-              <span className='text-sm text-muted-foreground'>Select all</span>
+              <span className='text-muted-foreground text-sm'>Select all</span>
             </div>
           ) : null}
           <div className='grid gap-4 md:grid-cols-2 lg:grid-cols-3'>
@@ -219,7 +219,7 @@ const WikiPage = () => {
                       <CardTitle>{w.title}</CardTitle>
                     </CardHeader>
                     <CardContent className='flex items-center gap-2'>
-                      <span className='text-sm text-muted-foreground'>{w.slug}</span>
+                      <span className='text-muted-foreground text-sm'>{w.slug}</span>
                       <Badge variant={w.status === 'published' ? 'default' : 'secondary'}>{w.status}</Badge>
                     </CardContent>
                   </Card>

@@ -101,7 +101,7 @@ const TaskRow = ({ canAssign, canEdit, members, onAssign, onDelete, onToggle, on
       <div className='flex items-center gap-3 py-2'>
         <Checkbox checked={Boolean(t.completed)} disabled={!canEdit} onCheckedChange={onToggle} />
         <span className={t.completed ? 'flex-1 text-muted-foreground line-through' : 'flex-1'}>{t.title}</span>
-        <span className='text-xs text-muted-foreground'>{t.priority}</span>
+        <span className='text-muted-foreground text-xs'>{t.priority}</span>
         {canAssign ? (
           <Select
             onValueChange={v => onAssign(v === 'none' ? null : v)}
@@ -124,7 +124,7 @@ const TaskRow = ({ canAssign, canEdit, members, onAssign, onDelete, onToggle, on
               <AvatarImage src={undefined} />
               <AvatarFallback className='text-xs'>{assignee.userId.toHexString().slice(2, 4)}</AvatarFallback>
             </Avatar>
-            <span className='text-xs text-muted-foreground'>{assignee.userId.toHexString()}</span>
+            <span className='text-muted-foreground text-xs'>{assignee.userId.toHexString()}</span>
           </div>
         ) : null}
         {canEdit ? (
@@ -278,7 +278,7 @@ const TaskRow = ({ canAssign, canEdit, members, onAssign, onDelete, onToggle, on
       <div className='space-y-6'>
         <div className='flex items-center justify-between'>
           <div className='flex items-center gap-3'>
-            <h1 className='text-2xl font-bold'>{project.name}</h1>
+            <h1 className='font-bold text-2xl'>{project.name}</h1>
             {canEditProject ? null : <Badge variant='secondary'>View only</Badge>}
           </div>
           {canEditProject ? (
@@ -297,7 +297,7 @@ const TaskRow = ({ canAssign, canEdit, members, onAssign, onDelete, onToggle, on
             <CardTitle>Tasks</CardTitle>
             {isAdmin && selected.size > 0 ? (
               <div className='flex items-center gap-2'>
-                <span className='text-sm text-muted-foreground'>{selected.size} selected</span>
+                <span className='text-muted-foreground text-sm'>{selected.size} selected</span>
                 <Button onClick={() => handleBulkComplete(true)} size='sm' variant='outline'>
                   Mark Complete
                 </Button>
@@ -328,7 +328,7 @@ const TaskRow = ({ canAssign, canEdit, members, onAssign, onDelete, onToggle, on
 
             <div className='divide-y'>
               {isAdmin && tasks.length > 0 ? (
-                <div className='flex items-center gap-3 py-2 text-sm text-muted-foreground'>
+                <div className='flex items-center gap-3 py-2 text-muted-foreground text-sm'>
                   <Checkbox
                     checked={selected.size === tasks.length && tasks.length > 0}
                     onCheckedChange={toggleSelectAll}
