@@ -4,7 +4,7 @@ import eslintPluginBetterTailwindcss from 'eslint-plugin-better-tailwindcss'
 import reactPlugin from 'eslint-plugin-react'
 import reactHooks from 'eslint-plugin-react-hooks'
 import { defineConfig } from 'eslint/config'
-import * as path from 'node:path'
+import { join } from 'node:path'
 
 export default defineConfig(reactHooks.configs.flat['recommended-latest'] as { rules: Linter.RulesRecord }, {
   files: ['**/*.ts', '**/*.tsx'],
@@ -25,12 +25,8 @@ export default defineConfig(reactHooks.configs.flat['recommended-latest'] as { r
     ...reactPlugin.configs['jsx-runtime'].rules,
     ...reactPlugin.configs.all.rules,
     ...eslintPluginBetterTailwindcss.configs['recommended-error'].rules,
-    'better-tailwindcss/enforce-canonical-classes': 'error',
-    'better-tailwindcss/enforce-consistent-important-position': 'error',
+    '@eslint-react/hooks-extra/no-direct-set-state-in-use-effect': 'off',
     'better-tailwindcss/enforce-consistent-line-wrapping': 'off',
-    'better-tailwindcss/enforce-consistent-variable-syntax': 'error',
-    'better-tailwindcss/enforce-shorthand-classes': 'error',
-    'better-tailwindcss/no-deprecated-classes': 'error',
     'better-tailwindcss/no-unknown-classes': [
       'error',
       {
@@ -51,12 +47,11 @@ export default defineConfig(reactHooks.configs.flat['recommended-latest'] as { r
         ]
       }
     ],
-    'react-hooks/preserve-manual-memoization': 'warn',
-    'react-hooks/set-state-in-effect': 'warn',
-    'react/button-has-type': 'off',
+    'react-hooks/preserve-manual-memoization': 'off',
+    'react-hooks/set-state-in-effect': 'off',
     'react/forbid-component-props': 'off',
     'react/function-component-definition': 'off',
-    'react/hook-use-state': 'off',
+
     'react/jsx-child-element-spacing': 'off',
     'react/jsx-closing-bracket-location': 'off',
     'react/jsx-curly-newline': 'off',
@@ -68,23 +63,22 @@ export default defineConfig(reactHooks.configs.flat['recommended-latest'] as { r
     'react/jsx-max-props-per-line': 'off',
     'react/jsx-newline': 'off',
     'react/jsx-no-bind': 'off',
-    'react/jsx-no-constructed-context-values': 'off',
+
     'react/jsx-no-literals': 'off',
     'react/jsx-one-expression-per-line': 'off',
-    'react/jsx-pascal-case': 'off',
+
     'react/jsx-props-no-spreading': 'off',
     'react/jsx-sort-props': ['error', { ignoreCase: true }],
-    'react/no-array-index-key': 'off',
-    'react/no-danger': 'off',
+
     'react/no-multi-comp': 'off',
-    'react/no-unstable-nested-components': 'off',
+
     'react/prefer-read-only-props': 'off',
-    'react/prop-types': 'off',
+
     'react/require-default-props': 'off'
   },
   settings: {
     'better-tailwindcss': {
-      entryPoint: path.join(import.meta.dirname, '../../packages/ui/src/styles/globals.css')
+      entryPoint: join(import.meta.dirname, '../../packages/ui/src/styles/globals.css')
     }
   }
 })

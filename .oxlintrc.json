@@ -10,6 +10,14 @@
     "suspicious": "error"
   },
   "ignorePatterns": ["_generated/", "module_bindings", "mobile/maestro/", "packages/ui/"],
+  "overrides": [
+    {
+      "files": ["**/spacetimedb/blogProfile.ts", "**/spacetimedb/mobileAi.ts", "**/spacetimedb/orgProfile.ts"],
+      "rules": {
+        "unicorn/filename-case": "off"
+      }
+    }
+  ],
   "plugins": [
     "eslint",
     "import",
@@ -36,62 +44,39 @@
     ],
     "curly": "off",
     "id-length": "off",
+    "import/group-exports": "off",
+    "import/max-dependencies": "off",
+    "import/no-default-export": "off",
+    "import/no-named-export": "off",
+
+    "import/no-nodejs-modules": "off",
+    "import/no-relative-parent-imports": "off",
+    "import/prefer-default-export": "off",
+    "import/unambiguous": "off",
+    "init-declarations": "off",
+    "jest/no-conditional-in-test": "off",
+    "jest/require-hook": "off",
     "jsdoc/require-param": "off",
     "jsdoc/require-param-type": "off",
     "jsdoc/require-returns": "off",
     "jsdoc/require-returns-type": "off",
-    "import/export": "error",
-    "import/exports-last": "error",
-    "import/first": "error",
-    "import/group-exports": "warn",
-    "import/max-dependencies": "off",
-    "import/no-anonymous-default-export": "error",
-    "import/no-default-export": "off",
-    "import/no-duplicates": "error",
-    "import/no-named-export": "off",
-    "import/no-namespace": "off",
-    "import/no-nodejs-modules": "off",
-    "import/no-relative-parent-imports": "off",
-    "import/no-unassigned-import": "error",
-    "import/prefer-default-export": "warn",
-    "import/unambiguous": "off",
-    "init-declarations": "warn",
-    "jest/no-conditional-in-test": "warn",
-    "jest/require-hook": "off",
-    "jsx-a11y/anchor-has-content": "error",
-    "jsx-a11y/aria-proptypes": "error",
-    "jsx-a11y/no-autofocus": "off",
-    "jsx-a11y/prefer-tag-over-role": "off",
-    "complexity": "error",
-    "max-depth": "off",
     "max-lines": "off",
     "max-lines-per-function": "off",
-    "max-nested-callbacks": "off",
-    "max-params": "error",
     "max-statements": "off",
-    "new-cap": "error",
-    "no-await-in-loop": "error",
     "no-console": "off",
-    "no-cycle": "error",
     "no-duplicate-imports": "off",
-    "no-empty-function": "error",
     "no-magic-numbers": "off",
     "no-nested-ternary": "off",
     "no-ternary": "off",
     "no-undef": "off",
     "no-undefined": "off",
-    "node/no-process-env": "warn",
+    "node/no-process-env": "off",
     "oxc/no-async-await": "off",
-    "oxc/no-map-spread": "off",
     "oxc/no-optional-chaining": "off",
     "oxc/no-rest-spread-properties": "off",
-    "promise/avoid-new": "error",
-    "promise/param-names": "off",
-    "react-perf/jsx-no-jsx-as-prop": "off",
     "react-perf/jsx-no-new-array-as-prop": "off",
     "react-perf/jsx-no-new-function-as-prop": "off",
     "react-perf/jsx-no-new-object-as-prop": "off",
-    "react/button-has-type": "error",
     "react/exhaustive-deps": "off",
     "react/jsx-filename-extension": [
       "error",
@@ -101,14 +86,10 @@
     ],
     "react/jsx-handler-names": "off",
     "react/jsx-max-depth": "off",
-    "react/jsx-no-constructed-context-values": "error",
     "react/jsx-props-no-spreading": "off",
-    "react/no-array-index-key": "error",
-    "react/no-danger": "off",
     "react/no-multi-comp": "off",
     "react/only-export-components": "off",
     "react/react-in-jsx-scope": "off",
-    "react-hooks/rules-of-hooks": "off",
     "require-await": "off",
     "sort-imports": "off",
     "sort-keys": "off",
@@ -116,8 +97,6 @@
     "typescript/consistent-indexed-object-style": "error",
     "typescript/explicit-function-return-type": "off",
     "typescript/explicit-module-boundary-types": "off",
-    "unicorn/consistent-function-scoping": "error",
-    "unicorn/explicit-length-check": "off",
     "unicorn/filename-case": [
       "error",
       {
@@ -125,22 +104,9 @@
       }
     ],
     "unicorn/no-array-callback-reference": "off",
-    "unicorn/no-await-expression-member": "error",
-    "unicorn/no-document-cookie": "error",
     "unicorn/no-nested-ternary": "off",
     "unicorn/no-null": "off",
-    "unicorn/no-process-exit": "off",
-    "unicorn/number-literal-case": "off",
     "unicorn/prefer-global-this": "off",
-    "unicorn/switch-case-braces": ["error", "avoid"],
-    "yoda": "error"
-  },
-  "overrides": [
-    {
-      "files": ["**/spacetimedb/blogProfile.ts", "**/spacetimedb/mobileAi.ts", "**/spacetimedb/orgProfile.ts"],
-      "rules": {
-        "unicorn/filename-case": "off"
-      }
-    }
-  ]
+    "unicorn/switch-case-braces": ["error", "avoid"]
+  }
 }

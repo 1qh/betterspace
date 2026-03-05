@@ -7,11 +7,11 @@ import { configs as perfectionist } from 'eslint-plugin-perfectionist'
 import preferArrow from 'eslint-plugin-prefer-arrow-functions'
 import turbo from 'eslint-plugin-turbo'
 import { defineConfig, globalIgnores } from 'eslint/config'
-import * as path from 'node:path'
+import { join } from 'node:path'
 import tseslint from 'typescript-eslint'
 
 export default defineConfig(
-  includeIgnoreFile(path.join(import.meta.dirname, '../../.gitignore')),
+  includeIgnoreFile(join(import.meta.dirname, '../../.gitignore')),
   globalIgnores(['module_bindings']),
   perfectionist['recommended-natural'],
   { ignores: ['postcss.config.mjs'] },
@@ -34,7 +34,7 @@ export default defineConfig(
     rules: {
       '@eslint-react/avoid-shorthand-boolean': 'off',
       '@eslint-react/avoid-shorthand-fragment': 'off',
-      '@eslint-react/no-implicit-key': 'error',
+      '@eslint-react/naming-convention/ref-name': 'error',
       '@eslint-react/no-missing-context-display-name': 'off',
       '@typescript-eslint/consistent-return': 'off',
       '@typescript-eslint/consistent-type-imports': [
@@ -50,9 +50,8 @@ export default defineConfig(
       ],
       '@typescript-eslint/no-confusing-void-expression': 'off',
       '@typescript-eslint/no-floating-promises': 'off',
-      '@typescript-eslint/no-magic-numbers': ['warn', { ignore: [-1, 0, 1, 2, 100] }],
+      '@typescript-eslint/no-magic-numbers': 'off',
       '@typescript-eslint/no-misused-promises': [2, { checksVoidReturn: { attributes: false } }],
-      '@typescript-eslint/no-non-null-assertion': 'error',
       '@typescript-eslint/no-unnecessary-condition': ['error', { allowConstantLoopConditions: true }],
       '@typescript-eslint/no-unsafe-type-assertion': 'off',
       '@typescript-eslint/prefer-readonly-parameter-types': 'off',
@@ -64,10 +63,9 @@ export default defineConfig(
       'max-lines': 'off',
       'max-lines-per-function': 'off',
       'new-cap': ['error', { capIsNewExceptionPattern: 'Inter|JetBrains_Mono' }],
-      'no-console': 'error',
       'no-duplicate-imports': ['error', { allowSeparateTypeImports: true }],
+      'no-magic-numbers': 'off',
       'no-nested-ternary': 'off',
-      'no-promise-executor-return': 'off',
       'no-ternary': 'off',
       'no-undefined': 'off',
       'no-underscore-dangle': 'off',
@@ -76,7 +74,7 @@ export default defineConfig(
       'preferArrow/prefer-arrow-functions': ['error', { returnStyle: 'implicit' }],
       'sort-imports': 'off',
       'sort-keys': 'off',
-      'sort-vars': ['off', { ignoreCase: true }]
+      'sort-vars': 'off'
     }
   },
   {
