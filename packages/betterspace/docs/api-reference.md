@@ -276,6 +276,69 @@ const fileCrud = makeFileUpload(spacetimedb, {
 
 * * *
 
+### makeSchema
+
+Creates table definition helpers that automatically add system fields (`id`,
+`updatedAt`, `userId`, etc.). Uses dependency injection to avoid `import.meta.require`
+issues in SpacetimeDB’s V8 runtime.
+
+```typescript
+import { makeSchema } from 'betterspace/server'
+import { t, table } from 'spacetimedb/server'
+
+const { cacheTable, childTable, orgScopedTable, ownedTable, singletonTable } =
+  makeSchema({ t, table })
+```
+
+**Returned helpers:**
+
+| Helper | System fields added | Signature |
+| --- | --- | --- |
+| `ownedTable(fields, extra?, opts?)` | `id`, `updatedAt`, `userId` | User-owned table |
+| `orgScopedTable(fields, extra?, opts?)` | `id`, `orgId`, `updatedAt`, `userId` | Org-scoped table |
+| `singletonTable(fields, opts?)` | `updatedAt`, `userId` | One row per user |
+| `cacheTable(keyField, fields, opts?)` | `id`, `cachedAt`, `invalidatedAt`, `updatedAt` | External data cache |
+| `childTable(foreignKeyName, fields, opts?)` | `foreignKey.index()`, `id`, `updatedAt`, `userId` | Child of a parent row |
+
+**Usage:**
+
+```typescript
+const blog = ownedTable(owned.blog, { published: t.bool().index() })
+const project = orgScopedTable(orgScoped.project)
+const profile = singletonTable(singleton.profile)
+const message = childTable('chatId', {
+  parts: t.array(messagePart),
+  role: t.string()
+})
+const movie = cacheTable(
+  { name: 'tmdbId', builder: t.u32().unique() },
+  { title: t.string(), overview: t.string() }
+)
+```
+
+All helpers set `{ public: true }` by default.
+Pass `opts` to override table options (e.g., custom indexes).
+
+**`StdbDeps` interface** (what you pass to `makeSchema`):
+
+```typescript
+interface StdbDeps {
+  t: {
+    identity: () => { index: () => FieldBuilder }
+    timestamp: () => FieldBuilder & { optional: () => FieldBuilder }
+    u32: () => {
+      autoInc: () => { primaryKey: () => FieldBuilder }
+      index: () => FieldBuilder
+    }
+  }
+  table: (...args: Parameters<typeof stdbTable>) => StdbTable
+}
+```
+
+In practice, just pass `{ t, table }` from `spacetimedb/server`.
+
+* * *
+
 ### setupCrud
 
 `setupCrud` is a convenience wrapper around `setup` that reduces repetitive table wiring

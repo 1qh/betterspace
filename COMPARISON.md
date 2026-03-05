@@ -94,26 +94,6 @@ const togglePublish = m(
 **Resolution**: `m()` already existed in `setupCrud` return value (setup.ts lines
 549-561). Registers into `allExports()` automatically.
 
-**betterspace**: No equivalent.
-Custom reducers require manual auth checks and boilerplate.
-
-**Solution**: Add `m()` (authenticated reducer factory) to `setupCrud()` return value.
-SpacetimeDB doesn’t have “queries” (data comes via subscriptions), so only `m()` is
-needed — not `q` or `pq`.
-
-```ts
-const { crud, m } = setupCrud(spacetimedb, defaults)
-
-const togglePublish = m(
-  'toggle_publish_blog',
-  { id: t.u32() },
-  (ctx, { id }) => {
-    // ctx.sender guaranteed to exist (auth checked)
-    // Add helpers as needed
-  }
-)
-```
-
 * * *
 
 ## Gap 3: No Per-Table File Separation
@@ -255,6 +235,63 @@ Consumer calls `allExports()` once at the end.
 
 * * *
 
+## Gap 9: Schema Definition Verbosity (4.5x → 2.8x)
+
+**Status**: [x] CLOSED
+
+**lazyconvex**: 46-line `schema.ts` using `ownedTable()`, `orgTable()` helpers:
+
+```ts
+import { ownedTable, orgTable, singletonTable } from 'lazyconvex/server'
+
+const blog = ownedTable(owned.blog, { published: v.boolean() })
+const project = orgTable(orgScoped.project)
+```
+
+**betterspace (before)**: 205-line `tables.ts` with manual `table()` calls repeating
+system fields (`id`, `updatedAt`, `userId`, `orgId`) on every table.
+
+**betterspace (after)**: 127-line `tables.ts` using `makeSchema()` helpers:
+
+```ts
+import { makeSchema } from 'betterspace/server'
+
+const { childTable, orgScopedTable, ownedTable, singletonTable } = makeSchema({
+  t,
+  table
+})
+
+const blog = ownedTable(owned.blog, { published: t.bool().index() })
+const project = orgScopedTable(orgScoped.project)
+const message = childTable('chatId', {
+  parts: t.array(messagePart),
+  role: t.string()
+})
+const blogProfile = singletonTable(singleton.blogProfile)
+```
+
+**Resolution**: Created `makeSchema(deps)` — accepts `{ t, table }` via dependency
+injection (avoiding `import.meta.require` which crashes in SpacetimeDB’s V8 runtime).
+Returns bound helpers: `ownedTable`, `orgScopedTable`, `singletonTable`, `cacheTable`,
+`childTable`. Each helper adds system fields automatically.
+
+Standard tables are now 1-liners.
+Only tables with special field layouts (movie, org system tables, file) still use manual
+`table()` calls.
+
+The remaining 2.8x ratio (127 vs 46 lines) is accounted for by:
+
+- SpacetimeDB `t.object()` inline types (messagePart, movieGenre) that Convex doesn’t
+  need
+- Movie table with 18 fields + custom genre type
+- Org system tables (orgMember, orgInvite, orgJoinRequest) with special layouts
+- File table with `uploadedAt` instead of `updatedAt`
+
+The core owned/orgScoped/singleton/child tables are 1-line each — matching lazyconvex
+DX.
+
+* * *
+
 ## Inherent Platform Differences (NOT Gaps)
 
 These are expected divergences due to SpacetimeDB vs Convex fundamentals:
@@ -273,7 +310,7 @@ These are expected divergences due to SpacetimeDB vs Convex fundamentals:
 
 ## Summary
 
-All 8 DX gaps are **CLOSED**. A developer moving from lazyconvex to betterspace writes
+All 9 DX gaps are **CLOSED**. A developer moving from lazyconvex to betterspace writes
 the same amount of code (or less) for equivalent functionality.
 
 | Gap | Before | After | Status |
@@ -286,3 +323,4 @@ the same amount of code (or less) for equivalent functionality.
 | 6. uniqueCheck helper | Missing | `makeUnique` exported | CLOSED |
 | 7. makeOrg config | 50+ lines | 4 lines | CLOSED |
 | 8. Export assembly | Manual spreads | `allExports()` | CLOSED |
+| 9. Schema verbosity | 205 lines (4.5x) | 127 lines, 1-line tables | CLOSED |
