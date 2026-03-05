@@ -100,10 +100,13 @@ export default defineConfig(
     }
   },
   {
-    rules: warnToError({
-      ...eslintReact.configs['strict-type-checked'].rules,
-      ...eslintReact.configs.recommended.rules
-    })
+    rules: {
+      ...warnToError({
+        ...eslintReact.configs['strict-type-checked'].rules,
+        ...eslintReact.configs.recommended.rules
+      }),
+      '@eslint-react/dom/no-string-style-prop': 'error'
+    }
   },
   {
     languageOptions: {

@@ -134,15 +134,13 @@
             "noNestedTernary": "off",
             "useBlockStatements": "off",
             "useComponentExportOnlyModules": "off",
-            "useImportType": "off",
             "useNamingConvention": "off",
             "useSingleVarDeclarator": "off"
           },
           "suspicious": {
             "noConsole": "off",
             "noDocumentCookie": "off",
-            "noReactSpecificProps": "off",
-            "noUnknownAtRules": "off"
+            "noReactSpecificProps": "off"
           }
         }
       }

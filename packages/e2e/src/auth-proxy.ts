@@ -34,7 +34,6 @@ process.on('uncaughtException', () => {})
 process.on('unhandledRejection', () => {})
 
 serve({
-  port: 3210,
   async fetch(req, server) {
     try {
       const url = new URL(req.url)
@@ -72,6 +71,7 @@ serve({
       return new Response('Proxy error', { status: 502 })
     }
   },
+  port: 3210,
   websocket: {
     close(ws) {
       const data = ws.data as ProxySocketData

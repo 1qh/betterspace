@@ -2326,11 +2326,11 @@ describe('handleError', () => {
   test('specific handler takes precedence over default', () => {
     let which = ''
     handleError(makeSenderError({ code: 'NOT_FOUND' }), {
-      default: () => {
-        which = 'default'
-      },
       NOT_FOUND: () => {
         which = 'specific'
+      },
+      default: () => {
+        which = 'default'
       }
     })
     expect(which).toBe('specific')
@@ -6642,8 +6642,8 @@ describe('typed error handling (R10.5)', () => {
     test('calls _ fallback when no specific handler', () => {
       const e = makeSenderError({ code: 'FORBIDDEN' }),
         result = matchError(e, {
-          _: () => 'fallback',
-          NOT_FOUND: () => 'not found'
+          NOT_FOUND: () => 'not found',
+          _: () => 'fallback'
         })
       expect(result).toBe('fallback')
     })
@@ -6651,8 +6651,8 @@ describe('typed error handling (R10.5)', () => {
     test('calls _ fallback for plain Error', () => {
       const e = new Error('plain'),
         result = matchError(e, {
-          _: rawErr => (rawErr as Error).message,
-          NOT_FOUND: () => 'not found'
+          NOT_FOUND: () => 'not found',
+          _: rawErr => (rawErr as Error).message
         })
       expect(result).toBe('plain')
     })
@@ -6675,8 +6675,8 @@ describe('typed error handling (R10.5)', () => {
     test('specific handler takes precedence over fallback', () => {
       const e = makeSenderError({ code: 'CONFLICT' }),
         result = matchError(e, {
-          _: () => 'fallback',
-          CONFLICT: () => 'specific'
+          CONFLICT: () => 'specific',
+          _: () => 'fallback'
         })
       expect(result).toBe('specific')
     })
@@ -6739,8 +6739,8 @@ describe('typed error handling (R10.5)', () => {
     test('_ receives original error for SenderError without matching handler', () => {
       const original = makeSenderError({ code: 'FORBIDDEN' }),
         result = matchError(original, {
-          _: () => 'fallback',
-          NOT_FOUND: () => 'nope'
+          NOT_FOUND: () => 'nope',
+          _: () => 'fallback'
         })
       expect(result).toBe('fallback')
     })
@@ -6753,8 +6753,8 @@ describe('typed error handling (R10.5)', () => {
       const errorData = (result as MutationFail).error,
         e = makeSenderError({ code: errorData.code, message: errorData.message } as Record<string, string | undefined>),
         msg = matchError(e, {
-          _: () => 'Unknown error',
-          NOT_FOUND: d => `Item not found: ${d.message}`
+          NOT_FOUND: d => `Item not found: ${d.message}`,
+          _: () => 'Unknown error'
         })
       expect(msg).toBe(`Item not found: ${ERROR_MESSAGES.NOT_FOUND}`)
     })

@@ -77,7 +77,7 @@
     "react-perf/jsx-no-new-array-as-prop": "off",
     "react-perf/jsx-no-new-function-as-prop": "off",
     "react-perf/jsx-no-new-object-as-prop": "off",
-    "react/exhaustive-deps": "off",
+
     "react/jsx-filename-extension": [
       "error",
       {
@@ -92,7 +92,7 @@
     "react/react-in-jsx-scope": "off",
     "require-await": "off",
     "sort-imports": "off",
-    "sort-keys": "off",
+
     "sort-vars": "off",
     "typescript/consistent-indexed-object-style": "error",
     "typescript/explicit-function-return-type": "off",
