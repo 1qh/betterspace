@@ -1,3 +1,4 @@
+/** biome-ignore-all lint/suspicious/noDocumentCookie: org cookie management */
 // oxlint-disable no-document-cookie
 'use client'
 

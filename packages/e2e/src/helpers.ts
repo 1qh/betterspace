@@ -1,3 +1,4 @@
+/** biome-ignore-all lint/suspicious/noDocumentCookie: test cookie setup */
 // biome-ignore-all lint/nursery/useGlobalThis: browser API
 // oxlint-disable no-document-cookie
 import type { Page } from '@playwright/test'

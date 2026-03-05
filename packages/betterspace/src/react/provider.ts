@@ -117,6 +117,7 @@ const HTTP_OK = 200,
       store = (token: string) => {
         if (typeof window === 'undefined') return
         window.localStorage.setItem(key, token)
+        /** biome-ignore lint/suspicious/noDocumentCookie: token cookie storage */
         document.cookie = `${TOKEN_COOKIE_KEY}=${encodeURIComponent(token)}; Path=/; SameSite=Lax`
       }
     return { get, store }
