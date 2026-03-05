@@ -1,3 +1,4 @@
+/* oxlint-disable react/jsx-handler-names */
 // biome-ignore-all lint/suspicious/noExplicitAny: x
 // biome-ignore-all lint/correctness/useHookAtTopLevel: watch hook is called inside component render context
 // biome-ignore-all lint/style/noProcessEnv: intentional process.env access
@@ -158,6 +159,7 @@ const useWithGuard = <T extends Record<string, unknown>, S extends ZodObject<Zod
         onError: opts.onError,
         onSubmit: async d => {
           const args = opts.transform ? opts.transform(d) : d
+          /** biome-ignore lint/nursery/useAwaitThenable: mutate may be async */
           await opts.mutate(args)
           return d
         },
@@ -241,6 +243,7 @@ const useWithGuard = <T extends Record<string, unknown>, S extends ZodObject<Zod
       calcAgo = () => (lastSaved ? Math.round((Date.now() - lastSaved) / MS_PER_SECOND) : 0),
       [ago, setAgo] = useState(calcAgo)
 
+    /** biome-ignore lint/correctness/useExhaustiveDependencies: calcAgo recreated each render */
     useEffect(() => {
       if (!lastSaved) return
       setAgo(calcAgo())

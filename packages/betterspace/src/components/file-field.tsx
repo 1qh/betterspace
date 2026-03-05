@@ -132,6 +132,7 @@ const FileApiContext = createContext<FileApi | null>(null),
   Progress = ({ v }: { v: number }) => (
     <div className='flex flex-col items-center'>
       <div className='mb-2 h-2 w-32 overflow-hidden rounded-full bg-muted'>
+        {/* oxlint-disable-next-line react-perf/jsx-no-new-object-as-prop */}
         <div className='h-full bg-primary transition-all' style={{ width: `${v}%` }} />
       </div>
       <span className='text-sm text-muted-foreground'>{v}%</span>

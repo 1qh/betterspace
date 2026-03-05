@@ -895,6 +895,7 @@ const DEFAULT_ASYNC_DEBOUNCE_MS = 300,
                   onBlur={f.handleBlur}
                   onValueChange={([v]) => f.handleChange(v)}
                   step={step}
+                  // oxlint-disable-next-line react-perf/jsx-no-new-array-as-prop
                   value={[val]}
                 />
                 {helpText ? <p className='text-sm text-muted-foreground'>{helpText}</p> : null}
@@ -951,22 +952,19 @@ const DEFAULT_ASYNC_DEBOUNCE_MS = 300,
       name: string
       required?: boolean
     }) => {
-      const { form } = useField(name, 'string')
+      const { form } = useField(name, 'string'),
+        // oxlint-disable-next-line react-perf/jsx-no-new-object-as-prop
+        validators = asyncValidate
+          ? {
+              onChangeAsync: async ({ value }: { value: string }) => {
+                // eslint-disable-next-line @typescript-eslint/no-unnecessary-condition
+                const error = await asyncValidate(value ?? '')
+                return error
+              }
+            }
+          : undefined
       return (
-        <form.Field
-          asyncDebounceMs={asyncDebounceMs}
-          name={name}
-          validators={
-            asyncValidate
-              ? {
-                  onChangeAsync: async ({ value }: { value: string }) => {
-                    // eslint-disable-next-line @typescript-eslint/no-unnecessary-condition
-                    const error = await asyncValidate(value ?? '')
-                    return error
-                  }
-                }
-              : undefined
-          }>
+        <form.Field asyncDebounceMs={asyncDebounceMs} name={name} validators={validators}>
           {(f: AnyFieldApi) => {
             const inv = f.state.meta.isTouched && !f.state.meta.isValid,
               validating = f.state.meta.isValidating,

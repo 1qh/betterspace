@@ -1,3 +1,4 @@
+/* oxlint-disable react/jsx-handler-names */
 // biome-ignore-all lint/nursery/noLeakedRender: conditional rendering
 /* eslint-disable max-statements, complexity, react-hooks/refs */
 // biome-ignore-all lint/correctness/useHookAtTopLevel: hooks called in component render context
@@ -105,6 +106,7 @@ const defineSteps = <const Defs extends readonly [StepDef, ...StepDef[]]>(...def
             setError(null)
             setIsPending(true)
             try {
+              /** biome-ignore lint/nursery/useAwaitThenable: onSubmit may be async */
               await opts.onSubmit(allData as StepDataMap<Defs>)
               setIsCompleted(true)
               opts.onSuccess?.()
@@ -279,6 +281,7 @@ const defineSteps = <const Defs extends readonly [StepDef, ...StepDef[]]>(...def
 
       const currentRender = stepRenders[currentId],
         saved = stepDataRef.current[currentId],
+        // oxlint-disable-next-line react-perf/jsx-no-new-object-as-prop
         currentValues = saved ? { ...s.values, [currentId]: saved } : s.values,
         handleSubmitForm = useCallback(
           (e: SyntheticEvent) => {

@@ -199,6 +199,7 @@ const POSITION_CLASSES: Record<Position, string> = {
         <span className='relative h-3 min-w-0 flex-1 rounded-sm bg-zinc-800/50'>
           <span
             className={`absolute top-0 h-full rounded-sm ${barColor}`}
+            // oxlint-disable-next-line react-perf/jsx-no-new-object-as-prop
             style={{ left: `${leftPct}%`, width: `${widthPct}%` }}
           />
         </span>
