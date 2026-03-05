@@ -1,5 +1,7 @@
 /// <reference types="./types.d.ts" />
 
+import type { Linter } from 'eslint'
+
 import eslintReact from '@eslint-react/eslint-plugin'
 import { includeIgnoreFile } from '@eslint/compat'
 import eslint from '@eslint/js'
@@ -9,6 +11,19 @@ import turbo from 'eslint-plugin-turbo'
 import { defineConfig, globalIgnores } from 'eslint/config'
 import { join } from 'node:path'
 import tseslint from 'typescript-eslint'
+
+const warnToError = (rules: Partial<Linter.RulesRecord>): Linter.RulesRecord => {
+  const result: Linter.RulesRecord = {}
+  for (const [key, value] of Object.entries(rules))
+    if (value === undefined) result[key] = 'error'
+    else if (value === 'warn' || value === 1) result[key] = 'error'
+    else if (Array.isArray(value) && (value[0] === 'warn' || value[0] === 1)) result[key] = ['error', ...value.slice(1)]
+    else result[key] = value
+
+  return result
+}
+
+export { warnToError }
 
 export default defineConfig(
   includeIgnoreFile(join(import.meta.dirname, '../../.gitignore')),
@@ -23,7 +38,7 @@ export default defineConfig(
       ...tseslint.configs.recommended,
       ...tseslint.configs.recommendedTypeChecked,
       ...tseslint.configs.stylisticTypeChecked,
-      eslintReact.configs['recommended-type-checked'],
+      eslintReact.configs['strict-type-checked'],
       eslintReact.configs.recommended
     ],
     files: ['**/*.js', '**/*.ts', '**/*.tsx'],
@@ -76,6 +91,12 @@ export default defineConfig(
       'sort-keys': 'off',
       'sort-vars': 'off'
     }
+  },
+  {
+    rules: warnToError({
+      ...eslintReact.configs['strict-type-checked'].rules,
+      ...eslintReact.configs.recommended.rules
+    })
   },
   {
     languageOptions: {

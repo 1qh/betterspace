@@ -47,8 +47,11 @@ export default defineConfig(reactHooks.configs.flat['recommended-latest'] as { r
         ]
       }
     ],
+    'react-hooks/exhaustive-deps': 'error',
+    'react-hooks/incompatible-library': 'error',
     'react-hooks/preserve-manual-memoization': 'off',
     'react-hooks/set-state-in-effect': 'off',
+    'react-hooks/unsupported-syntax': 'error',
     'react/forbid-component-props': 'off',
     'react/function-component-definition': 'off',
 
