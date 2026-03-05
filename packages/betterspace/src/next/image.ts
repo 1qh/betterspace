@@ -171,6 +171,7 @@ const IMAGE_TYPES = new Set(['image/gif', 'image/jpeg', 'image/png', 'image/svg+
             pipeline: sharp(buffer),
             thumbnail
           }),
+          /** biome-ignore lint/nursery/useAwaitThenable: sharp toBuffer returns Promise */
           outputBuffer = await pipeline.toBuffer(),
           outputMime = thumbnail ? 'image/webp' : body.options?.format ? formatToMime[body.options.format] : contentType
         return new NextResponse(new Uint8Array(outputBuffer), {

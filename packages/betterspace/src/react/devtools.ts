@@ -266,6 +266,7 @@ const listeners: (() => void)[] = [],
         token: token ?? ''
       })
     }, [connectionError, connectionId, identity, isActive, spacetime, token])
+    /** biome-ignore lint/correctness/useExhaustiveDependencies: store sizes are reactivity triggers */
     return useMemo(
       () => ({
         cache: [...cacheStore.values()],

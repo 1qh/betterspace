@@ -611,6 +611,7 @@ const parseSenderMessage = (message: string): ErrorData | undefined => {
         args: { exclude: string().optional(), value: string() },
         handler: typed(async (c: QueryCtxLike, { exclude, value }: { exclude?: string; value: string }) => {
           const q = c.db.query(table),
+            /** biome-ignore lint/nursery/useAwaitThenable: query result is async */
             existing = await (index
               ? q
                   .withIndex(

@@ -71,6 +71,7 @@ const PRESENCE_TTL_FALLBACK_MS = HEARTBEAT_INTERVAL_MS * 2,
       heartbeatRef.current = heartbeat
     }, [heartbeat])
 
+    /** biome-ignore lint/correctness/useExhaustiveDependencies: localData triggers immediate heartbeat */
     useEffect(() => {
       if (!enabled) return
       const sendHeartbeat = () => runHeartbeat(heartbeatRef.current)

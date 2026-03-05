@@ -87,17 +87,14 @@ const EMPTY_ORGS: OrgMembership[] = [],
 
         return currentOrg
       }, [activeOrgId, currentOrg, orgs]),
-      setActiveOrg = useCallback(
-        (org: O) => {
-          setActiveOrgCookieClient({ orgId: org._id, slug: org.slug })
-          setActiveOrgId(org._id)
-        },
-        [setActiveOrgId]
-      ),
+      setActiveOrg = useCallback((org: O) => {
+        setActiveOrgCookieClient({ orgId: org._id, slug: org.slug })
+        setActiveOrgId(org._id)
+      }, []),
       clearActiveOrg = useCallback(() => {
         clearActiveOrgCookieClient()
         setActiveOrgId(null)
-      }, [setActiveOrgId])
+      }, [])
     return { activeOrg, activeOrgId, clearActiveOrg, isLoading: false, setActiveOrg }
   },
   /**

@@ -204,6 +204,7 @@ const submitError = (error: unknown): Error => new Error(getErrorMessage(error),
           setFieldErrors({})
           try {
             const coerced = coerceOptionals(schema, value as output<S>),
+              /** biome-ignore lint/nursery/useAwaitThenable: onSubmit may be async */
               result = await onSubmit(coerced, forceSubmit),
               returned = isRecord(result) ? result : coerced,
               newValues = resetOnSuccess ? returned : value
