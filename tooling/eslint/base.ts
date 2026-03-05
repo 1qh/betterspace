@@ -105,7 +105,9 @@ export default defineConfig(
         ...eslintReact.configs['strict-type-checked'].rules,
         ...eslintReact.configs.recommended.rules
       }),
-      '@eslint-react/dom/no-string-style-prop': 'error'
+      '@eslint-react/dom/no-string-style-prop': 'error',
+      '@eslint-react/dom/no-unknown-property': 'error',
+      '@eslint-react/jsx-no-undef': 'error'
     }
   },
   {
