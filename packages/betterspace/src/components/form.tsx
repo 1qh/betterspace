@@ -9,7 +9,7 @@ import { cn } from '@a/ui'
 import { Button } from '@a/ui/button'
 import { Dialog, DialogContent } from '@a/ui/dialog'
 import { useNavigationGuard } from 'next-navigation-guard'
-import { use, useEffect, useState } from 'react'
+import { use, useEffect, useMemo, useState } from 'react'
 
 import type { FormReturn as BaseFormReturn, ConflictData } from '../react/form'
 import type { Api } from './fields'
@@ -194,39 +194,45 @@ const useWithGuard = <T extends Record<string, unknown>, S extends ZodObject<Zod
     form: FormReturn<T, S>
     render: (f: TypedFields<T>) => ReactNode
     showError?: boolean
-  }) => (
-    <FormContext value={{ form: instance as Api<Record<string, unknown>>, meta, schema, serverErrors: fieldErrors }}>
-      <form
-        {...props}
-        onSubmit={e => {
-          e.preventDefault()
-          instance.handleSubmit()
-        }}>
-        {showError && error ? (
-          <p className='mb-4 rounded-lg bg-destructive/10 p-3 text-sm text-destructive' role='alert'>
-            {error.message}
-          </p>
-        ) : null}
-        {render(fields as TypedFields<T>)}
-      </form>
-      <ConflictDialog conflict={conflict} onResolve={resolveConflict} />
-      <Dialog open={guard.active}>
-        <DialogContent className='[&>button]:hidden' onEscapeKeyDown={guard.reject} onInteractOutside={guard.reject}>
-          <p>You have unsaved changes. Are you sure you want to leave?</p>
-          <div className='flex justify-end gap-2'>
-            <Button onClick={guard.reject} variant='outline'>
-              Cancel
-            </Button>
-            <Button onClick={guard.accept} variant='destructive'>
-              Discard
-            </Button>
-          </div>
-        </DialogContent>
-      </Dialog>
-      <FileFieldWarning meta={meta} />
-      <DevtoolsAutoMount />
-    </FormContext>
-  ),
+  }) => {
+    const contextValue = useMemo(
+      () => ({ form: instance as Api<Record<string, unknown>>, meta, schema, serverErrors: fieldErrors }),
+      [fieldErrors, instance, meta, schema]
+    )
+    return (
+      <FormContext value={contextValue}>
+        <form
+          {...props}
+          onSubmit={e => {
+            e.preventDefault()
+            instance.handleSubmit()
+          }}>
+          {showError && error ? (
+            <p className='mb-4 rounded-lg bg-destructive/10 p-3 text-sm text-destructive' role='alert'>
+              {error.message}
+            </p>
+          ) : null}
+          {render(fields as TypedFields<T>)}
+        </form>
+        <ConflictDialog conflict={conflict} onResolve={resolveConflict} />
+        <Dialog open={guard.active}>
+          <DialogContent className='[&>button]:hidden' onEscapeKeyDown={guard.reject} onInteractOutside={guard.reject}>
+            <p>You have unsaved changes. Are you sure you want to leave?</p>
+            <div className='flex justify-end gap-2'>
+              <Button onClick={guard.reject} variant='outline'>
+                Cancel
+              </Button>
+              <Button onClick={guard.accept} variant='destructive'>
+                Discard
+              </Button>
+            </div>
+          </DialogContent>
+        </Dialog>
+        <FileFieldWarning meta={meta} />
+        <DevtoolsAutoMount />
+      </FormContext>
+    )
+  },
   /** Displays form auto-save status (saving, saved, error). */
   AutoSaveIndicator = ({ className, lastSaved, ...props }: ComponentProps<'span'> & { lastSaved: null | number }) => {
     const MS_PER_SECOND = 1000,

@@ -173,10 +173,10 @@ const defineSteps = <const Defs extends readonly [StepDef, ...StepDef[]]>(...def
         }
       })
 
+      const contextValue = useMemo(() => ({ form: instance, meta, schema, serverErrors: {} }), [instance, meta, schema])
+
       return (
-        <FormContext value={{ form: instance, meta, schema, serverErrors: {} }}>
-          {render(fields as TypedFields<output<ExtractSchema<Defs, Id>>>)}
-        </FormContext>
+        <FormContext value={contextValue}>{render(fields as TypedFields<output<ExtractSchema<Defs, Id>>>)}</FormContext>
       )
     },
     StepIndicator = ({

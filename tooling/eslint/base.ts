@@ -49,8 +49,15 @@ export default defineConfig(
     rules: {
       '@eslint-react/avoid-shorthand-boolean': 'off',
       '@eslint-react/avoid-shorthand-fragment': 'off',
+      '@eslint-react/jsx-dollar': 'error',
+      '@eslint-react/jsx-shorthand-boolean': 'error',
+      '@eslint-react/jsx-shorthand-fragment': 'error',
+      '@eslint-react/naming-convention/component-name': 'error',
       '@eslint-react/naming-convention/ref-name': 'error',
+      '@eslint-react/no-duplicate-key': 'error',
+      '@eslint-react/no-missing-component-display-name': 'error',
       '@eslint-react/no-missing-context-display-name': 'off',
+      '@eslint-react/no-unnecessary-key': 'error',
       '@typescript-eslint/consistent-return': 'off',
       '@typescript-eslint/consistent-type-imports': [
         'error',
