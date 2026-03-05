@@ -348,13 +348,13 @@ Here’s a complete working component with create, update, and delete:
 ```typescript
 'use client'
 
-import { useReducer, useTable } from 'spacetimedb/react'
+import { useReducer, useSpacetimeDB, useTable } from 'spacetimedb/react'
 import { reducers, tables } from '@/generated/module_bindings'
 import { useList, useOwnRows } from 'betterspace/react'
 
 const BlogApp = () => {
   const [posts, isReady] = useTable(tables.post)
-  const [identity] = useIdentity()
+  const { identity } = useSpacetimeDB()
 
   const ownedPosts = useOwnRows(posts, identity ? p => p.userId.isEqual(identity) : null)
 

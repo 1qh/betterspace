@@ -507,15 +507,17 @@ import type { InferRow, InferCreate, InferUpdate } from 'betterspace/server'
 import { makeOwned } from 'betterspace/schema'
 import { z } from 'zod/v4'
 
-const postSchema = makeOwned(z.object({
-  title: z.string(),
-  content: z.string(),
-  published: z.boolean()
-}))
+const schemas = makeOwned({
+  post: z.object({
+    title: z.string(),
+    content: z.string(),
+    published: z.boolean()
+  })
+})
 
-type PostRow = InferRow<typeof postSchema>
-type PostCreate = InferCreate<typeof postSchema>
-type PostUpdate = InferUpdate<typeof postSchema>
+type PostRow = InferRow<typeof schemas.post>
+type PostCreate = InferCreate<typeof schemas.post>
+type PostUpdate = InferUpdate<typeof schemas.post>
 
 // Use in component props
 const PostCard = ({ post }: { post: PostRow }) => (
@@ -830,17 +832,17 @@ properties. No import needed — just use `typeof schema.$inferRow`.
 import { makeOwned } from 'betterspace/schema'
 import { z } from 'zod/v4'
 
-const postSchema = makeOwned(
-  z.object({
+const schemas = makeOwned({
+  post: z.object({
     title: z.string(),
     content: z.string(),
     published: z.boolean()
   })
-)
+})
 
-type PostRow = typeof postSchema.$inferRow
-type PostCreate = typeof postSchema.$inferCreate
-type PostUpdate = typeof postSchema.$inferUpdate
+type PostRow = typeof schemas.post.$inferRow
+type PostCreate = typeof schemas.post.$inferCreate
+type PostUpdate = typeof schemas.post.$inferUpdate
 ```
 
 `PostRow` includes the database-added fields (`_id`, `_creationTime`, `updatedAt`,

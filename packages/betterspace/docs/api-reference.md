@@ -1963,25 +1963,25 @@ import type { InferRow, InferCreate, InferUpdate } from 'betterspace/server'
 import { makeOwned, makeOrgScoped } from 'betterspace/schema'
 import { z } from 'zod/v4'
 
-const postSchema = makeOwned(
-  z.object({
+const schemas = makeOwned({
+  post: z.object({
     title: z.string(),
     content: z.string(),
     published: z.boolean()
   })
-)
+})
 
 // InferRow: the full row as stored in the database
 // Includes _id, _creationTime, updatedAt, userId (for owned)
-type PostRow = InferRow<typeof postSchema>
+type PostRow = InferRow<typeof schemas.post>
 // { title: string; content: string; published: boolean; _id: number | string; _creationTime: number; updatedAt: number; userId: string }
 
 // InferCreate: the shape for creating a new row (all fields required)
-type PostCreate = InferCreate<typeof postSchema>
+type PostCreate = InferCreate<typeof schemas.post>
 // { title: string; content: string; published: boolean }
 
 // InferUpdate: the shape for updating a row (all fields optional)
-type PostUpdate = InferUpdate<typeof postSchema>
+type PostUpdate = InferUpdate<typeof schemas.post>
 // { title?: string; content?: string; published?: boolean }
 ```
 
@@ -2040,16 +2040,16 @@ Access types via `typeof schema.$inferRow` (no import needed):
 import { makeOwned } from 'betterspace/schema'
 import { z } from 'zod/v4'
 
-const postSchema = makeOwned(
-  z.object({
+const schemas = makeOwned({
+  post: z.object({
     title: z.string(),
     published: z.boolean()
   })
-)
+})
 
-type PostRow = typeof postSchema.$inferRow
-type PostCreate = typeof postSchema.$inferCreate
-type PostUpdate = typeof postSchema.$inferUpdate
+type PostRow = typeof schemas.post.$inferRow
+type PostCreate = typeof schemas.post.$inferCreate
+type PostUpdate = typeof schemas.post.$inferUpdate
 ```
 
 The `~types` accessor groups all three under one namespace:
