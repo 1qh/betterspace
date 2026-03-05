@@ -83,5 +83,6 @@ const sleep = async (ms: number) =>
 // eslint-disable-next-line unicorn/prefer-top-level-await, promise/prefer-await-to-then, promise/prefer-await-to-callbacks
 run().catch((error: unknown) => {
   console.error('\n Walking skeleton FAILED:', error)
+  // oxlint-disable-next-line unicorn/no-process-exit
   process.exit(1)
 })

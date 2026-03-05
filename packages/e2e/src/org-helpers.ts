@@ -300,6 +300,7 @@ const decodeValue = (type: unknown, value: unknown): unknown => {
         const rawName = element.name
         if (isRecord(rawName)) {
           const name = rawName.some
+          // oxlint-disable-next-line max-depth
           if (name) {
             obj[toCamel(name)] = decodeValue(element.algebraic_type, value[i])
           }
