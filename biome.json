@@ -105,8 +105,7 @@
             "noUndeclaredDependencies": "off",
             "noUnresolvedImports": "off",
             "useImportExtensions": "off",
-            "useQwikValidLexicalScope": "off",
-            "useUniqueElementIds": "off"
+            "useQwikValidLexicalScope": "off"
           },
           "nursery": {
             "noConditionalExpect": "off",
@@ -137,7 +136,6 @@
           },
           "suspicious": {
             "noConsole": "off",
-            "noDocumentCookie": "off",
             "noReactSpecificProps": "off"
           }
         }
