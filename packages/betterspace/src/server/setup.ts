@@ -1,3 +1,4 @@
+/** biome-ignore-all lint/nursery/useConsistentMethodSignatures: bivariant method syntax needed for SDK compat */
 /* eslint-disable @typescript-eslint/max-params */
 import type { AlgebraicTypeType, ReducerExport, TypeBuilder } from 'spacetimedb/server'
 
@@ -33,7 +34,8 @@ interface SetupConfig {
 }
 
 interface SpacetimeDbLike {
-  reducer: (...args: unknown[]) => unknown
+  // eslint-disable-next-line @typescript-eslint/method-signature-style
+  reducer(...args: unknown[]): unknown
 }
 
 const isPromiseLike = (value: unknown): value is PromiseLike<unknown> => {

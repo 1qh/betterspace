@@ -398,7 +398,7 @@ const makeOptionalFields = (fields: OrgFieldBuilders) => {
         orgJoinRequestByOrgStatusIndex: config.orgJoinRequestByOrgStatusIndex as unknown as (
           table: Iterable<JoinRequestRow>
         ) => Iterable<JoinRequestRow> & {
-          filterByOrgStatus: (orgId: OrgId, status: 'approved' | 'pending' | 'rejected') => Iterable<JoinRequestRow>
+          filterByOrgStatus: (orgId: OrgId, status: string) => Iterable<JoinRequestRow>
         },
         orgJoinRequestPk: config.orgJoinRequestPk as unknown as (table: Iterable<JoinRequestRow>) => {
           update: (row: JoinRequestRow) => JoinRequestRow
@@ -454,13 +454,13 @@ const makeOptionalFields = (fields: OrgFieldBuilders) => {
     org: (db: DB) => Iterable<OrgRow> & {
       id: { delete: (id: OrgId) => boolean; find: (id: OrgId) => null | OrgRow; update: (row: OrgRow) => OrgRow }
       insert: (row: OrgRow) => OrgRow
-      slug: Iterable<OrgRow>
-      userId: Iterable<OrgRow>
+      slug: object
+      userId: object
     }
     orgInvite: (db: DB) => OrgInviteTableLike<InviteRow> & {
       id: { delete: (id: InviteId) => boolean; find: (id: InviteId) => InviteRow | null }
       orgId: { filter: (orgId: OrgId) => Iterable<InviteRow> }
-      token: Iterable<InviteRow>
+      token: object
     }
     orgJoinRequest: (db: DB) => OrgJoinRequestTableLike<JoinRequestRow> & {
       id: {
@@ -477,7 +477,7 @@ const makeOptionalFields = (fields: OrgFieldBuilders) => {
         update: (row: MemberRow) => MemberRow
       }
       orgId: { filter: (orgId: OrgId) => Iterable<MemberRow> }
-      userId: Iterable<MemberRow>
+      userId: object
     }
   }): Pick<
     OrgConfig<DB, OrgId, MemberId, InviteId, RequestId, Identity, OrgRow, MemberRow, InviteRow, JoinRequestRow>,
@@ -517,7 +517,7 @@ const makeOptionalFields = (fields: OrgFieldBuilders) => {
         orgId: { filter: (orgId: OrgId) => Iterable<JoinRequestRow> }
       }
       return {
-        filterByOrgStatus: (orgId: OrgId, status: 'approved' | 'pending' | 'rejected') => {
+        filterByOrgStatus: (orgId: OrgId, status: string) => {
           const out: JoinRequestRow[] = []
           for (const row of table.orgId.filter(orgId)) if (row.status === status) out.push(row)
           return out

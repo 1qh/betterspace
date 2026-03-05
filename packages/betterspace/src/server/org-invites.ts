@@ -59,7 +59,7 @@ interface OrgInviteTableLike<Row> extends Iterable<Row> {
 }
 
 interface OrgJoinRequestByOrgStatusIndexLike<Row, OrgId> extends Iterable<Row> {
-  filterByOrgStatus: (orgId: OrgId, status: 'approved' | 'pending' | 'rejected') => Iterable<Row>
+  filterByOrgStatus: (orgId: OrgId, status: string) => Iterable<Row>
 }
 
 interface OrgJoinRequestPkLike<Row> {
@@ -68,9 +68,9 @@ interface OrgJoinRequestPkLike<Row> {
 
 interface OrgJoinRequestRowLike<RequestId, OrgId> {
   id: RequestId
-  message?: string
+  message: string | undefined
   orgId: OrgId
-  status: 'approved' | 'pending' | 'rejected'
+  status: string
   userId: Identity
 }
 

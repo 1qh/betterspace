@@ -1,3 +1,5 @@
+import type { DbView, InferSchema } from 'spacetimedb/server'
+
 import { makeOrg, makeOrgTables, setupCrud } from 'betterspace/server'
 import { schema, t, table } from 'spacetimedb/server'
 
@@ -223,6 +225,7 @@ const messagePart = t.object('MessagePart', {
     idField: t.u32(),
     orgIdField: t.u32()
   }),
+  // eslint-disable-next-line betterspace/require-rate-limit
   blogCrud = crud('blog', {
     attachments: t.array(t.string()).optional(),
     category: t.string(),
@@ -232,6 +235,7 @@ const messagePart = t.object('MessagePart', {
     tags: t.array(t.string()).optional(),
     title: t.string()
   }),
+  // eslint-disable-next-line betterspace/require-rate-limit
   chatCrud = crud('chat', {
     isPublic: t.bool(),
     title: t.string()
@@ -277,8 +281,11 @@ const messagePart = t.object('MessagePart', {
     displayName: t.string(),
     notifications: t.bool(),
     theme: t.string()
-  }),
-  orgFns = makeOrg(spacetimedb, {
+  })
+
+type Db = DbView<InferSchema<typeof spacetimedb>>
+
+const orgFns = makeOrg(spacetimedb as never, {
     builders: {
       email: t.string(),
       inviteId: t.u32(),
@@ -322,18 +329,20 @@ const messagePart = t.object('MessagePart', {
       slug: t.string()
     },
     ...makeOrgTables({
-      org: db => db.org,
-      orgInvite: db => db.orgInvite,
-      orgJoinRequest: db => db.orgJoinRequest,
-      orgMember: db => db.orgMember
+      org: (db: Db) => db.org,
+      orgInvite: (db: Db) => db.orgInvite,
+      orgJoinRequest: (db: Db) => db.orgJoinRequest,
+      orgMember: (db: Db) => db.orgMember
     })
   }),
+  // eslint-disable-next-line betterspace/require-rate-limit
   projectCrud = orgCrud('project', {
     description: t.string().optional(),
     editors: t.array(t.identity()).optional(),
     name: t.string(),
     status: t.string().optional()
   }),
+  // eslint-disable-next-line betterspace/require-rate-limit
   taskCrud = orgCrud('task', {
     assigneeId: t.identity().optional(),
     completed: t.bool().optional(),
@@ -341,6 +350,7 @@ const messagePart = t.object('MessagePart', {
     projectId: t.u32(),
     title: t.string()
   }),
+  // eslint-disable-next-line betterspace/require-rate-limit
   wikiCrud = orgCrud(
     'wiki',
     {

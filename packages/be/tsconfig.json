@@ -1,9 +1,9 @@
 {
   "compilerOptions": {
     "jsx": "preserve",
+    "lib": ["DOM", "ESNext"],
     "skipLibCheck": true
   },
   "exclude": ["node_modules", "**/dist"],
-  "extends": "@a/tsconfig/base.json",
-  "include": ["env.ts", "spacetimedb/module_bindings"]
+  "extends": "@a/tsconfig/base.json"
 }
