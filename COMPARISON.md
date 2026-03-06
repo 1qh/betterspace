@@ -384,6 +384,93 @@ Missing JS keys return `undefined`, which serializes as `None`. Both `null` and
 
 * * *
 
+## Gap 11: Schema Variants Boilerplate
+
+**Status**: [x] CLOSED
+
+**Problem**: Org app’s `schema.ts` was 44 lines due to `schemaVariants()` creating
+`.create`/`.update` variants for each schema, plus manual extraction of variants.
+Blog app similarly used `schemaVariants` unnecessarily.
+
+**lazyconvex**: 20-line `schema.ts` — uses the SAME schema for both create and edit
+forms. Edit forms are pre-filled with `pickValues()` so all fields have values.
+
+**betterspace (before)**:
+
+```ts
+import { schemaVariants } from 'betterspace/zod'
+
+const projectVariants = schemaVariants(orgScoped.project)
+const projectCreate = projectVariants.create
+const projectUpdate = projectVariants.update
+// ... repeated for wiki, orgTeam
+```
+
+44 lines with 6 extra variant exports.
+
+**betterspace (after)**:
+
+```ts
+const { project: projectSchema, wiki: wikiSchema } = orgScoped,
+  project = projectSchema,
+  wiki = wikiSchema
+    .omit({ content: true })
+    .extend({ content: string().optional() })
+```
+
+24 lines, no variant exports.
+Edit forms use the base schema with `pickValues()` to pre-fill values (same pattern as
+lazyconvex).
+
+Blog schema similarly simplified from `schemaVariants(owned.blog)` to direct
+`owned.blog.omit(...)` / `owned.blog.partial()`:
+
+```ts
+const createBlog = owned.blog.omit({ published: true }),
+  editBlog = owned.blog.partial()
+```
+
+**Resolution**: Removed `schemaVariants` from all demo apps.
+Edit forms use the base schema directly + `pickValues()` for pre-filling.
+`schemaVariants` remains in the library as a public API for consumers who need it.
+
+* * *
+
+## Gap 12: Leftover `key: undefined` Boilerplate
+
+**Status**: [x] CLOSED
+
+**Problem**: After Gap 10’s `UndefinedToOptional + relax()` eliminated most
+`key: undefined` boilerplate, one instance remained:
+
+```ts
+await createTask({
+  assigneeId: undefined,
+  completed: false,
+  orgId: Number(org._id),
+  priority,
+  projectId: pid,
+  title
+})
+```
+
+**After**: The `relax()` wrapper already makes `assigneeId` optional, so it can simply
+be omitted:
+
+```ts
+await createTask({
+  completed: false,
+  orgId: Number(org._id),
+  priority,
+  projectId: pid,
+  title
+})
+```
+
+**Resolution**: Removed the leftover `assigneeId: undefined` from project detail page.
+
+* * *
+
 ## Inherent Platform Differences (NOT Gaps)
 
 These are expected divergences due to SpacetimeDB vs Convex fundamentals:
@@ -402,7 +489,7 @@ These are expected divergences due to SpacetimeDB vs Convex fundamentals:
 
 ## Summary
 
-All 10 DX gaps are **CLOSED**. A developer moving from lazyconvex to betterspace writes
+All 12 DX gaps are **CLOSED**. A developer moving from lazyconvex to betterspace writes
 the same amount of code (or less) for equivalent functionality.
 
 | Gap | Before | After | Status |
@@ -417,3 +504,5 @@ the same amount of code (or less) for equivalent functionality.
 | 8. Export assembly | Manual spreads | `allExports()` | CLOSED |
 | 9. Schema verbosity | 205 lines (4.5x) | 127 lines, 1-line tables | CLOSED |
 | 10. `key: undefined` boilerplate | Every omitted field explicit | Only changed fields | CLOSED |
+| 11. Schema variants boilerplate | 44-line schema.ts + variants | 24 lines, base schemas | CLOSED |
+| 12. Leftover `key: undefined` | `assigneeId: undefined` | Omit optional fields | CLOSED |

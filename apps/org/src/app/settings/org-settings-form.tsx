@@ -11,7 +11,7 @@ import { pickValues } from 'betterspace/zod'
 import { useRouter } from 'next/navigation'
 import { useReducer } from 'spacetimedb/react'
 
-import { orgTeamUpdate } from '~/schema'
+import { orgTeam } from '~/schema'
 
 interface OrgSettingsFormProps {
   org: Org & { _id: string }
@@ -31,8 +31,8 @@ const OrgSettingsForm = ({ org: o }: OrgSettingsFormProps) => {
         router.push('/settings')
         return d
       },
-      schema: orgTeamUpdate,
-      values: pickValues(orgTeamUpdate, o)
+      schema: orgTeam,
+      values: pickValues(orgTeam, o)
     }),
     slug = form.watch('slug')
 

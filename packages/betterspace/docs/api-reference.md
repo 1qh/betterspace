@@ -875,7 +875,7 @@ with a descriptive error message.
 
 ### useMutation
 
-Combines `useReducer` + `useMutate` into a single call.
+Combines `useReducer` + `useMutate` into a single call with relaxed argument types.
 Import from `betterspace/react`.
 
 ```typescript
@@ -889,25 +889,53 @@ const useMutation = <A extends Record<string, unknown>, R = void, D = unknown>(
   useReducerHook: (desc: D) => (args: A) => Promise<R>,
   reducer: D,
   options?: MutateOptions<A, R>
-): ((args: A) => Promise<R>)
+): ((args: UndefinedToOptional<A>) => Promise<R>)
 ```
 
-Instead of:
+The return type uses `UndefinedToOptional<A>` — fields typed as `T | undefined` in the
+generated reducer args become optional.
+You only need to pass required fields and any fields you want to change:
 
 ```typescript
-const raw = useReducer(reducers.update_blog)
-const save = useMutate(raw, { onSuccess: () => toast.success('Saved') })
-```
-
-Write:
-
-```typescript
-const save = useMutation(useReducer, reducers.update_blog, {
-  onSuccess: () => toast.success('Saved')
+const save = useMutation(useReducer, reducers.updateBlog, {
+  toast: { success: 'Saved', error: 'Save failed' }
 })
+
+save({ id: 1, title: 'New title' })
 ```
 
 Accepts the same `MutateOptions` as `useMutate`.
+
+* * *
+
+### relax
+
+Wraps a raw `useReducer` call to apply `UndefinedToOptional` to its argument type.
+Use when calling `useReducer` directly without `useMutation`.
+
+```typescript
+import { relax } from 'betterspace/react'
+
+const updateTask = relax(useReducer(reducers.updateTask))
+updateTask({ id: 1, completed: true })
+```
+
+Without `relax`, SpacetimeDB-generated types require every field (even those accepting
+`undefined`) to be explicitly passed:
+
+```typescript
+const updateTask = useReducer(reducers.updateTask)
+updateTask({
+  id: 1,
+  completed: true,
+  assigneeId: undefined,
+  priority: undefined
+})
+```
+
+`relax()` makes `T | undefined` fields optional at the type level.
+At runtime, missing keys return `undefined` when SpacetimeDB’s serializer reads them,
+which serializes as `None` — the same as explicitly passing `undefined`.
 
 * * *
 
@@ -2074,6 +2102,29 @@ const schemas = {
 type Rows = InferRows<typeof schemas>
 // { post: PostRow; profile: ProfileRow }
 ```
+
+* * *
+
+### UndefinedToOptional
+
+Type-level utility that converts `T | undefined` fields from required to optional.
+Exported from `betterspace` (main entry point).
+
+```typescript
+import type { UndefinedToOptional } from 'betterspace'
+
+type Generated = {
+  id: number
+  title: string | undefined
+  published: boolean | undefined
+}
+type Relaxed = UndefinedToOptional<Generated>
+// { id: number; title?: string | undefined; published?: boolean | undefined }
+```
+
+Used internally by `useMutation` and `relax()` to make SpacetimeDB-generated reducer
+args ergonomic — fields that accept `undefined` become optional so callers only need to
+pass the fields they care about.
 
 * * *
 

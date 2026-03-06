@@ -18,7 +18,7 @@ import { use } from 'react'
 import { useReducer, useSpacetimeDB, useTable } from 'spacetimedb/react'
 
 import { useOrg } from '~/hook/use-org'
-import { projectUpdate } from '~/schema'
+import { project as projectSchema } from '~/schema'
 
 const EditProjectForm = ({ projectId, taskCount }: { projectId: number; taskCount: number }) => {
     const router = useRouter(),
@@ -40,8 +40,8 @@ const EditProjectForm = ({ projectId, taskCount }: { projectId: number; taskCoun
           return d
         },
         resetOnSuccess: true,
-        schema: projectUpdate,
-        values: project ? pickValues(projectUpdate, project) : undefined
+        schema: projectSchema,
+        values: project ? pickValues(projectSchema, project) : undefined
       }),
       handleDelete = () => {
         if (taskCount < 0) return

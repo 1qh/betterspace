@@ -1,9 +1,7 @@
 import { owned, singleton } from '@a/be/z'
-import { schemaVariants } from 'betterspace/zod'
 
-const blogVariants = schemaVariants(owned.blog),
-  createBlog = blogVariants.create.omit({ published: true }),
-  editBlog = blogVariants.update,
+const createBlog = owned.blog.omit({ published: true }),
+  editBlog = owned.blog.partial(),
   profileSchema = singleton.blogProfile
 
 export { createBlog, editBlog, profileSchema }

@@ -185,6 +185,9 @@ all generated.
 | `z.prefault()`/`z.default()` integration in `defaultValues()` for smarter form defaults | 0 |
 | Structured error codes with descriptive `ERROR_MESSAGES` context | 0 |
 | Shared list utilities (sort, search, filter) across `useList` and `useInfiniteList` | 0 |
+| `UndefinedToOptional<T>` type — makes `T \| undefined` fields optional, used by `useMutation` and `relax()` | 0 |
+| `relax()` wrapper — applies `UndefinedToOptional` to raw `useReducer` calls for clean reducer invocations | 0 |
+| Relaxed `useMutation` args — SpacetimeDB `T \| undefined` fields become optional, only pass fields you change | 0 |
 
 ## Developer Tools
 
@@ -336,10 +339,10 @@ bun add betterspace
 
 | Import | What’s inside |
 | --- | --- |
-| `betterspace` | `guardApi`, `strictApi`, `zodFromTable`, identity helpers |
+| `betterspace` | `guardApi`, `strictApi`, `zodFromTable`, `UndefinedToOptional` type, identity helpers |
 | `betterspace/schema` | `makeOwned`, `makeOrgScoped`, `makeBase`, `makeSingleton`, `child`, `cvFile`, `cvFiles`, `orgSchema` |
 | `betterspace/server` | `setupCrud`, `setup`, `makeCrud`, `makeChildCrud`, `makeOrgCrud`, `makeSingletonCrud`, `makeCacheCrud`, `makeOrg`, `makeFileUpload`, `makePresence`, table helpers, middleware, error handling, test utilities |
-| `betterspace/react` | `useList`, `useOwnRows`, `useSearch`, `usePresence`, `useBulkSelection`, `useMutate`, `useMutation`, `useBulkMutate`, `useInfiniteList`, `useUpload`, `useSoftDelete`, `useCacheEntry`, `useOptimisticMutation`, `useForm`, `useFormMutation`, `useErrorToast`, `toWsUri`, `createTokenStore`, `createFileUploader`, `createSpacetimeClient`, `BetterspaceDevtools`, `SchemaPlayground`, org hooks, 50+ named types |
+| `betterspace/react` | `useList`, `useOwnRows`, `useSearch`, `usePresence`, `useBulkSelection`, `useMutate`, `useMutation`, `useBulkMutate`, `useInfiniteList`, `useUpload`, `useSoftDelete`, `useCacheEntry`, `useOptimisticMutation`, `useForm`, `useFormMutation`, `useErrorToast`, `relax`, `toWsUri`, `createTokenStore`, `createFileUploader`, `createSpacetimeClient`, `BetterspaceDevtools`, `SchemaPlayground`, org hooks, 50+ named types |
 | `betterspace/components` | `Form`, `useForm`, `useFormMutation`, `ConflictDialog`, `AutoSaveIndicator`, `OfflineIndicator`, `PermissionGuard`, `ErrorBoundary`, `FileApiProvider`, `OrgAvatar`, `RoleBadge`, `EditorsSection`, `defineSteps`, 14 typed field components |
 | `betterspace/next` | `getToken`, `isAuthenticated`, `setActiveOrgCookie`, `clearActiveOrgCookie`, `getActiveOrg`, `makeImageRoute` |
 | `betterspace/eslint` | `plugin`, `recommended`, 16 lint rules |

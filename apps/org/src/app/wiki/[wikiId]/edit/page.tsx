@@ -18,7 +18,7 @@ import { use } from 'react'
 import { useReducer, useSpacetimeDB, useTable } from 'spacetimedb/react'
 
 import { useOrg } from '~/hook/use-org'
-import { wikiUpdate } from '~/schema'
+import { wiki as wikiSchema } from '~/schema'
 
 const EditWikiForm = ({ wikiId }: { wikiId: number }) => {
     const router = useRouter(),
@@ -44,8 +44,8 @@ const EditWikiForm = ({ wikiId }: { wikiId: number }) => {
           })
           return d
         },
-        schema: wikiUpdate,
-        values: wiki ? pickValues(wikiUpdate, wiki) : undefined
+        schema: wikiSchema,
+        values: wiki ? pickValues(wikiSchema, wiki) : undefined
       }),
       handleDelete = () => {
         remove({ id: wikiId }).then(() => router.push('/wiki'))

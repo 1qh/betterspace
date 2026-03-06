@@ -202,7 +202,6 @@ const TaskRow = ({ canAssign, canEdit, members, onAssign, onDelete, onToggle, on
         if (!title.trim()) return
         try {
           await createTask({
-            assigneeId: undefined,
             completed: false,
             orgId: Number(org._id),
             priority,
