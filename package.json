@@ -11,8 +11,7 @@
     "clean": "git clean -xdf node_modules .turbo bun.lock",
     "clean:workspaces": "turbo run clean",
     "dev:web": "f() { turbo watch dev -F @a/$1 -F @a/be; }; f",
-    "fix": "sort-package-json **/package.json > /dev/null && lintmax fix && (O=$(turbo typecheck build --output-logs=errors-only 2>&1) || { echo \"$O\"; false; }) && bun format:md",
-    "format:md": "bunx prettier --single-quote --no-semi --trailing-comma none --print-width 80 --arrow-parens avoid --tab-width 2 --prose-wrap preserve --write '**/*.md' && flowmark --auto .",
+    "fix": "sort-package-json **/package.json > /dev/null && lintmax fix && (O=$(turbo typecheck build --output-logs=errors-only 2>&1) || { echo \"$O\"; false; })",
     "postinstall": "bun lint:ws",
     "lint:ws": "sherif",
     "spacetime:cloud": "bunx betterspace use cloud",
@@ -31,13 +30,10 @@
     "tsc": "turbo run typecheck"
   },
   "devDependencies": {
-    "@biomejs/biome": "latest",
     "@types/bun": "latest",
     "depcheck": "latest",
     "dotenv-cli": "latest",
-    "eslint": "9",
     "lintmax": "file:../lintmax",
-    "oxlint": "latest",
     "sherif": "latest",
     "sort-package-json": "latest",
     "ts-unused-exports": "latest",
