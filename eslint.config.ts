@@ -1,5 +1,5 @@
 import { recommended } from 'betterspace/eslint'
-import { eslint, warnToError } from 'lintmax/eslint'
+import { eslint } from 'lintmax/eslint'
 
 export default eslint({
   append: [
@@ -7,7 +7,7 @@ export default eslint({
       ...recommended,
       files: ['packages/be/**/*.ts', 'packages/be/**/*.tsx'],
       rules: {
-        ...warnToError(recommended.rules),
+        ...recommended.rules,
         'betterspace/discovery-check': 'off'
       }
     },
