@@ -1,7 +1,7 @@
 import { recommended } from 'betterspace/eslint'
 import { eslint, warnToError } from 'lintmax/eslint'
 
-const config = eslint({
+export default eslint({
   append: [
     {
       ...recommended,
@@ -75,5 +75,3 @@ const config = eslint({
   },
   tailwind: 'packages/ui/src/styles/globals.css'
 })
-
-export default config
