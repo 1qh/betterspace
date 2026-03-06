@@ -4,7 +4,6 @@ import { reducers } from '@a/be/spacetimedb'
 import { Card, CardContent, CardHeader, CardTitle } from '@a/ui/card'
 import { FieldGroup } from '@a/ui/field'
 import { Form, useFormMutation } from 'betterspace/components'
-import { relax } from 'betterspace/react'
 import { useRouter } from 'next/navigation'
 import { toast } from 'sonner'
 import { useReducer } from 'spacetimedb/react'
@@ -15,9 +14,8 @@ import { project } from '~/schema'
 const NewProjectPage = () => {
   const router = useRouter(),
     { org } = useOrg(),
-    createProject = relax(useReducer(reducers.createProject)),
     form = useFormMutation({
-      mutate: createProject,
+      mutate: useReducer(reducers.createProject),
       onSuccess: () => {
         toast.success('Project created')
         router.push('/projects')

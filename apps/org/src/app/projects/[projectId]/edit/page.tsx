@@ -11,7 +11,6 @@ import { Card, CardContent, CardHeader, CardTitle } from '@a/ui/card'
 import { FieldGroup } from '@a/ui/field'
 import { Skeleton } from '@a/ui/skeleton'
 import { Form, PermissionGuard, useFormMutation } from 'betterspace/components'
-import { relax } from 'betterspace/react'
 import { pickValues } from 'betterspace/zod'
 import { useRouter } from 'next/navigation'
 import { use } from 'react'
@@ -27,9 +26,8 @@ const EditProjectForm = ({ projectId, taskCount }: { projectId: number; taskCoun
       [projects] = useTable(tables.project),
       project = projects.find((p: Project) => p.id === projectId && p.orgId === Number(org._id)),
       removeProject = useReducer(reducers.rmProject),
-      update = relax(useReducer(reducers.updateProject)),
       form = useFormMutation({
-        mutate: update,
+        mutate: useReducer(reducers.updateProject),
         onSuccess: () => {
           toast.success('Project updated')
           router.push(`/projects/${projectId}`)

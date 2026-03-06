@@ -9,7 +9,7 @@ import { useStore } from '@tanstack/react-store'
 import { useEffect, useMemo, useRef, useState } from 'react'
 import { globalRegistry } from 'zod/v4'
 
-import type { ZodSchema } from '../zod'
+import type { UndefinedToOptional, ZodSchema } from '../zod'
 
 import { extractErrorData, getErrorCode, getErrorMessage, isRecord } from '../server/helpers'
 import {
@@ -301,7 +301,7 @@ const submitError = (error: unknown): Error => new Error(getErrorMessage(error),
     onSuccess?: () => void
     resetOnSuccess?: boolean
     schema: S
-    transform?: (d: output<S>) => M
+    transform?: (d: output<S>) => UndefinedToOptional<M>
     values?: Widen<output<S>>
   }) =>
     useForm({
@@ -309,7 +309,7 @@ const submitError = (error: unknown): Error => new Error(getErrorMessage(error),
       onConflict,
       onError,
       onSubmit: async (d: output<S>) => {
-        const args = transform ? transform(d) : (d as unknown as M)
+        const args = (transform ? transform(d) : d) as unknown as M
         await mutate(args)
         return d
       },

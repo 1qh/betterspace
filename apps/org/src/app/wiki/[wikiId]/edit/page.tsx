@@ -11,7 +11,6 @@ import { Card, CardContent, CardHeader, CardTitle } from '@a/ui/card'
 import { FieldGroup } from '@a/ui/field'
 import { Skeleton } from '@a/ui/skeleton'
 import { AutoSaveIndicator, Form, PermissionGuard, useFormMutation } from 'betterspace/components'
-import { relax } from 'betterspace/react'
 import { pickValues } from 'betterspace/zod'
 import { useRouter } from 'next/navigation'
 import { use } from 'react'
@@ -27,9 +26,8 @@ const EditWikiForm = ({ wikiId }: { wikiId: number }) => {
       [wikis] = useTable(tables.wiki),
       wiki = wikis.find((w: Wiki) => w.id === wikiId && w.orgId === Number(org._id)),
       removeWiki = useReducer(reducers.rmWiki),
-      update = relax(useReducer(reducers.updateWiki)),
       form = useFormMutation({
-        mutate: update,
+        mutate: useReducer(reducers.updateWiki),
         onSuccess: () => {
           toast.success('Wiki page saved')
         },

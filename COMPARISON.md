@@ -663,19 +663,19 @@ const form = useFormMutation({
 })
 ```
 
-**betterspace (after)**: Same `useFormMutation` API, with `relax()` for type ergonomics:
+**betterspace (after)**: Same `useFormMutation` API, no wrapper needed (Gap 18
+eliminated `relax()` for form mutations):
 
 ```tsx
-const mutFn = relax(useReducer(reducers.createWiki)),
-  form = useFormMutation({
-    mutate: mutFn,
-    onSuccess: () => {
-      toast.success('Wiki page created')
-      router.push('/wiki')
-    },
-    schema: wiki,
-    transform: d => ({ ...d, orgId: Number(org._id) })
-  })
+const form = useFormMutation({
+  mutate: useReducer(reducers.createWiki),
+  onSuccess: () => {
+    toast.success('Wiki page created')
+    router.push('/wiki')
+  },
+  schema: wiki,
+  transform: d => ({ ...d, orgId: Number(org._id) })
+})
 ```
 
 **Resolution**: The component-level `useFormMutation` was enhanced with a generic `M`
@@ -741,6 +741,79 @@ The returned `useOrgMutation` wraps mutation functions to auto-inject the transf
 
 * * *
 
+## Gap 18: `relax()` Wrapper Tax on `useFormMutation`
+
+**Status**: [x] CLOSED
+
+**Problem**: Every `useFormMutation` call required wrapping the reducer with `relax()`
+to bridge the type gap between SpacetimeDB’s `T | undefined` REQUIRED fields and Zod’s
+truly optional fields:
+
+```tsx
+import { relax } from 'betterspace/react'
+
+const createWiki = relax(useReducer(reducers.createWiki)),
+  form = useFormMutation({
+    mutate: createWiki,
+    schema: wiki,
+    transform: d => ({ ...d, orgId: Number(org._id) })
+  })
+```
+
+This added 1 extra `const` line + 1 extra import per form page.
+
+**lazyconvex**: No issue — Convex mutation types align with Zod output types.
+
+**betterspace (after)**: `useFormMutation`’s `transform` return type changed from `M` to
+`UndefinedToOptional<M>`, making the type relaxation happen INSIDE the hook:
+
+```tsx
+const form = useFormMutation({
+  mutate: useReducer(reducers.createWiki),
+  schema: wiki,
+  transform: d => ({ ...d, orgId: Number(org._id) })
+})
+```
+
+No `relax()` import, no intermediate variable.
+
+**How it works**: The `transform` option’s return type was widened from `M` (the exact
+reducer parameter type) to `UndefinedToOptional<M>` (where `T | undefined` fields become
+optional). This lets consumers return objects with optional keys omitted, and
+`useFormMutation` passes them through to the reducer where SpacetimeDB’s serializer
+treats missing keys as `None`.
+
+**Library changes**:
+
+- `packages/betterspace/src/react/form.ts` —
+  `transform?: (d: output<S>) => UndefinedToOptional<M>`
+- `packages/betterspace/src/components/form.tsx` —
+  `transform?: (d: zinfer<S>) => UndefinedToOptional<M>`
+
+**Impact across demo apps**:
+
+- 9 `useFormMutation` call sites: removed `relax()` wrapper + intermediate variable
+- 1 `useForm` call site (org-settings-form): converted to `useFormMutation` with
+  `slugRef` pattern for post-mutation cookie logic
+- `relax` import removed from 9 files
+- `relax()` still exists and is used by 1 non-form site (`useBulkMutate` in project
+  detail page)
+
+| File | Before | After |
+| --- | --- | --- |
+| wiki/new | `relax(useReducer(...))` + `mutate: createWiki` | `mutate: useReducer(...)` |
+| wiki/edit | `relax(useReducer(...))` + `mutate: update` | `mutate: useReducer(...)` |
+| projects/new | `relax(useReducer(...))` + `mutate: createProject` | `mutate: useReducer(...)` |
+| projects/edit | `relax(useReducer(...))` + `mutate: update` | `mutate: useReducer(...)` |
+| invite-dialog | `relax(useReducer(...))` + `mutate: sendInvite` | `mutate: useReducer(...)` |
+| new org | `relax(useReducer(...))` + `mutate: create` | `mutate: useReducer(...)` |
+| org settings | `useForm` + `relax()` + manual onSubmit | `useFormMutation` + transform |
+| blog create | `relax(useReducer(...))` + `mutate: createMut` | `mutate: useReducer(...)` |
+| blog edit (2x) | `relax(useReducer(...))` + `mutate: updateMut` | `mutate: useReducer(...)` |
+| blog profile | `relax(useReducer(...))` + `mutate: upsertMut` | `mutate: useReducer(...)` |
+
+* * *
+
 ## Inherent Platform Differences (NOT Gaps)
 
 These are expected divergences due to SpacetimeDB vs Convex fundamentals:
@@ -759,7 +832,7 @@ These are expected divergences due to SpacetimeDB vs Convex fundamentals:
 
 ## Summary
 
-All 17 DX gaps are **CLOSED**. A developer moving from lazyconvex to betterspace writes
+All 18 DX gaps are **CLOSED**. A developer moving from lazyconvex to betterspace writes
 the same amount of code (or less) for equivalent functionality.
 
 | Gap | Before | After | Status |
@@ -781,15 +854,17 @@ the same amount of code (or less) for equivalent functionality.
 | 15. Redundant `toastFieldError` | Manual try/catch (double-toast) | `useMutation` handles all | CLOSED |
 | 16. `useFormMutation` combined hook | Two hooks + manual `onSubmit` | One hook, declarative | CLOSED |
 | 17. `useOrgMutation` auto-inject | Manual `orgId: Number(org._id)` | Auto-injected via config | CLOSED |
+| 18. `relax()` wrapper tax | `relax()` + extra variable per form | Inline `useReducer(...)` | CLOSED |
 
 * * *
 
 ## Fresh-Eyes Audit (Post-Closure)
 
-After closing all 17 gaps, a head-to-head comparison of every consumer file was
-conducted. Gaps 16-17 further reduced form boilerplate by combining
-`useMutation + useForm` into `useFormMutation` and auto-injecting `orgId` via
-`useOrgMutation`.
+After closing all 18 gaps, a head-to-head comparison of every consumer file was
+conducted. Gaps 16-17 reduced form boilerplate by combining `useMutation + useForm` into
+`useFormMutation` and auto-injecting `orgId` via `useOrgMutation`. Gap 18 eliminated the
+`relax()` wrapper tax on all `useFormMutation` calls by widening the `transform` return
+type to `UndefinedToOptional<M>` inside the hook.
 
 The remaining line count deltas are all **platform-inherent** or **betterspace
 enhancements**:
@@ -802,16 +877,19 @@ enhancements**:
 | chat | +8 lines | — | +8 | `useOnlineStatus` enhancement + Convex AI tool setup is longer |
 
 **No new fixable DX gaps found.** Org delta dropped from +176 to +150 after Gaps 16-17
-(useFormMutation + useOrgMutation).
-Blog delta dropped from +80 to +70. Remaining deltas are: `useReducer` hook injection
-(platform — library can’t import SpacetimeDB SDK), client-side filtering (platform —
-SpacetimeDB sends all data via WebSocket), and `useOptimisticMutation` two-step pattern
-(platform — betterspace can’t wrap the SDK’s useReducer).
+(useFormMutation + useOrgMutation), then further reduced after Gap 18 (no more `relax()`
+import + wrapper per form page).
+Blog delta similarly reduced after Gap 18. Remaining deltas are: `useReducer` hook
+injection (platform — library can’t import SpacetimeDB SDK), client-side filtering
+(platform — SpacetimeDB sends all data via WebSocket), and `useOptimisticMutation`
+two-step pattern (platform — betterspace can’t wrap the SDK’s useReducer).
 
 ### What betterspace does BETTER than lazyconvex
 
 - `useMutation` with `toast: { success, error }` — eliminates mutation+toast boilerplate
-- `relax()` + `UndefinedToOptional` — cleaner reducer calls than Convex mutations
+- `UndefinedToOptional` baked into `useFormMutation` + `useMutation` — zero boilerplate
+  for optional fields
+- `relax()` utility for non-form mutation calls (e.g. `useBulkMutate`)
 - `useOnlineStatus` — presence detection not available in lazyconvex
 - `AutoSaveIndicator` — built-in auto-save UI component
 - `defineSteps` — typesafe multi-step form wizard

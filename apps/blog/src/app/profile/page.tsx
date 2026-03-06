@@ -5,7 +5,6 @@ import { reducers, tables } from '@a/be/spacetimedb'
 import { FieldGroup } from '@a/ui/field'
 import { Spinner } from '@a/ui/spinner'
 import { Form, useFormMutation } from 'betterspace/components'
-import { relax } from 'betterspace/react'
 import Link from 'next/link'
 import { toast } from 'sonner'
 import { useReducer, useSpacetimeDB, useTable } from 'spacetimedb/react'
@@ -18,10 +17,9 @@ const Page = () => {
     // eslint-disable-next-line no-restricted-properties
     isPlaywright = process.env.NEXT_PUBLIC_PLAYWRIGHT === '1',
     profile = profiles.find(p => identity && p.userId.isEqual(identity)) ?? null,
-    upsertMut = relax(useReducer(reducers.upsertBlogProfile)),
     shouldShowContent = isReady || isPlaywright,
     form = useFormMutation({
-      mutate: upsertMut,
+      mutate: useReducer(reducers.upsertBlogProfile),
       onSuccess: () => {
         toast.success('Profile saved')
       },

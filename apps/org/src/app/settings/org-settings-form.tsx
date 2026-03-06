@@ -5,10 +5,11 @@ import type { Org } from '@a/be/spacetimedb/types'
 import { reducers } from '@a/be/spacetimedb'
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@a/ui/card'
 import { FieldGroup } from '@a/ui/field'
-import { Form, useForm } from 'betterspace/components'
-import { relax, setActiveOrgCookieClient } from 'betterspace/react'
+import { Form, useFormMutation } from 'betterspace/components'
+import { setActiveOrgCookieClient } from 'betterspace/react'
 import { pickValues } from 'betterspace/zod'
 import { useRouter } from 'next/navigation'
+import { useRef } from 'react'
 import { toast } from 'sonner'
 import { useReducer } from 'spacetimedb/react'
 
@@ -20,17 +21,20 @@ interface OrgSettingsFormProps {
 
 const OrgSettingsForm = ({ org: o }: OrgSettingsFormProps) => {
   const router = useRouter(),
-    update = relax(useReducer(reducers.orgUpdate)),
-    form = useForm({
-      onSubmit: async d => {
-        await update({ ...d, orgId: Number(o._id) })
-        if (typeof d.slug === 'string' && d.slug !== o.slug) setActiveOrgCookieClient({ orgId: o._id, slug: d.slug })
-
+    slugRef = useRef(''),
+    form = useFormMutation({
+      mutate: useReducer(reducers.orgUpdate),
+      onSuccess: () => {
+        if (slugRef.current && slugRef.current !== o.slug)
+          setActiveOrgCookieClient({ orgId: o._id, slug: slugRef.current })
         toast.success('Settings updated')
         router.push('/settings')
-        return d
       },
       schema: orgTeam,
+      transform: d => {
+        slugRef.current = typeof d.slug === 'string' ? d.slug : ''
+        return { ...d, orgId: Number(o._id) }
+      },
       values: pickValues(orgTeam, o)
     }),
     slug = form.watch('slug')

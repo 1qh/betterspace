@@ -13,6 +13,7 @@ import { useNavigationGuard } from 'next-navigation-guard'
 import { use, useEffect, useMemo, useState } from 'react'
 
 import type { FormReturn as BaseFormReturn, ConflictData } from '../react/form'
+import type { UndefinedToOptional } from '../zod'
 import type { Api } from './fields'
 
 import { DevtoolsAutoMount } from '../react/devtools-panel'
@@ -149,7 +150,7 @@ const useWithGuard = <T extends Record<string, unknown>, S extends ZodObject<Zod
     onSuccess?: () => void
     resetOnSuccess?: boolean
     schema: S
-    transform?: (d: zinfer<S>) => M
+    transform?: (d: zinfer<S>) => UndefinedToOptional<M>
     values?: Widen<zinfer<S>>
   }) =>
     useWithGuard(
@@ -158,7 +159,7 @@ const useWithGuard = <T extends Record<string, unknown>, S extends ZodObject<Zod
         onConflict: opts.onConflict,
         onError: opts.onError,
         onSubmit: async d => {
-          const args = opts.transform ? opts.transform(d) : (d as unknown as M)
+          const args = (opts.transform ? opts.transform(d) : d) as unknown as M
           /** biome-ignore lint/nursery/useAwaitThenable: mutate may be async */
           await opts.mutate(args)
           return d

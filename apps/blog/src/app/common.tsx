@@ -21,7 +21,7 @@ import { Dialog, DialogContent, DialogTrigger } from '@a/ui/dialog'
 import { FieldGroup } from '@a/ui/field'
 import { Spinner } from '@a/ui/spinner'
 import { Form, useFormMutation } from 'betterspace/components'
-import { relax, useMutation, useOptimisticMutation } from 'betterspace/react'
+import { useMutation, useOptimisticMutation } from 'betterspace/react'
 import { format, formatDistance } from 'date-fns'
 import { Pencil, Plus, Send, Trash, UserRound } from 'lucide-react'
 import Link from 'next/link'
@@ -84,9 +84,8 @@ const isPlaywrightTest = process.env.NEXT_PUBLIC_PLAYWRIGHT === '1',
   },
   Create = () => {
     const [open, setOpen] = useState(false),
-      createMut = relax(useReducer(reducers.createBlog)),
       form = useFormMutation({
-        mutate: createMut,
+        mutate: useReducer(reducers.createBlog),
         onSuccess: () => {
           toast.success('Created')
           setOpen(false)

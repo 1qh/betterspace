@@ -123,20 +123,18 @@ calling it.
 
 ```tsx
 import { useFormMutation } from 'betterspace/react'
-import { relax } from 'betterspace/react'
 import { useReducer } from 'spacetimedb/react'
 import { reducers } from '@/generated/module_bindings'
 
-const mutFn = relax(useReducer(reducers.createWiki)),
-  form = useFormMutation({
-    mutate: mutFn,
-    onSuccess: () => {
-      toast.success('Created')
-      router.push('/wiki')
-    },
-    schema: wiki,
-    transform: d => ({ ...d, orgId: Number(org._id) })
-  })
+const form = useFormMutation({
+  mutate: useReducer(reducers.createWiki),
+  onSuccess: () => {
+    toast.success('Created')
+    router.push('/wiki')
+  },
+  schema: wiki,
+  transform: d => ({ ...d, orgId: Number(org._id) })
+})
 ```
 
 `transform` runs after Zod validation passes and before the mutation fires.

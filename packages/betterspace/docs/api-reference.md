@@ -1064,7 +1064,7 @@ With `transform`:
 
 ```typescript
 const form = useFormMutation({
-  mutate: relax(useReducer(reducers.createWiki)),
+  mutate: useReducer(reducers.createWiki),
   onSuccess: () => {
     toast.success('Created')
     router.push('/wiki')

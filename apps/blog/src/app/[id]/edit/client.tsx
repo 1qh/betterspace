@@ -12,7 +12,7 @@ import { Popover, PopoverContent, PopoverTrigger } from '@a/ui/popover'
 import { Spinner } from '@a/ui/spinner'
 import { Switch } from '@a/ui/switch'
 import { AutoSaveIndicator, Form, useFormMutation } from 'betterspace/components'
-import { relax, useMutation } from 'betterspace/react'
+import { useMutation } from 'betterspace/react'
 import { Settings } from 'lucide-react'
 import Link from 'next/link'
 import { useId, useTransition } from 'react'
@@ -54,24 +54,23 @@ const Publish = ({
     )
   },
   Edit = ({ blog }: { blog: Blog }) => {
-    const updateMut = relax(useReducer(reducers.updateBlog)),
-      form = useFormMutation({
-        autoSave: { debounceMs: 2000, enabled: true },
-        mutate: updateMut,
-        onSuccess: () => {
-          toast.success('Saved')
-        },
-        resetOnSuccess: false,
-        schema: editBlog,
-        transform: d => ({ ...d, id: blog.id }),
-        values: {
-          attachments: blog.attachments ?? [],
-          content: blog.content,
-          coverImage: blog.coverImage ?? null,
-          tags: blog.tags,
-          title: blog.title
-        }
-      })
+    const form = useFormMutation({
+      autoSave: { debounceMs: 2000, enabled: true },
+      mutate: useReducer(reducers.updateBlog),
+      onSuccess: () => {
+        toast.success('Saved')
+      },
+      resetOnSuccess: false,
+      schema: editBlog,
+      transform: d => ({ ...d, id: blog.id }),
+      values: {
+        attachments: blog.attachments ?? [],
+        content: blog.content,
+        coverImage: blog.coverImage ?? null,
+        tags: blog.tags,
+        title: blog.title
+      }
+    })
     return (
       <Form
         className='flex flex-col gap-3'
@@ -119,17 +118,16 @@ const Publish = ({
     )
   },
   Setting = ({ blog }: { blog: Blog }) => {
-    const updateMut = relax(useReducer(reducers.updateBlog)),
-      form = useFormMutation({
-        mutate: updateMut,
-        onSuccess: () => {
-          toast.success('Saved')
-        },
-        resetOnSuccess: false,
-        schema: editBlog,
-        transform: d => ({ category: d.category, id: blog.id, published: d.published }),
-        values: { category: blog.category, published: blog.published }
-      })
+    const form = useFormMutation({
+      mutate: useReducer(reducers.updateBlog),
+      onSuccess: () => {
+        toast.success('Saved')
+      },
+      resetOnSuccess: false,
+      schema: editBlog,
+      transform: d => ({ category: d.category, id: blog.id, published: d.published }),
+      values: { category: blog.category, published: blog.published }
+    })
     return (
       <Form
         className='flex flex-col gap-4'
