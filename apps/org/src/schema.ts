@@ -2,10 +2,8 @@ import { org, orgScoped, singleton } from '@a/be/z'
 import { cvFile } from 'betterspace/schema'
 import { boolean, email, object, string } from 'zod/v4'
 
-const { team } = org,
-  { project: projectSchema, wiki: wikiSchema } = orgScoped,
-  orgTeam = team.omit({ avatarId: true }),
-  project = projectSchema,
+const { project, wiki: wikiSchema } = orgScoped,
+  orgTeam = org.team.omit({ avatarId: true }),
   wiki = wikiSchema.omit({ content: true }).extend({ content: string().optional() }),
   invite = object({ email: email(), isAdmin: boolean() }),
   joinRequest = object({ message: string().optional() }),

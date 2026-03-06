@@ -3,9 +3,10 @@
 import { reducers } from '@a/be/spacetimedb'
 import { Card, CardContent, CardHeader, CardTitle } from '@a/ui/card'
 import { FieldGroup } from '@a/ui/field'
-import { Form, useForm } from 'betterspace/components'
-import { useMutation } from 'betterspace/react'
+import { Form, useFormMutation } from 'betterspace/components'
+import { relax } from 'betterspace/react'
 import { useRouter } from 'next/navigation'
+import { toast } from 'sonner'
 import { useReducer } from 'spacetimedb/react'
 
 import { useOrg } from '~/hook/use-org'
@@ -14,17 +15,15 @@ import { wiki } from '~/schema'
 const NewWikiPage = () => {
   const router = useRouter(),
     { org } = useOrg(),
-    createWiki = useMutation(useReducer, reducers.createWiki, {
-      toast: { error: 'Failed to create wiki page', success: 'Wiki page created' }
-    }),
-    form = useForm({
-      onSubmit: async d => {
-        await createWiki({ ...d, orgId: Number(org._id) })
+    createWiki = relax(useReducer(reducers.createWiki)),
+    form = useFormMutation({
+      mutate: createWiki,
+      onSuccess: () => {
+        toast.success('Wiki page created')
         router.push('/wiki')
-        return d
       },
-      resetOnSuccess: true,
-      schema: wiki
+      schema: wiki,
+      transform: d => ({ ...d, orgId: Number(org._id) })
     })
 
   return (

@@ -20,8 +20,8 @@ import {
 import { Dialog, DialogContent, DialogTrigger } from '@a/ui/dialog'
 import { FieldGroup } from '@a/ui/field'
 import { Spinner } from '@a/ui/spinner'
-import { Form, useForm } from 'betterspace/components'
-import { useMutation, useOptimisticMutation } from 'betterspace/react'
+import { Form, useFormMutation } from 'betterspace/components'
+import { relax, useMutation, useOptimisticMutation } from 'betterspace/react'
 import { format, formatDistance } from 'date-fns'
 import { Pencil, Plus, Send, Trash, UserRound } from 'lucide-react'
 import Link from 'next/link'
@@ -84,19 +84,15 @@ const isPlaywrightTest = process.env.NEXT_PUBLIC_PLAYWRIGHT === '1',
   },
   Create = () => {
     const [open, setOpen] = useState(false),
-      create = useMutation(useReducer, reducers.createBlog, {
-        toast: { error: 'Create failed', success: 'Created' }
-      }),
-      form = useForm({
-        onSubmit: async d => {
-          await create({ ...d, published: isPlaywrightTest })
-          return d
-        },
+      createMut = relax(useReducer(reducers.createBlog)),
+      form = useFormMutation({
+        mutate: createMut,
         onSuccess: () => {
-          form.reset()
+          toast.success('Created')
           setOpen(false)
         },
-        schema: createBlog
+        schema: createBlog,
+        transform: d => ({ ...d, published: isPlaywrightTest })
       })
     return (
       <Dialog

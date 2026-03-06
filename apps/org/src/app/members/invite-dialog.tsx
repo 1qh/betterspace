@@ -3,10 +3,11 @@
 import { reducers } from '@a/be/spacetimedb'
 import { Button } from '@a/ui/button'
 import { Dialog, DialogContent, DialogDescription, DialogHeader, DialogTitle, DialogTrigger } from '@a/ui/dialog'
-import { Form, useForm } from 'betterspace/components'
-import { useMutation } from 'betterspace/react'
+import { Form, useFormMutation } from 'betterspace/components'
+import { relax } from 'betterspace/react'
 import { Plus } from 'lucide-react'
 import { useState } from 'react'
+import { toast } from 'sonner'
 import { useReducer } from 'spacetimedb/react'
 
 import { invite } from '~/schema'
@@ -17,18 +18,15 @@ interface InviteDialogProps {
 
 const InviteDialog = ({ orgId }: InviteDialogProps) => {
   const [open, setOpen] = useState(false),
-    sendInvite = useMutation(useReducer, reducers.orgSendInvite, {
-      getName: () => `org.invite:${orgId}`,
-      toast: { error: 'Failed to send invite', success: 'Invite sent' }
-    }),
-    form = useForm({
-      onSubmit: async d => {
-        await sendInvite({ ...d, orgId: Number(orgId) })
+    sendInvite = relax(useReducer(reducers.orgSendInvite)),
+    form = useFormMutation({
+      mutate: sendInvite,
+      onSuccess: () => {
+        toast.success('Invite sent')
         setOpen(false)
-        return d
       },
-      resetOnSuccess: true,
-      schema: invite
+      schema: invite,
+      transform: d => ({ ...d, orgId: Number(orgId) })
     })
 
   return (

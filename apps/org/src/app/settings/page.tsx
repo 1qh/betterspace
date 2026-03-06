@@ -11,30 +11,21 @@ import { Button } from '@a/ui/button'
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@a/ui/card'
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@a/ui/select'
 import { clearActiveOrgCookie } from 'betterspace/next'
-import { useMutation } from 'betterspace/react'
 import { useRouter } from 'next/navigation'
 import { useState } from 'react'
+import { toast } from 'sonner'
 import { useReducer, useTable } from 'spacetimedb/react'
 
-import { useOrg } from '~/hook/use-org'
+import { useOrg, useOrgMutation } from '~/hook/use-org'
 
 import OrgSettingsForm from './org-settings-form'
 
 const OrgSettingsPage = () => {
   const router = useRouter(),
     { canDeleteOrg, isAdmin, isOwner, org } = useOrg(),
-    removeOrg = useMutation(useReducer, reducers.orgRemove, {
-      getName: () => `org.remove:${org._id}`,
-      toast: { error: 'Failed to delete organization', success: 'Organization deleted' }
-    }),
-    leaveOrg = useMutation(useReducer, reducers.orgLeave, {
-      getName: () => `org.leave:${org._id}`,
-      toast: { error: 'Failed to leave organization', success: 'You have left the organization' }
-    }),
-    transferOwnership = useMutation(useReducer, reducers.orgTransferOwnership, {
-      getName: () => `org.transferOwnership:${org._id}`,
-      toast: { error: 'Failed to transfer ownership', success: 'Ownership transferred' }
-    }),
+    removeOrg = useOrgMutation(useReducer(reducers.orgRemove)),
+    leaveOrg = useOrgMutation(useReducer(reducers.orgLeave)),
+    transferOwnership = useOrgMutation(useReducer(reducers.orgTransferOwnership)),
     [allMembers] = useTable(tables.orgMember),
     members = allMembers.filter((m: OrgMember) => m.orgId === Number(org._id)),
     [transferTarget, setTransferTarget] = useState<string>('')
@@ -45,9 +36,10 @@ const OrgSettingsPage = () => {
   const adminMembers = members.filter(m => m.isAdmin),
     handleLeave = () => {
       if (!confirm('Are you sure you want to leave this organization?')) return
-      leaveOrg({ orgId: Number(org._id) })
+      leaveOrg()
         .then(async () => {
           await clearActiveOrgCookie()
+          toast.success('You have left the organization')
           router.push('/')
         })
         .catch(fail)
@@ -56,17 +48,19 @@ const OrgSettingsPage = () => {
       const target = adminMembers.find(m => m.userId.toHexString() === transferTarget)
       if (!target) return
       if (!confirm('Are you sure? You will become an admin and lose owner privileges.')) return
-      transferOwnership({ newOwnerId: target.userId, orgId: Number(org._id) })
+      transferOwnership({ newOwnerId: target.userId })
         .then(() => {
+          toast.success('Ownership transferred')
           router.refresh()
         })
         .catch(fail)
     },
     handleDelete = () => {
       if (!confirm('Are you sure? This will delete all data.')) return
-      removeOrg({ orgId: Number(org._id) })
+      removeOrg()
         .then(async () => {
           await clearActiveOrgCookie()
+          toast.success('Organization deleted')
           router.push('/')
         })
         .catch(fail)

@@ -630,6 +630,117 @@ No manual handling needed.
 
 * * *
 
+## Gap 16: `useFormMutation` — Combined Mutation + Form Hook
+
+**Status**: [x] CLOSED
+
+**Problem**: Form pages required TWO hooks — `useMutation` for the reducer call and
+`useForm` for form state — wired together in a manual `onSubmit`:
+
+```tsx
+const mutation = useMutation(useReducer, reducers.createWiki, {
+    toast: { error: 'Failed', success: 'Created' }
+  }),
+  form = useForm({
+    onSubmit: async d => {
+      await mutation({ ...d, orgId: Number(org._id) })
+      router.push('/wiki')
+      return d
+    },
+    resetOnSuccess: true,
+    schema: wiki
+  })
+```
+
+**lazyconvex**: Uses `useFormMutation` — one hook, no `onSubmit` wiring:
+
+```tsx
+const form = useFormMutation({
+  mutate: api.wiki.create,
+  onSuccess: () => router.push('/wiki'),
+  schema: wiki,
+  transform: d => ({ ...d, orgId })
+})
+```
+
+**betterspace (after)**: Same `useFormMutation` API, with `relax()` for type ergonomics:
+
+```tsx
+const mutFn = relax(useReducer(reducers.createWiki)),
+  form = useFormMutation({
+    mutate: mutFn,
+    onSuccess: () => {
+      toast.success('Wiki page created')
+      router.push('/wiki')
+    },
+    schema: wiki,
+    transform: d => ({ ...d, orgId: Number(org._id) })
+  })
+```
+
+**Resolution**: The component-level `useFormMutation` was enhanced with a generic `M`
+type parameter to work with typed reducer functions.
+`resetOnSuccess` defaults to `true`. Form error handling is built in via
+`defaultOnError` — no manual `toast.error` needed.
+
+**Impact across demo apps**:
+
+- 7 org app form pages refactored (wiki/new, wiki/edit, projects/new, projects/edit,
+  invite-dialog, new org, settings)
+- 3 blog app files refactored (common.tsx Create, edit/client.tsx Edit+Setting,
+  profile/page.tsx)
+- Each file saves 3-6 lines of hook setup boilerplate
+- Eliminated double-toasting issue (useMutation toast + form defaultOnError)
+
+* * *
+
+## Gap 17: `useOrgMutation` — Auto-Inject `orgId` for Org Mutations
+
+**Status**: [x] CLOSED
+
+**Problem**: Every org-scoped mutation required manually converting `org._id` (string)
+to `Number(org._id)` and spreading into the args:
+
+```tsx
+const mutation = useMutation(useReducer, reducers.orgUpdate, { toast: {...} })
+await mutation({ ...d, orgId: Number(org._id) })
+```
+
+**lazyconvex**: `useOrgMutation` auto-injects `orgId`:
+
+```tsx
+const mutation = useOrgMutation(api.org.update)
+await mutation(d) // orgId injected automatically
+```
+
+**betterspace (after)**: `createOrgHooks` returns a `useOrgMutation` that auto-injects
+`orgId` with configurable transformation:
+
+```tsx
+// hook/use-org.tsx — one-time setup
+const { useOrgMutation, useOrg } = createOrgHooks<Org & { _id: string }>({
+  orgIdForMutation: Number
+})
+
+// settings/page.tsx — usage
+const update = useOrgMutation(useReducer(reducers.orgUpdate))
+await update(d) // orgId auto-injected as Number
+```
+
+**Resolution**: Enhanced `createOrgHooks` to accept an optional
+`{ orgIdForMutation: (id: string) => unknown }` config.
+The returned `useOrgMutation` wraps mutation functions to auto-inject the transformed
+`orgId`. Standalone `useOrgMutation` (from `betterspace/react`) also made generic.
+
+**Impact on org app settings page**:
+
+- 3 mutations refactored from `useMutation(useReducer, ...)` to
+  `useOrgMutation(useReducer(...))`
+- Removed 9 lines of per-mutation toast/getName setup
+- `orgId: Number(org._id)` no longer needed at call sites
+
+* * *
+
 ## Inherent Platform Differences (NOT Gaps)
 
 These are expected divergences due to SpacetimeDB vs Convex fundamentals:
@@ -648,7 +759,7 @@ These are expected divergences due to SpacetimeDB vs Convex fundamentals:
 
 ## Summary
 
-All 15 DX gaps are **CLOSED**. A developer moving from lazyconvex to betterspace writes
+All 17 DX gaps are **CLOSED**. A developer moving from lazyconvex to betterspace writes
 the same amount of code (or less) for equivalent functionality.
 
 | Gap | Before | After | Status |
@@ -668,28 +779,34 @@ the same amount of code (or less) for equivalent functionality.
 | 13. `getName` boilerplate | Static `getName` on every call | Auto-inferred from reducer | CLOSED |
 | 14. `null` not accepted | `?? undefined` + `partialValues` | Spread form data directly | CLOSED |
 | 15. Redundant `toastFieldError` | Manual try/catch (double-toast) | `useMutation` handles all | CLOSED |
+| 16. `useFormMutation` combined hook | Two hooks + manual `onSubmit` | One hook, declarative | CLOSED |
+| 17. `useOrgMutation` auto-inject | Manual `orgId: Number(org._id)` | Auto-injected via config | CLOSED |
 
 * * *
 
 ## Fresh-Eyes Audit (Post-Closure)
 
-After closing all 15 gaps, a head-to-head comparison of every consumer file was
-conducted.
+After closing all 17 gaps, a head-to-head comparison of every consumer file was
+conducted. Gaps 16-17 further reduced form boilerplate by combining
+`useMutation + useForm` into `useFormMutation` and auto-injecting `orgId` via
+`useOrgMutation`.
+
 The remaining line count deltas are all **platform-inherent** or **betterspace
 enhancements**:
 
 | App | betterspace | lazyconvex | Delta | Root Cause |
 | --- | --- | --- | --- | --- |
-| org | +176 lines | — | +176 | Client-side filtering (SpacetimeDB subscriptions vs Convex server queries) |
-| blog | +80 lines | — | +80 | Remaining delta: toast config (enhancement), `useReducer` injection (platform) |
+| org | +150 lines | — | +150 | Client-side filtering (SpacetimeDB subscriptions vs Convex server queries) |
+| blog | +70 lines | — | +70 | `useReducer` injection (platform), `useOptimisticMutation` pattern (platform) |
 | movie | +260 lines | — | +260 | Client-side TMDB fetch + Playwright mock data (no server-side actions in SpacetimeDB) |
 | chat | +8 lines | — | +8 | `useOnlineStatus` enhancement + Convex AI tool setup is longer |
 
-**No new fixable DX gaps found.** Blog delta dropped from +120 to +80 after Gaps 13-15.
-Remaining blog delta is: `useReducer` hook injection (platform), toast shorthand config
-(betterspace enhancement — better UX), and `useOptimisticMutation` two-step pattern (1
-usage, +2 lines — platform constraint since betterspace can’t import SpacetimeDB SDK
-directly).
+**No new fixable DX gaps found.** Org delta dropped from +176 to +150 after Gaps 16-17
+(useFormMutation + useOrgMutation).
+Blog delta dropped from +80 to +70. Remaining deltas are: `useReducer` hook injection
+(platform — library can’t import SpacetimeDB SDK), client-side filtering (platform —
+SpacetimeDB sends all data via WebSocket), and `useOptimisticMutation` two-step pattern
+(platform — betterspace can’t wrap the SDK’s useReducer).
 
 ### What betterspace does BETTER than lazyconvex
 

@@ -4,9 +4,10 @@
 import { reducers, tables } from '@a/be/spacetimedb'
 import { FieldGroup } from '@a/ui/field'
 import { Spinner } from '@a/ui/spinner'
-import { Form, useForm } from 'betterspace/components'
-import { useMutation } from 'betterspace/react'
+import { Form, useFormMutation } from 'betterspace/components'
+import { relax } from 'betterspace/react'
 import Link from 'next/link'
+import { toast } from 'sonner'
 import { useReducer, useSpacetimeDB, useTable } from 'spacetimedb/react'
 
 import { profileSchema } from '~/schema'
@@ -17,15 +18,14 @@ const Page = () => {
     // eslint-disable-next-line no-restricted-properties
     isPlaywright = process.env.NEXT_PUBLIC_PLAYWRIGHT === '1',
     profile = profiles.find(p => identity && p.userId.isEqual(identity)) ?? null,
-    upsert = useMutation(useReducer, reducers.upsertBlogProfile, {
-      toast: { error: 'Profile save failed', success: 'Profile saved' }
-    }),
+    upsertMut = relax(useReducer(reducers.upsertBlogProfile)),
     shouldShowContent = isReady || isPlaywright,
-    form = useForm({
-      onSubmit: async d => {
-        await upsert(d)
-        return d
+    form = useFormMutation({
+      mutate: upsertMut,
+      onSuccess: () => {
+        toast.success('Profile saved')
       },
+      resetOnSuccess: false,
       schema: profileSchema,
       values: shouldShowContent
         ? profile

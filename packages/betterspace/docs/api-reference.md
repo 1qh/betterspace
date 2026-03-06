@@ -924,6 +924,14 @@ Accepts the same `MutateOptions` as `useMutate`.
 Wraps a raw `useReducer` call to apply `UndefinedToOptional` to its argument type.
 Use when calling `useReducer` directly without `useMutation`.
 
+**Signature:**
+
+```typescript
+const relax: <T extends (...args: unknown[]) => unknown>(
+  fn: T
+) => (...args: UndefinedToOptional<Parameters<T>[0]>[]) => ReturnType<T>
+```
+
 ```typescript
 import { relax } from 'betterspace/react'
 
@@ -1031,8 +1039,16 @@ const form = useForm({
 Combines `useForm` with a mutation function for forms that submit via SpacetimeDB
 reducers. Handles loading state, error toasts, and field validation automatically.
 
-Available from both `betterspace/react` (base) and `betterspace/components` (with
-navigation guard).
+Two versions are available:
+
+- **`betterspace/react`** — Base hook.
+  No navigation guard.
+  `resetOnSuccess` defaults to `false`.
+- **`betterspace/components`** — Adds a navigation guard via `useWithGuard`.
+  `resetOnSuccess` defaults to `true`.
+
+The `M` generic types the mutation argument independently from the form schema.
+Use `transform` to map validated form data into the shape the mutation expects.
 
 ```typescript
 import { useFormMutation } from 'betterspace/react'
@@ -1041,6 +1057,20 @@ const form = useFormMutation({
   schema: blogSchema,
   mutate: api.blogs.create,
   toast: { success: 'Created', error: 'Failed' }
+})
+```
+
+With `transform`:
+
+```typescript
+const form = useFormMutation({
+  mutate: relax(useReducer(reducers.createWiki)),
+  onSuccess: () => {
+    toast.success('Created')
+    router.push('/wiki')
+  },
+  schema: wiki,
+  transform: d => ({ ...d, orgId: Number(org._id) })
 })
 ```
 
@@ -1249,6 +1279,49 @@ const skipped = useOrgQuery(queryProject, 'skip')
 ```
 
 See [organizations](./organizations.md) for full usage.
+
+* * *
+
+### createOrgHooks
+
+Factory that returns typed org hooks bound to a specific org type and optional `orgId`
+transform. Use when your org has extra fields beyond the base `OrgDoc`, or when you need
+`orgId` coerced before injection.
+
+**Signature:**
+
+```typescript
+createOrgHooks<O extends OrgDoc = OrgDoc, M = unknown>(config?: {
+  orgIdForMutation?: (id: string) => unknown
+}) => {
+  useActiveOrg: () => { activeOrg: O | null; setActiveOrg: (org: O) => void }
+  useMyOrgs: () => { orgs: O[] }
+  useOrg: () => OrgContext<O>
+  useOrgMutation: <A extends Record<string, unknown>>(
+    mutation: (args: A) => Promise<unknown>
+  ) => (mutationArgs?: Omit<A, 'orgId'>) => Promise<unknown>
+}
+```
+
+```typescript
+import { createOrgHooks } from 'betterspace/react'
+
+const { useActiveOrg, useMyOrgs, useOrg, useOrgMutation } = createOrgHooks<
+  Org & { _id: string }
+>({
+  orgIdForMutation: Number
+})
+```
+
+`useOrgMutation` from the returned hooks applies `orgIdForMutation` when injecting
+`orgId`:
+
+```typescript
+const update = useOrgMutation(useReducer(reducers.orgUpdate))
+await update(d) // orgId auto-injected as Number(org._id)
+```
+
+When `orgIdForMutation` is omitted, `orgId` is passed as-is.
 
 * * *
 

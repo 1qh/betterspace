@@ -186,10 +186,10 @@ const EMPTY_ORGS: OrgMembership[] = [],
    * @param mutation Mutation function that accepts args with org id.
    * @returns Callback that merges caller args with current org id.
    */
-  useOrgMutation = (mutation: (args: Record<string, unknown>) => Promise<unknown>) => {
+  useOrgMutation = <A extends Record<string, unknown>>(mutation: (args: A) => Promise<unknown>) => {
     const { orgId } = useOrg()
     return useCallback(
-      async (mutationArgs?: Record<string, unknown>): Promise<unknown> => mutation({ ...mutationArgs, orgId }),
+      async (mutationArgs?: Omit<A, 'orgId'>): Promise<unknown> => mutation({ ...mutationArgs, orgId } as unknown as A),
       [mutation, orgId]
     )
   },
@@ -217,10 +217,19 @@ const EMPTY_ORGS: OrgMembership[] = [],
    * Creates pre-typed org hooks for app-specific org and membership shapes.
    * @returns Typed wrappers around org context hooks.
    */
-  createOrgHooks = <O extends OrgDoc = OrgDoc, M = unknown>() => ({
+  createOrgHooks = <O extends OrgDoc = OrgDoc, M = unknown>(config?: { orgIdForMutation?: (id: string) => unknown }) => ({
     useActiveOrg: () => useActiveOrg<O>(),
     useMyOrgs: () => useMyOrgs<O>(),
-    useOrg: () => useOrg<O, M>()
+    useOrg: () => useOrg<O, M>(),
+    useOrgMutation: <A extends Record<string, unknown>>(mutation: (args: A) => Promise<unknown>) => {
+      const { orgId } = useOrg<O, M>(),
+        resolved = config?.orgIdForMutation ? config.orgIdForMutation(orgId) : orgId
+      return useCallback(
+        async (mutationArgs?: Omit<A, 'orgId'>): Promise<unknown> =>
+          mutation({ ...mutationArgs, orgId: resolved } as unknown as A),
+        [mutation, resolved]
+      )
+    }
   })
 
 export type { ActiveOrgState, OrgContextValue, OrgDoc, OrgMembership, OrgProviderProps }

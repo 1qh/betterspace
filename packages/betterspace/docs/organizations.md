@@ -306,6 +306,38 @@ const CreateProject = () => {
 }
 ```
 
+### createOrgHooks
+
+`createOrgHooks` is a factory that returns typed org hooks bound to your org type.
+Use it when your org has extra fields beyond the base `OrgDoc` (e.g., a string `_id`
+from an external system), or when you need `orgId` coerced to a specific type before
+being injected into mutations.
+
+```typescript
+import { createOrgHooks } from 'betterspace/react'
+
+const { useActiveOrg, useMyOrgs, useOrg, useOrgMutation } = createOrgHooks<
+  Org & { _id: string }
+>({
+  orgIdForMutation: Number
+})
+```
+
+The `orgIdForMutation` option accepts a function that transforms the org’s `_id` string
+before injecting it as `orgId` into mutation calls.
+In the example above, `Number` converts the string ID to a number, matching a `u32`
+reducer argument.
+
+`useOrgMutation` returned from `createOrgHooks` uses the configured transform
+automatically:
+
+```typescript
+const update = useOrgMutation(useReducer(reducers.orgUpdate))
+await update(d) // orgId auto-injected as Number(org._id)
+```
+
+When `orgIdForMutation` is omitted, `orgId` is passed as-is (a string).
+
 ### Org-scoped queries
 
 `useOrgQuery` automatically injects `orgId` into query arguments:

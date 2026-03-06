@@ -11,11 +11,12 @@ import { Label } from '@a/ui/label'
 import { Popover, PopoverContent, PopoverTrigger } from '@a/ui/popover'
 import { Spinner } from '@a/ui/spinner'
 import { Switch } from '@a/ui/switch'
-import { AutoSaveIndicator, Form, useForm } from 'betterspace/components'
-import { useMutation } from 'betterspace/react'
+import { AutoSaveIndicator, Form, useFormMutation } from 'betterspace/components'
+import { relax, useMutation } from 'betterspace/react'
 import { Settings } from 'lucide-react'
 import Link from 'next/link'
 import { useId, useTransition } from 'react'
+import { toast } from 'sonner'
 import { useReducer, useSpacetimeDB } from 'spacetimedb/react'
 
 import { editBlog } from '~/schema'
@@ -53,16 +54,16 @@ const Publish = ({
     )
   },
   Edit = ({ blog }: { blog: Blog }) => {
-    const update = useMutation(useReducer, reducers.updateBlog, {
-        toast: { error: 'Autosave failed', success: 'Saved' }
-      }),
-      form = useForm({
+    const updateMut = relax(useReducer(reducers.updateBlog)),
+      form = useFormMutation({
         autoSave: { debounceMs: 2000, enabled: true },
-        onSubmit: async d => {
-          await update({ ...d, id: blog.id })
-          return d
+        mutate: updateMut,
+        onSuccess: () => {
+          toast.success('Saved')
         },
+        resetOnSuccess: false,
         schema: editBlog,
+        transform: d => ({ ...d, id: blog.id }),
         values: {
           attachments: blog.attachments ?? [],
           content: blog.content,
@@ -118,15 +119,15 @@ const Publish = ({
     )
   },
   Setting = ({ blog }: { blog: Blog }) => {
-    const update = useMutation(useReducer, reducers.updateBlog, {
-        toast: { error: 'Failed to save settings', success: 'Saved' }
-      }),
-      form = useForm({
-        onSubmit: async d => {
-          await update({ category: d.category, id: blog.id, published: d.published })
-          return d
+    const updateMut = relax(useReducer(reducers.updateBlog)),
+      form = useFormMutation({
+        mutate: updateMut,
+        onSuccess: () => {
+          toast.success('Saved')
         },
+        resetOnSuccess: false,
         schema: editBlog,
+        transform: d => ({ category: d.category, id: blog.id, published: d.published }),
         values: { category: blog.category, published: blog.published }
       })
     return (

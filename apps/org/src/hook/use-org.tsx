@@ -4,6 +4,8 @@ import type { Org } from '@a/be/spacetimedb/types'
 
 import { createOrgHooks } from 'betterspace/react'
 
-type AppOrg = Org & { _id: string }
+const { useActiveOrg, useMyOrgs, useOrg, useOrgMutation } = createOrgHooks<Org & { _id: string }>({
+  orgIdForMutation: Number
+})
 
-export const { useActiveOrg, useMyOrgs, useOrg } = createOrgHooks<AppOrg>()
+export { useActiveOrg, useMyOrgs, useOrg, useOrgMutation }

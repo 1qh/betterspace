@@ -10,11 +10,12 @@ import { Button } from '@a/ui/button'
 import { Card, CardContent, CardHeader, CardTitle } from '@a/ui/card'
 import { FieldGroup } from '@a/ui/field'
 import { Skeleton } from '@a/ui/skeleton'
-import { AutoSaveIndicator, Form, PermissionGuard, useForm } from 'betterspace/components'
-import { useMutation } from 'betterspace/react'
+import { AutoSaveIndicator, Form, PermissionGuard, useFormMutation } from 'betterspace/components'
+import { relax } from 'betterspace/react'
 import { pickValues } from 'betterspace/zod'
 import { useRouter } from 'next/navigation'
 import { use } from 'react'
+import { toast } from 'sonner'
 import { useReducer, useSpacetimeDB, useTable } from 'spacetimedb/react'
 
 import { useOrg } from '~/hook/use-org'
@@ -25,30 +26,29 @@ const EditWikiForm = ({ wikiId }: { wikiId: number }) => {
       { org } = useOrg(),
       [wikis] = useTable(tables.wiki),
       wiki = wikis.find((w: Wiki) => w.id === wikiId && w.orgId === Number(org._id)),
-      remove = useMutation(useReducer, reducers.rmWiki, {
-        getName: () => `wiki.rm:${wikiId}`,
-        toast: { error: 'Failed to delete wiki page', success: 'Wiki page deleted' }
-      }),
-      update = useMutation(useReducer, reducers.updateWiki, {
-        getName: () => `wiki.update:${wikiId}`,
-        toast: { error: 'Failed to save wiki page', success: 'Wiki page saved' }
-      }),
-      form = useForm({
-        onSubmit: async d => {
-          await update({
-            ...d,
-            deletedAt: wiki?.deletedAt,
-            editors: wiki?.editors,
-            expectedUpdatedAt: wiki?.updatedAt,
-            id: wikiId
-          })
-          return d
+      removeWiki = useReducer(reducers.rmWiki),
+      update = relax(useReducer(reducers.updateWiki)),
+      form = useFormMutation({
+        mutate: update,
+        onSuccess: () => {
+          toast.success('Wiki page saved')
         },
+        resetOnSuccess: false,
         schema: wikiSchema,
+        transform: d => ({
+          ...d,
+          deletedAt: wiki?.deletedAt,
+          editors: wiki?.editors,
+          expectedUpdatedAt: wiki?.updatedAt,
+          id: wikiId
+        }),
         values: wiki ? pickValues(wikiSchema, wiki) : undefined
       }),
       handleDelete = () => {
-        remove({ id: wikiId }).then(() => router.push('/wiki'))
+        removeWiki({ id: wikiId }).then(() => {
+          toast.success('Wiki page deleted')
+          router.push('/wiki')
+        })
       }
 
     if (!wiki) return <Skeleton className='h-40' />

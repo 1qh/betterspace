@@ -141,15 +141,15 @@ const useWithGuard = <T extends Record<string, unknown>, S extends ZodObject<Zod
     schema: S
     values?: Widen<zinfer<S>>
   }) => useWithGuard(useBaseForm(opts)),
-  useFormMutation = <S extends ZodObject<ZodRawShape>>(opts: {
+  useFormMutation = <S extends ZodObject<ZodRawShape>, M = zinfer<S>>(opts: {
     autoSave?: { debounceMs: number; enabled: boolean }
-    mutate: (args: Record<string, unknown>) => Promise<void> | void
+    mutate: (args: M) => Promise<void> | void
     onConflict?: (data: ConflictData) => void
     onError?: ((e: unknown) => void) | false
     onSuccess?: () => void
     resetOnSuccess?: boolean
     schema: S
-    transform?: (d: zinfer<S>) => Record<string, unknown>
+    transform?: (d: zinfer<S>) => M
     values?: Widen<zinfer<S>>
   }) =>
     useWithGuard(
@@ -158,13 +158,13 @@ const useWithGuard = <T extends Record<string, unknown>, S extends ZodObject<Zod
         onConflict: opts.onConflict,
         onError: opts.onError,
         onSubmit: async d => {
-          const args = opts.transform ? opts.transform(d) : d
+          const args = opts.transform ? opts.transform(d) : (d as unknown as M)
           /** biome-ignore lint/nursery/useAwaitThenable: mutate may be async */
           await opts.mutate(args)
           return d
         },
         onSuccess: opts.onSuccess,
-        resetOnSuccess: opts.resetOnSuccess,
+        resetOnSuccess: opts.resetOnSuccess ?? true,
         schema: opts.schema,
         values: opts.values
       })

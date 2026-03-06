@@ -3,9 +3,10 @@
 import { reducers } from '@a/be/spacetimedb'
 import { Card, CardContent, CardHeader, CardTitle } from '@a/ui/card'
 import { FieldGroup } from '@a/ui/field'
-import { Form, useForm } from 'betterspace/components'
-import { useMutation } from 'betterspace/react'
+import { Form, useFormMutation } from 'betterspace/components'
+import { relax } from 'betterspace/react'
 import { useRouter } from 'next/navigation'
+import { toast } from 'sonner'
 import { useReducer } from 'spacetimedb/react'
 
 import { useOrg } from '~/hook/use-org'
@@ -14,17 +15,15 @@ import { project } from '~/schema'
 const NewProjectPage = () => {
   const router = useRouter(),
     { org } = useOrg(),
-    createProject = useMutation(useReducer, reducers.createProject, {
-      toast: { error: 'Failed to create project', success: 'Project created' }
-    }),
-    form = useForm({
-      onSubmit: async d => {
-        await createProject({ ...d, orgId: Number(org._id) })
+    createProject = relax(useReducer(reducers.createProject)),
+    form = useFormMutation({
+      mutate: createProject,
+      onSuccess: () => {
+        toast.success('Project created')
         router.push('/projects')
-        return d
       },
-      resetOnSuccess: true,
-      schema: project
+      schema: project,
+      transform: d => ({ ...d, orgId: Number(org._id) })
     })
 
   return (

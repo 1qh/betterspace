@@ -10,11 +10,12 @@ import { Button } from '@a/ui/button'
 import { Card, CardContent, CardHeader, CardTitle } from '@a/ui/card'
 import { FieldGroup } from '@a/ui/field'
 import { Skeleton } from '@a/ui/skeleton'
-import { Form, PermissionGuard, useForm } from 'betterspace/components'
-import { useMutation } from 'betterspace/react'
+import { Form, PermissionGuard, useFormMutation } from 'betterspace/components'
+import { relax } from 'betterspace/react'
 import { pickValues } from 'betterspace/zod'
 import { useRouter } from 'next/navigation'
 import { use } from 'react'
+import { toast } from 'sonner'
 import { useReducer, useSpacetimeDB, useTable } from 'spacetimedb/react'
 
 import { useOrg } from '~/hook/use-org'
@@ -25,28 +26,24 @@ const EditProjectForm = ({ projectId, taskCount }: { projectId: number; taskCoun
       { org } = useOrg(),
       [projects] = useTable(tables.project),
       project = projects.find((p: Project) => p.id === projectId && p.orgId === Number(org._id)),
-      remove = useMutation(useReducer, reducers.rmProject, {
-        getName: () => `project.rm:${projectId}`,
-        toast: { error: 'Failed to delete project', success: 'Project deleted' }
-      }),
-      update = useMutation(useReducer, reducers.updateProject, {
-        getName: () => `project.update:${projectId}`,
-        toast: { error: 'Failed to update project', success: 'Project updated' }
-      }),
-      form = useForm({
-        onSubmit: async d => {
-          await update({ ...d, expectedUpdatedAt: project?.updatedAt, id: projectId })
+      removeProject = useReducer(reducers.rmProject),
+      update = relax(useReducer(reducers.updateProject)),
+      form = useFormMutation({
+        mutate: update,
+        onSuccess: () => {
+          toast.success('Project updated')
           router.push(`/projects/${projectId}`)
-          return d
         },
         resetOnSuccess: true,
         schema: projectSchema,
+        transform: d => ({ ...d, expectedUpdatedAt: project?.updatedAt, id: projectId }),
         values: project ? pickValues(projectSchema, project) : undefined
       }),
       handleDelete = () => {
         if (taskCount < 0) return
-        remove({ id: projectId })
+        removeProject({ id: projectId })
           .then(() => {
+            toast.success('Project deleted')
             router.push('/projects')
           })
           .catch(fail)
