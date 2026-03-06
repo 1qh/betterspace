@@ -151,9 +151,7 @@ export const ReasoningContent = memo(({ children, className, ...props }: Reasoni
       className
     )}
     {...props}>
-    <Streamdown plugins={{ cjk, code, math, mermaid }} {...props}>
-      {children}
-    </Streamdown>
+    <Streamdown plugins={{ cjk, code, math, mermaid }}>{children}</Streamdown>
   </CollapsibleContent>
 ))
 

@@ -1,7 +1,7 @@
 // biome-ignore-all lint/style/noProcessEnv: test env
 // biome-ignore-all lint/suspicious/useAwait: test async
 // biome-ignore-all lint/performance/noDelete: process.env requires delete to truly unset
-/* eslint-disable @typescript-eslint/naming-convention, @typescript-eslint/no-unnecessary-condition, max-statements, new-cap */
+/* eslint-disable @typescript-eslint/naming-convention, @typescript-eslint/no-unnecessary-condition, max-statements */
 import type { ComponentProps } from 'react'
 import type { z } from 'zod/v4'
 

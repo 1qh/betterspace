@@ -4,5 +4,5 @@
     "lib": ["DOM", "ESNext"]
   },
   "exclude": ["node_modules", "**/dist"],
-  "extends": "@a/tsconfig/base.json"
+  "extends": "lintmax/tsconfig/base"
 }

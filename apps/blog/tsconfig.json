@@ -5,6 +5,6 @@
     }
   },
   "exclude": ["node_modules", "e2e"],
-  "extends": "@a/tsconfig/nextjs-app.json",
+  "extends": "lintmax/tsconfig/nextjs",
   "include": [".", ".next/types/**/*.ts"]
 }

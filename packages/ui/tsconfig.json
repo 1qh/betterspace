@@ -8,6 +8,6 @@
     "rootDir": "."
   },
   "exclude": ["dist", "node_modules"],
-  "extends": "@a/tsconfig/base.json",
+  "extends": "lintmax/tsconfig/base",
   "include": ["."]
 }

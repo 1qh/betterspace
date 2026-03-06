@@ -1,27 +1,46 @@
-import baseConfig, { warnToError } from '@a/eslint-config/base'
-import nextjsConfig from '@a/eslint-config/nextjs'
-import reactConfig from '@a/eslint-config/react'
 import { recommended } from 'betterspace/eslint'
-import { defineConfig, globalIgnores } from 'eslint/config'
+import { eslint, warnToError } from 'lintmax/eslint'
+import { join } from 'node:path'
 
-const betterspaceRules = warnToError(recommended.rules),
-  config = defineConfig(
-    globalIgnores(['packages/be/spacetimedb/module_bindings/**', 'packages/ui/**']),
-    baseConfig,
-    reactConfig,
-    nextjsConfig,
+const config = eslint({
+  append: [
     {
       ...recommended,
       files: ['packages/be/**/*.ts', 'packages/be/**/*.tsx'],
       rules: {
-        ...betterspaceRules,
+        ...warnToError(recommended.rules),
         'betterspace/discovery-check': 'off'
       }
     },
     {
       files: ['packages/be/spacetimedb/src/**/*.ts'],
       rules: {
+        '@typescript-eslint/no-unsafe-assignment': 'off',
         'betterspace/no-duplicate-crud': 'off'
+      }
+    },
+    {
+      rules: {
+        'better-tailwindcss/no-unknown-classes': [
+          'error',
+          {
+            ignore: [
+              'group',
+              'peer',
+              'nodrag',
+              'nopan',
+              'nowheel',
+              'not-prose',
+              'is-user',
+              'is-assistant',
+              'is-user:dark',
+              'animated',
+              'node-container',
+              'origin-top-center',
+              'toaster'
+            ]
+          }
+        ]
       }
     },
     {
@@ -45,24 +64,18 @@ const betterspaceRules = warnToError(recommended.rules),
           }
         ]
       }
-    },
-    {
-      rules: {
-        '@eslint-react/hooks-extra/no-direct-set-state-in-use-effect': 'off',
-        '@typescript-eslint/no-magic-numbers': 'off',
-        'no-magic-numbers': 'off',
-        'react-hooks/preserve-manual-memoization': 'off',
-        'react-hooks/set-state-in-effect': 'off'
-      }
-    },
-    {
-      languageOptions: {
-        parserOptions: {
-          projectService: true,
-          tsconfigRootDir: import.meta.dirname
-        }
-      }
     }
-  )
+  ],
+  ignores: ['packages/be/spacetimedb/module_bindings/**', 'packages/ui/**'],
+  rules: {
+    '@eslint-react/hooks-extra/no-direct-set-state-in-use-effect': 'off',
+    '@typescript-eslint/no-magic-numbers': 'off',
+    'no-magic-numbers': 'off',
+    'react-hooks/preserve-manual-memoization': 'off',
+    'react-hooks/set-state-in-effect': 'off'
+  },
+  tailwind: join(import.meta.dirname, 'packages/ui/src/styles/globals.css'),
+  tsconfigRootDir: import.meta.dirname
+})
 
 export default config
