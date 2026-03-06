@@ -130,7 +130,6 @@ test.describe
       await expect(page.getByTestId('auto-save-indicator')).not.toBeVisible()
     })
 
-    // eslint-disable-next-line max-statements
     test('auto-save persists changes after reload', async ({ blogPage, page }) => {
       const title = `Persist Blog ${Date.now()}`
       await blogPage.createBlog(title, 'Original content')
@@ -149,7 +148,6 @@ test.describe
       await expect(page.getByTestId('edit-content').first().locator('textarea')).toHaveValue(newContent)
     })
 
-    // eslint-disable-next-line max-statements
     test('can toggle publish status', async ({ blogPage, page }) => {
       const title = `Toggle Blog ${Date.now()}`
       await blogPage.createBlog(title, 'Content')

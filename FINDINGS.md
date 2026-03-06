@@ -12,7 +12,7 @@ clockworklabs/spacetime:latest
 - Items Partial: 3/22
 - Items Not Directly Tested (answered from docs/code): 7/22
 
-* * *
+---
 
 ## Item 1: Procedure + withTx + auto-inc returns correct ID to client
 
@@ -41,7 +41,7 @@ NO custom code needed for any of this.
 Procedures work exactly as needed for CRUD factories.
 Return values eliminate the need for workaround patterns.
 
-* * *
+---
 
 ## Item 2: Optimistic update pattern + reducer latency measurement
 
@@ -69,7 +69,7 @@ For Maincloud, latency may be higher — test when deploying.
 wrapper that can be added later if Maincloud latency exceeds 200ms. The 39ms local
 latency means the UI will feel instant without optimistic updates.
 
-* * *
+---
 
 ## Item 3: SpacetimeAuth Google OAuth end-to-end + identity stability
 
@@ -99,7 +99,7 @@ The token-based anonymous flow is sufficient for development and testing.
 SpacetimeAuth OAuth needed only for production with real users.
 For testing, anonymous connections with saved tokens give deterministic identities.
 
-* * *
+---
 
 ## Item 4: Pre-signed URL file upload/download via procedures
 
@@ -129,7 +129,7 @@ in local dev. Options: (a) client-side S3 SDK for URL signing (browser has Web C
 testing. Recommend option (b) — Next.js API route for signing, same as many production
 apps.
 
-* * *
+---
 
 ## Item 5: Subscription WHERE filtering + client-side sort/paginate + data size test
 
@@ -152,7 +152,7 @@ SpacetimeDB subscription SQL supports WHERE with `=`, `AND`, `OR`. Client-side
 sort/paginate still needed (subscriptions don’t support ORDER BY or LIMIT). This matches
 the plan’s expectation.
 
-* * *
+---
 
 ## Item 6: Presence strategy validation
 
@@ -180,7 +180,7 @@ Presence is as simple as inserting/deleting rows in these callbacks.
 **Gate 9 (Presence Strategy):** Use lifecycle callbacks (Approach A). No heartbeat
 needed. Event tables can supplement for real-time presence notifications.
 
-* * *
+---
 
 ## Item 7: View subscriptions for computed/joined queries
 
@@ -205,7 +205,7 @@ SpacetimeDB views are fully subscribable with delta updates.
 Views can filter by `ctx.sender` for per-user data.
 This replaces the need for custom join logic in hooks.
 
-* * *
+---
 
 ## Item 8: Docker local dev workflow
 
@@ -231,7 +231,7 @@ Full local dev workflow works end-to-end.
 `spacetime publish` handles TypeScript compilation internally (warns about missing tsc
 but builds anyway).
 
-* * *
+---
 
 ## Item 9: React SDK capability audit
 
@@ -253,17 +253,17 @@ From `spacetimedb/react`:
 
 ### Gaps vs Convex React SDK
 
-| Feature | SpacetimeDB | Convex | Gap? |
-| --- | --- | --- | --- |
-| Data subscription | `useTable` | `useQuery` | Different but equivalent |
-| Mutation | `useReducer` | `useMutation` | Different but equivalent |
-| Provider | `SpacetimeDBProvider` | `ConvexProvider` | Equivalent |
-| Loading state | `isReady` boolean | Automatic loading | Minor — SpacetimeDB returns boolean |
-| Error state | `onError` callback on subscription | Built-in error boundary | Need custom error wrapper |
-| Skip condition | Not built-in | `skip` option | Need custom wrapper |
-| Paginated query | Not built-in | `usePaginatedQuery` | Need custom `usePaginatedTable` |
-| Optimistic updates | Not built-in | Built-in | Probably not needed (39ms latency) |
-| Identity-aware | Not built-in | Built-in | Need custom `useIdentity` hook |
+| Feature            | SpacetimeDB                        | Convex                  | Gap?                                |
+| ------------------ | ---------------------------------- | ----------------------- | ----------------------------------- |
+| Data subscription  | `useTable`                         | `useQuery`              | Different but equivalent            |
+| Mutation           | `useReducer`                       | `useMutation`           | Different but equivalent            |
+| Provider           | `SpacetimeDBProvider`              | `ConvexProvider`        | Equivalent                          |
+| Loading state      | `isReady` boolean                  | Automatic loading       | Minor — SpacetimeDB returns boolean |
+| Error state        | `onError` callback on subscription | Built-in error boundary | Need custom error wrapper           |
+| Skip condition     | Not built-in                       | `skip` option           | Need custom wrapper                 |
+| Paginated query    | Not built-in                       | `usePaginatedQuery`     | Need custom `usePaginatedTable`     |
+| Optimistic updates | Not built-in                       | Built-in                | Probably not needed (39ms latency)  |
+| Identity-aware     | Not built-in                       | Built-in                | Need custom `useIdentity` hook      |
 
 ### Built-in Audit
 
@@ -284,7 +284,7 @@ These are thin wrappers, not a full binding layer.
 provides sufficient primitives.
 Build thin utility hooks (estimated 2-3 days, not 1-2 weeks).
 
-* * *
+---
 
 ## Item 10: Reducer error propagation to client
 
@@ -313,7 +313,7 @@ No custom error transport needed.
 a thin parser in betterspace to extract typed error codes.
 No custom error protocol needed.
 
-* * *
+---
 
 ## Item 11: Multi-subscription management
 
@@ -335,7 +335,7 @@ No custom error protocol needed.
 SpacetimeDB handles multiple subscriptions natively on a single WebSocket.
 No custom multiplexing needed.
 
-* * *
+---
 
 ## Item 12: Test auth bypass — deterministic Identity generation
 
@@ -366,7 +366,7 @@ for testing. No OAuth mock needed.
 Create test helper: `connectAsTestUser(name)` that generates/caches tokens per test user
 name.
 
-* * *
+---
 
 ## Item 13: Server-side data fetching / SSR story
 
@@ -395,7 +395,7 @@ Pattern: `fetch('http://localhost:3000/v1/database/{db}/sql', { body: 'SELECT ..
 parse JSON response.
 No PGWire needed.
 
-* * *
+---
 
 ## Item 14: Scheduled reducer / delayed execution
 
@@ -424,7 +424,7 @@ No external scheduler needed.
 Insert scheduled row with TTL → reducer deletes expired cache entries.
 Native support, no workaround needed.
 
-* * *
+---
 
 ## Item 15: WebSocket reconnection + subscription recovery
 
@@ -441,7 +441,7 @@ SpacetimeDB SDK handles reconnection and subscription recovery automatically.
 After reconnect, subscriptions resync with full state.
 No custom reconnection logic needed.
 
-* * *
+---
 
 ## Item 16: Multi-module structure for demo apps
 
@@ -468,7 +468,7 @@ No need for multi-module architecture.
 Prefix table names by domain (blog*, chat*, movie*, org*). Single module simplifies
 deployment and subscriptions.
 
-* * *
+---
 
 ## Item 17: Procedure external HTTP reliability
 
@@ -495,7 +495,7 @@ before relying on them.
 Procedures with HTTP fetch need Maincloud testing.
 For local dev, mock external APIs or use Next.js API routes as proxy.
 
-* * *
+---
 
 ## Item 18: Generated TypeScript bindings type shapes + u32 vs u64
 
@@ -508,14 +508,14 @@ For local dev, mock external APIs or use Next.js API routes as proxy.
 
 ### Measurements
 
-| SpacetimeDB Type | TypeScript Type | Runtime Type | JSON Safe | URL Safe | React Key Safe |
-| --- | --- | --- | --- | --- | --- |
-| u32 | number | number | YES | YES | YES |
-| u64 | bigint | bigint | NO (throws) | needs .toString() | needs .toString() |
-| string | string | string | YES | YES | YES |
-| bool | boolean | boolean | YES | YES | YES |
-| identity | Identity | object | needs .toHexString() | needs .toHexString() | needs .toHexString() |
-| timestamp | Timestamp | object | needs conversion | needs conversion | needs conversion |
+| SpacetimeDB Type | TypeScript Type | Runtime Type | JSON Safe            | URL Safe             | React Key Safe       |
+| ---------------- | --------------- | ------------ | -------------------- | -------------------- | -------------------- |
+| u32              | number          | number       | YES                  | YES                  | YES                  |
+| u64              | bigint          | bigint       | NO (throws)          | needs .toString()    | needs .toString()    |
+| string           | string          | string       | YES                  | YES                  | YES                  |
+| bool             | boolean         | boolean      | YES                  | YES                  | YES                  |
+| identity         | Identity        | object       | needs .toHexString() | needs .toHexString() | needs .toHexString() |
+| timestamp        | Timestamp       | object       | needs conversion     | needs conversion     | needs conversion     |
 
 ### Built-in Audit
 
@@ -531,7 +531,7 @@ For local dev, mock external APIs or use Next.js API routes as proxy.
 **Default to u32 for all auto-increment IDs.** This avoids the bigint serialization
 pain. Document u64 as opt-in.
 
-* * *
+---
 
 ## Item 19: Monorepo + Bun + SpacetimeDB module build chain
 
@@ -584,7 +584,7 @@ Monorepo integration via `--module-path` flag.
 Factory composition works — factories return table configs that compose into a single
 schema.
 
-* * *
+---
 
 ## Item 20: Subscription access control / read-side ACL
 
@@ -615,7 +615,7 @@ This is the recommended pattern for org-scoped data.
 Pattern: private base table → public view filtered by ctx.sender → clients subscribe to
 view. This gives server-enforced read ACL without custom middleware.
 
-* * *
+---
 
 ## Item 21: Event Tables for transient data
 
@@ -647,7 +647,7 @@ that doesn’t need persistence.
 Use for: real-time notifications, typing indicators, mutation confirmations.
 Use regular tables for data that needs persistence and querying.
 
-* * *
+---
 
 ## Item 22: `spacetime dev` unified command evaluation
 
@@ -665,7 +665,7 @@ Test `spacetime dev` with monorepo structure.
 If it works, simplify dev scripts.
 If not, keep manual `spacetime:up`, `spacetime:publish`, `spacetime:generate` scripts.
 
-* * *
+---
 
 ## Decision Gate Inputs
 
@@ -752,7 +752,7 @@ compilation. Monorepo via `--module-path`. Factory composition works.
 **Decision: Use for transient notifications, not persistent data.** Event tables need
 `onInsert` callbacks, not `.iter()`. Use regular tables for queryable data.
 
-* * *
+---
 
 ## Features We Can Skip
 
@@ -786,23 +786,23 @@ Document as post-v1 enhancement.
 If needed, implement via a `rate_limits` table with Identity + timestamp + count
 columns, checked at the start of each reducer.
 
-* * *
+---
 
 ## Measurements Summary
 
-| Metric | Value |
-| --- | --- |
-| Reducer→subscription latency (local) | 39ms |
-| HTTP SQL API latency | 0.269ms |
-| Procedure return value | Works (u32 returned) |
-| Transaction rollback | Atomic (0 partial writes) |
-| u32 auto-inc ID type | number |
-| u64 auto-inc ID type | bigint |
-| Memory with subscriptions | 2MB heap |
-| Event table delivery | Via onInsert callback (not .iter()) |
-| Scheduled reducer delay accuracy | ~2s (within margin) |
-| ctx.http.fetch (local Docker) | PANICS (networking issue) |
-| View subscription rows | Correct (6 joined rows) |
-| Private table subscription | Denied (returns error/empty) |
-| Identity stability with token | Stable (same hex across sessions) |
-| SDK version | spacetimedb@2.0.2 |
+| Metric                               | Value                               |
+| ------------------------------------ | ----------------------------------- |
+| Reducer→subscription latency (local) | 39ms                                |
+| HTTP SQL API latency                 | 0.269ms                             |
+| Procedure return value               | Works (u32 returned)                |
+| Transaction rollback                 | Atomic (0 partial writes)           |
+| u32 auto-inc ID type                 | number                              |
+| u64 auto-inc ID type                 | bigint                              |
+| Memory with subscriptions            | 2MB heap                            |
+| Event table delivery                 | Via onInsert callback (not .iter()) |
+| Scheduled reducer delay accuracy     | ~2s (within margin)                 |
+| ctx.http.fetch (local Docker)        | PANICS (networking issue)           |
+| View subscription rows               | Correct (6 joined rows)             |
+| Private table subscription           | Denied (returns error/empty)        |
+| Identity stability with token        | Stable (same hex across sessions)   |
+| SDK version                          | spacetimedb@2.0.2                   |

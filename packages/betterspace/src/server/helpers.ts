@@ -1,5 +1,5 @@
 // biome-ignore-all lint/suspicious/useAwait: async without await
-/* eslint-disable max-depth, max-statements, @typescript-eslint/max-params */
+/* eslint-disable max-depth, @typescript-eslint/max-params */
 import type { ZodObject, output as ZodOutput, ZodRawShape } from 'zod/v4'
 
 import { Identity } from 'spacetimedb'

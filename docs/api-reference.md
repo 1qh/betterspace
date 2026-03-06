@@ -52,16 +52,16 @@ const postCrud = makeCrud(spacetimedb, {
 
 **Generated reducers:**
 
-| Reducer | Parameters | Description |
-| --- | --- | --- |
-| `create_{tableName}` | All fields | Insert a row. Sets `userId = ctx.sender`, `updatedAt = ctx.timestamp`, `id = 0` (auto-inc). |
+| Reducer              | Parameters                                          | Description                                                                                     |
+| -------------------- | --------------------------------------------------- | ----------------------------------------------------------------------------------------------- |
+| `create_{tableName}` | All fields                                          | Insert a row. Sets `userId = ctx.sender`, `updatedAt = ctx.timestamp`, `id = 0` (auto-inc).     |
 | `update_{tableName}` | `id`, optional fields, optional `expectedUpdatedAt` | Update a row. Caller must be the owner. Throws `CONFLICT` if `expectedUpdatedAt` doesn’t match. |
-| `rm_{tableName}` | `id` | Delete a row (or soft-delete if `softDelete: true`). Caller must be the owner. |
+| `rm_{tableName}`     | `id`                                                | Delete a row (or soft-delete if `softDelete: true`). Caller must be the owner.                  |
 
 **Ownership:** All write operations check `row.userId === ctx.sender`. Non-owners get a
 `FORBIDDEN` error.
 
-* * *
+---
 
 ### makeOrgCrud
 
@@ -94,13 +94,13 @@ const projectCrud = makeOrgCrud(spacetimedb, {
 
 **Generated reducers:**
 
-| Reducer | Parameters | Description |
-| --- | --- | --- |
-| `create_{tableName}` | `orgId`, all fields | Insert a row. Requires org membership. |
+| Reducer              | Parameters            | Description                                                 |
+| -------------------- | --------------------- | ----------------------------------------------------------- |
+| `create_{tableName}` | `orgId`, all fields   | Insert a row. Requires org membership.                      |
 | `update_{tableName}` | `id`, optional fields | Update a row. Requires org membership + ownership or admin. |
-| `rm_{tableName}` | `id` | Delete a row. Requires org membership + ownership or admin. |
+| `rm_{tableName}`     | `id`                  | Delete a row. Requires org membership + ownership or admin. |
 
-* * *
+---
 
 ### makeSingletonCrud
 
@@ -127,12 +127,12 @@ const profileCrud = makeSingletonCrud(spacetimedb, {
 
 **Generated reducers:**
 
-| Reducer | Parameters | Description |
-| --- | --- | --- |
-| `get_{tableName}` | none | Throws `NOT_FOUND` if no row exists for the caller. Useful for triggering a read hook. |
-| `upsert_{tableName}` | All fields (all optional) | Insert or update the caller’s row. |
+| Reducer              | Parameters                | Description                                                                            |
+| -------------------- | ------------------------- | -------------------------------------------------------------------------------------- |
+| `get_{tableName}`    | none                      | Throws `NOT_FOUND` if no row exists for the caller. Useful for triggering a read hook. |
+| `upsert_{tableName}` | All fields (all optional) | Insert or update the caller’s row.                                                     |
 
-* * *
+---
 
 ### makeCacheCrud
 
@@ -161,17 +161,17 @@ const movieCrud = makeCacheCrud(spacetimedb, {
 
 **Generated reducers:**
 
-| Reducer | Parameters | Description |
-| --- | --- | --- |
-| `create_{tableName}` | `keyName` + all fields | Insert a cache entry. Sets `cachedAt`, `updatedAt`. |
-| `update_{tableName}` | `keyName` + optional fields | Update a cache entry. Clears `invalidatedAt`. |
-| `rm_{tableName}` | `keyName` | Delete a cache entry. |
-| `invalidate_{tableName}` | `keyName` | Mark an entry as invalidated (sets `invalidatedAt`). |
-| `purge_{tableName}` | none | Delete all entries older than TTL. |
+| Reducer                  | Parameters                  | Description                                          |
+| ------------------------ | --------------------------- | ---------------------------------------------------- |
+| `create_{tableName}`     | `keyName` + all fields      | Insert a cache entry. Sets `cachedAt`, `updatedAt`.  |
+| `update_{tableName}`     | `keyName` + optional fields | Update a cache entry. Clears `invalidatedAt`.        |
+| `rm_{tableName}`         | `keyName`                   | Delete a cache entry.                                |
+| `invalidate_{tableName}` | `keyName`                   | Mark an entry as invalidated (sets `invalidatedAt`). |
+| `purge_{tableName}`      | none                        | Delete all entries older than TTL.                   |
 
 Cache tables automatically get `cachedAt`, `invalidatedAt`, and `updatedAt` fields.
 
-* * *
+---
 
 ### makeChildCrud
 
@@ -199,20 +199,20 @@ const messageCrud = makeChildCrud(spacetimedb, {
 
 **Generated reducers:**
 
-| Reducer | Parameters | Description |
-| --- | --- | --- |
+| Reducer              | Parameters                    | Description                                 |
+| -------------------- | ----------------------------- | ------------------------------------------- |
 | `create_{tableName}` | `foreignKeyName` + all fields | Insert a child row. Verifies parent exists. |
-| `update_{tableName}` | `id` + optional fields | Update a child row. Caller must be owner. |
-| `rm_{tableName}` | `id` | Delete a child row. Caller must be owner. |
+| `update_{tableName}` | `id` + optional fields        | Update a child row. Caller must be owner.   |
+| `rm_{tableName}`     | `id`                          | Delete a child row. Caller must be owner.   |
 
-* * *
+---
 
 ### makeOrg
 
 Generates the full suite of org management reducers.
 See [organizations](./organizations.md) for the full config reference.
 
-* * *
+---
 
 ### makePresence
 
@@ -232,15 +232,15 @@ const presenceFns = makePresence(spacetimedb, {
 
 **Generated reducers:**
 
-| Reducer | Parameters | Description |
-| --- | --- | --- |
+| Reducer                          | Parameters                | Description                                         |
+| -------------------------------- | ------------------------- | --------------------------------------------------- |
 | `presence_heartbeat_{tableName}` | `roomId`, optional `data` | Upsert presence row. Requires authenticated sender. |
-| `presence_leave_{tableName}` | `roomId` | Delete presence row for the caller. |
-| `presence_cleanup_{tableName}` | none | Delete stale presence rows (older than TTL). |
+| `presence_leave_{tableName}`     | `roomId`                  | Delete presence row for the caller.                 |
+| `presence_cleanup_{tableName}`   | none                      | Delete stale presence rows (older than TTL).        |
 
 Constants: `HEARTBEAT_INTERVAL_MS = 15000`, `PRESENCE_TTL_MS = 30000`.
 
-* * *
+---
 
 ### makeFileUpload
 
@@ -269,12 +269,12 @@ const fileCrud = makeFileUpload(spacetimedb, {
 
 **Generated reducers:**
 
-| Reducer | Parameters | Description |
-| --- | --- | --- |
+| Reducer                       | Parameters                                      | Description                                         |
+| ----------------------------- | ----------------------------------------------- | --------------------------------------------------- |
 | `register_upload_{namespace}` | `contentType`, `filename`, `size`, `storageKey` | Record a completed upload. Validates type and size. |
-| `delete_file_{namespace}` | `fileId` | Delete a file record. Caller must be owner. |
+| `delete_file_{namespace}`     | `fileId`                                        | Delete a file record. Caller must be owner.         |
 
-* * *
+---
 
 ### setupCrud
 
@@ -305,7 +305,7 @@ const uploadFns = s.fileUpload('file', 'file', {
 const reducers = spacetimedb.exportGroup(s.allExports())
 ```
 
-* * *
+---
 
 ## React hooks
 
@@ -355,16 +355,16 @@ prevents stale pagination state when filters change.
 
 **Return value:**
 
-| Field | Type | Description |
-| --- | --- | --- |
-| `data` | `T[]` | Current page of filtered, sorted rows |
-| `hasMore` | `boolean` | Whether more rows exist |
-| `isLoading` | `boolean` | `true` until `isReady` is `true` |
-| `loadMore` | `() => void` | Load the next page |
-| `page` | `number` | Current page number |
-| `totalCount` | `number` | Total filtered row count |
+| Field        | Type         | Description                           |
+| ------------ | ------------ | ------------------------------------- |
+| `data`       | `T[]`        | Current page of filtered, sorted rows |
+| `hasMore`    | `boolean`    | Whether more rows exist               |
+| `isLoading`  | `boolean`    | `true` until `isReady` is `true`      |
+| `loadMore`   | `() => void` | Load the next page                    |
+| `page`       | `number`     | Current page number                   |
+| `totalCount` | `number`     | Total filtered row count              |
 
-* * *
+---
 
 ### usePresence
 
@@ -398,12 +398,12 @@ updatePresence({ cursor: { x: 100, y: 200 } })
 
 **Return value:**
 
-| Field | Type | Description |
-| --- | --- | --- |
-| `users` | `PresenceRow[]` | Active users (filtered by TTL) |
+| Field            | Type                                      | Description                             |
+| ---------------- | ----------------------------------------- | --------------------------------------- |
+| `users`          | `PresenceRow[]`                           | Active users (filtered by TTL)          |
 | `updatePresence` | `(data: Record<string, unknown>) => void` | Update presence data and send heartbeat |
 
-* * *
+---
 
 ### useUpload
 
@@ -427,7 +427,7 @@ const result = await upload(file, { signal: abortController.signal })
 // result: { ok: true, storageId, url? } | { ok: false, code: 'ABORTED' | 'NETWORK' | 'URL' | 'HTTP' }
 ```
 
-* * *
+---
 
 ### useInfiniteList
 
@@ -458,14 +458,14 @@ const { data, hasMore, loadMore, totalCount } = useInfiniteList(rows, isReady, {
 
 **Options (`InfiniteListOptions<T>`):**
 
-| Option | Type | Description |
-| --- | --- | --- |
-| `batchSize` | `number` | Items to load per batch (default: 50) |
-| `sort` | `ListSort<T>` | Sort field and direction |
-| `where` | `ListWhere<T>` | Filter predicate |
-| `search` | `{ query, fields, debounceMs? }` | Full-text search with optional debounce |
+| Option      | Type                             | Description                             |
+| ----------- | -------------------------------- | --------------------------------------- |
+| `batchSize` | `number`                         | Items to load per batch (default: 50)   |
+| `sort`      | `ListSort<T>`                    | Sort field and direction                |
+| `where`     | `ListWhere<T>`                   | Filter predicate                        |
+| `search`    | `{ query, fields, debounceMs? }` | Full-text search with optional debounce |
 
-* * *
+---
 
 ### useSearch
 
@@ -489,7 +489,7 @@ const results = useSearch(
 )
 ```
 
-* * *
+---
 
 ### useCacheEntry
 
@@ -511,23 +511,23 @@ const { data, isLoading, isStale, refresh } = useCacheEntry({
 
 **Options (`UseCacheEntryOptions<A, T>`):**
 
-| Option | Type | Description |
-| --- | --- | --- |
-| `args` | `A` | Arguments passed to the `load` function |
-| `data` | `null \| T \| undefined` | Current cached data (`undefined` = not yet loaded, `null` = miss) |
-| `load` | `(args: A) => Promise<void>` | Function to refresh the cache entry |
-| `table` | `string` | Table name for devtools tracking |
+| Option  | Type                         | Description                                                       |
+| ------- | ---------------------------- | ----------------------------------------------------------------- |
+| `args`  | `A`                          | Arguments passed to the `load` function                           |
+| `data`  | `null \| T \| undefined`     | Current cached data (`undefined` = not yet loaded, `null` = miss) |
+| `load`  | `(args: A) => Promise<void>` | Function to refresh the cache entry                               |
+| `table` | `string`                     | Table name for devtools tracking                                  |
 
 **Return value (`UseCacheEntryResult<T>`):**
 
-| Field | Type | Description |
-| --- | --- | --- |
-| `data` | `null \| T` | Cached data, or `null` if not loaded |
-| `isLoading` | `boolean` | `true` while loading or refreshing |
-| `isStale` | `boolean` | `true` when the entry has `stale: true` |
-| `refresh` | `() => void` | Manually trigger a refresh |
+| Field       | Type         | Description                             |
+| ----------- | ------------ | --------------------------------------- |
+| `data`      | `null \| T`  | Cached data, or `null` if not loaded    |
+| `isLoading` | `boolean`    | `true` while loading or refreshing      |
+| `isStale`   | `boolean`    | `true` when the entry has `stale: true` |
+| `refresh`   | `() => void` | Manually trigger a refresh              |
 
-* * *
+---
 
 ### useBulkSelection
 
@@ -540,7 +540,7 @@ const { selected, toggle, toggleAll, clear, isSelected, isAllSelected, count } =
   useBulkSelection(posts.map(p => p.id))
 ```
 
-* * *
+---
 
 ### useMutate
 
@@ -576,18 +576,18 @@ When the mutation fails, `error` is the thrown value and `result` is `undefined`
 
 **Options (`MutateOptions<A, R>`):**
 
-| Option | Type | Description |
-| --- | --- | --- |
-| `getName` | `(args: A) => string` | Custom name for devtools tracking |
-| `onError` | `((error: unknown) => void) \| false` | Override or suppress the default error toast |
-| `onSettled` | `(args: A, error: unknown, result?: R) => void` | Called after every mutation |
-| `onSuccess` | `(result: R, args: A) => void` | Called when the mutation succeeds |
-| `optimistic` | `boolean` | Enable optimistic updates (default: `true`) |
-| `resolveId` | `(args: A) => string \| undefined` | Resolve the row ID for optimistic reconciliation |
-| `retry` | `number \| RetryOptions` | Retry on failure. A number sets `maxAttempts`. |
-| `type` | `MutationType` | Override the detected mutation type |
+| Option       | Type                                            | Description                                      |
+| ------------ | ----------------------------------------------- | ------------------------------------------------ |
+| `getName`    | `(args: A) => string`                           | Custom name for devtools tracking                |
+| `onError`    | `((error: unknown) => void) \| false`           | Override or suppress the default error toast     |
+| `onSettled`  | `(args: A, error: unknown, result?: R) => void` | Called after every mutation                      |
+| `onSuccess`  | `(result: R, args: A) => void`                  | Called when the mutation succeeds                |
+| `optimistic` | `boolean`                                       | Enable optimistic updates (default: `true`)      |
+| `resolveId`  | `(args: A) => string \| undefined`              | Resolve the row ID for optimistic reconciliation |
+| `retry`      | `number \| RetryOptions`                        | Retry on failure. A number sets `maxAttempts`.   |
+| `type`       | `MutationType`                                  | Override the detected mutation type              |
 
-* * *
+---
 
 ### useMutation
 
@@ -622,7 +622,7 @@ save({ id: 1, title: 'New title' })
 
 Accepts the same `MutateOptions` as `useMutate`.
 
-* * *
+---
 
 ### relax
 
@@ -639,7 +639,7 @@ updateTask({ id: 1, completed: true })
 Without `relax`, SpacetimeDB-generated types require every field (even those accepting
 `undefined`) to be explicitly passed.
 
-* * *
+---
 
 ### useBulkMutate
 
@@ -665,14 +665,14 @@ bulk.run([{ id: 1 }, { id: 2 }, { id: 3 }])
 
 **Options:**
 
-| Option | Type | Description |
-| --- | --- | --- |
-| `onError` | `((error: unknown) => void) \| false` | Called if any mutation fails. Pass `false` to suppress the default error toast. |
-| `onProgress` | `(progress: BulkProgress) => void` | Called after each item settles with live progress counts |
-| `onSettled` | `(result: BulkResult<unknown>) => void` | Called once all items have settled |
-| `onSuccess` | `(count: number) => void` | Called when all mutations succeed |
+| Option       | Type                                    | Description                                                                     |
+| ------------ | --------------------------------------- | ------------------------------------------------------------------------------- |
+| `onError`    | `((error: unknown) => void) \| false`   | Called if any mutation fails. Pass `false` to suppress the default error toast. |
+| `onProgress` | `(progress: BulkProgress) => void`      | Called after each item settles with live progress counts                        |
+| `onSettled`  | `(result: BulkResult<unknown>) => void` | Called once all items have settled                                              |
+| `onSuccess`  | `(count: number) => void`               | Called when all mutations succeed                                               |
 
-* * *
+---
 
 ### useSoftDelete
 
@@ -695,23 +695,23 @@ await remove({ id: wikiId })
 
 **Options (`SoftDeleteOpts<A>`):**
 
-| Option | Type | Default | Description |
-| --- | --- | --- | --- |
-| `rm` | `(args: A) => Promise<unknown>` | required | Delete reducer |
-| `restore` | `(args: A) => Promise<unknown>` | required | Restore reducer |
-| `toast` | `ToastFn` | required | Toast function with action support |
-| `label` | `string` | `'Item'` | Display name for toast messages |
-| `undoMs` | `number` | `5000` | Duration the undo toast stays visible |
-| `onError` | `(error: unknown) => void` | — | Called if restore fails |
-| `onRestore` | `() => void` | — | Called after successful restore |
+| Option      | Type                            | Default  | Description                           |
+| ----------- | ------------------------------- | -------- | ------------------------------------- |
+| `rm`        | `(args: A) => Promise<unknown>` | required | Delete reducer                        |
+| `restore`   | `(args: A) => Promise<unknown>` | required | Restore reducer                       |
+| `toast`     | `ToastFn`                       | required | Toast function with action support    |
+| `label`     | `string`                        | `'Item'` | Display name for toast messages       |
+| `undoMs`    | `number`                        | `5000`   | Duration the undo toast stays visible |
+| `onError`   | `(error: unknown) => void`      | —        | Called if restore fails               |
+| `onRestore` | `() => void`                    | —        | Called after successful restore       |
 
 **Return value:**
 
-| Field | Type | Description |
-| --- | --- | --- |
+| Field    | Type                         | Description            |
+| -------- | ---------------------------- | ---------------------- |
 | `remove` | `(args: A) => Promise<void>` | Delete with undo toast |
 
-* * *
+---
 
 ### useOptimisticMutation
 
@@ -739,7 +739,7 @@ const { execute, isPending, error } = useOptimisticMutation({
 
 **`onSettled` signature:** `(args: A, error: unknown, result?: R) => void`
 
-* * *
+---
 
 ### useOnlineStatus
 
@@ -751,7 +751,7 @@ import { useOnlineStatus } from 'betterspace/react'
 const isOnline = useOnlineStatus()
 ```
 
-* * *
+---
 
 ## React utilities
 
@@ -781,7 +781,7 @@ try {
 }
 ```
 
-* * *
+---
 
 ### makeErrorHandler
 
@@ -817,7 +817,7 @@ When an error matches a code in `overrides`, that handler runs instead of the de
 toast. For unmatched codes, the error message is toasted via the provided `toast`
 function.
 
-* * *
+---
 
 ## React components
 
@@ -862,14 +862,14 @@ import { ErrorBoundary } from 'betterspace/components'
 
 **Props:**
 
-| Prop | Type | Description |
-| --- | --- | --- |
-| `children` | `ReactNode` | Content to protect |
-| `className` | `string` | Applied to the fallback container `div` |
-| `fallback` | `(props: { error: Error; resetErrorBoundary: () => void }) => ReactNode` | Custom fallback renderer |
-| `onError` | `(error: Error, errorInfo: ErrorInfo) => void` | Called when an error is caught |
+| Prop        | Type                                                                     | Description                             |
+| ----------- | ------------------------------------------------------------------------ | --------------------------------------- |
+| `children`  | `ReactNode`                                                              | Content to protect                      |
+| `className` | `string`                                                                 | Applied to the fallback container `div` |
+| `fallback`  | `(props: { error: Error; resetErrorBoundary: () => void }) => ReactNode` | Custom fallback renderer                |
+| `onError`   | `(error: Error, errorInfo: ErrorInfo) => void`                           | Called when an error is caught          |
 
-* * *
+---
 
 ### BetterspaceDevtools
 
@@ -923,11 +923,11 @@ All 14 field components (`Arr`, `Choose`, `Colorpick`, `Combobox`, `Datepick`, `
 `Files`, `MultiSelect`, `Num`, `Rating`, `Slider`, `Text`, `Timepick`, `Toggle`) accept
 three shared accessibility props:
 
-| Prop | Type | Description |
-| --- | --- | --- |
+| Prop       | Type      | Description                                 |
+| ---------- | --------- | ------------------------------------------- |
 | `disabled` | `boolean` | Disables the input and prevents interaction |
-| `helpText` | `string` | Renders a hint below the field |
-| `required` | `boolean` | Appends a red `*` to the field label |
+| `helpText` | `string`  | Renders a hint below the field              |
+| `required` | `boolean` | Appends a red `*` to the field label        |
 
 ```typescript
 import { fields } from 'betterspace/components'
@@ -952,7 +952,7 @@ These props work on every field component.
 `required` adds a visual indicator only — actual validation is enforced by the Zod
 schema.
 
-* * *
+---
 
 ## Server utilities
 
@@ -1045,7 +1045,7 @@ const msg = getFirstFieldError(error)
 if (msg) toast.error(msg)
 ```
 
-* * *
+---
 
 ## CLI
 
@@ -1072,7 +1072,7 @@ Health: 100/100
 Runs the same 7-category checks as `betterspace doctor`. Use it in CI to catch schema
 drift before deployment.
 
-* * *
+---
 
 ## Error codes
 
@@ -1082,19 +1082,19 @@ message intact.
 betterspace currently ships **36 structured error codes** (`ErrorCode`), defined in
 `ERROR_MESSAGES`.
 
-| Code | Description |
-| --- | --- |
-| `ALREADY_ORG_MEMBER` | Already a member of this organization |
-| `NOT_FOUND` | Row doesn’t exist |
-| `FORBIDDEN` | Caller doesn’t own the row |
-| `NOT_AUTHORIZED` | Caller lacks permission for this operation |
-| `NOT_ORG_MEMBER` | Caller is not a member of the org |
-| `CONFLICT` | `expectedUpdatedAt` doesn’t match current value |
-| `NOT_AUTHENTICATED` | Caller has a zero identity (unauthenticated) |
-| `INVALID_FILE_TYPE` | File content type not in allowed list |
-| `FILE_TOO_LARGE` | File size exceeds limit |
-| `RATE_LIMITED` | Too many requests (if rate limiting is implemented) |
-| `VALIDATION_FAILED` | Input failed schema validation |
+| Code                 | Description                                         |
+| -------------------- | --------------------------------------------------- |
+| `ALREADY_ORG_MEMBER` | Already a member of this organization               |
+| `NOT_FOUND`          | Row doesn’t exist                                   |
+| `FORBIDDEN`          | Caller doesn’t own the row                          |
+| `NOT_AUTHORIZED`     | Caller lacks permission for this operation          |
+| `NOT_ORG_MEMBER`     | Caller is not a member of the org                   |
+| `CONFLICT`           | `expectedUpdatedAt` doesn’t match current value     |
+| `NOT_AUTHENTICATED`  | Caller has a zero identity (unauthenticated)        |
+| `INVALID_FILE_TYPE`  | File content type not in allowed list               |
+| `FILE_TOO_LARGE`     | File size exceeds limit                             |
+| `RATE_LIMITED`       | Too many requests (if rate limiting is implemented) |
+| `VALIDATION_FAILED`  | Input failed schema validation                      |
 
 Parse errors on the client:
 
@@ -1114,29 +1114,29 @@ try {
 }
 ```
 
-* * *
+---
 
 ## Type reference
 
 ### SpacetimeDB type mapping
 
-| SpacetimeDB type | TypeScript type | Notes |
-| --- | --- | --- |
-| `t.u32()` | `number` | Safe for JSON, URLs, React keys |
-| `t.u64()` | `bigint` | Breaks `JSON.stringify`. Use `.toString()` for URLs/keys. |
-| `t.string()` | `string` |  |
-| `t.bool()` | `boolean` |  |
-| `t.number()` | `number` | Floating point |
-| `t.identity()` | `Identity` | Use `.toHexString()` for serialization, `.isEqual()` for comparison |
-| `t.timestamp()` | `Timestamp` | Use `toMillis()` or convert via `microsSinceUnixEpoch` |
-| `t.array(T)` | `T[]` |  |
-| `T.optional()` | `T \| undefined` |  |
+| SpacetimeDB type | TypeScript type  | Notes                                                               |
+| ---------------- | ---------------- | ------------------------------------------------------------------- |
+| `t.u32()`        | `number`         | Safe for JSON, URLs, React keys                                     |
+| `t.u64()`        | `bigint`         | Breaks `JSON.stringify`. Use `.toString()` for URLs/keys.           |
+| `t.string()`     | `string`         |                                                                     |
+| `t.bool()`       | `boolean`        |                                                                     |
+| `t.number()`     | `number`         | Floating point                                                      |
+| `t.identity()`   | `Identity`       | Use `.toHexString()` for serialization, `.isEqual()` for comparison |
+| `t.timestamp()`  | `Timestamp`      | Use `toMillis()` or convert via `microsSinceUnixEpoch`              |
+| `t.array(T)`     | `T[]`            |                                                                     |
+| `T.optional()`   | `T \| undefined` |                                                                     |
 
 **Recommendation:** Use `t.u32()` for all auto-increment IDs.
 `u32` maps to `number` and works everywhere.
 `u64` maps to `bigint` and breaks JSON serialization.
 
-* * *
+---
 
 ### Register interface
 
@@ -1167,7 +1167,7 @@ import type { RegisteredDefaultError, RegisteredMeta } from 'betterspace/server'
 // RegisteredMeta resolves to MyMeta (or Record<string, unknown> if not set)
 ```
 
-* * *
+---
 
 ### InferRow, InferCreate, InferUpdate
 
@@ -1202,14 +1202,14 @@ type PostUpdate = InferUpdate<typeof postSchema>
 
 `InferRow` is brand-aware:
 
-| Schema brand | Extra fields on `InferRow` |
-| --- | --- |
-| `OwnedSchema` | `userId: string` |
-| `OrgSchema` | `userId: string`, `orgId: number \| string` |
-| `BaseSchema` | none |
-| `SingletonSchema` | `userId: string`, `updatedAt: number` |
+| Schema brand      | Extra fields on `InferRow`                  |
+| ----------------- | ------------------------------------------- |
+| `OwnedSchema`     | `userId: string`                            |
+| `OrgSchema`       | `userId: string`, `orgId: number \| string` |
+| `BaseSchema`      | none                                        |
+| `SingletonSchema` | `userId: string`, `updatedAt: number`       |
 
-* * *
+---
 
 ### InferRows
 
@@ -1227,7 +1227,7 @@ type Rows = InferRows<typeof schemas>
 // { post: PostRow; profile: ProfileRow }
 ```
 
-* * *
+---
 
 ### UndefinedToOptional
 
@@ -1249,7 +1249,7 @@ type Relaxed = UndefinedToOptional<Generated>
 Used internally by `useMutation` and `relax()` to make SpacetimeDB-generated reducer
 args ergonomic.
 
-* * *
+---
 
 ### InferReducerArgs, InferReducerReturn, InferReducerInputs, InferReducerOutputs
 
@@ -1275,7 +1275,7 @@ type AllReturns = InferReducerOutputs<typeof reducers>
 
 Use these when writing typed wrappers around generated reducers.
 
-* * *
+---
 
 ### TypedFieldErrors and getFieldErrors
 
@@ -1307,7 +1307,7 @@ try {
 
 `getFieldErrors` returns `undefined` when the error has no field-level data.
 
-* * *
+---
 
 ### schemaVariants
 
@@ -1340,7 +1340,7 @@ Use `schemaVariants` to avoid duplicating schema definitions for create and edit
 `schemaVariants().update` now preserves full field type information rather than widening
 to `ZodObject<ZodRawShape>`.
 
-* * *
+---
 
 ### buildMeta / getMeta with Zod v4 globalRegistry
 
@@ -1364,7 +1364,7 @@ const meta = buildMeta(postSchema)
 
 When a field has no `.meta()` call, `title` and `description` are `undefined`.
 
-* * *
+---
 
 ### injectError (devtools)
 

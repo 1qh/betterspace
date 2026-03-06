@@ -143,7 +143,7 @@ const HTTP_OK = 200,
           .json()
           .catch(() => err('VALIDATION_FAILED', { message: 'Presign endpoint returned non-JSON response' }))) as unknown,
         presigned = parsePresignPayload(payload)
-      // eslint-disable-next-line max-statements
+
       return new Promise<UploadResponse>((resolve, reject) => {
         const xhr = new XMLHttpRequest(),
           { headers } = presigned,

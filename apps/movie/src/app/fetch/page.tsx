@@ -129,7 +129,6 @@ interface TmdbMovieResponse {
   vote_count: number
 }
 
-// eslint-disable-next-line max-statements
 const fetchMovie = async (id: number): Promise<MovieDetailData> => {
     // eslint-disable-next-line no-restricted-properties
     const apiKey = process.env.NEXT_PUBLIC_TMDB_API_KEY

@@ -54,7 +54,6 @@ describe('blog reducer flow', () => {
   })
 
   test('owner can update and remove blog row', async () => {
-    // eslint-disable-next-line max-statements
     await withCtx(async ctx => {
       const [user] = ctx.users
       if (!user) throw new Error('Missing test user')
@@ -97,7 +96,6 @@ describe('blog reducer flow', () => {
   })
 
   test('non owner update throws reducer error', async () => {
-    // eslint-disable-next-line max-statements
     await withCtx(async ctx => {
       const [owner, other] = ctx.users
       if (!owner) throw new Error('Missing owner user')
@@ -140,7 +138,6 @@ describe('blog reducer flow', () => {
 
 describe('chat and message reducers', () => {
   test('message rows persist after chat remove in current module', async () => {
-    // eslint-disable-next-line max-statements
     await withCtx(async ctx => {
       const [user] = ctx.users
       if (!user) throw new Error('Missing test user')

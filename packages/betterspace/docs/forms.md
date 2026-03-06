@@ -266,7 +266,7 @@ const handleConflict = (conflict: ConflictData<typeof postSchema>) => {
 }
 ```
 
-* * *
+---
 
 ## File uploads
 

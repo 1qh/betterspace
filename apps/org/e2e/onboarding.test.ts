@@ -1,6 +1,6 @@
 // biome-ignore-all lint/performance/useTopLevelRegex: test file
 // biome-ignore-all lint/nursery/useGlobalThis: browser API
-/* eslint-disable max-statements, @typescript-eslint/no-unsafe-member-access */
+/* eslint-disable @typescript-eslint/no-unsafe-member-access */
 import { login } from '@a/e2e/helpers'
 import { api, createTestOrg, ensureTestUser, makeOrgTestUtils, tc } from '@a/e2e/org-helpers'
 import path from 'node:path'

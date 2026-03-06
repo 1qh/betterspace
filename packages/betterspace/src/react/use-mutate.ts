@@ -1,5 +1,5 @@
 // biome-ignore-all lint/style/noProcessEnv: intentional process.env access
-/* eslint-disable max-statements, complexity */
+/* eslint-disable complexity */
 'use client'
 
 import { useCallback } from 'react'

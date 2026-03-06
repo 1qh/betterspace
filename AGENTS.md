@@ -7,7 +7,7 @@ expected.
 
 # RULES
 
-* * *
+---
 
 - only use `bun`, `yarn/npm/npx/pnpm` are forbidden
 - `bun fix` must always pass
@@ -30,7 +30,7 @@ bun fix
 bun test:all
 ```
 
-* * *
+---
 
 ## Code Style
 
@@ -49,14 +49,14 @@ bun test:all
   `index.ts` files
 - **no barrel exports**: do not create `index.ts` re-export files
 
-* * *
+---
 
 ## Linting
 
-| Linter | Ignore comment |
-| --- | --- |
-| oxlint | `// oxlint-disable(-next-line) rule-name` |
-| eslint | `// eslint-disable(-next-line) rule-name` |
+| Linter  | Ignore comment                                         |
+| ------- | ------------------------------------------------------ |
+| oxlint  | `// oxlint-disable(-next-line) rule-name`              |
+| eslint  | `// eslint-disable(-next-line) rule-name`              |
 | biomejs | `/** biome-ignore(-all) lint/category/rule: reason */` |
 
 Run `bun fix` to auto-fix and verify all linters pass (zero errors, warnings allowed).
@@ -87,7 +87,7 @@ Run `bun fix` to auto-fix and verify all linters pass (zero errors, warnings all
 - `performance/noImgElement` - external images
 - `suspicious/noExplicitAny` - unavoidable generic boundaries
 
-* * *
+---
 
 ## Minimal DOM rule (React + Tailwind)
 
@@ -267,7 +267,7 @@ List semantics (wrapper is OK)
 - **No hidden coupling:** avoid styling deep child internals unless it’s a deliberate
   API.
 
-* * *
+---
 
 ## E2E Testing Strategy (Playwright)
 
@@ -317,12 +317,12 @@ bun test:e2e -- --workers=1 --timeout=10000 --reporter=dot
 
 ### Timeout Rules
 
-| Scope | Max Timeout | Kill After |
-| --- | --- | --- |
-| Single test debug | 5s | 10s |
-| Single test file | 8s per test | 30s total |
-| Multiple files | 8s per test | 60s total |
-| Full suite | 10s per test | 180s total |
+| Scope             | Max Timeout  | Kill After |
+| ----------------- | ------------ | ---------- |
+| Single test debug | 5s           | 10s        |
+| Single test file  | 8s per test  | 30s total  |
+| Multiple files    | 8s per test  | 60s total  |
+| Full suite        | 10s per test | 180s total |
 
 ### Early Failure Detection
 
@@ -358,13 +358,13 @@ console.log('Enabled:', await el.isEnabled())
 
 ### Common Playwright Issues
 
-| Symptom | Likely Cause | Fix |
-| --- | --- | --- |
-| Test hangs on `fill()` | Input not visible/enabled | Check element state first |
-| Test hangs on `click()` | Button disabled | Check `isDisabled()` |
-| `waitForLoadState('networkidle')` hangs | Continuous polling/websocket | Use `waitForSelector()` instead |
-| Element not found | Wrong locator | Check if testid is on element vs parent |
-| Flaky counts | Parallel test interference | Run with `--workers=1` |
+| Symptom                                 | Likely Cause                 | Fix                                     |
+| --------------------------------------- | ---------------------------- | --------------------------------------- |
+| Test hangs on `fill()`                  | Input not visible/enabled    | Check element state first               |
+| Test hangs on `click()`                 | Button disabled              | Check `isDisabled()`                    |
+| `waitForLoadState('networkidle')` hangs | Continuous polling/websocket | Use `waitForSelector()` instead         |
+| Element not found                       | Wrong locator                | Check if testid is on element vs parent |
+| Flaky counts                            | Parallel test interference   | Run with `--workers=1`                  |
 
 ### Test Cleanup
 
@@ -391,7 +391,7 @@ SPACETIMEDB_TEST_MODE=true bun spacetime:publish
 
 `bun test:e2e` does this automatically before running tests.
 
-* * *
+---
 
 ## Next.js Dynamic Rendering with SpacetimeDB
 
@@ -413,7 +413,7 @@ const Page = async () => {
 - Any Server Component that renders SpacetimeDB-subscribed client components
 - Pages with user-specific data that must not be statically cached
 
-* * *
+---
 
 ## react-doctor
 
@@ -428,28 +428,28 @@ best-practice violations.
 
 ### Known false positives (do NOT fix)
 
-| Warning | Why it’s OK |
-| --- | --- |
-| Unused file (Next.js pages/layouts/configs) | Framework entry points, not imported by user code |
-| Unused export (cross-package library API) | Public API consumed by other packages — react-doctor scans per-project |
-| `<img>` for SpacetimeDB storage URLs | Dynamic URLs from storage — `next/image` requires known `images.domains` |
-| `preventDefault()` on `<form>` | SPA forms submitting via SpacetimeDB reducers, no server action |
-| `useEffect` with intersection observer `inView` | Standard infinite scroll pattern with `react-intersection-observer` |
-| `useSearchParams requires Suspense` when already wrapped at call site | react-doctor scans the component file, not where it’s rendered |
-| `dangerouslySetInnerHTML` / `<script>` in org-redirect | Controlled redirect pattern for setting active org cookie |
-| Missing metadata in demo app layouts/pages | Metadata is optional for demo apps — user preference to keep source clean |
+| Warning                                                               | Why it’s OK                                                               |
+| --------------------------------------------------------------------- | ------------------------------------------------------------------------- |
+| Unused file (Next.js pages/layouts/configs)                           | Framework entry points, not imported by user code                         |
+| Unused export (cross-package library API)                             | Public API consumed by other packages — react-doctor scans per-project    |
+| `<img>` for SpacetimeDB storage URLs                                  | Dynamic URLs from storage — `next/image` requires known `images.domains`  |
+| `preventDefault()` on `<form>`                                        | SPA forms submitting via SpacetimeDB reducers, no server action           |
+| `useEffect` with intersection observer `inView`                       | Standard infinite scroll pattern with `react-intersection-observer`       |
+| `useSearchParams requires Suspense` when already wrapped at call site | react-doctor scans the component file, not where it’s rendered            |
+| `dangerouslySetInnerHTML` / `<script>` in org-redirect                | Controlled redirect pattern for setting active org cookie                 |
+| Missing metadata in demo app layouts/pages                            | Metadata is optional for demo apps — user preference to keep source clean |
 
 ### Rules to always follow
 
-| Rule | Fix |
-| --- | --- |
-| Hook naming: functions calling hooks must start with `use` | Rename `withFoo` → `useFoo` |
-| Array keys must use stable IDs, never indices | Use `item.id`, `item.toolCallId`, etc. |
-| `useSearchParams()` needs `<Suspense>` boundary | Wrap the component using it at the render site |
-| No `Date.now()` / `Math.random()` during render | Move impure calls into `useEffect` / `useState` initializer / event handlers |
-| SpacetimeDB camelCase filenames need oxlint override | Add to `.oxlintrc.json` `overrides` with `unicorn/filename-case: off` |
+| Rule                                                       | Fix                                                                          |
+| ---------------------------------------------------------- | ---------------------------------------------------------------------------- |
+| Hook naming: functions calling hooks must start with `use` | Rename `withFoo` → `useFoo`                                                  |
+| Array keys must use stable IDs, never indices              | Use `item.id`, `item.toolCallId`, etc.                                       |
+| `useSearchParams()` needs `<Suspense>` boundary            | Wrap the component using it at the render site                               |
+| No `Date.now()` / `Math.random()` during render            | Move impure calls into `useEffect` / `useState` initializer / event handlers |
+| SpacetimeDB camelCase filenames need oxlint override       | Add to `.oxlintrc.json` `overrides` with `unicorn/filename-case: off`        |
 
-* * *
+---
 
 ## SpacetimeDB Module Type Safety
 
@@ -472,14 +472,14 @@ bun spacetime:generate
 - Rely on E2E tests and `bun spacetime:publish` to catch schema drift
 - In test files, use the generated types directly
 
-* * *
+---
 
 ## Refactoring
 
 After any significant refactoring, verify that passing a wrong field name to a reducer
 call fails to compile.
 
-* * *
+---
 
 # PROHIBITIONS
 
@@ -492,26 +492,26 @@ call fails to compile.
 - NEVER hardcode project-specific data in `packages/betterspace/` — it is a
   general-purpose library for any developer
 
-* * *
+---
 
 ## Repository Architecture
 
 `packages/betterspace/` is the **published library** (`bun add betterspace`). Everything
 else is **consumer code** — demo apps that happen to live in the same monorepo:
 
-| Path | Role | Can reference betterspace internals? |
-| --- | --- | --- |
-| `packages/betterspace/` | Library (npm published) | N/A — IS the library |
-| `packages/be/` | Demo backend (consumer) | NO — uses public API only |
-| `packages/be/spacetimedb/` | SpacetimeDB Rust module + generated bindings | NO |
-| `apps/` | Demo web apps (consumer) | NO — uses public API only |
-| `packages/ui/` | Shared UI components (read-only) | NO |
+| Path                       | Role                                         | Can reference betterspace internals? |
+| -------------------------- | -------------------------------------------- | ------------------------------------ |
+| `packages/betterspace/`    | Library (npm published)                      | N/A — IS the library                 |
+| `packages/be/`             | Demo backend (consumer)                      | NO — uses public API only            |
+| `packages/be/spacetimedb/` | SpacetimeDB Rust module + generated bindings | NO                                   |
+| `apps/`                    | Demo web apps (consumer)                     | NO — uses public API only            |
+| `packages/ui/`             | Shared UI components (read-only)             | NO                                   |
 
 **The library must work for ANY project, not just these demos.** A developer who runs
 `bun add betterspace` and defines their own Zod schemas must get correct output without
 editing library source.
 
-* * *
+---
 
 ## codegen: No Project-Specific Data
 

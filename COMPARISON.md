@@ -19,7 +19,7 @@ These platform differences are NOT gaps — they’re expected divergences docum
 PLAN.md. The gaps below are DX shortcomings where betterspace requires MORE boilerplate
 or LESS capability than lazyconvex for equivalent functionality.
 
-* * *
+---
 
 ## Gap 1: CRUD Factories Require Field Redefinition (4x → 2x)
 
@@ -67,7 +67,7 @@ Table definitions use spreads from `t.ts` + system fields.
 Fields defined 2x total (t.ts + z.ts) — the platform minimum since SpacetimeDB `t.*`
 types and Zod serve different purposes.
 
-* * *
+---
 
 ## Gap 2: No Custom Reducer Factories (m, q, pq)
 
@@ -94,7 +94,7 @@ const togglePublish = m(
 **Resolution**: `m()` already existed in `setupCrud` return value (setup.ts lines
 549-561). Registers into `allExports()` automatically.
 
-* * *
+---
 
 ## Gap 3: No Per-Table File Separation
 
@@ -122,7 +122,7 @@ packages/be/spacetimedb/src/
 Each table’s CRUD is 6-12 lines.
 Custom logic can be co-located per file.
 
-* * *
+---
 
 ## Gap 4: Org Cascade Requires Manual Callbacks
 
@@ -148,7 +148,7 @@ const orgFns = org(orgFields.team, {
 Library knows all org-scoped tables have `orgId` and `id` columns by convention.
 Consumer went from 24+ lines of manual callbacks to a single `cascadeTables` array.
 
-* * *
+---
 
 ## Gap 5: Missing Org Helper Exports
 
@@ -164,7 +164,7 @@ Consumer went from 24+ lines of manual callbacks to a single `cascadeTables` arr
 (`betterspace/server`). No code changes needed — just verified the exports were
 available.
 
-* * *
+---
 
 ## Gap 6: No uniqueCheck Helper
 
@@ -185,7 +185,7 @@ const isSlugAvailable = makeUnique('wiki', 'slug')
 **Resolution**: `makeUnique` already existed in `helpers.ts` and was re-exported from
 the library barrel.
 
-* * *
+---
 
 ## Gap 7: makeOrg Requires Verbose Manual Configuration
 
@@ -213,7 +213,7 @@ The library derives `builders` (knows org reducer parameter types), table access
 (from schema via `tblOf()`), and cascade callbacks (from string table names via
 `dbTable()`). Consumer went from 50+ lines of manual config to 4 lines.
 
-* * *
+---
 
 ## Gap 8: Manual Export Assembly
 
@@ -233,7 +233,7 @@ Every factory (`crud`, `orgCrud`, `childCrud`, `cacheCrud`, `singletonCrud`, `or
 `fileUpload`, `m`) registers its exports automatically.
 Consumer calls `allExports()` once at the end.
 
-* * *
+---
 
 ## Gap 9: Schema Definition Verbosity (4.5x → 2.8x)
 
@@ -290,7 +290,7 @@ The remaining 2.8x ratio (127 vs 46 lines) is accounted for by:
 The core owned/orgScoped/singleton/child tables are 1-line each — matching lazyconvex
 DX.
 
-* * *
+---
 
 ## Gap 10: Reducer Calls Require `key: undefined` Boilerplate
 
@@ -373,16 +373,16 @@ Missing JS keys return `undefined`, which serializes as `None`. Both `null` and
 
 **Impact across demo apps**:
 
-| App | Before | After |
-| --- | --- | --- |
-| blog edit | `partialValues(editBlog, { id, published, expectedUpdatedAt: undefined, ... })` | `editBlog({ id, published: !published })` |
-| org tasks | `partialValues(taskUpdate, { id, completed, assigneeId: undefined, ... })` | `taskUpdate({ id, completed: !current.completed })` |
-| org projects | `partialValues(projectUpdate, { ...d, editors: undefined, ... })` | `projectUpdate({ ...d, expectedUpdatedAt, id })` |
-| org wiki | `{ ...d, deletedAt: undefined, editors: undefined, orgId }` | `{ ...d, orgId }` |
-| org settings | `{ ...d, avatarId: undefined, orgId }` | `{ ...d, orgId }` |
-| movie fetch | `createMovie(partialValues(base.movie, loadedMovie))` | `createMovie(loadedMovie)` |
+| App          | Before                                                                          | After                                               |
+| ------------ | ------------------------------------------------------------------------------- | --------------------------------------------------- |
+| blog edit    | `partialValues(editBlog, { id, published, expectedUpdatedAt: undefined, ... })` | `editBlog({ id, published: !published })`           |
+| org tasks    | `partialValues(taskUpdate, { id, completed, assigneeId: undefined, ... })`      | `taskUpdate({ id, completed: !current.completed })` |
+| org projects | `partialValues(projectUpdate, { ...d, editors: undefined, ... })`               | `projectUpdate({ ...d, expectedUpdatedAt, id })`    |
+| org wiki     | `{ ...d, deletedAt: undefined, editors: undefined, orgId }`                     | `{ ...d, orgId }`                                   |
+| org settings | `{ ...d, avatarId: undefined, orgId }`                                          | `{ ...d, orgId }`                                   |
+| movie fetch  | `createMovie(partialValues(base.movie, loadedMovie))`                           | `createMovie(loadedMovie)`                          |
 
-* * *
+---
 
 ## Gap 11: Schema Variants Boilerplate
 
@@ -434,7 +434,7 @@ const createBlog = owned.blog.omit({ published: true }),
 Edit forms use the base schema directly + `pickValues()` for pre-filling.
 `schemaVariants` remains in the library as a public API for consumers who need it.
 
-* * *
+---
 
 ## Gap 12: Leftover `key: undefined` Boilerplate
 
@@ -469,7 +469,7 @@ await createTask({
 
 **Resolution**: Removed the leftover `assigneeId: undefined` from project detail page.
 
-* * *
+---
 
 ## Gap 13: `getName` Boilerplate in `useMutation`
 
@@ -525,7 +525,7 @@ works by overriding the auto-inferred name.
 - 15 static `getName` calls removed across 10 files
 - 11 dynamic `getName` calls intentionally kept (they use runtime IDs for tracking)
 
-* * *
+---
 
 ## Gap 14: `null` Not Accepted for Optional Reducer Fields
 
@@ -577,7 +577,7 @@ it.
 - 2 `partialValues` calls eliminated (blog edit, blog profile)
 - Blog Create `onSubmit` went from 18 lines to 2 lines
 
-* * *
+---
 
 ## Gap 15: Redundant `toastFieldError` Try/Catch
 
@@ -628,7 +628,7 @@ No manual handling needed.
 - 2 `partialValues` imports removed
 - 2 `toast` (sonner) imports removed
 
-* * *
+---
 
 ## Gap 16: `useFormMutation` — Combined Mutation + Form Hook
 
@@ -692,7 +692,7 @@ type parameter to work with typed reducer functions.
 - Each file saves 3-6 lines of hook setup boilerplate
 - Eliminated double-toasting issue (useMutation toast + form defaultOnError)
 
-* * *
+---
 
 ## Gap 17: `useOrgMutation` — Auto-Inject `orgId` for Org Mutations
 
@@ -739,7 +739,7 @@ The returned `useOrgMutation` wraps mutation functions to auto-inject the transf
 - Removed 9 lines of per-mutation toast/getName setup
 - `orgId: Number(org._id)` no longer needed at call sites
 
-* * *
+---
 
 ## Gap 18: `relax()` Wrapper Tax on `useFormMutation`
 
@@ -799,64 +799,64 @@ treats missing keys as `None`.
 - `relax()` still exists and is used by 1 non-form site (`useBulkMutate` in project
   detail page)
 
-| File | Before | After |
-| --- | --- | --- |
-| wiki/new | `relax(useReducer(...))` + `mutate: createWiki` | `mutate: useReducer(...)` |
-| wiki/edit | `relax(useReducer(...))` + `mutate: update` | `mutate: useReducer(...)` |
-| projects/new | `relax(useReducer(...))` + `mutate: createProject` | `mutate: useReducer(...)` |
-| projects/edit | `relax(useReducer(...))` + `mutate: update` | `mutate: useReducer(...)` |
-| invite-dialog | `relax(useReducer(...))` + `mutate: sendInvite` | `mutate: useReducer(...)` |
-| new org | `relax(useReducer(...))` + `mutate: create` | `mutate: useReducer(...)` |
-| org settings | `useForm` + `relax()` + manual onSubmit | `useFormMutation` + transform |
-| blog create | `relax(useReducer(...))` + `mutate: createMut` | `mutate: useReducer(...)` |
-| blog edit (2x) | `relax(useReducer(...))` + `mutate: updateMut` | `mutate: useReducer(...)` |
-| blog profile | `relax(useReducer(...))` + `mutate: upsertMut` | `mutate: useReducer(...)` |
+| File           | Before                                             | After                         |
+| -------------- | -------------------------------------------------- | ----------------------------- |
+| wiki/new       | `relax(useReducer(...))` + `mutate: createWiki`    | `mutate: useReducer(...)`     |
+| wiki/edit      | `relax(useReducer(...))` + `mutate: update`        | `mutate: useReducer(...)`     |
+| projects/new   | `relax(useReducer(...))` + `mutate: createProject` | `mutate: useReducer(...)`     |
+| projects/edit  | `relax(useReducer(...))` + `mutate: update`        | `mutate: useReducer(...)`     |
+| invite-dialog  | `relax(useReducer(...))` + `mutate: sendInvite`    | `mutate: useReducer(...)`     |
+| new org        | `relax(useReducer(...))` + `mutate: create`        | `mutate: useReducer(...)`     |
+| org settings   | `useForm` + `relax()` + manual onSubmit            | `useFormMutation` + transform |
+| blog create    | `relax(useReducer(...))` + `mutate: createMut`     | `mutate: useReducer(...)`     |
+| blog edit (2x) | `relax(useReducer(...))` + `mutate: updateMut`     | `mutate: useReducer(...)`     |
+| blog profile   | `relax(useReducer(...))` + `mutate: upsertMut`     | `mutate: useReducer(...)`     |
 
-* * *
+---
 
 ## Inherent Platform Differences (NOT Gaps)
 
 These are expected divergences due to SpacetimeDB vs Convex fundamentals:
 
-| Feature | lazyconvex (Convex) | betterspace (SpacetimeDB) |
-| --- | --- | --- |
-| Schema source | Zod only (1x) | t.ts + z.ts (2x minimum) |
-| Data fetching | Query functions | WebSocket subscriptions |
-| IDs | String | u32 auto-increment |
-| Auth context | `getAuthUserId(ctx)` | `ctx.sender` (Identity) |
-| File storage | Built-in Convex storage | S3/R2 pre-signed URLs |
-| Error type | `ConvexError` | `SenderError` |
+| Feature       | lazyconvex (Convex)     | betterspace (SpacetimeDB)                |
+| ------------- | ----------------------- | ---------------------------------------- |
+| Schema source | Zod only (1x)           | t.ts + z.ts (2x minimum)                 |
+| Data fetching | Query functions         | WebSocket subscriptions                  |
+| IDs           | String                  | u32 auto-increment                       |
+| Auth context  | `getAuthUserId(ctx)`    | `ctx.sender` (Identity)                  |
+| File storage  | Built-in Convex storage | S3/R2 pre-signed URLs                    |
+| Error type    | `ConvexError`           | `SenderError`                            |
 | Return values | Mutations return values | Reducers don’t (await for success/error) |
 
-* * *
+---
 
 ## Summary
 
 All 18 DX gaps are **CLOSED**. A developer moving from lazyconvex to betterspace writes
 the same amount of code (or less) for equivalent functionality.
 
-| Gap | Before | After | Status |
-| --- | --- | --- | --- |
-| 1. Field redefinition | 3-4x | 2x (platform minimum) | CLOSED |
-| 2. Custom reducer factory | Manual auth | `m()` in setupCrud | CLOSED |
-| 3. Per-table files | 387-line monolith | 10 files, ~222 lines | CLOSED |
-| 4. Org cascade | 24+ lines callbacks | `cascadeTables: ['task']` | CLOSED |
-| 5. Org helper exports | Missing 4 helpers | All exported | CLOSED |
-| 6. uniqueCheck helper | Missing | `makeUnique` exported | CLOSED |
-| 7. makeOrg config | 50+ lines | 4 lines | CLOSED |
-| 8. Export assembly | Manual spreads | `allExports()` | CLOSED |
-| 9. Schema verbosity | 205 lines (4.5x) | 127 lines, 1-line tables | CLOSED |
-| 10. `key: undefined` boilerplate | Every omitted field explicit | Only changed fields | CLOSED |
-| 11. Schema variants boilerplate | 44-line schema.ts + variants | 24 lines, base schemas | CLOSED |
-| 12. Leftover `key: undefined` | `assigneeId: undefined` | Omit optional fields | CLOSED |
-| 13. `getName` boilerplate | Static `getName` on every call | Auto-inferred from reducer | CLOSED |
-| 14. `null` not accepted | `?? undefined` + `partialValues` | Spread form data directly | CLOSED |
-| 15. Redundant `toastFieldError` | Manual try/catch (double-toast) | `useMutation` handles all | CLOSED |
-| 16. `useFormMutation` combined hook | Two hooks + manual `onSubmit` | One hook, declarative | CLOSED |
-| 17. `useOrgMutation` auto-inject | Manual `orgId: Number(org._id)` | Auto-injected via config | CLOSED |
-| 18. `relax()` wrapper tax | `relax()` + extra variable per form | Inline `useReducer(...)` | CLOSED |
+| Gap                                 | Before                              | After                      | Status |
+| ----------------------------------- | ----------------------------------- | -------------------------- | ------ |
+| 1. Field redefinition               | 3-4x                                | 2x (platform minimum)      | CLOSED |
+| 2. Custom reducer factory           | Manual auth                         | `m()` in setupCrud         | CLOSED |
+| 3. Per-table files                  | 387-line monolith                   | 10 files, ~222 lines       | CLOSED |
+| 4. Org cascade                      | 24+ lines callbacks                 | `cascadeTables: ['task']`  | CLOSED |
+| 5. Org helper exports               | Missing 4 helpers                   | All exported               | CLOSED |
+| 6. uniqueCheck helper               | Missing                             | `makeUnique` exported      | CLOSED |
+| 7. makeOrg config                   | 50+ lines                           | 4 lines                    | CLOSED |
+| 8. Export assembly                  | Manual spreads                      | `allExports()`             | CLOSED |
+| 9. Schema verbosity                 | 205 lines (4.5x)                    | 127 lines, 1-line tables   | CLOSED |
+| 10. `key: undefined` boilerplate    | Every omitted field explicit        | Only changed fields        | CLOSED |
+| 11. Schema variants boilerplate     | 44-line schema.ts + variants        | 24 lines, base schemas     | CLOSED |
+| 12. Leftover `key: undefined`       | `assigneeId: undefined`             | Omit optional fields       | CLOSED |
+| 13. `getName` boilerplate           | Static `getName` on every call      | Auto-inferred from reducer | CLOSED |
+| 14. `null` not accepted             | `?? undefined` + `partialValues`    | Spread form data directly  | CLOSED |
+| 15. Redundant `toastFieldError`     | Manual try/catch (double-toast)     | `useMutation` handles all  | CLOSED |
+| 16. `useFormMutation` combined hook | Two hooks + manual `onSubmit`       | One hook, declarative      | CLOSED |
+| 17. `useOrgMutation` auto-inject    | Manual `orgId: Number(org._id)`     | Auto-injected via config   | CLOSED |
+| 18. `relax()` wrapper tax           | `relax()` + extra variable per form | Inline `useReducer(...)`   | CLOSED |
 
-* * *
+---
 
 ## Fresh-Eyes Audit (Post-Closure)
 
@@ -869,12 +869,12 @@ type to `UndefinedToOptional<M>` inside the hook.
 The remaining line count deltas are all **platform-inherent** or **betterspace
 enhancements**:
 
-| App | betterspace | lazyconvex | Delta | Root Cause |
-| --- | --- | --- | --- | --- |
-| org | +150 lines | — | +150 | Client-side filtering (SpacetimeDB subscriptions vs Convex server queries) |
-| blog | +70 lines | — | +70 | `useReducer` injection (platform), `useOptimisticMutation` pattern (platform) |
-| movie | +260 lines | — | +260 | Client-side TMDB fetch + Playwright mock data (no server-side actions in SpacetimeDB) |
-| chat | +8 lines | — | +8 | `useOnlineStatus` enhancement + Convex AI tool setup is longer |
+| App   | betterspace | lazyconvex | Delta | Root Cause                                                                            |
+| ----- | ----------- | ---------- | ----- | ------------------------------------------------------------------------------------- |
+| org   | +150 lines  | —          | +150  | Client-side filtering (SpacetimeDB subscriptions vs Convex server queries)            |
+| blog  | +70 lines   | —          | +70   | `useReducer` injection (platform), `useOptimisticMutation` pattern (platform)         |
+| movie | +260 lines  | —          | +260  | Client-side TMDB fetch + Playwright mock data (no server-side actions in SpacetimeDB) |
+| chat  | +8 lines    | —          | +8    | `useOnlineStatus` enhancement + Convex AI tool setup is longer                        |
 
 **No new fixable DX gaps found.** Org delta dropped from +176 to +150 after Gaps 16-17
 (useFormMutation + useOrgMutation), then further reduced after Gap 18 (no more `relax()`

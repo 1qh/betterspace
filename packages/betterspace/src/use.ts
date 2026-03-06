@@ -1,5 +1,5 @@
 #!/usr/bin/env bun
-/* eslint-disable no-console, max-statements */
+/* eslint-disable no-console */
 /** biome-ignore-all lint/style/noProcessEnv: cli */
 
 import { spawnSync } from 'node:child_process'

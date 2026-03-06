@@ -52,16 +52,16 @@ const postCrud = makeCrud(spacetimedb, {
 
 **Generated reducers:**
 
-| Reducer | Parameters | Description |
-| --- | --- | --- |
-| `create_{tableName}` | All fields | Insert a row. Sets `userId = ctx.sender`, `updatedAt = ctx.timestamp`, `id = 0` (auto-inc). |
+| Reducer              | Parameters                                          | Description                                                                                     |
+| -------------------- | --------------------------------------------------- | ----------------------------------------------------------------------------------------------- |
+| `create_{tableName}` | All fields                                          | Insert a row. Sets `userId = ctx.sender`, `updatedAt = ctx.timestamp`, `id = 0` (auto-inc).     |
 | `update_{tableName}` | `id`, optional fields, optional `expectedUpdatedAt` | Update a row. Caller must be the owner. Throws `CONFLICT` if `expectedUpdatedAt` doesn’t match. |
-| `rm_{tableName}` | `id` | Delete a row (or soft-delete if `softDelete: true`). Caller must be the owner. |
+| `rm_{tableName}`     | `id`                                                | Delete a row (or soft-delete if `softDelete: true`). Caller must be the owner.                  |
 
 **Ownership:** All write operations check `row.userId === ctx.sender`. Non-owners get a
 `FORBIDDEN` error.
 
-* * *
+---
 
 ### makeOrgCrud
 
@@ -94,13 +94,13 @@ const projectCrud = makeOrgCrud(spacetimedb, {
 
 **Generated reducers:**
 
-| Reducer | Parameters | Description |
-| --- | --- | --- |
-| `create_{tableName}` | `orgId`, all fields | Insert a row. Requires org membership. |
+| Reducer              | Parameters            | Description                                                 |
+| -------------------- | --------------------- | ----------------------------------------------------------- |
+| `create_{tableName}` | `orgId`, all fields   | Insert a row. Requires org membership.                      |
 | `update_{tableName}` | `id`, optional fields | Update a row. Requires org membership + ownership or admin. |
-| `rm_{tableName}` | `id` | Delete a row. Requires org membership + ownership or admin. |
+| `rm_{tableName}`     | `id`                  | Delete a row. Requires org membership + ownership or admin. |
 
-* * *
+---
 
 ### makeSingletonCrud
 
@@ -127,12 +127,12 @@ const profileCrud = makeSingletonCrud(spacetimedb, {
 
 **Generated reducers:**
 
-| Reducer | Parameters | Description |
-| --- | --- | --- |
-| `get_{tableName}` | none | Throws `NOT_FOUND` if no row exists for the caller. Useful for triggering a read hook. |
-| `upsert_{tableName}` | All fields (all optional) | Insert or update the caller’s row. |
+| Reducer              | Parameters                | Description                                                                            |
+| -------------------- | ------------------------- | -------------------------------------------------------------------------------------- |
+| `get_{tableName}`    | none                      | Throws `NOT_FOUND` if no row exists for the caller. Useful for triggering a read hook. |
+| `upsert_{tableName}` | All fields (all optional) | Insert or update the caller’s row.                                                     |
 
-* * *
+---
 
 ### makeCacheCrud
 
@@ -161,17 +161,17 @@ const movieCrud = makeCacheCrud(spacetimedb, {
 
 **Generated reducers:**
 
-| Reducer | Parameters | Description |
-| --- | --- | --- |
-| `create_{tableName}` | `keyName` + all fields | Insert a cache entry. Sets `cachedAt`, `updatedAt`. |
-| `update_{tableName}` | `keyName` + optional fields | Update a cache entry. Clears `invalidatedAt`. |
-| `rm_{tableName}` | `keyName` | Delete a cache entry. |
-| `invalidate_{tableName}` | `keyName` | Mark an entry as invalidated (sets `invalidatedAt`). |
-| `purge_{tableName}` | none | Delete all entries older than TTL. |
+| Reducer                  | Parameters                  | Description                                          |
+| ------------------------ | --------------------------- | ---------------------------------------------------- |
+| `create_{tableName}`     | `keyName` + all fields      | Insert a cache entry. Sets `cachedAt`, `updatedAt`.  |
+| `update_{tableName}`     | `keyName` + optional fields | Update a cache entry. Clears `invalidatedAt`.        |
+| `rm_{tableName}`         | `keyName`                   | Delete a cache entry.                                |
+| `invalidate_{tableName}` | `keyName`                   | Mark an entry as invalidated (sets `invalidatedAt`). |
+| `purge_{tableName}`      | none                        | Delete all entries older than TTL.                   |
 
 Cache tables automatically get `cachedAt`, `invalidatedAt`, and `updatedAt` fields.
 
-* * *
+---
 
 ### makeChildCrud
 
@@ -199,20 +199,20 @@ const messageCrud = makeChildCrud(spacetimedb, {
 
 **Generated reducers:**
 
-| Reducer | Parameters | Description |
-| --- | --- | --- |
+| Reducer              | Parameters                    | Description                                 |
+| -------------------- | ----------------------------- | ------------------------------------------- |
 | `create_{tableName}` | `foreignKeyName` + all fields | Insert a child row. Verifies parent exists. |
-| `update_{tableName}` | `id` + optional fields | Update a child row. Caller must be owner. |
-| `rm_{tableName}` | `id` | Delete a child row. Caller must be owner. |
+| `update_{tableName}` | `id` + optional fields        | Update a child row. Caller must be owner.   |
+| `rm_{tableName}`     | `id`                          | Delete a child row. Caller must be owner.   |
 
-* * *
+---
 
 ### makeOrg
 
 Generates the full suite of org management reducers.
 See [organizations](./organizations.md) for the full config reference.
 
-* * *
+---
 
 ### makePresence
 
@@ -232,15 +232,15 @@ const presenceFns = makePresence(spacetimedb, {
 
 **Generated reducers:**
 
-| Reducer | Parameters | Description |
-| --- | --- | --- |
+| Reducer                          | Parameters                | Description                                         |
+| -------------------------------- | ------------------------- | --------------------------------------------------- |
 | `presence_heartbeat_{tableName}` | `roomId`, optional `data` | Upsert presence row. Requires authenticated sender. |
-| `presence_leave_{tableName}` | `roomId` | Delete presence row for the caller. |
-| `presence_cleanup_{tableName}` | none | Delete stale presence rows (older than TTL). |
+| `presence_leave_{tableName}`     | `roomId`                  | Delete presence row for the caller.                 |
+| `presence_cleanup_{tableName}`   | none                      | Delete stale presence rows (older than TTL).        |
 
 Constants: `HEARTBEAT_INTERVAL_MS = 15000`, `PRESENCE_TTL_MS = 30000`.
 
-* * *
+---
 
 ### makeFileUpload
 
@@ -269,12 +269,12 @@ const fileCrud = makeFileUpload(spacetimedb, {
 
 **Generated reducers:**
 
-| Reducer | Parameters | Description |
-| --- | --- | --- |
+| Reducer                       | Parameters                                      | Description                                         |
+| ----------------------------- | ----------------------------------------------- | --------------------------------------------------- |
 | `register_upload_{namespace}` | `contentType`, `filename`, `size`, `storageKey` | Record a completed upload. Validates type and size. |
-| `delete_file_{namespace}` | `fileId` | Delete a file record. Caller must be owner. |
+| `delete_file_{namespace}`     | `fileId`                                        | Delete a file record. Caller must be owner.         |
 
-* * *
+---
 
 ### makeSchema
 
@@ -292,12 +292,12 @@ const { cacheTable, childTable, orgScopedTable, ownedTable, singletonTable } =
 
 **Returned helpers:**
 
-| Helper | System fields added | Signature |
-| --- | --- | --- |
-| `ownedTable(fields, extra?, opts?)` | `id`, `updatedAt`, `userId` | User-owned table |
-| `orgScopedTable(fields, extra?, opts?)` | `id`, `orgId`, `updatedAt`, `userId` | Org-scoped table |
-| `singletonTable(fields, opts?)` | `updatedAt`, `userId` | One row per user |
-| `cacheTable(keyField, fields, opts?)` | `id`, `cachedAt`, `invalidatedAt`, `updatedAt` | External data cache |
+| Helper                                      | System fields added                               | Signature             |
+| ------------------------------------------- | ------------------------------------------------- | --------------------- |
+| `ownedTable(fields, extra?, opts?)`         | `id`, `updatedAt`, `userId`                       | User-owned table      |
+| `orgScopedTable(fields, extra?, opts?)`     | `id`, `orgId`, `updatedAt`, `userId`              | Org-scoped table      |
+| `singletonTable(fields, opts?)`             | `updatedAt`, `userId`                             | One row per user      |
+| `cacheTable(keyField, fields, opts?)`       | `id`, `cachedAt`, `invalidatedAt`, `updatedAt`    | External data cache   |
 | `childTable(foreignKeyName, fields, opts?)` | `foreignKey.index()`, `id`, `updatedAt`, `userId` | Child of a parent row |
 
 **Usage:**
@@ -337,7 +337,7 @@ interface StdbDeps {
 
 In practice, just pass `{ t, table }` from `spacetimedb/server`.
 
-* * *
+---
 
 ### setupCrud
 
@@ -368,7 +368,7 @@ const uploadFns = s.fileUpload('file', 'file', {
 const reducers = spacetimedb.exportGroup(s.allExports())
 ```
 
-* * *
+---
 
 ## React hooks
 
@@ -441,16 +441,16 @@ useList(posts, isReady, {
 
 **Return value:**
 
-| Field | Type | Description |
-| --- | --- | --- |
-| `data` | `T[]` | Current page of filtered, sorted rows |
-| `hasMore` | `boolean` | Whether more rows exist |
-| `isLoading` | `boolean` | `true` until `isReady` is `true` |
-| `loadMore` | `() => void` | Load the next page |
-| `page` | `number` | Current page number |
-| `totalCount` | `number` | Total filtered row count |
+| Field        | Type         | Description                           |
+| ------------ | ------------ | ------------------------------------- |
+| `data`       | `T[]`        | Current page of filtered, sorted rows |
+| `hasMore`    | `boolean`    | Whether more rows exist               |
+| `isLoading`  | `boolean`    | `true` until `isReady` is `true`      |
+| `loadMore`   | `() => void` | Load the next page                    |
+| `page`       | `number`     | Current page number                   |
+| `totalCount` | `number`     | Total filtered row count              |
 
-* * *
+---
 
 ### useOwnRows
 
@@ -487,7 +487,7 @@ const ownedBlogs = useOwnRows(
 const { data } = useList(ownedBlogs, isReady, { where: { own: true } })
 ```
 
-* * *
+---
 
 ### usePresence
 
@@ -521,12 +521,12 @@ updatePresence({ cursor: { x: 100, y: 200 } })
 
 **Return value:**
 
-| Field | Type | Description |
-| --- | --- | --- |
-| `users` | `PresenceRow[]` | Active users (filtered by TTL) |
+| Field            | Type                                      | Description                             |
+| ---------------- | ----------------------------------------- | --------------------------------------- |
+| `users`          | `PresenceRow[]`                           | Active users (filtered by TTL)          |
 | `updatePresence` | `(data: Record<string, unknown>) => void` | Update presence data and send heartbeat |
 
-* * *
+---
 
 ### useUpload
 
@@ -550,7 +550,7 @@ const result = await upload(file, { signal: abortController.signal })
 // result: { ok: true, storageId, url? } | { ok: false, code: 'ABORTED' | 'NETWORK' | 'URL' | 'HTTP' }
 ```
 
-* * *
+---
 
 ### useInfiniteList
 
@@ -582,14 +582,14 @@ const { data, hasMore, loadMore, totalCount } = useInfiniteList(rows, isReady, {
 
 **Options (`InfiniteListOptions<T>`):**
 
-| Option | Type | Description |
-| --- | --- | --- |
-| `batchSize` | `number` | Items to load per batch (default: 50) |
-| `sort` | `ListSort<T>` | Sort field and direction |
-| `where` | `ListWhere<T>` | Filter predicate |
-| `search` | `{ query, fields, debounceMs? }` | Full-text search with optional debounce |
+| Option      | Type                             | Description                             |
+| ----------- | -------------------------------- | --------------------------------------- |
+| `batchSize` | `number`                         | Items to load per batch (default: 50)   |
+| `sort`      | `ListSort<T>`                    | Sort field and direction                |
+| `where`     | `ListWhere<T>`                   | Filter predicate                        |
+| `search`    | `{ query, fields, debounceMs? }` | Full-text search with optional debounce |
 
-* * *
+---
 
 ### useSearch
 
@@ -613,7 +613,7 @@ const results = useSearch(
 )
 ```
 
-* * *
+---
 
 ### useCacheEntry
 
@@ -635,23 +635,23 @@ const { data, isLoading, isStale, refresh } = useCacheEntry({
 
 **Options (`UseCacheEntryOptions<A, T>`):**
 
-| Option | Type | Description |
-| --- | --- | --- |
-| `args` | `A` | Arguments passed to the `load` function |
-| `data` | `null \| T \| undefined` | Current cached data (`undefined` = not yet loaded, `null` = miss) |
-| `load` | `(args: A) => Promise<void>` | Function to refresh the cache entry |
-| `table` | `string` | Table name for devtools tracking |
+| Option  | Type                         | Description                                                       |
+| ------- | ---------------------------- | ----------------------------------------------------------------- |
+| `args`  | `A`                          | Arguments passed to the `load` function                           |
+| `data`  | `null \| T \| undefined`     | Current cached data (`undefined` = not yet loaded, `null` = miss) |
+| `load`  | `(args: A) => Promise<void>` | Function to refresh the cache entry                               |
+| `table` | `string`                     | Table name for devtools tracking                                  |
 
 **Return value (`UseCacheEntryResult<T>`):**
 
-| Field | Type | Description |
-| --- | --- | --- |
-| `data` | `null \| T` | Cached data, or `null` if not loaded |
-| `isLoading` | `boolean` | `true` while loading or refreshing |
-| `isStale` | `boolean` | `true` when the entry has `stale: true` |
-| `refresh` | `() => void` | Manually trigger a refresh |
+| Field       | Type         | Description                             |
+| ----------- | ------------ | --------------------------------------- |
+| `data`      | `null \| T`  | Cached data, or `null` if not loaded    |
+| `isLoading` | `boolean`    | `true` while loading or refreshing      |
+| `isStale`   | `boolean`    | `true` when the entry has `stale: true` |
+| `refresh`   | `() => void` | Manually trigger a refresh              |
 
-* * *
+---
 
 ### useBulkSelection
 
@@ -664,7 +664,7 @@ const { selected, toggle, toggleAll, clear, isSelected, isAllSelected, count } =
   useBulkSelection(posts.map(p => p.id))
 ```
 
-* * *
+---
 
 ### useBulkMutate
 
@@ -690,12 +690,12 @@ bulk.run([{ id: 1 }, { id: 2 }, { id: 3 }])
 
 **Options:**
 
-| Option | Type | Description |
-| --- | --- | --- |
-| `onError` | `((error: unknown) => void) \| false` | Called if any mutation fails. Pass `false` to suppress the default error toast. |
-| `onProgress` | `(progress: BulkProgress) => void` | Called after each item settles with live progress counts |
-| `onSettled` | `(result: BulkResult<unknown>) => void` | Called once all items have settled |
-| `onSuccess` | `(count: number) => void` | Called when all mutations succeed |
+| Option       | Type                                    | Description                                                                     |
+| ------------ | --------------------------------------- | ------------------------------------------------------------------------------- |
+| `onError`    | `((error: unknown) => void) \| false`   | Called if any mutation fails. Pass `false` to suppress the default error toast. |
+| `onProgress` | `(progress: BulkProgress) => void`      | Called after each item settles with live progress counts                        |
+| `onSettled`  | `(result: BulkResult<unknown>) => void` | Called once all items have settled                                              |
+| `onSuccess`  | `(count: number) => void`               | Called when all mutations succeed                                               |
 
 **`BulkProgress` type:**
 
@@ -710,11 +710,11 @@ interface BulkProgress {
 
 **Return value:**
 
-| Field | Type | Description |
-| --- | --- | --- |
-| `isPending` | `boolean` | `true` while any item is still in flight |
-| `progress` | `BulkProgress \| null` | Live progress counts, or `null` when idle |
-| `run` | `(items: A[]) => Promise<BulkResult<R>>` | Start the bulk operation |
+| Field       | Type                                     | Description                               |
+| ----------- | ---------------------------------------- | ----------------------------------------- |
+| `isPending` | `boolean`                                | `true` while any item is still in flight  |
+| `progress`  | `BulkProgress \| null`                   | Live progress counts, or `null` when idle |
+| `run`       | `(items: A[]) => Promise<BulkResult<R>>` | Start the bulk operation                  |
 
 Use `progress` to render a progress bar:
 
@@ -729,7 +729,7 @@ bulk.run(selectedIds.map(id => ({ id })))
 // bulk.progress: { total: 3, succeeded: 1, failed: 0, pending: 2 }
 ```
 
-* * *
+---
 
 ### useSoftDelete
 
@@ -752,23 +752,23 @@ await remove({ id: wikiId })
 
 **Options (`SoftDeleteOpts<A>`):**
 
-| Option | Type | Default | Description |
-| --- | --- | --- | --- |
-| `rm` | `(args: A) => Promise<unknown>` | required | Delete reducer |
-| `restore` | `(args: A) => Promise<unknown>` | required | Restore reducer |
-| `toast` | `ToastFn` | required | Toast function with action support |
-| `label` | `string` | `'Item'` | Display name for toast messages |
-| `undoMs` | `number` | `5000` | Duration the undo toast stays visible |
-| `onError` | `(error: unknown) => void` | — | Called if restore fails |
-| `onRestore` | `() => void` | — | Called after successful restore |
+| Option      | Type                            | Default  | Description                           |
+| ----------- | ------------------------------- | -------- | ------------------------------------- |
+| `rm`        | `(args: A) => Promise<unknown>` | required | Delete reducer                        |
+| `restore`   | `(args: A) => Promise<unknown>` | required | Restore reducer                       |
+| `toast`     | `ToastFn`                       | required | Toast function with action support    |
+| `label`     | `string`                        | `'Item'` | Display name for toast messages       |
+| `undoMs`    | `number`                        | `5000`   | Duration the undo toast stays visible |
+| `onError`   | `(error: unknown) => void`      | —        | Called if restore fails               |
+| `onRestore` | `() => void`                    | —        | Called after successful restore       |
 
 **Return value:**
 
-| Field | Type | Description |
-| --- | --- | --- |
+| Field    | Type                         | Description            |
+| -------- | ---------------------------- | ---------------------- |
 | `remove` | `(args: A) => Promise<void>` | Delete with undo toast |
 
-* * *
+---
 
 ### useMutate
 
@@ -804,17 +804,17 @@ When the mutation fails, `error` is the thrown value and `result` is `undefined`
 
 **Options (`MutateOptions<A, R>`):**
 
-| Option | Type | Description |
-| --- | --- | --- |
-| `getName` | `(args: A) => string` | Custom name for devtools tracking |
-| `onError` | `((error: unknown) => void) \| false` | Override or suppress the default error toast |
-| `onSettled` | `(args: A, error: unknown, result?: R) => void` | Called after every mutation |
-| `onSuccess` | `(result: R, args: A) => void` | Called when the mutation succeeds |
-| `optimistic` | `boolean` | Enable optimistic updates (default: `true`) |
-| `resolveId` | `(args: A) => string \| undefined` | Resolve the row ID for optimistic reconciliation |
-| `retry` | `number \| RetryOptions` | Retry on failure. A number sets `maxAttempts`. An object gives full control. |
-| `toast` | `MutateToast<A, R>` | Toast shorthand — show success/error messages without `onSuccess`/`onError` callbacks |
-| `type` | `MutationType` | Override the detected mutation type (`'create'`, `'update'`, or `'delete'`) |
+| Option       | Type                                            | Description                                                                           |
+| ------------ | ----------------------------------------------- | ------------------------------------------------------------------------------------- |
+| `getName`    | `(args: A) => string`                           | Custom name for devtools tracking                                                     |
+| `onError`    | `((error: unknown) => void) \| false`           | Override or suppress the default error toast                                          |
+| `onSettled`  | `(args: A, error: unknown, result?: R) => void` | Called after every mutation                                                           |
+| `onSuccess`  | `(result: R, args: A) => void`                  | Called when the mutation succeeds                                                     |
+| `optimistic` | `boolean`                                       | Enable optimistic updates (default: `true`)                                           |
+| `resolveId`  | `(args: A) => string \| undefined`              | Resolve the row ID for optimistic reconciliation                                      |
+| `retry`      | `number \| RetryOptions`                        | Retry on failure. A number sets `maxAttempts`. An object gives full control.          |
+| `toast`      | `MutateToast<A, R>`                             | Toast shorthand — show success/error messages without `onSuccess`/`onError` callbacks |
+| `type`       | `MutationType`                                  | Override the detected mutation type (`'create'`, `'update'`, or `'delete'`)           |
 
 **`MutateToast<A, R>`:**
 
@@ -871,7 +871,7 @@ Options are validated at call time: `maxAttempts` must be >= 1, `initialDelayMs`
 `maxDelayMs` must be >= 0, and `base` must be >= 1. Invalid values throw immediately
 with a descriptive error message.
 
-* * *
+---
 
 ### useMutation
 
@@ -917,7 +917,7 @@ No manual `toastFieldError` try/catch needed in form `onSubmit` handlers.
 
 Accepts the same `MutateOptions` as `useMutate`.
 
-* * *
+---
 
 ### relax
 
@@ -956,7 +956,7 @@ updateTask({
 At runtime, missing keys return `undefined` when SpacetimeDB’s serializer reads them,
 which serializes as `None` — the same as explicitly passing `undefined`.
 
-* * *
+---
 
 ### useOptimisticMutation
 
@@ -987,15 +987,15 @@ const { execute, isPending, error } = useOptimisticMutation({
 
 **Options (`OptimisticOptions<A, R>`):**
 
-| Option | Type | Description |
-| --- | --- | --- |
-| `mutate` | `(args: A) => Promise<R>` | The mutation function to execute |
-| `onOptimistic` | `(args: A) => void` | Called before the mutation to apply optimistic state |
-| `onRollback` | `(args: A, error: Error) => void` | Called on failure to revert optimistic state |
-| `onSettled` | `(args: A, error: unknown, result?: R) => void` | Called after every mutation |
-| `onSuccess` | `(result: R, args: A) => void` | Called when the mutation succeeds |
+| Option         | Type                                            | Description                                          |
+| -------------- | ----------------------------------------------- | ---------------------------------------------------- |
+| `mutate`       | `(args: A) => Promise<R>`                       | The mutation function to execute                     |
+| `onOptimistic` | `(args: A) => void`                             | Called before the mutation to apply optimistic state |
+| `onRollback`   | `(args: A, error: Error) => void`               | Called on failure to revert optimistic state         |
+| `onSettled`    | `(args: A, error: unknown, result?: R) => void` | Called after every mutation                          |
+| `onSuccess`    | `(result: R, args: A) => void`                  | Called when the mutation succeeds                    |
 
-* * *
+---
 
 ### useOnlineStatus
 
@@ -1098,7 +1098,7 @@ const form = useForm({ schema, values, onSubmit })
 `Arr`. Each accepts the field name as a typed prop — misspelling a field name is a type
 error.
 
-* * *
+---
 
 ## React utilities
 
@@ -1128,7 +1128,7 @@ try {
 }
 ```
 
-* * *
+---
 
 ### makeErrorHandler
 
@@ -1164,7 +1164,7 @@ When an error matches a code in `overrides`, that handler runs instead of the de
 toast. For unmatched codes, the error message is toasted via the provided `toast`
 function.
 
-* * *
+---
 
 ### useErrorToast
 
@@ -1222,7 +1222,7 @@ When an error matches a code in `handlers`, that handler runs instead of the def
 toast. For unmatched codes, the error message is toasted via the provided `toast`
 function. The returned callback is referentially stable (memoized with `useCallback`).
 
-* * *
+---
 
 ### defaultOnError
 
@@ -1239,11 +1239,11 @@ const defaultOnError = (error: unknown) => void
 
 **Behavior:**
 
-| Error code | Toast message |
-| --- | --- |
-| `NOT_AUTHENTICATED` | “Please log in” |
-| `RATE_LIMITED` | “Too many requests, retry in Xs” (with `retryAfter`) or “Too many requests, try again later” |
-| Any other | The error message from the response |
+| Error code          | Toast message                                                                                |
+| ------------------- | -------------------------------------------------------------------------------------------- |
+| `NOT_AUTHENTICATED` | “Please log in”                                                                              |
+| `RATE_LIMITED`      | “Too many requests, retry in Xs” (with `retryAfter`) or “Too many requests, try again later” |
+| Any other           | The error message from the response                                                          |
 
 **Example — override for a single mutation:**
 
@@ -1259,7 +1259,7 @@ const save = useMutate(api.post.create, {
 })
 ```
 
-* * *
+---
 
 ## React components
 
@@ -1280,7 +1280,7 @@ const skipped = useOrgQuery(queryProject, 'skip')
 
 See [organizations](./organizations.md) for full usage.
 
-* * *
+---
 
 ### createOrgHooks
 
@@ -1323,7 +1323,7 @@ await update(d) // orgId auto-injected as Number(org._id)
 
 When `orgIdForMutation` is omitted, `orgId` is passed as-is.
 
-* * *
+---
 
 ### OrgProvider
 
@@ -1366,14 +1366,14 @@ import { ErrorBoundary } from 'betterspace/components'
 
 **Props:**
 
-| Prop | Type | Description |
-| --- | --- | --- |
-| `children` | `ReactNode` | Content to protect |
-| `className` | `string` | Applied to the fallback container `div` |
-| `fallback` | `(props: { error: Error; resetErrorBoundary: () => void }) => ReactNode` | Custom fallback renderer |
-| `onError` | `(error: Error, errorInfo: ErrorInfo) => void` | Called when an error is caught |
+| Prop        | Type                                                                     | Description                             |
+| ----------- | ------------------------------------------------------------------------ | --------------------------------------- |
+| `children`  | `ReactNode`                                                              | Content to protect                      |
+| `className` | `string`                                                                 | Applied to the fallback container `div` |
+| `fallback`  | `(props: { error: Error; resetErrorBoundary: () => void }) => ReactNode` | Custom fallback renderer                |
+| `onError`   | `(error: Error, errorInfo: ErrorInfo) => void`                           | Called when an error is caught          |
 
-* * *
+---
 
 ### BetterspaceDevtools
 
@@ -1402,11 +1402,11 @@ All 14 field components (`Arr`, `Choose`, `Colorpick`, `Combobox`, `Datepick`, `
 `Files`, `MultiSelect`, `Num`, `Rating`, `Slider`, `Text`, `Timepick`, `Toggle`) accept
 three shared accessibility props:
 
-| Prop | Type | Description |
-| --- | --- | --- |
+| Prop       | Type      | Description                                 |
+| ---------- | --------- | ------------------------------------------- |
 | `disabled` | `boolean` | Disables the input and prevents interaction |
-| `helpText` | `string` | Renders a hint below the field |
-| `required` | `boolean` | Appends a red `*` to the field label |
+| `helpText` | `string`  | Renders a hint below the field              |
+| `required` | `boolean` | Appends a red `*` to the field label        |
 
 ```typescript
 import { fields } from 'betterspace/components'
@@ -1431,7 +1431,7 @@ These props work on every field component.
 `required` adds a visual indicator only — actual validation is enforced by the Zod
 schema.
 
-* * *
+---
 
 ### AutoSaveIndicator
 
@@ -1446,7 +1446,7 @@ import { AutoSaveIndicator } from 'betterspace/components'
 
 Place it inside a `<Form>` to pick up auto-save state automatically.
 
-* * *
+---
 
 ### ConflictDialog
 
@@ -1466,13 +1466,13 @@ import { ConflictDialog } from 'betterspace/components'
 
 **Props:**
 
-| Prop | Type | Description |
-| --- | --- | --- |
-| `conflict` | `ConflictData \| null` | Conflict payload from `useForm`. `null` hides the dialog. |
-| `onResolve` | `(action: 'cancel' \| 'overwrite' \| 'reload') => void` | Called when the user picks a resolution |
-| `className` | `string` | Applied to the dialog content container |
+| Prop        | Type                                                    | Description                                               |
+| ----------- | ------------------------------------------------------- | --------------------------------------------------------- |
+| `conflict`  | `ConflictData \| null`                                  | Conflict payload from `useForm`. `null` hides the dialog. |
+| `onResolve` | `(action: 'cancel' \| 'overwrite' \| 'reload') => void` | Called when the user picks a resolution                   |
+| `className` | `string`                                                | Applied to the dialog content container                   |
 
-* * *
+---
 
 ### OfflineIndicator
 
@@ -1489,7 +1489,7 @@ import { OfflineIndicator } from 'betterspace/components'
 Accepts all `<p>` element props.
 Renders nothing when connected.
 
-* * *
+---
 
 ### OrgAvatar
 
@@ -1503,14 +1503,14 @@ import { OrgAvatar } from 'betterspace/components'
 
 **Props:**
 
-| Prop | Type | Description |
-| --- | --- | --- |
+| Prop   | Type     | Description                                        |
+| ------ | -------- | -------------------------------------------------- |
 | `name` | `string` | Organization name (first 2 chars used as fallback) |
-| `src` | `string` | Optional avatar image URL |
+| `src`  | `string` | Optional avatar image URL                          |
 
 Accepts all props from the underlying `Avatar` component.
 
-* * *
+---
 
 ### RoleBadge
 
@@ -1525,7 +1525,7 @@ import { RoleBadge } from 'betterspace/components'
 Role → variant mapping: `owner` = default, `admin` = secondary, `member` = outline.
 Accepts all `Badge` component props.
 
-* * *
+---
 
 ### EditorsSection
 
@@ -1545,16 +1545,16 @@ import { EditorsSection } from 'betterspace/components'
 
 **Props:**
 
-| Prop | Type | Description |
-| --- | --- | --- |
-| `editorsList` | `{ email: string; name: string; userId: string }[]` | Current editors |
-| `members` | `{ user: { email?: string; name?: string } \| null; userId: string }[]` | All org members (non-editors shown in add dropdown) |
-| `onAdd` | `(userId: string) => void` | Called when adding an editor |
-| `onRemove` | `(userId: string) => void` | Called when removing an editor |
+| Prop          | Type                                                                    | Description                                         |
+| ------------- | ----------------------------------------------------------------------- | --------------------------------------------------- |
+| `editorsList` | `{ email: string; name: string; userId: string }[]`                     | Current editors                                     |
+| `members`     | `{ user: { email?: string; name?: string } \| null; userId: string }[]` | All org members (non-editors shown in add dropdown) |
+| `onAdd`       | `(userId: string) => void`                                              | Called when adding an editor                        |
+| `onRemove`    | `(userId: string) => void`                                              | Called when removing an editor                      |
 
 Accepts all `Card` component props.
 
-* * *
+---
 
 ### PermissionGuard
 
@@ -1577,17 +1577,17 @@ import { PermissionGuard } from 'betterspace/components'
 
 **Props:**
 
-| Prop | Type | Description |
-| --- | --- | --- |
-| `role` | `OrgRole` | Current user’s role |
-| `allowedRoles` | `OrgRole[]` | Roles that can access the content |
-| `canAccess` | `boolean` | Direct override (takes precedence over role check) |
-| `resource` | `string` | Display name for the “no permission” message |
-| `backHref` | `string` | URL for the back button |
-| `backLabel` | `string` | Label for the back button |
-| `className` | `string` | Applied to the fallback container |
+| Prop           | Type        | Description                                        |
+| -------------- | ----------- | -------------------------------------------------- |
+| `role`         | `OrgRole`   | Current user’s role                                |
+| `allowedRoles` | `OrgRole[]` | Roles that can access the content                  |
+| `canAccess`    | `boolean`   | Direct override (takes precedence over role check) |
+| `resource`     | `string`    | Display name for the “no permission” message       |
+| `backHref`     | `string`    | URL for the back button                            |
+| `backLabel`    | `string`    | Label for the back button                          |
+| `className`    | `string`    | Applied to the fallback container                  |
 
-* * *
+---
 
 ### defineSteps
 
@@ -1638,24 +1638,24 @@ step is a compile-time error.
 
 **`useStepper` return value:**
 
-| Field | Type | Description |
-| --- | --- | --- |
-| `error` | `Error \| null` | Error from the `onSubmit` callback |
-| `isCompleted` | `boolean` | `true` after all steps submitted |
-| `isPending` | `boolean` | `true` while `onSubmit` is running |
-| `values` | `Partial<StepDataMap>` | Collected values from completed steps |
+| Field         | Type                   | Description                           |
+| ------------- | ---------------------- | ------------------------------------- |
+| `error`       | `Error \| null`        | Error from the `onSubmit` callback    |
+| `isCompleted` | `boolean`              | `true` after all steps submitted      |
+| `isPending`   | `boolean`              | `true` while `onSubmit` is running    |
+| `values`      | `Partial<StepDataMap>` | Collected values from completed steps |
 
 **`StepForm` props:**
 
-| Prop | Type | Description |
-| --- | --- | --- |
-| `stepper` | `StepperReturn` | Return value from `useStepper` |
-| `indicator` | `boolean` | Show step progress indicator (default: `true`) |
-| `nextLabel` | `string` | Custom “Next” button text |
-| `prevLabel` | `string` | Custom “Back” button text |
-| `submitLabel` | `string` | Custom “Submit” button text |
+| Prop          | Type            | Description                                    |
+| ------------- | --------------- | ---------------------------------------------- |
+| `stepper`     | `StepperReturn` | Return value from `useStepper`                 |
+| `indicator`   | `boolean`       | Show step progress indicator (default: `true`) |
+| `nextLabel`   | `string`        | Custom “Next” button text                      |
+| `prevLabel`   | `string`        | Custom “Back” button text                      |
+| `submitLabel` | `string`        | Custom “Submit” button text                    |
 
-* * *
+---
 
 ### FileApiProvider
 
@@ -1675,7 +1675,7 @@ const uploader = createFileUploader('/api/upload/presign')
 </FileApiProvider>
 ```
 
-* * *
+---
 
 ### Provider utilities
 
@@ -1702,7 +1702,7 @@ const client = createSpacetimeClient({
 const uploader = createFileUploader('/api/upload/presign')
 ```
 
-* * *
+---
 
 ## Server utilities
 
@@ -1777,7 +1777,7 @@ With it:
 update(partialValues(editSchema, { id, published: true }))
 ```
 
-* * *
+---
 
 ### zodFromTable
 
@@ -1865,7 +1865,7 @@ import { errValidation } from 'betterspace/server'
 errValidation({ title: 'Required', slug: 'Already taken' })
 ```
 
-* * *
+---
 
 ## CLI
 
@@ -1890,23 +1890,23 @@ Scaffolding betterspace project...
 
 The checks verify:
 
-| Check | Pass | Warn |
-| --- | --- | --- |
-| SpacetimeDB CLI | `spacetime` found in PATH | Install command printed |
-| Docker | `docker` found and daemon running | Install or start instructions printed |
+| Check           | Pass                              | Warn                                  |
+| --------------- | --------------------------------- | ------------------------------------- |
+| SpacetimeDB CLI | `spacetime` found in PATH         | Install command printed               |
+| Docker          | `docker` found and daemon running | Install or start instructions printed |
 
 Warnings don’t abort the scaffold — files are still written.
 The warnings tell you what to fix before running `spacetime publish`.
 
 **Options:**
 
-| Flag | Default | Description |
-| --- | --- | --- |
-| `--module-dir=DIR` | `module` | SpacetimeDB module directory |
-| `--app-dir=DIR` | `src/app` | Next.js app directory |
-| `--help`, `-h` |  | Print help and exit |
+| Flag               | Default   | Description                  |
+| ------------------ | --------- | ---------------------------- |
+| `--module-dir=DIR` | `module`  | SpacetimeDB module directory |
+| `--app-dir=DIR`    | `src/app` | Next.js app directory        |
+| `--help`, `-h`     |           | Print help and exit          |
 
-* * *
+---
 
 ### `betterspace validate`
 
@@ -1931,7 +1931,7 @@ Health: 100/100
 Runs the same 7-category checks as `betterspace doctor`. Use it in CI to catch schema
 drift before deployment.
 
-* * *
+---
 
 ## Error codes
 
@@ -1956,44 +1956,44 @@ betterspace currently ships **36 structured error codes** (`ErrorCode`), defined
 directly to users (e.g., `CONFLICT` reads “This record was modified by someone else —
 please review and try again” rather than a bare “Conflict”).
 
-| Code | Description |
-| --- | --- |
-| `ALREADY_ORG_MEMBER` | Already a member of this organization |
-| `CANNOT_MODIFY_ADMIN` | Admins cannot modify other admins |
-| `CANNOT_MODIFY_OWNER` | Cannot modify the owner |
-| `CHUNK_ALREADY_UPLOADED` | Chunk already uploaded |
-| `CHUNK_NOT_FOUND` | Chunk not found |
-| `CONFLICT` | This record was modified by someone else — please review and try again |
-| `EDITOR_REQUIRED` | Editor permission required |
-| `FILE_NOT_FOUND` | The requested file could not be found or has been deleted |
-| `FILE_TOO_LARGE` | File exceeds the maximum allowed size |
-| `FORBIDDEN` | You do not have permission to perform this action |
-| `INCOMPLETE_UPLOAD` | Upload is incomplete — some chunks are still missing |
-| `INSUFFICIENT_ORG_ROLE` | Insufficient permissions for this organization role |
-| `INVALID_FILE_TYPE` | Invalid file type |
-| `INVALID_INVITE` | Invalid invite |
-| `INVALID_MESSAGE` | Invalid message |
-| `INVALID_SESSION_STATE` | Invalid session state |
-| `INVALID_TOOL_ARGS` | Invalid tool arguments |
-| `INVALID_WHERE` | Invalid filter parameters — check field names and values |
-| `INVITE_EXPIRED` | Invite has expired |
-| `JOIN_REQUEST_EXISTS` | Join request already exists |
-| `LIMIT_EXCEEDED` | Request limit exceeded — please try again later |
-| `MESSAGE_NOT_SAVED` | Message not saved |
-| `MUST_TRANSFER_OWNERSHIP` | Must transfer ownership before leaving |
-| `NO_FETCHER` | No fetcher configured |
-| `NO_PRECEDING_USER_MESSAGE` | No preceding user message |
-| `NOT_AUTHENTICATED` | Please log in to continue |
-| `NOT_AUTHORIZED` | You are not authorized to access this resource |
-| `NOT_FOUND` | The requested resource could not be found |
-| `NOT_ORG_MEMBER` | Not a member of this organization |
-| `ORG_SLUG_TAKEN` | Organization slug already taken |
-| `RATE_LIMITED` | Too many requests — please wait before trying again |
-| `SESSION_NOT_FOUND` | Session not found |
-| `TARGET_MUST_BE_ADMIN` | Can only transfer ownership to an admin |
-| `UNAUTHORIZED` | Authentication required — please log in |
-| `USER_NOT_FOUND` | User not found |
-| `VALIDATION_FAILED` | One or more fields failed validation — check your input |
+| Code                        | Description                                                            |
+| --------------------------- | ---------------------------------------------------------------------- |
+| `ALREADY_ORG_MEMBER`        | Already a member of this organization                                  |
+| `CANNOT_MODIFY_ADMIN`       | Admins cannot modify other admins                                      |
+| `CANNOT_MODIFY_OWNER`       | Cannot modify the owner                                                |
+| `CHUNK_ALREADY_UPLOADED`    | Chunk already uploaded                                                 |
+| `CHUNK_NOT_FOUND`           | Chunk not found                                                        |
+| `CONFLICT`                  | This record was modified by someone else — please review and try again |
+| `EDITOR_REQUIRED`           | Editor permission required                                             |
+| `FILE_NOT_FOUND`            | The requested file could not be found or has been deleted              |
+| `FILE_TOO_LARGE`            | File exceeds the maximum allowed size                                  |
+| `FORBIDDEN`                 | You do not have permission to perform this action                      |
+| `INCOMPLETE_UPLOAD`         | Upload is incomplete — some chunks are still missing                   |
+| `INSUFFICIENT_ORG_ROLE`     | Insufficient permissions for this organization role                    |
+| `INVALID_FILE_TYPE`         | Invalid file type                                                      |
+| `INVALID_INVITE`            | Invalid invite                                                         |
+| `INVALID_MESSAGE`           | Invalid message                                                        |
+| `INVALID_SESSION_STATE`     | Invalid session state                                                  |
+| `INVALID_TOOL_ARGS`         | Invalid tool arguments                                                 |
+| `INVALID_WHERE`             | Invalid filter parameters — check field names and values               |
+| `INVITE_EXPIRED`            | Invite has expired                                                     |
+| `JOIN_REQUEST_EXISTS`       | Join request already exists                                            |
+| `LIMIT_EXCEEDED`            | Request limit exceeded — please try again later                        |
+| `MESSAGE_NOT_SAVED`         | Message not saved                                                      |
+| `MUST_TRANSFER_OWNERSHIP`   | Must transfer ownership before leaving                                 |
+| `NO_FETCHER`                | No fetcher configured                                                  |
+| `NO_PRECEDING_USER_MESSAGE` | No preceding user message                                              |
+| `NOT_AUTHENTICATED`         | Please log in to continue                                              |
+| `NOT_AUTHORIZED`            | You are not authorized to access this resource                         |
+| `NOT_FOUND`                 | The requested resource could not be found                              |
+| `NOT_ORG_MEMBER`            | Not a member of this organization                                      |
+| `ORG_SLUG_TAKEN`            | Organization slug already taken                                        |
+| `RATE_LIMITED`              | Too many requests — please wait before trying again                    |
+| `SESSION_NOT_FOUND`         | Session not found                                                      |
+| `TARGET_MUST_BE_ADMIN`      | Can only transfer ownership to an admin                                |
+| `UNAUTHORIZED`              | Authentication required — please log in                                |
+| `USER_NOT_FOUND`            | User not found                                                         |
+| `VALIDATION_FAILED`         | One or more fields failed validation — check your input                |
 
 Parse errors on the client:
 
@@ -2013,23 +2013,23 @@ try {
 }
 ```
 
-* * *
+---
 
 ## Type reference
 
 ### SpacetimeDB type mapping
 
-| SpacetimeDB type | TypeScript type | Notes |
-| --- | --- | --- |
-| `t.u32()` | `number` | Safe for JSON, URLs, React keys |
-| `t.u64()` | `bigint` | Breaks `JSON.stringify`. Use `.toString()` for URLs/keys. |
-| `t.string()` | `string` |  |
-| `t.bool()` | `boolean` |  |
-| `t.number()` | `number` | Floating point |
-| `t.identity()` | `Identity` | Use `.toHexString()` for serialization, `.isEqual()` for comparison |
-| `t.timestamp()` | `Timestamp` | Use `toMillis()` or convert via `microsSinceUnixEpoch` |
-| `t.array(T)` | `T[]` |  |
-| `T.optional()` | `T \| undefined` |  |
+| SpacetimeDB type | TypeScript type  | Notes                                                               |
+| ---------------- | ---------------- | ------------------------------------------------------------------- |
+| `t.u32()`        | `number`         | Safe for JSON, URLs, React keys                                     |
+| `t.u64()`        | `bigint`         | Breaks `JSON.stringify`. Use `.toString()` for URLs/keys.           |
+| `t.string()`     | `string`         |                                                                     |
+| `t.bool()`       | `boolean`        |                                                                     |
+| `t.number()`     | `number`         | Floating point                                                      |
+| `t.identity()`   | `Identity`       | Use `.toHexString()` for serialization, `.isEqual()` for comparison |
+| `t.timestamp()`  | `Timestamp`      | Use `toMillis()` or convert via `microsSinceUnixEpoch`              |
+| `t.array(T)`     | `T[]`            |                                                                     |
+| `T.optional()`   | `T \| undefined` |                                                                     |
 
 **Recommendation:** Use `t.u32()` for all auto-increment IDs.
 `u32` maps to `number` and works everywhere.
@@ -2096,7 +2096,7 @@ import type {
 } from 'betterspace/react'
 ```
 
-* * *
+---
 
 ### Register interface
 
@@ -2127,7 +2127,7 @@ import type { RegisteredDefaultError, RegisteredMeta } from 'betterspace/server'
 // RegisteredMeta resolves to MyMeta (or Record<string, unknown> if not set)
 ```
 
-* * *
+---
 
 ### InferRow, InferCreate, InferUpdate
 
@@ -2162,14 +2162,14 @@ type PostUpdate = InferUpdate<typeof schemas.post>
 
 `InferRow` is brand-aware:
 
-| Schema brand | Extra fields on `InferRow` |
-| --- | --- |
-| `OwnedSchema` | `userId: string` |
-| `OrgSchema` | `userId: string`, `orgId: number \| string` |
-| `BaseSchema` | none |
-| `SingletonSchema` | `userId: string`, `updatedAt: number` |
+| Schema brand      | Extra fields on `InferRow`                  |
+| ----------------- | ------------------------------------------- |
+| `OwnedSchema`     | `userId: string`                            |
+| `OrgSchema`       | `userId: string`, `orgId: number \| string` |
+| `BaseSchema`      | none                                        |
+| `SingletonSchema` | `userId: string`, `updatedAt: number`       |
 
-* * *
+---
 
 ### InferRows
 
@@ -2187,7 +2187,7 @@ type Rows = InferRows<typeof schemas>
 // { post: PostRow; profile: ProfileRow }
 ```
 
-* * *
+---
 
 ### UndefinedToOptional
 
@@ -2214,7 +2214,7 @@ args ergonomic — fields that accept `undefined` become optional so callers onl
 pass the fields they care about.
 Zod nullable fields (`string | null`) can be passed through without conversion.
 
-* * *
+---
 
 ### SchemaPhantoms and phantom type accessors
 
@@ -2264,7 +2264,7 @@ type PostRow = PostTypes['row']
 These are equivalent to `InferRow<typeof postSchema>` but don’t require importing the
 utility type.
 
-* * *
+---
 
 ### InferReducerArgs, InferReducerReturn, InferReducerInputs, InferReducerOutputs
 
@@ -2290,7 +2290,7 @@ type AllReturns = InferReducerOutputs<typeof reducers>
 
 Use these when writing typed wrappers around generated reducers.
 
-* * *
+---
 
 ### TypedFieldErrors and getFieldErrors
 
@@ -2322,7 +2322,7 @@ try {
 
 `getFieldErrors` returns `undefined` when the error has no field-level data.
 
-* * *
+---
 
 ### schemaVariants
 
@@ -2355,7 +2355,7 @@ Use `schemaVariants` to avoid duplicating schema definitions for create and edit
 `schemaVariants().update` now preserves full field type information rather than widening
 to `ZodObject<ZodRawShape>`.
 
-* * *
+---
 
 ### buildMeta / getMeta with Zod v4 globalRegistry
 
@@ -2384,7 +2384,7 @@ const meta = buildMeta(postSchema)
 
 When a field has no `.meta()` call, `title` and `description` are `undefined`.
 
-* * *
+---
 
 ### injectError (devtools)
 

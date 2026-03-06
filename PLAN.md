@@ -48,28 +48,28 @@ still keeping Convex code as reference.
 After each phase of build, always make sure all tests and checks pass (skip
 Convex-related checks and tests).
 The final goal is **all apps running, all tests reproduced, no tests fail, complete
-documentation.** *(Note: While the original intent was “1:1 port”, the strategic
+documentation.** _(Note: While the original intent was “1:1 port”, the strategic
 overhaul reframed this as “same DX philosophy, platform-native implementation” — the API
-embraces SpacetimeDB’s model rather than forcing Convex patterns.)*
+embraces SpacetimeDB’s model rather than forcing Convex patterns.)_
 
 ### Platform Context
 
 **Native API Concept Mapping**:
 
-| Concept | lazyconvex (Convex) | betterspace (SpacetimeDB) | Rationale |
-| --- | --- | --- | --- |
-| Data access | Query functions + mutations | Subscriptions + reducers/procedures | Platform-native |
-| Pagination | Server-side cursor (`usePaginatedQuery`) | Client-side slicing from subscription cache | No LIMIT/OFFSET in subscription SQL |
-| IDs | String `Id<'table'>` | `u64` auto-increment | Platform-native |
-| Auth check | `getAuthUserId(ctx)` | `ctx.sender` Identity | Platform-native |
-| Return values | Mutations return values | Procedures return, reducers don’t | Platform constraint |
-| Reactivity model | Per-query subscriptions | Per-table subscriptions with SQL WHERE | Fundamentally different |
-| File storage | Built-in Convex storage | Pre-signed URL via R2/S3 + procedures | No built-in file storage |
-| Auth | @convex-dev/auth (email/password/OAuth) | SpacetimeAuth (magic link/OAuth only) | Google OAuth for demo apps |
-| Presence | Custom heartbeat + reactive queries | Table + connect/disconnect lifecycle | SpacetimeDB has lifecycle events |
-| Input validation | Zod validators at network boundary | SpacetimeDB type system (t.\* types validate automatically) | Platform-native |
+| Concept          | lazyconvex (Convex)                      | betterspace (SpacetimeDB)                                   | Rationale                           |
+| ---------------- | ---------------------------------------- | ----------------------------------------------------------- | ----------------------------------- |
+| Data access      | Query functions + mutations              | Subscriptions + reducers/procedures                         | Platform-native                     |
+| Pagination       | Server-side cursor (`usePaginatedQuery`) | Client-side slicing from subscription cache                 | No LIMIT/OFFSET in subscription SQL |
+| IDs              | String `Id<'table'>`                     | `u64` auto-increment                                        | Platform-native                     |
+| Auth check       | `getAuthUserId(ctx)`                     | `ctx.sender` Identity                                       | Platform-native                     |
+| Return values    | Mutations return values                  | Procedures return, reducers don’t                           | Platform constraint                 |
+| Reactivity model | Per-query subscriptions                  | Per-table subscriptions with SQL WHERE                      | Fundamentally different             |
+| File storage     | Built-in Convex storage                  | Pre-signed URL via R2/S3 + procedures                       | No built-in file storage            |
+| Auth             | @convex-dev/auth (email/password/OAuth)  | SpacetimeAuth (magic link/OAuth only)                       | Google OAuth for demo apps          |
+| Presence         | Custom heartbeat + reactive queries      | Table + connect/disconnect lifecycle                        | SpacetimeDB has lifecycle events    |
+| Input validation | Zod validators at network boundary       | SpacetimeDB type system (t.\* types validate automatically) | Platform-native                     |
 
-* * *
+---
 
 ## Definition of Done
 
@@ -77,12 +77,12 @@ embraces SpacetimeDB’s model rather than forcing Convex patterns.)*
 - [x] `bun test:all` passes (all library + backend + E2E tests)
 - [x] All 4 web apps start and render correctly against local Docker SpacetimeDB
 - [x] No Convex runtime dependencies remain (Convex code kept as reference only, not
-  imported)
+      imported)
 - [x] Package publishable to npm as “betterspace”
 - [ ] All tests pass identically on Maincloud — zero regressions vs Docker (tested after
-  user provides credentials)
+      user provides credentials)
 
-* * *
+---
 
 ## Must NOT Have (Guardrails)
 

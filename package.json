@@ -34,7 +34,7 @@
     "@types/bun": "latest",
     "depcheck": "latest",
     "dotenv-cli": "latest",
-    "lintmax": "file:../lintmax",
+    "lintmax": "0.0.2",
     "sherif": "latest",
     "ts-unused-exports": "latest",
     "turbo": "latest",

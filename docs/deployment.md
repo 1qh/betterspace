@@ -68,7 +68,7 @@ mc mb local/my-bucket
 mc anonymous set download local/my-bucket
 ```
 
-* * *
+---
 
 ## Maincloud
 
@@ -112,7 +112,7 @@ Existing data is preserved (see [schema evolution](./schema-evolution.md)).
 - Auth: Maincloud supports OIDC providers (Google, GitHub).
   Configure via the Maincloud dashboard.
 
-* * *
+---
 
 ## Self-hosted with Docker
 
@@ -224,7 +224,7 @@ NEXT_PUBLIC_SPACETIMEDB_URL=wss://stdb.yourdomain.com
 NEXT_PUBLIC_MODULE_NAME=my-app
 ```
 
-* * *
+---
 
 ## Self-hosted manual install
 
@@ -241,7 +241,7 @@ curl -sSf https://install.spacetimedb.com | sh
 spacetimedb start --listen-addr 0.0.0.0:3000 --data-dir /var/lib/spacetimedb
 ```
 
-* * *
+---
 
 ## Deploying the Next.js app
 
@@ -290,7 +290,7 @@ S3_BUCKET=my-production-bucket
 S3_REGION=us-east-1
 ```
 
-* * *
+---
 
 ## CI/CD
 
@@ -342,7 +342,7 @@ jobs:
           VERCEL_TOKEN: ${{ secrets.VERCEL_TOKEN }}
 ```
 
-* * *
+---
 
 ## Health checks
 

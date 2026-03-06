@@ -1,7 +1,7 @@
 // biome-ignore-all lint/performance/useTopLevelRegex: test file
 // biome-ignore-all lint/performance/noAwaitInLoops: e2e sequential
 // oxlint-disable no-await-in-loop
-/* eslint-disable max-statements, @typescript-eslint/no-unsafe-member-access, @typescript-eslint/no-unsafe-call, @typescript-eslint/no-unsafe-assignment */
+/* eslint-disable @typescript-eslint/no-unsafe-member-access, @typescript-eslint/no-unsafe-call, @typescript-eslint/no-unsafe-assignment */
 import type { Page } from '@playwright/test'
 
 import { login } from '@a/e2e/helpers'

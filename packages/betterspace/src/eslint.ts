@@ -1,4 +1,4 @@
-/* eslint-disable one-var, max-depth, max-statements */
+/* eslint-disable one-var, max-depth */
 import { existsSync, readdirSync, readFileSync } from 'node:fs'
 import { dirname, join } from 'node:path'
 

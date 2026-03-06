@@ -1,6 +1,6 @@
 // biome-ignore-all lint/nursery/noLeakedRender: conditional rendering
 // oxlint-disable promise/prefer-await-to-then
-/* eslint-disable max-statements, @typescript-eslint/no-unsafe-assignment */
+/* eslint-disable @typescript-eslint/no-unsafe-assignment */
 // biome-ignore-all lint/performance/noImgElement: x
 // biome-ignore-all lint/performance/noAwaitInLoops: x
 // biome-ignore-all lint/suspicious/noExplicitAny: x

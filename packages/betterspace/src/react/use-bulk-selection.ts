@@ -1,5 +1,5 @@
 // biome-ignore-all lint/nursery/noFloatingPromises: event handler
-/* eslint-disable max-statements */
+
 'use client'
 
 import { useCallback, useState } from 'react'

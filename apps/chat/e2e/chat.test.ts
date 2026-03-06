@@ -117,7 +117,6 @@ test.describe('Chat Persistence', () => {
     await chatPage.goto()
   })
 
-  // eslint-disable-next-line max-statements
   test('can return to existing chat via URL', async ({ chatPage, page }) => {
     test.setTimeout(60_000)
     // eslint-disable-next-line no-restricted-properties
@@ -180,7 +179,6 @@ test.describe
       await expect(page).toHaveURL('/')
     })
 
-    // eslint-disable-next-line max-statements
     test('can navigate between chats', async ({ chatPage, page }) => {
       test.setTimeout(90_000)
       const firstMessage = `First chat ${Date.now()}`

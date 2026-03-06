@@ -12,7 +12,6 @@ interface OrgMembershipLike {
   }
 }
 
-// eslint-disable-next-line max-statements
 const login = async (page: Page) => {
     await ensureTestUser()
     const token = await getTestToken(),

@@ -1,5 +1,5 @@
 #!/usr/bin/env bun
-/* eslint-disable no-console, max-statements */
+/* eslint-disable no-console */
 
 import { existsSync, writeFileSync } from 'node:fs'
 import { join } from 'node:path'

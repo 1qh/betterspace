@@ -1,4 +1,3 @@
-/* eslint-disable max-statements */
 'use client'
 
 import { createContext, createElement, use, useMemo, useRef, useSyncExternalStore } from 'react'

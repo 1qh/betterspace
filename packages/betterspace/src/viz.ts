@@ -1,5 +1,5 @@
 #!/usr/bin/env bun
-/* eslint-disable no-console, max-depth, max-statements */
+/* eslint-disable no-console, max-depth */
 /** biome-ignore-all lint/style/noProcessEnv: cli */
 /** biome-ignore-all lint/performance/noAwaitInLoops: sequential */
 import { existsSync, readdirSync, readFileSync } from 'node:fs'

@@ -149,7 +149,6 @@ const getReducerParams = async (): Promise<Map<string, SchemaElement[]>> => {
     if (!Array.isArray(variants)) return null
     return { variants }
   },
-  // eslint-disable-next-line max-statements
   optionVariantNames = (type: unknown): null | { noneIndex: number; someIndex: number; someType: unknown } => {
     const sum = extractSumType(type)
     if (!sum) return null
@@ -173,7 +172,6 @@ const getReducerParams = async (): Promise<Map<string, SchemaElement[]>> => {
     if (noneIndex === -1 || someIndex === -1) return null
     return { noneIndex, someIndex, someType }
   },
-  // eslint-disable-next-line max-statements
   encodeArg = (type: unknown, value: unknown): unknown => {
     const optionInfo = optionVariantNames(type)
     if (optionInfo) {
@@ -230,7 +228,7 @@ const getReducerParams = async (): Promise<Map<string, SchemaElement[]>> => {
     if (text.trim().length === 0) return null as T
     return JSON.parse(text) as T
   },
-  // eslint-disable-next-line max-statements, complexity
+  // eslint-disable-next-line complexity
   decodeValue = (type: unknown, value: unknown): unknown => {
     if (!isRecord(type)) return value
 
@@ -390,7 +388,6 @@ const getReducerParams = async (): Promise<Map<string, SchemaElement[]>> => {
     if (!row) return null
     return mapOrg(row)
   },
-  // eslint-disable-next-line max-statements
   getOrgMembers = async (orgId: string) => {
     const id = toInt(orgId)
     if (!Number.isFinite(id)) return []
@@ -658,7 +655,7 @@ const getReducerParams = async (): Promise<Map<string, SchemaElement[]>> => {
     if (!member) return
     await callReducer('org_remove_member', { memberId: toInt(member.id) })
   },
-  // eslint-disable-next-line max-statements, complexity
+  // eslint-disable-next-line complexity
   runQuery = async <T>(name: string, args: Record<string, unknown>): Promise<T> => {
     if (name === 'org:get') return (await getOrgById(String(args.orgId ?? ''))) as T
     if (name === 'org:getBySlug') return (await getOrgBySlug(String(args.slug ?? ''))) as T
@@ -717,7 +714,7 @@ const getReducerParams = async (): Promise<Map<string, SchemaElement[]>> => {
     }
     return callReducer<T>(toReducerName(name), args)
   },
-  // eslint-disable-next-line max-statements, complexity
+  // eslint-disable-next-line complexity
   runMutation = async <T>(name: string, args: Record<string, unknown>): Promise<T> => {
     if (name === 'project:bulkRm') {
       const ids = Array.isArray(args.ids) ? args.ids : []

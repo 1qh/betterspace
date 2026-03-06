@@ -95,29 +95,29 @@ removed.
 
 `org()` generates these reducers:
 
-| Reducer | Description |
-| --- | --- |
-| `create_org` | Create a new org (caller becomes owner + member) |
-| `update_org` | Update org name/slug/avatar (owner only) |
-| `remove_org` | Delete org and cascade-delete all resources |
-| `get_org` | Fetch org by ID |
-| `get_org_by_slug` | Fetch org by slug |
-| `my_orgs` | List orgs the caller belongs to |
-| `add_member` | Add a user as member (admin only) |
-| `remove_member` | Remove a member (admin only) |
-| `set_admin` | Toggle admin status for a member |
-| `leave_org` | Leave an org (cannot leave if sole owner) |
-| `transfer_ownership` | Transfer ownership to another member |
-| `invite` | Create an invite link (admin only) |
-| `accept_invite` | Accept an invite by token |
-| `revoke_invite` | Delete an invite (admin only) |
-| `pending_invites` | List pending invites for an org |
-| `request_join` | Submit a join request |
-| `approve_join_request` | Approve a pending join request (admin only) |
-| `reject_join_request` | Reject a pending join request (admin only) |
-| `pending_join_requests` | List pending join requests for an org |
-| `membership` | Get caller’s membership in an org |
-| `members` | List all members of an org |
+| Reducer                 | Description                                      |
+| ----------------------- | ------------------------------------------------ |
+| `create_org`            | Create a new org (caller becomes owner + member) |
+| `update_org`            | Update org name/slug/avatar (owner only)         |
+| `remove_org`            | Delete org and cascade-delete all resources      |
+| `get_org`               | Fetch org by ID                                  |
+| `get_org_by_slug`       | Fetch org by slug                                |
+| `my_orgs`               | List orgs the caller belongs to                  |
+| `add_member`            | Add a user as member (admin only)                |
+| `remove_member`         | Remove a member (admin only)                     |
+| `set_admin`             | Toggle admin status for a member                 |
+| `leave_org`             | Leave an org (cannot leave if sole owner)        |
+| `transfer_ownership`    | Transfer ownership to another member             |
+| `invite`                | Create an invite link (admin only)               |
+| `accept_invite`         | Accept an invite by token                        |
+| `revoke_invite`         | Delete an invite (admin only)                    |
+| `pending_invites`       | List pending invites for an org                  |
+| `request_join`          | Submit a join request                            |
+| `approve_join_request`  | Approve a pending join request (admin only)      |
+| `reject_join_request`   | Reject a pending join request (admin only)       |
+| `pending_join_requests` | List pending join requests for an org            |
+| `membership`            | Get caller’s membership in an org                |
+| `members`               | List all members of an org                       |
 
 All reducers above are generated with typed signatures and runtime checks for org
 permissions, ownership transfers, invites, and join-request workflows.

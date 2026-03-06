@@ -1,5 +1,5 @@
 #!/usr/bin/env bun
-/* eslint-disable no-console, max-statements, @typescript-eslint/max-params */
+/* eslint-disable no-console, @typescript-eslint/max-params */
 /** biome-ignore-all lint/style/noProcessEnv: cli */
 // biome-ignore-all lint/nursery/noFloatingPromises: event handler
 // oxlint-disable no-await-expression-member

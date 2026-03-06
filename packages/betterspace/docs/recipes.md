@@ -124,7 +124,7 @@ const ChatRoom = ({ chatId }: { chatId: number }) => {
 }
 ```
 
-* * *
+---
 
 ## File upload with S3 pre-signed URLs
 
@@ -202,7 +202,7 @@ const FileUploader = () => {
 }
 ```
 
-* * *
+---
 
 ## Org-scoped data access
 
@@ -269,7 +269,7 @@ const ProjectList = () => {
 }
 ```
 
-* * *
+---
 
 ## Cache with external API (movie app pattern)
 
@@ -386,7 +386,7 @@ const MovieList = () => {
 }
 ```
 
-* * *
+---
 
 ## Soft delete with restore
 
@@ -444,7 +444,7 @@ const restore = async (id: number) => {
 }
 ```
 
-* * *
+---
 
 ## Post-mutation workflows with onSuccess and onSettled
 
@@ -496,7 +496,7 @@ const CreatePostForm = () => {
 Use it for cleanup that must always happen (clearing spinners, resetting flags).
 Use `onSuccess` for actions that only make sense on success (redirects, toasts).
 
-* * *
+---
 
 ## Typing components with InferRow, InferCreate, InferUpdate
 
@@ -542,7 +542,7 @@ const EditPostForm = ({ post, onSubmit }: { post: PostRow; onSubmit: (data: Post
 `InferCreate` is the raw field shape — what you pass to the create reducer.
 `InferUpdate` makes all fields optional — what you pass to the update reducer.
 
-* * *
+---
 
 ## Global error type with Register
 
@@ -576,7 +576,7 @@ const handleError = (error: RegisteredDefaultError) => {
 }
 ```
 
-* * *
+---
 
 ## Create and update forms with schemaVariants
 
@@ -636,7 +636,7 @@ const EditPost = ({ post }: { post: PostRow }) => {
 }
 ```
 
-* * *
+---
 
 ## Typed form validation errors with getFieldErrors
 
@@ -701,7 +701,7 @@ const CreatePost = () => {
 `getFieldErrors` returns `undefined` when the error has no field-level data, so you can
 safely fall through to a generic error handler.
 
-* * *
+---
 
 ## Reducing mutation boilerplate with useMutation
 
@@ -734,7 +734,7 @@ const save = useMutation(useReducer, reducers.update_blog, {
 All `MutateOptions` work the same way — `onSuccess`, `onSettled`, `onError`, `retry`,
 `optimistic`, etc.
 
-* * *
+---
 
 ## Toast shorthand with useMutation
 
@@ -784,7 +784,7 @@ const save = useMutation(useReducer, reducers.update_blog, {
 
 `onSuccess` and `toast.success` compose — both run when provided.
 
-* * *
+---
 
 ## Field validation error toasts
 
@@ -821,7 +821,7 @@ runs for other error types.
 Pair it with `getFieldErrors` when you need to display errors inline in the form rather
 than as toasts.
 
-* * *
+---
 
 ## Phantom type inference
 
@@ -870,7 +870,7 @@ const PostCard = ({ post }: { post: typeof postSchema.$inferRow }) => (
 )
 ```
 
-* * *
+---
 
 ## Error discrimination with SenderError.\_tag
 

@@ -1,6 +1,6 @@
 /* oxlint-disable react/jsx-handler-names */
 // biome-ignore-all lint/nursery/noLeakedRender: conditional rendering
-/* eslint-disable max-statements, complexity, react-hooks/refs */
+/* eslint-disable complexity, react-hooks/refs */
 // biome-ignore-all lint/correctness/useHookAtTopLevel: hooks called in component render context
 // biome-ignore-all lint/nursery/noFloatingPromises: event handler
 'use client'

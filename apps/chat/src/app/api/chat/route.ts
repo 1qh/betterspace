@@ -83,7 +83,6 @@ const WEATHER_LOCATION_RE = /weather(?:\s+in)?\s+(?<location>[a-zA-Z\s-]+)/u,
       location = getLocation(lastUserText),
       weatherIntent = WEATHER_WORD_RE.test(lastUserText),
       stream = createUIMessageStream({
-        // eslint-disable-next-line max-statements
         execute: async ({ writer }) => {
           await sleep(500)
           writer.write({ type: 'start' })

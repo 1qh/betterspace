@@ -44,7 +44,7 @@ const ORG_PATHS = ['/dashboard', '/members', '/projects', '/wiki', '/settings'],
     return null
   },
   toLegacyOrg = (org: Org) => ({ ...org, _id: toOrgId(org.id) }),
-  // eslint-disable-next-line max-statements, @typescript-eslint/promise-function-async
+  // eslint-disable-next-line @typescript-eslint/promise-function-async
   OrgLayoutInner = ({ children }: { children: ReactNode }) => {
     const pathname = usePathname(),
       router = useRouter(),

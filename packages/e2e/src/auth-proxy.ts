@@ -37,7 +37,6 @@ process.on('uncaughtException', () => {})
 process.on('unhandledRejection', () => {})
 
 serve({
-  // eslint-disable-next-line max-statements
   fetch: async (req, server) => {
     try {
       const url = new URL(req.url)

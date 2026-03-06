@@ -19,7 +19,6 @@ const sleep = async (ms: number) =>
   assert = (condition: boolean, msg: string) => {
     if (!condition) throw new Error(`ASSERTION_FAILED: ${msg}`)
   },
-  // eslint-disable-next-line max-statements
   testCreate = async (ctx: Ctx) => {
     console.log('[2/6] Creating a blog post...')
     await callReducer(ctx, 'create_blog', { content: 'My first post', title: 'Hello World' })
@@ -68,7 +67,6 @@ const sleep = async (ms: number) =>
     assert(after.length === 0, `Expected 0 blogs after deletion, got ${String(after.length)}`)
     console.log('  Blog deleted successfully')
   },
-  // eslint-disable-next-line max-statements
   run = async () => {
     console.log('[1/6] Creating test context...')
     const ctx = await createTestContext({ moduleName: 'betterspace', userCount: 2 }),

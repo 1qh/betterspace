@@ -62,7 +62,6 @@ const TMDB_IMG = 'https://image.tmdb.org/t/p/w200',
       vote_average: 6.9
     }
   ],
-  // eslint-disable-next-line max-statements
   searchMovies = async (query: string) => {
     // eslint-disable-next-line no-restricted-properties
     const apiKey = process.env.NEXT_PUBLIC_TMDB_API_KEY

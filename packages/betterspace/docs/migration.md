@@ -6,18 +6,18 @@ This guide maps lazyconvex concepts to their betterspace equivalents.
 
 ## The big picture
 
-| Concept | lazyconvex (Convex) | betterspace (SpacetimeDB) |
-| --- | --- | --- |
-| Backend | Convex cloud | SpacetimeDB (Docker or Maincloud) |
-| Data model | Document store (JSON) | Relational tables |
-| Real-time | `useQuery` with reactive queries | `useTable` with WebSocket subscriptions |
-| Mutations | `useMutation` | `useReducer` |
-| Server functions | Convex functions (`query`, `mutation`, `action`) | Reducers + Procedures |
-| Provider | `ConvexProvider` | `SpacetimeDBProvider` |
-| Auth | ConvexAuth (JWT) | Anonymous Identity + OIDC (Maincloud) |
-| File storage | Convex storage | S3/MinIO via API routes |
-| IDs | `Id<"tableName">` (string) | `u32` (number) |
-| Schema | Zod-based `defineTable` | `t.string()`, `t.u32()`, etc. |
+| Concept          | lazyconvex (Convex)                              | betterspace (SpacetimeDB)               |
+| ---------------- | ------------------------------------------------ | --------------------------------------- |
+| Backend          | Convex cloud                                     | SpacetimeDB (Docker or Maincloud)       |
+| Data model       | Document store (JSON)                            | Relational tables                       |
+| Real-time        | `useQuery` with reactive queries                 | `useTable` with WebSocket subscriptions |
+| Mutations        | `useMutation`                                    | `useReducer`                            |
+| Server functions | Convex functions (`query`, `mutation`, `action`) | Reducers + Procedures                   |
+| Provider         | `ConvexProvider`                                 | `SpacetimeDBProvider`                   |
+| Auth             | ConvexAuth (JWT)                                 | Anonymous Identity + OIDC (Maincloud)   |
+| File storage     | Convex storage                                   | S3/MinIO via API routes                 |
+| IDs              | `Id<"tableName">` (string)                       | `u32` (number)                          |
+| Schema           | Zod-based `defineTable`                          | `t.string()`, `t.u32()`, etc.           |
 
 ## Provider
 
@@ -409,11 +409,11 @@ Optimistic updates are unnecessary at this latency.
 
 ## What doesn’t exist in betterspace (yet)
 
-| lazyconvex feature | Status in betterspace |
-| --- | --- |
-| `usePaginatedQuery` | Use `useList` with `loadMore` |
-| Optimistic updates | Not needed at 39ms latency; `useOptimisticMutation` is a placeholder |
-| `skip` option on queries | Conditionally render the subscribing component instead |
-| Built-in rate limiting | Implement manually with a tracking table |
-| `ctx.http.fetch` in reducers | Panics in local Docker; use Next.js API routes |
-| Full OAuth (Google, GitHub) | Requires Maincloud; local dev uses anonymous identity |
+| lazyconvex feature           | Status in betterspace                                                |
+| ---------------------------- | -------------------------------------------------------------------- |
+| `usePaginatedQuery`          | Use `useList` with `loadMore`                                        |
+| Optimistic updates           | Not needed at 39ms latency; `useOptimisticMutation` is a placeholder |
+| `skip` option on queries     | Conditionally render the subscribing component instead               |
+| Built-in rate limiting       | Implement manually with a tracking table                             |
+| `ctx.http.fetch` in reducers | Panics in local Docker; use Next.js API routes                       |
+| Full OAuth (Google, GitHub)  | Requires Maincloud; local dev uses anonymous identity                |
