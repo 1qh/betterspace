@@ -11,7 +11,7 @@
     "clean": "git clean -xdf node_modules .turbo bun.lock",
     "clean:workspaces": "turbo run clean",
     "dev:web": "f() { turbo watch dev -F @a/$1 -F @a/be; }; f",
-    "fix": "bun format && bun lint:ts:fix && bun format && (O=$(turbo typecheck build --output-logs=errors-only 2>&1) || { echo \"$O\"; false; }) && bun format:md",
+    "fix": "bun lintmax.config.ts && bun format && bun lint:ts:fix && bun format && (O=$(turbo typecheck build --output-logs=errors-only 2>&1) || { echo \"$O\"; false; }) && bun format:md",
     "format": "sort-package-json **/package.json > /dev/null && biome check --fix --diagnostic-level=error > /dev/null",
     "format:check": "sort-package-json --check '**/package.json' && biome ci --diagnostic-level=error",
     "format:md": "bunx prettier --single-quote --no-semi --trailing-comma none --print-width 80 --arrow-parens avoid --tab-width 2 --prose-wrap preserve --write '**/*.md' && flowmark --auto .",
