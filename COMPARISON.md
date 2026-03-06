@@ -506,3 +506,32 @@ the same amount of code (or less) for equivalent functionality.
 | 10. `key: undefined` boilerplate | Every omitted field explicit | Only changed fields | CLOSED |
 | 11. Schema variants boilerplate | 44-line schema.ts + variants | 24 lines, base schemas | CLOSED |
 | 12. Leftover `key: undefined` | `assigneeId: undefined` | Omit optional fields | CLOSED |
+
+* * *
+
+## Fresh-Eyes Audit (Post-Closure)
+
+After closing all 12 gaps, a head-to-head comparison of every consumer file was
+conducted.
+The remaining line count deltas are all **platform-inherent** or **betterspace
+enhancements**:
+
+| App | betterspace | lazyconvex | Delta | Root Cause |
+| --- | --- | --- | --- | --- |
+| org | +176 lines | — | +176 | Client-side filtering (SpacetimeDB subscriptions vs Convex server queries) |
+| blog | +120 lines | — | +120 | `useMutation` toast config (enhancement — better UX than lazyconvex) |
+| movie | +260 lines | — | +260 | Client-side TMDB fetch + Playwright mock data (no server-side actions in SpacetimeDB) |
+| chat | +8 lines | — | +8 | `useOnlineStatus` enhancement + Convex AI tool setup is longer |
+
+**No new fixable DX gaps found.** Investigated whether library helpers (`useOrgTable`,
+`useJoinedTable`) could reduce platform-inherent verbosity — concluded the abstraction
+cost outweighs the 2-3 lines saved per usage site.
+
+### What betterspace does BETTER than lazyconvex
+
+- `useMutation` with `toast: { success, error }` — eliminates mutation+toast boilerplate
+- `relax()` + `UndefinedToOptional` — cleaner reducer calls than Convex mutations
+- `useOnlineStatus` — presence detection not available in lazyconvex
+- `AutoSaveIndicator` — built-in auto-save UI component
+- `defineSteps` — typesafe multi-step form wizard
+- `EditorsSection` — reusable per-item ACL editor component
