@@ -1,6 +1,5 @@
 import { recommended } from 'betterspace/eslint'
 import { eslint, warnToError } from 'lintmax/eslint'
-import { join } from 'node:path'
 
 const config = eslint({
   append: [
@@ -74,8 +73,7 @@ const config = eslint({
     'react-hooks/preserve-manual-memoization': 'off',
     'react-hooks/set-state-in-effect': 'off'
   },
-  tailwind: join(import.meta.dirname, 'packages/ui/src/styles/globals.css'),
-  tsconfigRootDir: import.meta.dirname
+  tailwind: 'packages/ui/src/styles/globals.css'
 })
 
 export default config
