@@ -88,18 +88,9 @@
       "includes": ["**"],
       "linter": {
         "rules": {
-          "complexity": {
-            "noExcessiveCognitiveComplexity": "off",
-            "noExcessiveLinesPerFunction": "off"
-          },
-          "correctness": {
-            "noNodejsModules": "off",
-            "noProcessGlobal": "off",
-            "noSolidDestructuredProps": "off",
-            "noUndeclaredDependencies": "off",
-            "noUnresolvedImports": "off",
-            "useImportExtensions": "off",
-            "useQwikValidLexicalScope": "off"
+          "performance": {
+            "noBarrelFile": "off",
+            "useSolidForComponent": "off"
           },
           "nursery": {
             "noConditionalExpect": "off",
@@ -109,12 +100,9 @@
             "useExplicitType": "off",
             "useSortedClasses": "off"
           },
-          "performance": {
-            "noBarrelFile": "off",
-            "useSolidForComponent": "off"
-          },
-          "security": {
-            "noSecrets": "off"
+          "suspicious": {
+            "noConsole": "off",
+            "noReactSpecificProps": "off"
           },
           "style": {
             "noDefaultExport": "off",
@@ -128,9 +116,21 @@
             "useNamingConvention": "off",
             "useSingleVarDeclarator": "off"
           },
-          "suspicious": {
-            "noConsole": "off",
-            "noReactSpecificProps": "off"
+          "complexity": {
+            "noExcessiveCognitiveComplexity": "off",
+            "noExcessiveLinesPerFunction": "off"
+          },
+          "correctness": {
+            "noNodejsModules": "off",
+            "noProcessGlobal": "off",
+            "noSolidDestructuredProps": "off",
+            "noUndeclaredDependencies": "off",
+            "noUnresolvedImports": "off",
+            "useImportExtensions": "off",
+            "useQwikValidLexicalScope": "off"
+          },
+          "security": {
+            "noSecrets": "off"
           }
         }
       }
