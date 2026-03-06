@@ -1,13 +1,11 @@
 {
   "compilerOptions": {
-    "jsx": "preserve",
-    "lib": ["DOM", "DOM.Iterable", "ESNext"],
     "paths": {
       "@a/ui/*": ["./src/*"]
     },
     "rootDir": "."
   },
   "exclude": ["dist", "node_modules"],
-  "extends": "lintmax/tsconfig/base",
+  "extends": "lintmax/tsconfig",
   "include": ["."]
 }

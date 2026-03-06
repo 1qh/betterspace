@@ -1,9 +1,8 @@
 {
   "compilerOptions": {
-    "jsx": "react-jsx",
-    "lib": ["DOM", "DOM.Iterable", "ESNext"]
+    "jsx": "react-jsx"
   },
   "exclude": ["dist", "node_modules"],
-  "extends": "lintmax/tsconfig/base",
+  "extends": "lintmax/tsconfig",
   "include": ["src", "*.config.ts"]
 }
