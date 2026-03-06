@@ -23,6 +23,7 @@
   "[typescriptreact]": {
     "editor.defaultFormatter": "biomejs.biome"
   },
+  "biome.configPath": "node_modules/.cache/lintmax/biome.json",
   "editor.codeActionsOnSave": {
     "source.fixAll.biome": "always",
     "source.fixAll.eslint": "always",

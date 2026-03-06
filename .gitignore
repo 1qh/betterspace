@@ -29,7 +29,6 @@ resource_bundle_accessor*
 *.xccheckout
 *.xcscmblueprint
 .DS_Store
-.oxlintrc.json
 .android/
 .build/
 .cache
@@ -53,7 +52,6 @@ DerivedData/
 desktop/*/*.xcodeproj/
 Package.resolved
 __pycache__
-biome.json
 build
 bun.lock
 coverage
@@ -68,3 +66,5 @@ test-results.xml
 test-results/
 xcodebuild*.log
 xcuserdata/
+.cache/
+.eslintcache
