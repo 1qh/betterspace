@@ -12,6 +12,7 @@ import {
 
 export default __t.row({
   contentType: __t.string().name("content_type"),
+  createdAt: __t.timestamp().name("created_at"),
   filename: __t.string(),
   id: __t.u32().primaryKey(),
   size: __t.f64(),

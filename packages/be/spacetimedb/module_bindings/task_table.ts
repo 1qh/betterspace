@@ -13,6 +13,7 @@ import {
 export default __t.row({
   assigneeId: __t.option(__t.identity()).name("assignee_id"),
   completed: __t.option(__t.bool()),
+  createdAt: __t.timestamp().name("created_at"),
   id: __t.u32().primaryKey(),
   orgId: __t.u32().name("org_id"),
   priority: __t.option(__t.string()),

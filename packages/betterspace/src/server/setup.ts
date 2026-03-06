@@ -4,6 +4,7 @@ import type { Identity, Timestamp } from 'spacetimedb'
 import type { AlgebraicTypeType, ReducerExport, TypeBuilder } from 'spacetimedb/server'
 
 import type { OrgFieldBuilders } from './org'
+import type { ZodBridgeT } from './stdb-tables'
 import type { GlobalHookCtx, GlobalHooks, Middleware, Rec } from './types'
 import type { CacheFieldBuilders, CacheOptions } from './types/cache'
 import type { CrudFieldBuilders, CrudHooks, CrudOptions } from './types/crud'
@@ -20,12 +21,14 @@ import { composeMiddleware } from './middleware'
 import { makeOrg, makeOrgTables } from './org'
 import { makeOrgCrud } from './org-crud'
 import { makeSingletonCrud } from './singleton'
+import { zodToStdbFields } from './stdb-tables'
 
 interface CrudDefaults {
   expectedUpdatedAtField: TypeBuilder<unknown, AlgebraicTypeType>
   foreignKeyField?: TypeBuilder<unknown, AlgebraicTypeType>
   idField: TypeBuilder<unknown, AlgebraicTypeType>
   orgIdField?: TypeBuilder<unknown, AlgebraicTypeType>
+  t?: ZodBridgeT
 }
 
 interface OrgTypeBuilders {
@@ -44,6 +47,11 @@ interface SetupConfig {
 interface SpacetimeDbLike {
   // eslint-disable-next-line @typescript-eslint/method-signature-style
   reducer(...args: unknown[]): unknown
+}
+
+interface ZodLike {
+  shape: Record<string, unknown>
+  type: 'object'
 }
 
 const isPromiseLike = (value: unknown): value is PromiseLike<unknown> => {
@@ -467,6 +475,16 @@ const dbTable: (db: unknown, name: string) => unknown = (db, name) => (db as Rec
     (name: string): TableAccessor =>
     db =>
       dbTable(db, name),
+  isZodObject = (v: unknown): v is ZodLike =>
+    typeof v === 'object' &&
+    v !== null &&
+    'type' in v &&
+    (v as { type: unknown }).type === 'object' &&
+    'shape' in v &&
+    typeof (v as { shape: unknown }).shape === 'object' &&
+    (v as { shape: unknown }).shape !== null,
+  resolveCrudFields = (fields: unknown, tableName: string, defaults: CrudDefaults): unknown =>
+    isZodObject(fields) && defaults.t ? zodToStdbFields(fields.shape, defaults.t, tableName) : fields,
   /** Convenience wrapper around setup with shared field defaults. */
   setupCrud = (spacetimedb: SpacetimeDbLike, defaults: CrudDefaults, config?: SetupConfig) => {
     const s = setup(spacetimedb, config),
@@ -480,30 +498,33 @@ const dbTable: (db: unknown, name: string) => unknown = (db, name) => (db as Rec
       cacheCrud: (
         tableName: string,
         keyName: string,
-        fields: CacheFieldBuilders,
+        fields: CacheFieldBuilders | ZodLike,
         options?: CacheOptions & {
           keyField?: TypeBuilder<unknown, AlgebraicTypeType>
         }
-      ) =>
-        s.cacheCrud({
-          fields,
+      ) => {
+        const resolvedFields = resolveCrudFields(fields, tableName, defaults)
+        return s.cacheCrud({
+          fields: resolvedFields as CacheFieldBuilders,
           keyField: (options?.keyField ?? idField) as never,
           keyName,
           options: options?.ttl === undefined ? undefined : { ttl: options.ttl },
           pk: pkByKey(keyName) as never,
           table: tblOf(tableName) as never,
           tableName
-        }),
+        })
+      },
 
       childCrud: (
         tableName: string,
         parent: { foreignKey: string; table: string },
-        fields: CrudFieldBuilders,
+        fields: CrudFieldBuilders | ZodLike,
         options?: CrudOptions
-      ) =>
-        s.childCrud({
+      ) => {
+        const resolvedFields = resolveCrudFields(fields, tableName, defaults)
+        return s.childCrud({
           expectedUpdatedAtField: expectedUpdatedAtField as never,
-          fields,
+          fields: resolvedFields as CrudFieldBuilders,
           foreignKeyField: fkField as never,
           foreignKeyName: parent.foreignKey,
           idField: idField as never,
@@ -513,18 +534,21 @@ const dbTable: (db: unknown, name: string) => unknown = (db, name) => (db as Rec
           pk: pkById as never,
           table: tblOf(tableName) as never,
           tableName
-        }),
+        })
+      },
 
-      crud: (tableName: string, fields: CrudFieldBuilders, options?: CrudOptions) =>
-        s.crud({
+      crud: (tableName: string, fields: CrudFieldBuilders | ZodLike, options?: CrudOptions) => {
+        const resolvedFields = resolveCrudFields(fields, tableName, defaults)
+        return s.crud({
           expectedUpdatedAtField: expectedUpdatedAtField as never,
-          fields,
+          fields: resolvedFields as CrudFieldBuilders,
           idField: idField as never,
           options: options as never,
           pk: pkById as never,
           table: tblOf(tableName) as never,
           tableName
-        }),
+        })
+      },
 
       exports: s.exports,
 
@@ -561,13 +585,14 @@ const dbTable: (db: unknown, name: string) => unknown = (db, name) => (db as Rec
       },
 
       org: (
-        orgFields: OrgFieldBuilders,
+        orgFields: OrgFieldBuilders | ZodLike,
         orgOpts: {
           cascadeTables?: string[]
           t: OrgTypeBuilders
         }
       ) => {
         const stdbT = orgOpts.t,
+          resolvedOrgFields = resolveCrudFields(orgFields, 'org', defaults) as OrgFieldBuilders,
           cascadeConfigs: {
             deleteById: (db: unknown, id: unknown) => boolean
             rowsByOrg: (db: unknown, orgId: unknown) => Iterable<{ id: unknown }>
@@ -597,7 +622,7 @@ const dbTable: (db: unknown, name: string) => unknown = (db, name) => (db as Rec
             token: stdbT.string()
           },
           cascadeTables: cascadeConfigs.length > 0 ? cascadeConfigs : undefined,
-          fields: orgFields,
+          fields: resolvedOrgFields,
           ...makeOrgTables({
             org: tblOf('org'),
             orgInvite: tblOf('orgInvite'),
@@ -609,14 +634,15 @@ const dbTable: (db: unknown, name: string) => unknown = (db, name) => (db as Rec
 
       orgCrud: (
         tableName: string,
-        fields: OrgCrudFieldBuilders,
+        fields: OrgCrudFieldBuilders | ZodLike,
         options?: OrgCrudOptions & {
           orgMemberTable?: TableAccessor
         }
-      ) =>
-        s.orgCrud({
+      ) => {
+        const resolvedFields = resolveCrudFields(fields, tableName, defaults)
+        return s.orgCrud({
           expectedUpdatedAtField: expectedUpdatedAtField as never,
-          fields,
+          fields: resolvedFields as OrgCrudFieldBuilders,
           idField: idField as never,
           options: options as never,
           orgIdField: oIdField as never,
@@ -624,19 +650,22 @@ const dbTable: (db: unknown, name: string) => unknown = (db, name) => (db as Rec
           pk: pkById as never,
           table: tblOf(tableName) as never,
           tableName
-        }),
+        })
+      },
 
       register: (exports: Record<string, ReducerExport<never, never>>) => {
         registerExports(s.exports, exports)
       },
 
-      singletonCrud: (tableName: string, fields: SingletonFieldBuilders, options?: SingletonOptions) =>
-        s.singletonCrud({
-          fields,
+      singletonCrud: (tableName: string, fields: SingletonFieldBuilders | ZodLike, options?: SingletonOptions) => {
+        const resolvedFields = resolveCrudFields(fields, tableName, defaults)
+        return s.singletonCrud({
+          fields: resolvedFields as SingletonFieldBuilders,
           options: options as never,
           table: tblOf(tableName) as never,
           tableName
         })
+      }
     }
   }
 

@@ -64,7 +64,7 @@ const JoinRequests = () => {
                 <span>Unknown</span>
               </TableCell>
               <TableCell className='max-w-48 truncate text-sm text-muted-foreground'>{r.message ?? '-'}</TableCell>
-              <TableCell className='text-sm text-muted-foreground'>-</TableCell>
+              <TableCell className='text-sm text-muted-foreground'>{r.createdAt.toDate().toLocaleDateString()}</TableCell>
               <TableCell>
                 <Switch
                   checked={asAdmin[`${r.id}`] ?? false}

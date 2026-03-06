@@ -321,6 +321,7 @@ const makeOptionalFields = (fields: OrgFieldBuilders) => {
 
           const payload = {
             ...args,
+            createdAt: ctx.timestamp,
             id: 0 as OrgId,
             updatedAt: ctx.timestamp,
             userId: ctx.sender

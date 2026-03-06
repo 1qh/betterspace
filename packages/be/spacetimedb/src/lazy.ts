@@ -9,7 +9,8 @@ const { allExports, cacheCrud, childCrud, crud, exports, fileUpload, m, org, org
       expectedUpdatedAtField: t.timestamp(),
       foreignKeyField: t.u32(),
       idField: t.u32(),
-      orgIdField: t.u32()
+      orgIdField: t.u32(),
+      t
     }),
   orgFns = org(orgFields.team, {
     cascadeTables: ['task', 'project', 'wiki'],

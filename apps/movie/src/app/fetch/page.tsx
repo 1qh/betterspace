@@ -3,7 +3,7 @@
 // biome-ignore-all lint/style/noProcessEnv: intentional process.env access
 // biome-ignore-all lint/performance/noImgElement: external images
 'use client'
-import type { base } from '@a/be/z'
+import type { base } from '@a/be/t'
 import type { InferCreate } from 'betterspace'
 
 import { reducers } from '@a/be/spacetimedb'

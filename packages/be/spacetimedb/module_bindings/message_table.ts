@@ -16,6 +16,7 @@ import {
 
 export default __t.row({
   chatId: __t.u32().name("chat_id"),
+  createdAt: __t.timestamp().name("created_at"),
   id: __t.u32().primaryKey(),
   get parts() {
     return __t.array(MessagePart);

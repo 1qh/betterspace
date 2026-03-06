@@ -652,7 +652,7 @@ const requireErrorBoundary = {
   }
 }
 
-const writeCrudFactories = new Set(['crud', 'orgCrud'])
+const writeCrudFactories = new Set(['crud'])
 
 const getOptionsObject = (
   node: CallNode

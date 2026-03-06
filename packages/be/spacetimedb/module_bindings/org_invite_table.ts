@@ -11,6 +11,7 @@ import {
 } from "spacetimedb";
 
 export default __t.row({
+  createdAt: __t.timestamp().name("created_at"),
   email: __t.string(),
   expiresAt: __t.f64().name("expires_at"),
   id: __t.u32().primaryKey(),

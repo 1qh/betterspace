@@ -1,4 +1,4 @@
-import { org, orgScoped, singleton } from '@a/be/z'
+import { org, orgScoped, singleton } from '@a/be/t'
 import { cvFile } from 'betterspace/schema'
 import { boolean, email, object, string } from 'zod/v4'
 

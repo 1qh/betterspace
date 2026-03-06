@@ -12,6 +12,7 @@ import {
 
 export default __t.row({
   content: __t.option(__t.string()),
+  createdAt: __t.timestamp().name("created_at"),
   deletedAt: __t.option(__t.timestamp()).name("deleted_at"),
   editors: __t.option(__t.array(__t.identity())),
   id: __t.u32().primaryKey(),

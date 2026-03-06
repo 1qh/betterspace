@@ -21,7 +21,7 @@
     "spacetime:health": "curl -fsS http://localhost:3000/v1/ping && echo ' SpacetimeDB is healthy'",
     "spacetime:local": "bunx betterspace use local",
     "spacetime:logs": "docker compose logs -f spacetimedb",
-    "spacetime:publish": "PATH=\"$HOME/.local/bin:$PATH\" spacetime publish betterspace --module-path packages/be/spacetimedb",
+    "spacetime:publish": "PATH=\"$HOME/.local/bin:$PATH\" spacetime publish betterspace --module-path packages/be/spacetimedb --delete-data=on-conflict -y",
     "spacetime:publish:cloud": "PATH=\"$HOME/.local/bin:$PATH\" spacetime publish betterspace -s maincloud --module-path packages/be/spacetimedb -y",
     "spacetime:reset": "docker compose down -v && bun spacetime:up",
     "spacetime:sql": "PATH=\"$HOME/.local/bin:$PATH\" spacetime sql betterspace",

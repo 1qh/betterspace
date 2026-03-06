@@ -8,7 +8,7 @@ import type { SyntheticEvent } from 'react'
 import type { output } from 'zod/v4'
 
 import { reducers, tables } from '@a/be/spacetimedb'
-import { orgScoped } from '@a/be/z'
+import { orgScoped } from '@a/be/t'
 import { fail, sameIdentity } from '@a/fe/utils'
 import { Avatar, AvatarFallback, AvatarImage } from '@a/ui/avatar'
 import { Badge } from '@a/ui/badge'

@@ -97,6 +97,7 @@ const makeChildCrud = <
       const payload = data as unknown as Record<string, unknown>
       table.insert({
         ...payload,
+        createdAt: ctx.timestamp,
         [foreignKeyName]: parentId,
         id: 0 as Id,
         updatedAt: ctx.timestamp,

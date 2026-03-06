@@ -15,6 +15,7 @@ export const Blog = __t.object("Blog", {
   category: __t.string(),
   content: __t.string(),
   coverImage: __t.option(__t.string()),
+  createdAt: __t.timestamp(),
   id: __t.u32(),
   published: __t.bool(),
   tags: __t.option(__t.array(__t.string())),
@@ -27,6 +28,7 @@ export type Blog = __Infer<typeof Blog>;
 export const BlogProfile = __t.object("BlogProfile", {
   avatar: __t.option(__t.string()),
   bio: __t.option(__t.string()),
+  createdAt: __t.timestamp(),
   displayName: __t.string(),
   notifications: __t.bool(),
   theme: __t.string(),
@@ -36,6 +38,7 @@ export const BlogProfile = __t.object("BlogProfile", {
 export type BlogProfile = __Infer<typeof BlogProfile>;
 
 export const Chat = __t.object("Chat", {
+  createdAt: __t.timestamp(),
   id: __t.u32(),
   isPublic: __t.bool(),
   title: __t.string(),
@@ -46,6 +49,7 @@ export type Chat = __Infer<typeof Chat>;
 
 export const File = __t.object("File", {
   contentType: __t.string(),
+  createdAt: __t.timestamp(),
   filename: __t.string(),
   id: __t.u32(),
   size: __t.f64(),
@@ -57,6 +61,7 @@ export type File = __Infer<typeof File>;
 
 export const Message = __t.object("Message", {
   chatId: __t.u32(),
+  createdAt: __t.timestamp(),
   id: __t.u32(),
   get parts() {
     return __t.array(MessagePart);
@@ -80,6 +85,7 @@ export const Movie = __t.object("Movie", {
   backdropPath: __t.option(__t.string()),
   budget: __t.option(__t.f64()),
   cachedAt: __t.timestamp(),
+  createdAt: __t.timestamp(),
   get genres() {
     return __t.array(MovieGenre);
   },
@@ -114,6 +120,7 @@ export type MovieGenreInput = __Infer<typeof MovieGenreInput>;
 
 export const Org = __t.object("Org", {
   avatarId: __t.option(__t.string()),
+  createdAt: __t.timestamp(),
   id: __t.u32(),
   name: __t.string(),
   slug: __t.string(),
@@ -123,6 +130,7 @@ export const Org = __t.object("Org", {
 export type Org = __Infer<typeof Org>;
 
 export const OrgInvite = __t.object("OrgInvite", {
+  createdAt: __t.timestamp(),
   email: __t.string(),
   expiresAt: __t.f64(),
   id: __t.u32(),
@@ -133,15 +141,18 @@ export const OrgInvite = __t.object("OrgInvite", {
 export type OrgInvite = __Infer<typeof OrgInvite>;
 
 export const OrgJoinRequest = __t.object("OrgJoinRequest", {
+  createdAt: __t.timestamp(),
   id: __t.u32(),
   message: __t.option(__t.string()),
   orgId: __t.u32(),
   status: __t.string(),
+  updatedAt: __t.timestamp(),
   userId: __t.identity(),
 });
 export type OrgJoinRequest = __Infer<typeof OrgJoinRequest>;
 
 export const OrgMember = __t.object("OrgMember", {
+  createdAt: __t.timestamp(),
   id: __t.u32(),
   isAdmin: __t.bool(),
   orgId: __t.u32(),
@@ -153,6 +164,7 @@ export type OrgMember = __Infer<typeof OrgMember>;
 export const OrgProfile = __t.object("OrgProfile", {
   avatar: __t.option(__t.string()),
   bio: __t.option(__t.string()),
+  createdAt: __t.timestamp(),
   displayName: __t.string(),
   notifications: __t.bool(),
   theme: __t.string(),
@@ -162,6 +174,7 @@ export const OrgProfile = __t.object("OrgProfile", {
 export type OrgProfile = __Infer<typeof OrgProfile>;
 
 export const Project = __t.object("Project", {
+  createdAt: __t.timestamp(),
   description: __t.option(__t.string()),
   editors: __t.option(__t.array(__t.identity())),
   id: __t.u32(),
@@ -176,6 +189,7 @@ export type Project = __Infer<typeof Project>;
 export const Task = __t.object("Task", {
   assigneeId: __t.option(__t.identity()),
   completed: __t.option(__t.bool()),
+  createdAt: __t.timestamp(),
   id: __t.u32(),
   orgId: __t.u32(),
   priority: __t.option(__t.string()),
@@ -188,6 +202,7 @@ export type Task = __Infer<typeof Task>;
 
 export const Wiki = __t.object("Wiki", {
   content: __t.option(__t.string()),
+  createdAt: __t.timestamp(),
   deletedAt: __t.option(__t.timestamp()),
   editors: __t.option(__t.array(__t.identity())),
   id: __t.u32(),
@@ -199,4 +214,3 @@ export const Wiki = __t.object("Wiki", {
   userId: __t.identity(),
 });
 export type Wiki = __Infer<typeof Wiki>;
-

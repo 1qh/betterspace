@@ -16,6 +16,7 @@ import { identityEquals, makeError } from './reducer-utils'
 
 interface FileRowBase<Id> {
   contentType: string
+  createdAt: Timestamp
   filename: string
   id: Id
   size: number
@@ -264,6 +265,7 @@ const DEFAULT_ALLOWED_TYPES = new Set([
           const table = tableAccessor(ctx.db)
           table.insert({
             contentType: typedArgs.contentType,
+            createdAt: ctx.timestamp,
             filename: typedArgs.filename,
             id: 0 as Id,
             size: typedArgs.size,

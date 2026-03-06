@@ -46,6 +46,7 @@ interface OrgInviteReducersExports {
 }
 
 interface OrgInviteRowLike<InviteId, OrgId> {
+  createdAt: Timestamp
   email: string
   expiresAt: number
   id: InviteId
@@ -77,6 +78,7 @@ interface OrgJoinRequestRowLike<RequestId, OrgId> {
 type OrgJoinRequestTableLike<Row> = Iterable<Row>
 
 interface OrgMemberRowLike<MemberId, OrgId> {
+  createdAt: Timestamp
   id: MemberId
   isAdmin: boolean
   orgId: OrgId
@@ -221,6 +223,7 @@ const DAY_HOURS = 24,
     if (pendingRequest)
       requestPk.update({ ...(pendingRequest as unknown as Record<string, unknown>), status: 'approved' } as JoinRequestRow)
     orgMemberTable.insert({
+      createdAt: timestamp,
       id: 0 as MemberId,
       isAdmin: invite.isAdmin,
       orgId: invite.orgId,
@@ -308,6 +311,7 @@ const DAY_HOURS = 24,
           requireAdminRole({ operation: 'invite', org, orgMemberTable, sender: ctx.sender })
 
           orgInviteTable.insert({
+            createdAt: ctx.timestamp,
             email: args.email,
             expiresAt: Date.now() + SEVEN_DAYS_MS,
             id: 0 as InviteId,

@@ -11,6 +11,7 @@ import {
 } from "spacetimedb";
 
 export default __t.row({
+  createdAt: __t.timestamp().name("created_at"),
   description: __t.option(__t.string()),
   editors: __t.option(__t.array(__t.identity())),
   id: __t.u32().primaryKey(),

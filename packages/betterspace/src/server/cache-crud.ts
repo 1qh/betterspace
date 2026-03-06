@@ -108,6 +108,7 @@ const DAYS_PER_WEEK = 7,
           payload = {
             ...argsRecord,
             cachedAt: ctx.timestamp,
+            createdAt: ctx.timestamp,
             id: 0,
             invalidatedAt: null,
             [keyName]: keyValue,

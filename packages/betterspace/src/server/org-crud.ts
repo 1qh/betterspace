@@ -192,6 +192,7 @@ const applyOrgPatch = <Row extends OrgCrudOwnedRow<OrgId>, OrgId>(
         const { orgId, ...payload } = data as unknown as Record<string, unknown> & { orgId: OrgId },
           row = table.insert({
             ...payload,
+            createdAt: ctx.timestamp,
             id: 0 as Id,
             orgId,
             updatedAt: ctx.timestamp,

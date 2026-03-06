@@ -161,7 +161,7 @@ all generated.
 | Seed data generation (`generateOne`, `generateSeed`)                                                                         |       0       |
 | Retry with exponential backoff (`withRetry`, `fetchWithRetry`)                                                               |       0       |
 | Zod introspection (`unwrapZod`, `cvFileKindOf`, `defaultValues`, `enumToOptions`, ...)                                       |       0       |
-| Client-safe Zod schemas (`@a/be/z`) — single source of truth for forms                                                       |       0       |
+| Client-safe Zod schemas (`@a/be/t`) — single source of truth for forms                                                       |       0       |
 | Identity helpers (`identityEquals`, `identityFromHex`, `identityToHex`)                                                      |       0       |
 | `zodFromTable` — bridge SpacetimeDB types to Zod schemas                                                                     |       0       |
 | `useMutate` `onSuccess`/`onSettled` callbacks for post-mutation workflows                                                    |       0       |

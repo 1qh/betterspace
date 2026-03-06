@@ -13,6 +13,7 @@ import {
 export default __t.row({
   avatar: __t.option(__t.string()),
   bio: __t.option(__t.string()),
+  createdAt: __t.timestamp().name("created_at"),
   displayName: __t.string().name("display_name"),
   notifications: __t.bool(),
   theme: __t.string(),

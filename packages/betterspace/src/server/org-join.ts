@@ -47,10 +47,12 @@ interface OrgJoinRequestPkLike<Row, Id> {
 }
 
 interface OrgJoinRequestRowLike<RequestId, OrgId> {
+  createdAt: Timestamp
   id: RequestId
   message: string | undefined
   orgId: OrgId
   status: string
+  updatedAt: Timestamp
   userId: Identity
 }
 
@@ -59,9 +61,11 @@ interface OrgJoinRequestTableLike<Row> extends Iterable<Row> {
 }
 
 interface OrgMemberRowLike<MemberId, OrgId> {
+  createdAt: Timestamp
   id: MemberId
   isAdmin: boolean
   orgId: OrgId
+  updatedAt: Timestamp
   userId: Identity
 }
 
@@ -167,10 +171,12 @@ const findOrgMember = <OrgId, MemberId, MemberRow extends OrgMemberRowLike<Membe
           if (existingRequest) throw makeError('JOIN_REQUEST_EXISTS', 'org:request_join')
 
           orgJoinRequestTable.insert({
+            createdAt: ctx.timestamp,
             id: 0 as RequestId,
             message: args.message,
             orgId: args.orgId,
             status: 'pending',
+            updatedAt: ctx.timestamp,
             userId: ctx.sender
           } as JoinRequestRow)
         }
@@ -199,12 +205,15 @@ const findOrgMember = <OrgId, MemberId, MemberRow extends OrgMemberRowLike<Membe
 
           orgJoinRequestPk.update({
             ...(request as unknown as Record<string, unknown>),
-            status: 'approved'
+            status: 'approved',
+            updatedAt: ctx.timestamp
           } as JoinRequestRow)
           orgMemberTable.insert({
+            createdAt: ctx.timestamp,
             id: 0 as MemberId,
             isAdmin: args.isAdmin ?? false,
             orgId: request.orgId,
+            updatedAt: ctx.timestamp,
             userId: request.userId
           } as MemberRow)
         }
@@ -230,7 +239,8 @@ const findOrgMember = <OrgId, MemberId, MemberRow extends OrgMemberRowLike<Membe
 
           orgJoinRequestPk.update({
             ...(request as unknown as Record<string, unknown>),
-            status: 'rejected'
+            status: 'rejected',
+            updatedAt: ctx.timestamp
           } as JoinRequestRow)
         }
       ),

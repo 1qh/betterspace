@@ -34,6 +34,7 @@ interface OrgMemberReducersExports {
 }
 
 interface OrgMemberRowLike<MemberId, OrgId> {
+  createdAt: Timestamp
   id: MemberId
   isAdmin: boolean
   orgId: OrgId
@@ -55,6 +56,7 @@ interface OrgPkLike<Row, Id> {
 type OrgRole = 'admin' | 'member' | 'owner'
 
 interface OrgRowLike<OrgId> {
+  createdAt: Timestamp
   id: OrgId
   updatedAt: Timestamp
   userId: Identity
@@ -236,6 +238,7 @@ const findOrgMember = <OrgId, MemberId, MemberRow extends OrgMemberRowLike<Membe
           if (!removed) throw makeError('NOT_FOUND', 'org:transfer_ownership')
 
           orgMemberTable.insert({
+            createdAt: ctx.timestamp,
             id: 0 as MemberId,
             isAdmin: true,
             orgId: typedArgs.orgId,

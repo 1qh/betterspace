@@ -1,102 +1,95 @@
-import { t } from 'spacetimedb/server'
+import { child, cvFile, cvFiles, makeBase, makeOrgScoped, makeOwned, makeSingleton } from 'betterspace/schema'
+import { array, boolean, number, object, string, union, enum as zenum } from 'zod/v4'
 
-const file = t.string(),
-  files = t.array(t.string()),
-  messagePart = t.object('MessagePartSchema', {
-    file: t.string().optional(),
-    image: t.string().optional(),
-    name: t.string().optional(),
-    text: t.string().optional(),
-    type: t.string()
+const file = cvFile(),
+  files = cvFiles(),
+  messagePart = union([
+    object({ text: string(), type: zenum(['text']) }),
+    object({ image: file, type: zenum(['image']) }),
+    object({ file, name: string(), type: zenum(['file']) })
+  ]),
+  owned = makeOwned({
+    blog: object({
+      attachments: files.max(5).optional(),
+      category: zenum(['tech', 'life', 'tutorial'], { error: 'Select a category' }),
+      content: string().min(3, 'At least 3 characters'),
+      coverImage: file.nullable().optional(),
+      published: boolean(),
+      tags: array(string()).max(5, 'Max 5 tags').optional(),
+      title: string().min(1, 'Required')
+    }),
+    chat: object({
+      isPublic: boolean(),
+      title: string().min(1)
+    })
   }),
-  owned = {
-    blog: {
-      attachments: files.optional(),
-      category: t.string(),
-      content: t.string(),
-      coverImage: file.optional(),
-      published: t.bool(),
-      tags: t.array(t.string()).optional(),
-      title: t.string()
-    },
-    chat: {
-      isPublic: t.bool(),
-      title: t.string()
-    }
-  },
   children = {
-    message: {
+    message: child({
       foreignKey: 'chatId',
-      schema: {
-        chatId: t.u32(),
-        parts: t.array(messagePart),
-        role: t.string()
-      }
-    }
+      parent: 'chat',
+      parentSchema: owned.chat,
+      schema: object({
+        chatId: number(),
+        parts: array(messagePart),
+        role: zenum(['user', 'assistant', 'system'])
+      })
+    })
   },
-  base = {
-    movie: {
-      backdropPath: t.string().optional(),
-      budget: t.number().optional(),
-      genres: t.array(
-        t.object('MovieGenreSchema', {
-          id: t.number(),
-          name: t.string()
-        })
-      ),
-      originalTitle: t.string(),
-      overview: t.string(),
-      posterPath: t.string().optional(),
-      releaseDate: t.string(),
-      revenue: t.number().optional(),
-      runtime: t.number().optional(),
-      tagline: t.string().optional(),
-      title: t.string(),
-      tmdbId: t.number(),
-      voteAverage: t.number(),
-      voteCount: t.number()
-    }
-  },
+  base = makeBase({
+    movie: object({
+      backdropPath: string().optional(),
+      budget: number().optional(),
+      genres: array(object({ id: number(), name: string() })),
+      originalTitle: string(),
+      overview: string(),
+      posterPath: string().optional(),
+      releaseDate: string(),
+      revenue: number().optional(),
+      runtime: number().optional(),
+      tagline: string().optional(),
+      title: string(),
+      tmdbId: number(),
+      voteAverage: number(),
+      voteCount: number()
+    })
+  }),
   org = {
-    team: {
-      avatarId: t.string().optional(),
-      name: t.string(),
-      slug: t.string()
-    }
+    team: object({
+      avatarId: file.optional(),
+      name: string(),
+      slug: string().regex(/^[a-z0-9-]+$/u)
+    })
   },
-  orgScoped = {
-    project: {
-      description: t.string().optional(),
-      editors: t.array(t.identity()).optional(),
-      name: t.string(),
-      status: t.string().optional()
-    },
-    task: {
-      assigneeId: t.identity().optional(),
-      completed: t.bool().optional(),
-      priority: t.string().optional(),
-      projectId: t.u32(),
-      title: t.string()
-    },
-    wiki: {
-      content: t.string().optional(),
-      deletedAt: t.timestamp().optional(),
-      editors: t.array(t.identity()).optional(),
-      slug: t.string(),
-      status: t.string(),
-      title: t.string()
-    }
-  },
+  orgScoped = makeOrgScoped({
+    project: object({
+      description: string().optional(),
+      name: string().min(1),
+      status: zenum(['active', 'archived', 'completed']).optional()
+    }),
+    task: object({
+      completed: boolean().optional(),
+      priority: zenum(['low', 'medium', 'high']).optional(),
+      title: string().min(1)
+    }),
+    wiki: object({
+      content: string().optional(),
+      slug: string()
+        .min(1)
+        .regex(/^[a-z0-9-]+$/u),
+      status: zenum(['draft', 'published']),
+      title: string().min(1)
+    })
+  }),
   profileShape = {
-    avatar: file.optional(),
-    bio: t.string().optional(),
-    displayName: t.string(),
-    notifications: t.bool(),
-    theme: t.string()
+    avatar: file.nullable().optional(),
+    bio: string().max(500).optional(),
+    displayName: string().trim().min(1),
+    notifications: boolean(),
+    theme: zenum(['light', 'dark', 'system'])
   },
-  singleton = {
-    blogProfile: profileShape,
-    orgProfile: profileShape
-  }
+  singleton = makeSingleton({
+    blogProfile: object(profileShape),
+    orgProfile: object(profileShape)
+  })
 
-export { base, children, org, orgScoped, owned, singleton }
+export { base, children, messagePart, org, orgScoped, owned, profileShape, singleton }

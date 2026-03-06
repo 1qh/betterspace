@@ -62,6 +62,7 @@ const makeCrud = <
         const payload = data as unknown as Record<string, unknown>,
           row = table.insert({
             ...payload,
+            createdAt: ctx.timestamp,
             id: 0 as Id,
             updatedAt: ctx.timestamp,
             userId: ctx.sender

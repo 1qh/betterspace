@@ -18,6 +18,7 @@ export default __t.row({
   backdropPath: __t.option(__t.string()).name("backdrop_path"),
   budget: __t.option(__t.f64()),
   cachedAt: __t.timestamp().name("cached_at"),
+  createdAt: __t.timestamp().name("created_at"),
   get genres() {
     return __t.array(MovieGenre);
   },

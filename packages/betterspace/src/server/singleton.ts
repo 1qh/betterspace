@@ -11,6 +11,7 @@ import type {
 import { identityEquals, makeError, makeOptionalFields } from './reducer-utils'
 
 interface SingletonRow {
+  createdAt: Timestamp
   updatedAt: Timestamp
   userId: Identity
 }
@@ -94,7 +95,7 @@ const findByUser = (table: SingletonTableLike<SingletonRow>, sender: Identity): 
         } else {
           if (hooks?.beforeCreate)
             hooks.beforeCreate(hookCtx, { data: patchRecord as unknown as Partial<SingletonFieldValues<F>> })
-          const newRow = { ...patchRecord, updatedAt: ctx.timestamp, userId: ctx.sender } as Row
+          const newRow = { ...patchRecord, createdAt: ctx.timestamp, updatedAt: ctx.timestamp, userId: ctx.sender } as Row
           table.insert(newRow)
           if (hooks?.afterCreate)
             hooks.afterCreate(hookCtx, {
