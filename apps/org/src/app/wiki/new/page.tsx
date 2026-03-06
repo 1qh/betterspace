@@ -15,7 +15,6 @@ const NewWikiPage = () => {
   const router = useRouter(),
     { org } = useOrg(),
     createWiki = useMutation(useReducer, reducers.createWiki, {
-      getName: () => 'wiki.create',
       toast: { error: 'Failed to create wiki page', success: 'Wiki page created' }
     }),
     form = useForm({

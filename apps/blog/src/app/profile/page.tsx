@@ -20,7 +20,6 @@ const Page = () => {
     isPlaywright = process.env.NEXT_PUBLIC_PLAYWRIGHT === '1',
     profile = profiles.find(p => identity && p.userId.isEqual(identity)) ?? null,
     upsert = useMutation(useReducer, reducers.upsertBlogProfile, {
-      getName: () => 'blogProfile.upsert',
       toast: { error: 'Profile save failed', success: 'Profile saved' }
     }),
     shouldShowContent = isReady || isPlaywright,

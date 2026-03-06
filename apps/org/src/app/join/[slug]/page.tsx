@@ -31,11 +31,9 @@ const JoinPage = ({ params }: { params: Promise<{ slug: string }> }) => {
     membership =
       identity && org ? members.find(m => m.orgId === org.id && m.userId.toHexString() === identity.toHexString()) : null,
     cancelRequest = useMutation(useReducer, reducers.orgCancelJoin, {
-      getName: () => 'org.cancelJoin',
       toast: { error: 'Failed to cancel request', success: 'Request cancelled' }
     }),
     requestJoin = useMutation(useReducer, reducers.orgRequestJoin, {
-      getName: () => 'org.requestJoin',
       toast: { error: 'Join request failed', success: 'Join request sent' }
     }),
     form = useForm({

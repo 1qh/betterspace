@@ -471,6 +471,62 @@ await createTask({
 
 * * *
 
+## Gap 13: `getName` Boilerplate in `useMutation`
+
+**Status**: [x] CLOSED
+
+**Problem**: Every `useMutation` call required a `getName` option so devtools tracking
+and toast messages could identify the mutation:
+
+```ts
+const create = useMutation(useReducer, reducers.createBlog, {
+  getName: () => 'blog.create',
+  toast: { error: 'Create failed', success: 'Created' }
+})
+```
+
+The `getName` was always a static string derived from the reducer name — pure
+boilerplate.
+
+**lazyconvex**: No equivalent — Convex mutations are identified by their `api.blog.rm`
+reference.
+
+**betterspace (after)**: `useMutation` auto-infers the name from the SpacetimeDB reducer
+descriptor’s `accessorName` or `name` field:
+
+```ts
+const create = useMutation(useReducer, reducers.createBlog, {
+  toast: { error: 'Create failed', success: 'Created' }
+})
+```
+
+**How it works**:
+
+SpacetimeDB reducer descriptors (`UntypedReducerDef`) carry both `name` (snake_case:
+`"create_blog"`) and `accessorName` (camelCase: `"createBlog"`). The new
+`inferReducerName()` function extracts whichever is available:
+
+```ts
+const inferReducerName = (reducer: unknown): string | undefined => {
+  if (typeof reducer === 'object' && reducer !== null) {
+    const r = reducer as Record<string, unknown>
+    if (typeof r.accessorName === 'string') return r.accessorName
+    if (typeof r.name === 'string') return r.name
+  }
+}
+```
+
+`useMutation` uses this automatically when no explicit `getName` is provided.
+Dynamic `getName` (with template literal IDs like `` `org.invite:${orgId}` ``) still
+works by overriding the auto-inferred name.
+
+**Impact across demo apps**:
+
+- 15 static `getName` calls removed across 10 files
+- 11 dynamic `getName` calls intentionally kept (they use runtime IDs for tracking)
+
+* * *
+
 ## Inherent Platform Differences (NOT Gaps)
 
 These are expected divergences due to SpacetimeDB vs Convex fundamentals:
@@ -489,7 +545,7 @@ These are expected divergences due to SpacetimeDB vs Convex fundamentals:
 
 ## Summary
 
-All 12 DX gaps are **CLOSED**. A developer moving from lazyconvex to betterspace writes
+All 13 DX gaps are **CLOSED**. A developer moving from lazyconvex to betterspace writes
 the same amount of code (or less) for equivalent functionality.
 
 | Gap | Before | After | Status |
@@ -506,6 +562,7 @@ the same amount of code (or less) for equivalent functionality.
 | 10. `key: undefined` boilerplate | Every omitted field explicit | Only changed fields | CLOSED |
 | 11. Schema variants boilerplate | 44-line schema.ts + variants | 24 lines, base schemas | CLOSED |
 | 12. Leftover `key: undefined` | `assigneeId: undefined` | Omit optional fields | CLOSED |
+| 13. `getName` boilerplate | Static `getName` on every call | Auto-inferred from reducer | CLOSED |
 
 * * *
 

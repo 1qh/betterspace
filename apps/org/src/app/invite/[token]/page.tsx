@@ -17,7 +17,6 @@ const AcceptInvitePage = ({ params }: { params: Promise<{ token: string }> }) =>
     [accepted, setAccepted] = useState(false),
     [inviteError, setInviteError] = useState<null | string>(null),
     acceptInvite = useMutation(useReducer, reducers.orgAcceptInvite, {
-      getName: () => 'org.acceptInvite',
       onSettled: (_args, error) => {
         if (!error) return
         setInviteError(error instanceof Error ? error.message : 'Invalid or expired invite')

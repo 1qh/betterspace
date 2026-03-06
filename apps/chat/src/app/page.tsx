@@ -17,7 +17,6 @@ const Page = () => {
     publicToggleId = useId(),
     pendingTitleRef = useRef<null | string>(null),
     createChat = useMutation(useReducer, reducers.createChat, {
-      getName: () => 'chat.create',
       onSuccess: () => {
         pendingTitleRef.current = null
       },

@@ -15,7 +15,6 @@ import { orgTeam } from '~/schema'
 const NewOrgPage = () => {
   const router = useRouter(),
     create = useMutation(useReducer, reducers.orgCreate, {
-      getName: () => 'org.create',
       toast: { error: 'Failed to create organization', success: 'Organization created' }
     }),
     form = useForm({

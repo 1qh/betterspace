@@ -30,7 +30,6 @@ const Publish = ({
   }: Omit<ComponentProps<'div'>, 'id'> & { id: number; published: boolean }) => {
     const publishId = useId(),
       update = useMutation(useReducer, reducers.updateBlog, {
-        getName: () => 'blog.update.publish',
         toast: {
           error: 'Failed to update publish status',
           success: (_result, args) => (args.published ? 'Published' : 'Unpublished')
@@ -57,7 +56,6 @@ const Publish = ({
   },
   Edit = ({ blog }: { blog: Blog }) => {
     const update = useMutation(useReducer, reducers.updateBlog, {
-        getName: () => 'blog.update.edit',
         toast: { error: 'Autosave failed', success: 'Saved' }
       }),
       form = useForm({
@@ -130,7 +128,6 @@ const Publish = ({
   },
   Setting = ({ blog }: { blog: Blog }) => {
     const update = useMutation(useReducer, reducers.updateBlog, {
-        getName: () => 'blog.update.settings',
         toast: { error: 'Failed to save settings', success: 'Saved' }
       }),
       form = useForm({

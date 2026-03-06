@@ -15,7 +15,6 @@ const NewProjectPage = () => {
   const router = useRouter(),
     { org } = useOrg(),
     createProject = useMutation(useReducer, reducers.createProject, {
-      getName: () => 'project.create',
       toast: { error: 'Failed to create project', success: 'Project created' }
     }),
     form = useForm({

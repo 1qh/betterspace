@@ -173,12 +173,21 @@ const isDev = typeof process !== 'undefined' && process.env.NODE_ENV !== 'produc
       [errorHandler, isOptimistic, mutate, options, store, successHandler]
     )
   },
+  inferReducerName = (reducer: unknown): string | undefined => {
+    if (typeof reducer === 'object' && reducer !== null) {
+      const r = reducer as Record<string, unknown>
+      if (typeof r.accessorName === 'string') return r.accessorName
+      if (typeof r.name === 'string') return r.name
+    }
+  },
   useMutation = <A extends Record<string, unknown>, R = void, D = unknown>(
     useReducerHook: (desc: D) => (args: A) => Promise<R>,
     reducer: D,
     options?: MutateOptions<A, R>
   ): ((args: UndefinedToOptional<A>) => Promise<R>) => {
-    const strict = useMutate(useReducerHook(reducer), options)
+    const inferredName = inferReducerName(reducer),
+      opts = inferredName && !options?.getName ? { ...options, getName: () => inferredName } : options,
+      strict = useMutate(useReducerHook(reducer), opts)
     return async (args: UndefinedToOptional<A>) => strict(args as Record<string, unknown> as A)
   },
   relax =

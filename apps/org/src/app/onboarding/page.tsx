@@ -38,11 +38,9 @@ const { StepForm, useStepper } = defineSteps(
         }
       },
       upsert = useMutation(useReducer, reducers.upsertOrgProfile, {
-        getName: () => 'orgProfile.upsert',
         toast: { error: 'Failed to save profile', success: 'Profile saved' }
       }),
       create = useMutation(useReducer, reducers.orgCreate, {
-        getName: () => 'org.create.onboarding',
         toast: { error: 'Failed to create organization', success: 'Organization ready' }
       }),
       stepper = useStepper({

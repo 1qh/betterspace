@@ -37,7 +37,6 @@ import { Publish } from './[id]/edit/client'
 const isPlaywrightTest = process.env.NEXT_PUBLIC_PLAYWRIGHT === '1',
   Delete = ({ id, onOptimisticRemove }: { id: number; onOptimisticRemove?: () => void }) => {
     const rmBlog = useMutation(useReducer, reducers.rmBlog, {
-        getName: () => 'blog.rm',
         toast: { error: 'Delete failed', success: 'Deleted' }
       }),
       { execute, isPending } = useOptimisticMutation({
@@ -86,7 +85,6 @@ const isPlaywrightTest = process.env.NEXT_PUBLIC_PLAYWRIGHT === '1',
   Create = () => {
     const [open, setOpen] = useState(false),
       create = useMutation(useReducer, reducers.createBlog, {
-        getName: () => 'blog.create',
         toast: { error: 'Create failed', success: 'Created' }
       }),
       form = useForm({
