@@ -1,6 +1,6 @@
-import { sync } from 'lintmax'
+import { defineConfig } from 'lintmax'
 
-sync({
+export default defineConfig({
   biome: {
     overrides: [
       {

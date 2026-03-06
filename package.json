@@ -7,11 +7,11 @@
   ],
   "scripts": {
     "build:ts": "turbo run build",
-    "ci": "bun tsc && sort-package-json --check '**/package.json' && lintmax check && bun build:ts",
+    "ci": "bun tsc && lintmax check && bun build:ts",
     "clean": "git clean -xdf node_modules .turbo bun.lock",
     "clean:workspaces": "turbo run clean",
     "dev:web": "f() { turbo watch dev -F @a/$1 -F @a/be; }; f",
-    "fix": "sort-package-json **/package.json > /dev/null && lintmax fix && (O=$(turbo typecheck build --output-logs=errors-only 2>&1) || { echo \"$O\"; false; })",
+    "fix": "lintmax fix && (O=$(turbo typecheck build --output-logs=errors-only 2>&1) || { echo \"$O\"; false; })",
     "postinstall": "bun lint:ws",
     "lint:ws": "sherif",
     "spacetime:cloud": "bunx betterspace use cloud",
@@ -35,7 +35,6 @@
     "dotenv-cli": "latest",
     "lintmax": "file:../lintmax",
     "sherif": "latest",
-    "sort-package-json": "latest",
     "ts-unused-exports": "latest",
     "turbo": "latest",
     "typescript": "latest"
