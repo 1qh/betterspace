@@ -12,12 +12,10 @@ import { Popover, PopoverContent, PopoverTrigger } from '@a/ui/popover'
 import { Spinner } from '@a/ui/spinner'
 import { Switch } from '@a/ui/switch'
 import { AutoSaveIndicator, Form, useForm } from 'betterspace/components'
-import { toastFieldError, useMutation } from 'betterspace/react'
-import { partialValues } from 'betterspace/zod'
+import { useMutation } from 'betterspace/react'
 import { Settings } from 'lucide-react'
 import Link from 'next/link'
 import { useId, useTransition } from 'react'
-import { toast } from 'sonner'
 import { useReducer, useSpacetimeDB } from 'spacetimedb/react'
 
 import { editBlog } from '~/schema'
@@ -61,14 +59,7 @@ const Publish = ({
       form = useForm({
         autoSave: { debounceMs: 2000, enabled: true },
         onSubmit: async d => {
-          try {
-            await update(partialValues(editBlog, { ...d, id: blog.id }))
-          } catch (error) {
-            toastFieldError(error, message => {
-              toast.error(message)
-            })
-            throw error
-          }
+          await update({ ...d, id: blog.id })
           return d
         },
         schema: editBlog,

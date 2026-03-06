@@ -5,10 +5,8 @@ import { reducers, tables } from '@a/be/spacetimedb'
 import { FieldGroup } from '@a/ui/field'
 import { Spinner } from '@a/ui/spinner'
 import { Form, useForm } from 'betterspace/components'
-import { toastFieldError, useMutation } from 'betterspace/react'
-import { partialValues } from 'betterspace/zod'
+import { useMutation } from 'betterspace/react'
 import Link from 'next/link'
-import { toast } from 'sonner'
 import { useReducer, useSpacetimeDB, useTable } from 'spacetimedb/react'
 
 import { profileSchema } from '~/schema'
@@ -25,14 +23,7 @@ const Page = () => {
     shouldShowContent = isReady || isPlaywright,
     form = useForm({
       onSubmit: async d => {
-        try {
-          await upsert(partialValues(profileSchema, d))
-        } catch (error) {
-          toastFieldError(error, message => {
-            toast.error(message)
-          })
-          throw error
-        }
+        await upsert(d)
         return d
       },
       schema: profileSchema,

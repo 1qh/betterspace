@@ -39,7 +39,7 @@ const JoinPage = ({ params }: { params: Promise<{ slug: string }> }) => {
     form = useForm({
       onSubmit: async d => {
         if (!org) return d
-        await requestJoin({ message: d.message ?? undefined, orgId: org.id })
+        await requestJoin({ message: d.message, orgId: org.id })
         return d
       },
       resetOnSuccess: true,

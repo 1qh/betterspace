@@ -527,6 +527,109 @@ works by overriding the auto-inferred name.
 
 * * *
 
+## Gap 14: `null` Not Accepted for Optional Reducer Fields
+
+**Status**: [x] CLOSED
+
+**Problem**: Zod forms with `.nullable()` fields produce `null` values, but SpacetimeDB
+reducer types define optional fields as `T | undefined`. This forced manual
+`?? undefined` conversions and `partialValues()` usage everywhere:
+
+```ts
+await create({
+  coverImage: d.coverImage ?? undefined, // Zod gives null, reducer wants undefined
+  title: d.title,
+  content: d.content
+  // ...8 fields manually mapped
+})
+
+await update(partialValues(editBlog, { ...d, id: blog.id })) // null → undefined
+```
+
+**lazyconvex**: No issue — Convex mutations accept `null` for optional fields.
+
+**betterspace (after)**: `UndefinedToOptional<T>` widened to accept `null` for optional
+fields:
+
+```ts
+type UndefinedToOptional<T> = {
+  [K in keyof T as undefined extends T[K] ? K : never]?: T[K] | null // ← added | null
+} & {
+  [K in keyof T as undefined extends T[K] ? never : K]: T[K]
+}
+```
+
+Now consumers can spread form data directly:
+
+```ts
+await create({ ...d, published: false }) // was 8 lines of manual mapping
+await update({ ...d, id: blog.id }) // was partialValues(editBlog, ...)
+await upsert(d) // was partialValues(profileSchema, d)
+```
+
+**Why it’s safe**: SpacetimeDB’s serializer (`algebraic_type.ts`) treats both `null` and
+`undefined` as `None`. This was already documented in Gap 10 but the type didn’t reflect
+it.
+
+**Impact across demo apps**:
+
+- 5 `?? undefined` conversions removed (blog, org onboarding, org join)
+- 2 `partialValues` calls eliminated (blog edit, blog profile)
+- Blog Create `onSubmit` went from 18 lines to 2 lines
+
+* * *
+
+## Gap 15: Redundant `toastFieldError` Try/Catch
+
+**Status**: [x] CLOSED
+
+**Problem**: Form `onSubmit` handlers wrapped mutation calls in try/catch with
+`toastFieldError`, duplicating error handling already built into `useMutation`:
+
+```ts
+onSubmit: async d => {
+  try {
+    await create(payload)
+  } catch (error) {
+    toastFieldError(error, message => {
+      toast.error(message)
+    })
+    throw error
+  }
+  return d
+}
+```
+
+This caused **double-toasting**: `useMutation` already toasts field errors via
+`toast.fieldErrors` (enabled by default), then the manual catch toasted again.
+
+**lazyconvex**: No equivalent — Convex mutations don’t have built-in field error
+toasting, so forms handle errors manually.
+
+**betterspace (after)**: The try/catch is removed entirely.
+`useMutation`’s built-in error handling covers all cases:
+
+```ts
+onSubmit: async d => {
+  await create({ ...d, published: false })
+  return d
+}
+```
+
+**How it works**: `useMutation`’s `resolveToastError` checks for field errors first (via
+`getFirstFieldError`), toasts them, then falls through to the `toast.error` message.
+Errors are re-thrown so `useForm` can update its error state.
+No manual handling needed.
+
+**Impact across demo apps**:
+
+- 3 redundant try/catch blocks removed (blog create, blog edit, blog profile)
+- 3 `toastFieldError` imports removed
+- 2 `partialValues` imports removed
+- 2 `toast` (sonner) imports removed
+
+* * *
+
 ## Inherent Platform Differences (NOT Gaps)
 
 These are expected divergences due to SpacetimeDB vs Convex fundamentals:
@@ -545,7 +648,7 @@ These are expected divergences due to SpacetimeDB vs Convex fundamentals:
 
 ## Summary
 
-All 13 DX gaps are **CLOSED**. A developer moving from lazyconvex to betterspace writes
+All 15 DX gaps are **CLOSED**. A developer moving from lazyconvex to betterspace writes
 the same amount of code (or less) for equivalent functionality.
 
 | Gap | Before | After | Status |
@@ -563,12 +666,14 @@ the same amount of code (or less) for equivalent functionality.
 | 11. Schema variants boilerplate | 44-line schema.ts + variants | 24 lines, base schemas | CLOSED |
 | 12. Leftover `key: undefined` | `assigneeId: undefined` | Omit optional fields | CLOSED |
 | 13. `getName` boilerplate | Static `getName` on every call | Auto-inferred from reducer | CLOSED |
+| 14. `null` not accepted | `?? undefined` + `partialValues` | Spread form data directly | CLOSED |
+| 15. Redundant `toastFieldError` | Manual try/catch (double-toast) | `useMutation` handles all | CLOSED |
 
 * * *
 
 ## Fresh-Eyes Audit (Post-Closure)
 
-After closing all 12 gaps, a head-to-head comparison of every consumer file was
+After closing all 15 gaps, a head-to-head comparison of every consumer file was
 conducted.
 The remaining line count deltas are all **platform-inherent** or **betterspace
 enhancements**:
@@ -576,13 +681,15 @@ enhancements**:
 | App | betterspace | lazyconvex | Delta | Root Cause |
 | --- | --- | --- | --- | --- |
 | org | +176 lines | — | +176 | Client-side filtering (SpacetimeDB subscriptions vs Convex server queries) |
-| blog | +120 lines | — | +120 | `useMutation` toast config (enhancement — better UX than lazyconvex) |
+| blog | +80 lines | — | +80 | Remaining delta: toast config (enhancement), `useReducer` injection (platform) |
 | movie | +260 lines | — | +260 | Client-side TMDB fetch + Playwright mock data (no server-side actions in SpacetimeDB) |
 | chat | +8 lines | — | +8 | `useOnlineStatus` enhancement + Convex AI tool setup is longer |
 
-**No new fixable DX gaps found.** Investigated whether library helpers (`useOrgTable`,
-`useJoinedTable`) could reduce platform-inherent verbosity — concluded the abstraction
-cost outweighs the 2-3 lines saved per usage site.
+**No new fixable DX gaps found.** Blog delta dropped from +120 to +80 after Gaps 13-15.
+Remaining blog delta is: `useReducer` hook injection (platform), toast shorthand config
+(betterspace enhancement — better UX), and `useOptimisticMutation` two-step pattern (1
+usage, +2 lines — platform constraint since betterspace can’t import SpacetimeDB SDK
+directly).
 
 ### What betterspace does BETTER than lazyconvex
 

@@ -21,7 +21,7 @@ import { Dialog, DialogContent, DialogTrigger } from '@a/ui/dialog'
 import { FieldGroup } from '@a/ui/field'
 import { Spinner } from '@a/ui/spinner'
 import { Form, useForm } from 'betterspace/components'
-import { toastFieldError, useMutation, useOptimisticMutation } from 'betterspace/react'
+import { useMutation, useOptimisticMutation } from 'betterspace/react'
 import { format, formatDistance } from 'date-fns'
 import { Pencil, Plus, Send, Trash, UserRound } from 'lucide-react'
 import Link from 'next/link'
@@ -89,23 +89,7 @@ const isPlaywrightTest = process.env.NEXT_PUBLIC_PLAYWRIGHT === '1',
       }),
       form = useForm({
         onSubmit: async d => {
-          const payload = {
-            attachments: d.attachments,
-            category: d.category,
-            content: d.content,
-            coverImage: d.coverImage ?? undefined,
-            published: isPlaywrightTest,
-            tags: d.tags,
-            title: d.title
-          }
-          try {
-            await create(payload)
-          } catch (error) {
-            toastFieldError(error, message => {
-              toast.error(message)
-            })
-            throw error
-          }
+          await create({ ...d, published: isPlaywrightTest })
           return d
         },
         onSuccess: () => {

@@ -46,14 +46,14 @@ const { StepForm, useStepper } = defineSteps(
       stepper = useStepper({
         onSubmit: async d => {
           await upsert({
-            avatar: d.profile.avatar ?? undefined,
-            bio: d.profile.bio ?? undefined,
+            avatar: d.profile.avatar,
+            bio: d.profile.bio,
             displayName: d.profile.displayName,
             notifications: d.preferences.notifications,
             theme: d.preferences.theme
           })
           await create({
-            avatarId: d.appearance.orgAvatar ?? undefined,
+            avatarId: d.appearance.orgAvatar,
             name: d.org.name,
             slug: d.org.slug
           })

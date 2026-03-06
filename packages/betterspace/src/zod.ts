@@ -7,7 +7,7 @@ type CvMeta = 'file' | 'files'
 type DefType = core.$ZodTypeDef['type']
 
 type NullsToUndefined<T> = { [K in keyof T]-?: Exclude<T[K], null> | undefined }
-type UndefinedToOptional<T> = { [K in keyof T as undefined extends T[K] ? K : never]?: T[K] } & {
+type UndefinedToOptional<T> = { [K in keyof T as undefined extends T[K] ? K : never]?: null | T[K] } & {
   [K in keyof T as undefined extends T[K] ? never : K]: T[K]
 } extends infer U
   ? { [K in keyof U]: U[K] }

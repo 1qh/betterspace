@@ -893,8 +893,9 @@ const useMutation = <A extends Record<string, unknown>, R = void, D = unknown>(
 ```
 
 The return type uses `UndefinedToOptional<A>` — fields typed as `T | undefined` in the
-generated reducer args become optional.
-You only need to pass required fields and any fields you want to change:
+generated reducer args become optional and also accept `null` (SpacetimeDB serializes
+both as `None`). You only need to pass required fields and any fields you want to
+change:
 
 ```typescript
 const save = useMutation(useReducer, reducers.updateBlog, {
@@ -903,6 +904,16 @@ const save = useMutation(useReducer, reducers.updateBlog, {
 
 save({ id: 1, title: 'New title' })
 ```
+
+**Auto-inferred getName**: When no `getName` option is provided, `useMutation`
+automatically extracts the name from the SpacetimeDB reducer descriptor’s `accessorName`
+or `name` field. You only need explicit `getName` for dynamic names (e.g. template
+literals with runtime IDs).
+
+**Built-in field error toasting**: When `toast` is provided, field errors from
+`SenderError` are automatically extracted and toasted before falling through to the
+generic error message.
+No manual `toastFieldError` try/catch needed in form `onSubmit` handlers.
 
 Accepts the same `MutateOptions` as `useMutate`.
 
@@ -2108,6 +2119,9 @@ type Rows = InferRows<typeof schemas>
 ### UndefinedToOptional
 
 Type-level utility that converts `T | undefined` fields from required to optional.
+Optional fields also accept `null`, which SpacetimeDB serializes identically to
+`undefined` (both become `None`). This lets you pass Zod form data (which uses
+`.nullable()`) directly to reducers without manual `?? undefined` conversions.
 Exported from `betterspace` (main entry point).
 
 ```typescript
@@ -2119,12 +2133,13 @@ type Generated = {
   published: boolean | undefined
 }
 type Relaxed = UndefinedToOptional<Generated>
-// { id: number; title?: string | undefined; published?: boolean | undefined }
+// { id: number; title?: string | undefined | null; published?: boolean | undefined | null }
 ```
 
 Used internally by `useMutation` and `relax()` to make SpacetimeDB-generated reducer
 args ergonomic — fields that accept `undefined` become optional so callers only need to
 pass the fields they care about.
+Zod nullable fields (`string | null`) can be passed through without conversion.
 
 * * *
 
