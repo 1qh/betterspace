@@ -865,6 +865,7 @@ interface BsTag {
   childFk?: string
   childParent?: string
   keyName?: string
+  pub?: boolean | string
   rateLimit?: { max: number; window: number }
   softDelete?: boolean
   ttl?: number
@@ -897,6 +898,7 @@ type OwnedBranded = OwnedSchema<ZodRawShape>
 interface OwnedOpts<F = unknown> {
   extra?: Record<string, FieldBuilder>
   index?: ZodKeys<F>[]
+  pub?: boolean | ZodKeys<F>
   rateLimit?: { max: number; window: number }
   softDelete?: boolean
   unique?: ZodKeys<F>[]
@@ -1075,13 +1077,13 @@ const compoundIndexToEntry = (columns: string[]): { accessor: string; algorithm:
       },
       fileTable = (): BsTable => bsOf({ category: 'file' }, raw.fileTable()),
       orgScopedTable = <F extends TblInput>(fields: F, options?: OrgScopedOpts<F>): BsTable => {
-        const { cascade, compoundIndex, extra, index, indexes, rateLimit, softDelete, unique } = options ?? {},
+        const { cascade, compoundIndex, extra, index, indexes, pub, rateLimit, softDelete, unique } = options ?? {},
           sdExtra = softDelete ? { ...extra, deletedAt: raw.t.timestamp().optional() } : extra,
           mergedExtra = mergeModifierExtra(fields, raw.t, { extra: sdExtra, index, unique }),
           resolvedIndexes = compoundIndex ? [compoundIndexToEntry(compoundIndex), ...(indexes ?? [])] : indexes,
           stdbOpts = resolvedIndexes ? { indexes: resolvedIndexes } : undefined
         return bsOf(
-          { cascade, category: 'orgScoped', rateLimit, softDelete, zod: bsZod(fields) },
+          { cascade, category: 'orgScoped', pub, rateLimit, softDelete, zod: bsZod(fields) },
           raw.orgScopedTable(fields, mergedExtra, stdbOpts)
         )
       },
@@ -1091,10 +1093,13 @@ const compoundIndexToEntry = (columns: string[]): { accessor: string; algorithm:
         return bsOf({ category: 'org', zod: bsZod(fields) }, raw.ownedTable(fields, mergedExtra))
       },
       ownedTable = <F extends TblInput>(fields: F, options?: OwnedOpts<F>): BsTable => {
-        const { extra, index, rateLimit, softDelete, unique } = options ?? {},
+        const { extra, index, pub, rateLimit, softDelete, unique } = options ?? {},
           sdExtra = softDelete ? { ...extra, deletedAt: raw.t.timestamp().optional() } : extra,
           mergedExtra = mergeModifierExtra(fields, raw.t, { extra: sdExtra, index, unique })
-        return bsOf({ category: 'owned', rateLimit, softDelete, zod: bsZod(fields) }, raw.ownedTable(fields, mergedExtra))
+        return bsOf(
+          { category: 'owned', pub, rateLimit, softDelete, zod: bsZod(fields) },
+          raw.ownedTable(fields, mergedExtra)
+        )
       },
       singletonTable = (fields: TblInput): BsTable =>
         bsOf({ category: 'singleton', zod: bsZod(fields) }, raw.singletonTable(fields)),

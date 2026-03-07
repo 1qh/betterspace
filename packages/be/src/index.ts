@@ -3,9 +3,9 @@ import { betterspace } from 'betterspace/server'
 import { s } from '../t'
 
 export default betterspace(({ t, table }) => ({
-  blog: table(s.blog, { index: ['published'], rateLimit: { max: 10, window: 60_000 } }),
+  blog: table(s.blog, { index: ['published'], pub: 'published', rateLimit: { max: 10, window: 60_000 } }),
   blogProfile: table(s.blogProfile),
-  chat: table(s.chat, { index: ['isPublic'], rateLimit: { max: 10, window: 60_000 } }),
+  chat: table(s.chat, { index: ['isPublic'], pub: 'isPublic', rateLimit: { max: 10, window: 60_000 } }),
   file: table.file(),
   message: table(s.message),
   movie: table(s.movie, { key: 'tmdbId' }),

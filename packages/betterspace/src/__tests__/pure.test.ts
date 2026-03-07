@@ -9343,6 +9343,63 @@ describe('type-safe column references in table options', () => {
       expect(invalid).toBeDefined()
     })
   })
+
+  test('pub option accepts published field on blog schema', () => {
+    let pub: boolean | string | undefined
+    withUniversalTable(table => {
+      const ownedSchema = buildSchema({ owned: { blog: object({ published: boolean(), title: string() }) } }),
+        blogTable = table(ownedSchema.blog, { pub: 'published' }),
+        {
+          __bs: { pub: tablePub }
+        } = blogTable
+      pub = tablePub
+    })
+    expect(pub).toBe('published')
+  })
+
+  test('pub option accepts isPublic field on chat schema', () => {
+    let pub: boolean | string | undefined
+    withUniversalTable(table => {
+      const ownedSchema = buildSchema({ owned: { chat: object({ isPublic: boolean(), title: string() }) } }),
+        chatTable = table(ownedSchema.chat, { pub: 'isPublic' }),
+        {
+          __bs: { pub: tablePub }
+        } = chatTable
+      pub = tablePub
+    })
+    expect(pub).toBe('isPublic')
+  })
+
+  test('pub option accepts true for all-public rows', () => {
+    let pub: boolean | string | undefined
+    withUniversalTable(table => {
+      const ownedSchema = buildSchema({ owned: { blog: object({ published: boolean(), title: string() }) } }),
+        blogTable = table(ownedSchema.blog, { pub: true }),
+        {
+          __bs: { pub: tablePub }
+        } = blogTable
+      pub = tablePub
+    })
+    expect(pub).toBe(true)
+  })
+
+  test('pub config is stored in BsTag metadata', () => {
+    let metadata: unknown
+    withUniversalTable(table => {
+      const ownedSchema = buildSchema({ owned: { blog: object({ published: boolean(), title: string() }) } }),
+        blogTable = table(ownedSchema.blog, { pub: 'published' })
+      metadata = blogTable.__bs
+    })
+    expect(metadata).toMatchObject({ category: 'owned', pub: 'published' })
+  })
+
+  test('setup source constrains pub option to typed schema keys', async () => {
+    const { readFileSync } = await import('node:fs'),
+      { join } = await import('node:path'),
+      content = readFileSync(join(import.meta.dir, '..', 'server', 'setup.ts'), 'utf8')
+    expect(content.includes('pub?: boolean | ZodKeys<F>')).toBe(true)
+    expect(content.includes('pub?: string')).toBe(false)
+  })
 })
 
 describe('Sprint 8 polish: parseSenderMessage adds debug on JSON parse failure', () => {
