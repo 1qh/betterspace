@@ -33,6 +33,7 @@ import { err } from './helpers'
 import { composeMiddleware } from './middleware'
 import { makeOrg, makeOrgTables } from './org'
 import { makeOrgCrud } from './org-crud'
+import { RLS_COL, RLS_TBL, rlsSql, rlsWhereSender } from './rls'
 import { makeSingletonCrud } from './singleton'
 import { makeSchema, zodToStdbFields } from './stdb-tables'
 
@@ -83,12 +84,22 @@ const isPromiseLike = (value: unknown): value is PromiseLike<unknown> => {
   },
   requireSync = <T>(value: Promise<T> | T, hookName: string): T => {
     if (isPromiseLike(value))
-      return err('VALIDATION_FAILED', { message: `Hook "${hookName}" must be synchronous in SpacetimeDB reducers` })
+      return err('VALIDATION_FAILED', {
+        message: `Hook "${hookName}" must be synchronous in SpacetimeDB reducers`
+      })
     return value
   },
   toGlobalCtx = (
     table: string,
-    { db, sender, timestamp }: { db: unknown; sender: GlobalHookCtx['sender']; timestamp: GlobalHookCtx['timestamp'] }
+    {
+      db,
+      sender,
+      timestamp
+    }: {
+      db: unknown
+      sender: GlobalHookCtx['sender']
+      timestamp: GlobalHookCtx['timestamp']
+    }
   ): GlobalHookCtx => ({ db, sender, table, timestamp }),
   hasGlobalHooks = (hooks: GlobalHooks): boolean =>
     Boolean(
@@ -183,7 +194,9 @@ const isPromiseLike = (value: unknown): value is PromiseLike<unknown> => {
       let data = initialData
       if (globalHooks?.beforeCreate)
         data = requireSync(
-          globalHooks.beforeCreate(toGlobalCtx(table, ctx), { data: data as Rec }),
+          globalHooks.beforeCreate(toGlobalCtx(table, ctx), {
+            data: data as Rec
+          }),
           'crud.beforeCreate:global'
         ) as CreateArgs
       if (localHooks?.beforeCreate) data = requireSync(localHooks.beforeCreate(ctx, { data }), 'crud.beforeCreate:local')
@@ -199,7 +212,10 @@ const isPromiseLike = (value: unknown): value is PromiseLike<unknown> => {
     return (ctx, { data, row }) => {
       if (globalHooks?.afterCreate)
         requireSync(
-          globalHooks.afterCreate(toGlobalCtx(table, ctx), { data: data as Rec, row: row as Rec }),
+          globalHooks.afterCreate(toGlobalCtx(table, ctx), {
+            data: data as Rec,
+            row: row as Rec
+          }),
           'crud.afterCreate:global'
         )
       if (localHooks?.afterCreate) requireSync(localHooks.afterCreate(ctx, { data, row }), 'crud.afterCreate:local')
@@ -215,7 +231,10 @@ const isPromiseLike = (value: unknown): value is PromiseLike<unknown> => {
       let patch = initialPatch
       if (globalHooks?.beforeUpdate)
         patch = requireSync(
-          globalHooks.beforeUpdate(toGlobalCtx(table, ctx), { patch: patch as Rec, prev: prev as Rec }),
+          globalHooks.beforeUpdate(toGlobalCtx(table, ctx), {
+            patch: patch as Rec,
+            prev: prev as Rec
+          }),
           'crud.beforeUpdate:global'
         ) as UpdatePatch
       if (localHooks?.beforeUpdate)
@@ -251,7 +270,12 @@ const isPromiseLike = (value: unknown): value is PromiseLike<unknown> => {
     if (!(globalHooks?.beforeDelete || localHooks?.beforeDelete)) return
     return (ctx, { row }) => {
       if (globalHooks?.beforeDelete)
-        requireSync(globalHooks.beforeDelete(toGlobalCtx(table, ctx), { row: row as Rec }), 'crud.beforeDelete:global')
+        requireSync(
+          globalHooks.beforeDelete(toGlobalCtx(table, ctx), {
+            row: row as Rec
+          }),
+          'crud.beforeDelete:global'
+        )
       if (localHooks?.beforeDelete) requireSync(localHooks.beforeDelete(ctx, { row }), 'crud.beforeDelete:local')
     }
   },
@@ -298,7 +322,9 @@ const isPromiseLike = (value: unknown): value is PromiseLike<unknown> => {
       let data = initialData
       if (globalHooks?.beforeCreate)
         data = requireSync(
-          globalHooks.beforeCreate(toGlobalCtx(table, ctx), { data: data as Rec }),
+          globalHooks.beforeCreate(toGlobalCtx(table, ctx), {
+            data: data as Rec
+          }),
           'singleton.beforeCreate:global'
         ) as UpdatePatch
       if (localHooks?.beforeCreate)
@@ -315,7 +341,10 @@ const isPromiseLike = (value: unknown): value is PromiseLike<unknown> => {
     return (ctx, { data, row }) => {
       if (globalHooks?.afterCreate)
         requireSync(
-          globalHooks.afterCreate(toGlobalCtx(table, ctx), { data: data as Rec, row: row as Rec }),
+          globalHooks.afterCreate(toGlobalCtx(table, ctx), {
+            data: data as Rec,
+            row: row as Rec
+          }),
           'singleton.afterCreate:global'
         )
       if (localHooks?.afterCreate) requireSync(localHooks.afterCreate(ctx, { data, row }), 'singleton.afterCreate:local')
@@ -331,7 +360,10 @@ const isPromiseLike = (value: unknown): value is PromiseLike<unknown> => {
       let patch = initialPatch
       if (globalHooks?.beforeUpdate)
         patch = requireSync(
-          globalHooks.beforeUpdate(toGlobalCtx(table, ctx), { patch: patch as Rec, prev: prev as Rec }),
+          globalHooks.beforeUpdate(toGlobalCtx(table, ctx), {
+            patch: patch as Rec,
+            prev: prev as Rec
+          }),
           'singleton.beforeUpdate:global'
         ) as UpdatePatch
       if (localHooks?.beforeUpdate)
@@ -731,7 +763,11 @@ const regOwned = (schemas: Record<string, ZodLike>, ctx: RegCtx) => {
         handler: (ctx: { db: unknown; sender: Identity; timestamp: Timestamp }, args: unknown) => void
       ) => {
         const reducer = spacetimedb.reducer({ name }, params as never, (ctxRaw: unknown, args: unknown) => {
-          const ctx = ctxRaw as { db: unknown; sender?: Identity; timestamp: Timestamp }
+          const ctx = ctxRaw as {
+            db: unknown
+            sender?: Identity
+            timestamp: Timestamp
+          }
           if (!ctx.sender) throw new Error(`NOT_AUTHENTICATED: ${name}`)
           handler({ db: ctx.db, sender: ctx.sender, timestamp: ctx.timestamp }, args)
         }) as ReducerExport<never, never>
@@ -757,10 +793,18 @@ const regOwned = (schemas: Record<string, ZodLike>, ctx: RegCtx) => {
           for (const tableName of orgOpts.cascadeTables)
             cascadeConfigs.push({
               deleteById: (db: unknown, id: unknown) =>
-                (dbTable(db, tableName) as { id: { delete: (id: unknown) => boolean } }).id.delete(id),
+                (
+                  dbTable(db, tableName) as {
+                    id: { delete: (id: unknown) => boolean }
+                  }
+                ).id.delete(id),
               rowsByOrg: (db: unknown, orgId: unknown) =>
                 (
-                  dbTable(db, tableName) as { orgId: { filter: (orgId: unknown) => Iterable<{ id: unknown }> } }
+                  dbTable(db, tableName) as {
+                    orgId: {
+                      filter: (orgId: unknown) => Iterable<{ id: unknown }>
+                    }
+                  }
                 ).orgId.filter(orgId)
             })
 
@@ -884,7 +928,11 @@ type OrgScopedBranded = OrgSchema<ZodRawShape>
 interface OrgScopedOpts<F = unknown> extends OwnedOpts<F> {
   cascade?: boolean
   compoundIndex?: ('orgId' | ZodKeys<F>)[]
-  indexes?: { accessor: string; algorithm: 'btree' | 'hash'; columns: string[] }[]
+  indexes?: {
+    accessor: string
+    algorithm: 'btree' | 'hash'
+    columns: string[]
+  }[]
 }
 
 interface OrgTableOpts<F = unknown> {
@@ -994,7 +1042,11 @@ const compoundIndexToEntry = (columns: string[]): { accessor: string; algorithm:
   mergeModifierExtra = (
     fields: unknown,
     bridgeT: ZodBridgeT,
-    mods: { extra?: Record<string, FieldBuilder>; index?: string[]; unique?: string[] }
+    mods: {
+      extra?: Record<string, FieldBuilder>
+      index?: string[]
+      unique?: string[]
+    }
   ): Record<string, FieldBuilder> | undefined => {
     const { extra, index: indexFields, unique: uniqueFields } = mods,
       result: Record<string, FieldBuilder> = {},
@@ -1037,7 +1089,11 @@ const compoundIndexToEntry = (columns: string[]): { accessor: string; algorithm:
     if (m.category === 'singleton' && m.zod) ctx.singletonZ[name] = m.zod
     if (m.category === 'base' && m.zod) ctx.baseZ[name] = m.zod
     if (m.category === 'children' && m.zod && m.childFk && m.childParent)
-      ctx.childZ[name] = { foreignKey: m.childFk, parent: m.childParent, schema: m.zod }
+      ctx.childZ[name] = {
+        foreignKey: m.childFk,
+        parent: m.childParent,
+        schema: m.zod
+      }
     if (m.category === 'file') return { fileNs: name === 'file' ? true : name }
     if (m.category === 'org') return { orgZod: m.zod }
     return {}
@@ -1071,7 +1127,12 @@ const compoundIndexToEntry = (columns: string[]): { accessor: string; algorithm:
             raw.childTable(fkOrChild.foreignKey, fkOrChild.schema as never)
           )
         return bsOf(
-          { category: 'children', childFk: fkOrChild, childParent: fkOrChild.replace(fkSuffix, ''), zod: bsZod(schema) },
+          {
+            category: 'children',
+            childFk: fkOrChild,
+            childParent: fkOrChild.replace(fkSuffix, ''),
+            zod: bsZod(schema)
+          },
           raw.childTable(fkOrChild, schema as never)
         )
       },
@@ -1079,23 +1140,42 @@ const compoundIndexToEntry = (columns: string[]): { accessor: string; algorithm:
       orgScopedTable = <F extends TblInput>(fields: F, options?: OrgScopedOpts<F>): BsTable => {
         const { cascade, compoundIndex, extra, index, indexes, pub, rateLimit, softDelete, unique } = options ?? {},
           sdExtra = softDelete ? { ...extra, deletedAt: raw.t.timestamp().optional() } : extra,
-          mergedExtra = mergeModifierExtra(fields, raw.t, { extra: sdExtra, index, unique }),
+          mergedExtra = mergeModifierExtra(fields, raw.t, {
+            extra: sdExtra,
+            index,
+            unique
+          }),
           resolvedIndexes = compoundIndex ? [compoundIndexToEntry(compoundIndex), ...(indexes ?? [])] : indexes,
           stdbOpts = resolvedIndexes ? { indexes: resolvedIndexes } : undefined
         return bsOf(
-          { cascade, category: 'orgScoped', pub, rateLimit, softDelete, zod: bsZod(fields) },
+          {
+            cascade,
+            category: 'orgScoped',
+            pub,
+            rateLimit,
+            softDelete,
+            zod: bsZod(fields)
+          },
           raw.orgScopedTable(fields, mergedExtra, stdbOpts)
         )
       },
       orgTable = <F extends TblInput>(fields: F, options?: OrgTableOpts<F>): BsTable => {
         const { extra, index, unique } = options ?? {},
-          mergedExtra = mergeModifierExtra(fields, raw.t, { extra, index, unique })
+          mergedExtra = mergeModifierExtra(fields, raw.t, {
+            extra,
+            index,
+            unique
+          })
         return bsOf({ category: 'org', zod: bsZod(fields) }, raw.ownedTable(fields, mergedExtra))
       },
       ownedTable = <F extends TblInput>(fields: F, options?: OwnedOpts<F>): BsTable => {
         const { extra, index, pub, rateLimit, softDelete, unique } = options ?? {},
           sdExtra = softDelete ? { ...extra, deletedAt: raw.t.timestamp().optional() } : extra,
-          mergedExtra = mergeModifierExtra(fields, raw.t, { extra: sdExtra, index, unique })
+          mergedExtra = mergeModifierExtra(fields, raw.t, {
+            extra: sdExtra,
+            index,
+            unique
+          })
         return bsOf(
           { category: 'owned', pub, rateLimit, softDelete, zod: bsZod(fields) },
           raw.ownedTable(fields, mergedExtra)
@@ -1115,9 +1195,13 @@ const compoundIndexToEntry = (columns: string[]): { accessor: string; algorithm:
         if (brand === 'singleton') return singletonTable(fields as SingletonBranded)
         if (brand === 'base') {
           if (!(options && typeof options === 'object' && 'key' in options && typeof options.key === 'string'))
-            return err('VALIDATION_FAILED', { message: 'Base schema tables require options.key when using table()' })
+            return err('VALIDATION_FAILED', {
+              message: 'Base schema tables require options.key when using table()'
+            })
           const baseOptions = options as { key: string; ttl?: number }
-          return cacheTable(baseOptions.key, fields as BaseBranded, { ttl: baseOptions.ttl })
+          return cacheTable(baseOptions.key, fields as BaseBranded, {
+            ttl: baseOptions.ttl
+          })
         }
         return err('VALIDATION_FAILED', {
           message: 'Unknown schema brand. Use makeOwned/makeOrgScoped/makeOrg/makeBase/makeSingleton before table()'
@@ -1189,7 +1273,35 @@ const compoundIndexToEntry = (columns: string[]): { accessor: string; algorithm:
     if (oKeys(schemas).length > 0) s.registerAll(schemas, oKeys(ctx.tblOpts).length > 0 ? ctx.tblOpts : undefined)
     if (orgZod) s.org(orgZod, ctx.cascades.length > 0 ? { cascadeTables: ctx.cascades } : undefined)
 
-    return spacetimedb.exportGroup(s.allExports() as never)
+    const rlsExports: Record<string, unknown> = {}
+    let rlsI = 0
+    const addRls = (sql: string) => {
+      rlsExports[`__rls_${rlsI}`] = (
+        spacetimedb as unknown as {
+          clientVisibilityFilter: { sql: (f: string) => unknown }
+        }
+      ).clientVisibilityFilter.sql(sql)
+      rlsI += 1
+    }
+    for (const name of names) {
+      const entry = result[name]
+      if (entry) {
+        const sqls = rlsSql(name, entry.__bs.category, entry.__bs.pub)
+        for (const sql of sqls) addRls(sql)
+      }
+    }
+    if (orgZod) addRls(rlsWhereSender(RLS_TBL.orgMember, RLS_COL.userId))
+
+    const group = spacetimedb.exportGroup({
+        ...s.allExports(),
+        ...rlsExports
+      } as never),
+      g = group as unknown as Record<symbol, unknown>,
+      syms = Object.getOwnPropertySymbols(group),
+      regSym = syms.find(sym => typeof g[sym] === 'function'),
+      ctxSym = syms.find(sym => sym !== regSym)
+    if (regSym && ctxSym) (g[regSym] as (schemaCtx: unknown, n: string) => void)(g[ctxSym], '__bs')
+    return spacetimedb as never
   }
 
 export type { CrudDefaults, OrgTypeBuilders }

@@ -1,4 +1,4 @@
-import { callReducer, extractErrorData, getErrorCode } from 'betterspace/server'
+import { callReducer, extractErrorData, getErrorCode } from 'betterspace/test'
 import { describe, expect, test } from 'bun:test'
 
 import type { ErrorContext, EventContext, ReducerEventContext, SubscriptionEventContext } from '../module_bindings'

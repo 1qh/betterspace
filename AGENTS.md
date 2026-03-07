@@ -552,3 +552,118 @@ If a developer runs
 `bunx betterspace codegen --schema their-schema.ts --spacetimedb their-spacetimedb/` on
 a project betterspace has never seen, does it produce correct output?
 If not, something is hardcoded that shouldn’t be.
+
+---
+
+# SCALABILITY ARCHITECTURE
+
+betterspace is built on SpacetimeDB — an in-memory real-time database.
+Understanding its architecture is critical.
+DO NOT think in Postgres/Convex mental models.
+Think in SpacetimeDB’s native model.
+
+## Core principle: SpacetimeDB is an MMO game server, not a REST API
+
+BitCraft (an MMO) runs its ENTIRE backend — chat, items, terrain, millions of entities —
+as a single SpacetimeDB database.
+It handles tens of thousands of concurrent players.
+
+A SaaS app with filtered subscriptions and bounded working sets is trivially simpler
+than an MMO. If SpacetimeDB can handle BitCraft, it can handle your app.
+
+## How data flows (subscriptions, not requests)
+
+- Traditional DB: client requests page N → server queries → returns 20 rows → dead data
+- SpacetimeDB: client subscribes to a bounded view → server pushes matching rows →
+  updates stream in real-time → data is always live
+
+There is no request-response cycle.
+The server pushes data to the client continuously.
+This is fundamentally different from REST/GraphQL/Convex.
+
+## The chunk pattern (pagination without LIMIT/OFFSET)
+
+SpacetimeDB subscriptions do NOT support LIMIT, OFFSET, or ORDER BY. This is intentional
+— not a missing feature.
+
+An MMO does not paginate entities.
+Each player subscribes to their CHUNK (entities near them).
+As they move, they subscribe to the new chunk and unsubscribe from the old one.
+
+Apply the same pattern to any app:
+
+| MMO concept      | App equivalent                                    |
+| ---------------- | ------------------------------------------------- |
+| Spatial chunk    | Time window (last 24h, last 7d)                   |
+| Entities near me | Posts from my subreddits / tasks in my project    |
+| Chunk loading    | Subscribe to next time window on scroll           |
+| Chunk unloading  | Unsubscribe from old window to free client memory |
+
+Consumer scrolls through content:
+
+1. View subscribes to “recent posts from my communities, last 24h” → 200 posts
+2. `useInfiniteList` paginates client-side (show 20, scroll for more)
+3. User scrolls past 200 → subscribe to next window (1-7 days ago)
+4. Old window unsubscribes → client memory stays bounded
+5. Data older than 30 days → procedure fetch from cold storage (not real-time)
+
+## Row-Level Security (RLS) via clientVisibilityFilter
+
+Server-enforced, cannot be bypassed by clients.
+Uses `:sender` (the connected client’s Identity, injected server-side).
+
+betterspace auto-generates RLS from the `pub` option on each table:
+
+| Consumer config    | Generated RLS filter                                       |
+| ------------------ | ---------------------------------------------------------- |
+| `pub: 'published'` | `WHERE published = true OR userId = :sender`               |
+| `pub: true`        | No RLS (fully public)                                      |
+| No pub (owned)     | `WHERE userId = :sender`                                   |
+| No pub (orgScoped) | `JOIN orgMember ON orgId WHERE orgMember.userId = :sender` |
+
+## Scaling model
+
+A single SpacetimeDB instance on 512GB RAM handles:
+
+- 100M registered users (1M concurrent at 1%)
+- ~350GB of active data (30 days of content)
+- 100K+ TPS write throughput
+- Each client receives only ~200 rows (bounded by views + RLS)
+
+You only need multi-instance sharding at genuine internet-giant scale (billions of
+users). For startup-to-unicorn growth, a single instance suffices.
+
+## Data lifecycle (keep tables bounded)
+
+SpacetimeDB holds all data in RAM. Tables must stay bounded:
+
+- TTL: scheduled reducers hard-delete data older than N days
+- Archive: move cold data to external storage (S3/Postgres) before deletion
+- Soft delete: mark as deleted, hard-delete after grace period
+
+Hot data (last 30 days) stays in SpacetimeDB for real-time access.
+Cold data (older) goes to external storage for historical queries.
+
+## Anti-patterns (NEVER do these)
+
+- NEVER subscribe to an entire large table without WHERE/view filtering
+- NEVER think “I need LIMIT/OFFSET” — use bounded views instead
+- NEVER store unbounded historical data without TTL — tables grow forever, RAM runs out
+- NEVER use procedures/reducers for data the client needs in real-time — use
+  subscriptions
+- NEVER think in REST pagination mental model — think in subscription windows/chunks
+- NEVER assume SpacetimeDB can’t scale — BitCraft (an MMO) proves it can.
+  If your design doesn’t scale, your SCHEMA design is wrong, not the database
+
+## When external services ARE needed
+
+SpacetimeDB handles real-time community data.
+These features need external services at scale:
+
+- Full-text search across all content → Meilisearch / Typesense
+- Cross-instance aggregation (global feeds, trending) → Redis + worker
+- Analytics / reporting → ClickHouse / BigQuery
+- Cold storage for archived data → S3 / Postgres
+
+These are nice-to-haves at extreme scale, not requirements from day one.
+Start with one instance, add external services only when you actually need them.

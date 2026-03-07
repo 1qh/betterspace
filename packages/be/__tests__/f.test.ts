@@ -1,4 +1,4 @@
-import { callReducer } from 'betterspace/server'
+import { callReducer } from 'betterspace/test'
 import { describe, expect, test } from 'bun:test'
 
 import { reducers, tables } from '../module_bindings'

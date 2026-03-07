@@ -5,8 +5,11 @@ One schema, zero boilerplate.
 
 Define a Zod schema once → authenticated CRUD reducers, typesafe forms with file upload,
 real-time WebSocket subscriptions, pagination, search, conflict detection, soft delete,
-org multi-tenancy with ACL — all generated.
-Ship a production app in minutes, not days.
+org multi-tenancy with ACL, Row-Level Security via `clientVisibilityFilter` — all
+generated. Ship a production app in minutes, not days.
+
+Scales to 100M+ users on a single SpacetimeDB instance.
+See [Security & Scalability](docs/security.md) for architecture details.
 
 ## Before / After
 
@@ -103,6 +106,7 @@ compound indexes, auto-`deletedAt`, and bulk operations — all generated.
 | Feature                                                                                                                      | Lines of code |
 | ---------------------------------------------------------------------------------------------------------------------------- | :-----------: |
 | CRUD reducers with auth + ownership                                                                                          |       0       |
+| Row-Level Security via `clientVisibilityFilter` (auto-generated from `pub` option)                                           |       0       |
 | Real-time WebSocket subscriptions                                                                                            |       0       |
 | File upload with S3/MinIO presign, auto-cleanup                                                                              |       0       |
 | Typesafe forms with Zod validation                                                                                           |       0       |
@@ -486,7 +490,7 @@ It also auto-installs dependencies and creates `tsconfig.json` — no manual set
 | -------- | --------------------------- | ----: |
 | Web      | Playwright E2E              |   248 |
 | Backend  | SpacetimeDB test utilities  |    25 |
-| Library  | bun:test (`src/__tests__/`) |  1018 |
+| Library  | bun:test (`src/__tests__/`) |  1072 |
 
 ## Documentation
 
@@ -502,6 +506,7 @@ It also auto-installs dependencies and creates `tsconfig.json` — no manual set
 | [Migration](docs/migration.md)               | Coming from lazyconvex — concept mapping and incremental adoption                                                                                                                                                                                                       |
 | [Schema Evolution](docs/schema-evolution.md) | Adding, renaming, removing fields, type changes, deployment strategies                                                                                                                                                                                                  |
 | [Ejecting](docs/ejecting.md)                 | Gradual replacement of factories with raw SpacetimeDB, what you lose/keep                                                                                                                                                                                               |
+| [Security & Scalability](docs/security.md)   | Row-Level Security (RLS), `pub` option, write-side access control, org ACL, scaling model, chunk pattern, data lifecycle                                                                                                                                                |
 | [Recipes](docs/recipes.md)                   | 15 real-world composition patterns: chat, file upload, org+ACL, caching, soft delete, mutation workflows, typed components, global error types, schemaVariants, field validation, useMutation, toast shorthand, field error toasts, phantom types, error discrimination |
 
 ## Contributing
@@ -510,7 +515,7 @@ The library is independently testable without the demo apps:
 
 ```bash
 cd packages/betterspace
-bun test src/__tests__/  # 1018 library-only tests, no SpacetimeDB needed
+bun test src/__tests__/  # 1072 library-only tests, no SpacetimeDB needed
 bun lint          # library-scoped linting
 bun typecheck     # library-only type checking
 ```

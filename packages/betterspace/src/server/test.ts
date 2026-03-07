@@ -247,7 +247,11 @@ const DEFAULT_HTTP_URL = 'http://localhost:3000',
       activeUser = user ?? ctx.defaultUser,
       safeName = ensureIdentifier(name, 'REDUCER_NAME'),
       callArgs = normalizeReducerArgs(ctx, safeName, args)
-    return postReducer(ctx, { args: callArgs, reducerName: safeName, token: activeUser.token })
+    return postReducer(ctx, {
+      args: callArgs,
+      reducerName: safeName,
+      token: activeUser.token
+    })
   },
   queryTable = async (ctx: TestContext, tableName: string, user?: TestUser): Promise<unknown[]> => {
     const activeUser = user ?? ctx.defaultUser,
@@ -264,10 +268,22 @@ const DEFAULT_HTTP_URL = 'http://localhost:3000',
   },
   cleanup = async (ctx: TestContext): Promise<void> => {
     if (ctx.reducerParams.has('reset_all_data'))
-      await postReducer(ctx, { args: [], reducerName: 'reset_all_data', token: ctx.defaultUser.token })
+      await postReducer(ctx, {
+        args: [],
+        reducerName: 'reset_all_data',
+        token: ctx.defaultUser.token
+      })
     for (const user of ctx.users) user.connection.disconnect()
     ctx.users.length = 0
   }
+
+export type { ErrorData } from './helpers'
+export {
+  extractErrorData,
+  getErrorCode,
+  getErrorDetail,
+  getErrorMessage
+} from './helpers'
 
 export type { TestContext, TestUser }
 export { asUser, callReducer, cleanup, createTestContext, createTestUser, isTestMode, queryTable }

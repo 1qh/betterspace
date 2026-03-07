@@ -1,7 +1,7 @@
-import type { TestContext, TestUser } from 'betterspace/server'
+import type { TestContext, TestUser } from 'betterspace/test'
 
 // oxlint-disable max-params
-import { callReducer, cleanup, createTestContext, queryTable } from 'betterspace/server'
+import { callReducer, cleanup, createTestContext, queryTable } from 'betterspace/test'
 
 type Row = Record<string, unknown>
 
@@ -31,7 +31,10 @@ const none = { none: [] as [] },
     return output
   },
   withCtx = async <T>(fn: (ctx: TestContext) => Promise<T>) => {
-    const ctx = await createTestContext({ moduleName: 'betterspace', userCount: 3 })
+    const ctx = await createTestContext({
+      moduleName: 'betterspace',
+      userCount: 3
+    })
     try {
       return await fn(ctx)
     } finally {
@@ -64,7 +67,15 @@ const none = { none: [] as [] },
       'create_message',
       {
         chatId,
-        parts: [{ file: none, image: none, name: none, text: some(text), type: 'text' }],
+        parts: [
+          {
+            file: none,
+            image: none,
+            name: none,
+            text: some(text),
+            type: 'text'
+          }
+        ],
         role: 'user'
       },
       user

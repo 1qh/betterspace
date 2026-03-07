@@ -229,14 +229,26 @@ All tables are set `{ public: true }` by default.
 
 **Options by table type:**
 
-| Table type | Available options                                                           |
-| ---------- | --------------------------------------------------------------------------- |
-| owned      | `index`, `unique`, `extra`, `softDelete`, `rateLimit`                       |
-| orgScoped  | `index`, `unique`, `extra`, `softDelete`, `rateLimit`, `cascade`, `indexes` |
-| org        | `index`, `unique`, `extra`                                                  |
-| base/cache | `key`, `ttl`                                                                |
-| singleton  | none                                                                        |
-| child      | none                                                                        |
+| Table type | Available options                                                                  |
+| ---------- | ---------------------------------------------------------------------------------- |
+| owned      | `index`, `unique`, `extra`, `softDelete`, `rateLimit`, `pub`                       |
+| orgScoped  | `index`, `unique`, `extra`, `softDelete`, `rateLimit`, `cascade`, `indexes`, `pub` |
+| org        | `index`, `unique`, `extra`                                                         |
+| base/cache | `key`, `ttl`                                                                       |
+| singleton  | none                                                                               |
+| child      | none                                                                               |
+
+**Read-side access control (`pub` option):**
+
+The `pub` option controls Row-Level Security (RLS) via `clientVisibilityFilter`. See
+[Security & Scalability](security.md) for full documentation.
+
+```tsx
+table(s.blog, { pub: 'published' }) // visible when published=true OR own row
+table(s.chat, { pub: 'isPublic' }) // visible when isPublic=true OR own row
+table(s.chat, { pub: true }) // fully public, no RLS filter
+table(s.blog) // private — only own rows visible
+```
 
 **Specific helpers (backward-compatible alternatives):**
 
