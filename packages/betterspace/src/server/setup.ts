@@ -2,12 +2,23 @@
 /* eslint-disable @typescript-eslint/max-params */
 import type { Identity, Timestamp } from 'spacetimedb'
 import type { AlgebraicTypeType, ReducerExport, TypeBuilder } from 'spacetimedb/server'
+import type { ZodRawShape } from 'zod/v4'
 
 import { t } from 'spacetimedb/server'
 
 import type { OrgFieldBuilders } from './org'
 import type { FieldBuilder, ZodBridgeT } from './stdb-tables'
-import type { GlobalHookCtx, GlobalHooks, Middleware, Rec } from './types'
+import type {
+  BaseSchema,
+  GlobalHookCtx,
+  GlobalHooks,
+  Middleware,
+  OrgDefSchema,
+  OrgSchema,
+  OwnedSchema,
+  Rec,
+  SingletonSchema
+} from './types'
 import type { CacheFieldBuilders, CacheOptions } from './types/cache'
 import type { CrudFieldBuilders, CrudHooks, CrudOptions } from './types/crud'
 import type { FileUploadFields } from './types/file'
@@ -834,6 +845,7 @@ const regOwned = (schemas: Record<string, ZodLike>, ctx: RegCtx) => {
     }
   }
 
+type BaseBranded = BaseSchema<ZodRawShape>
 interface BsCtx {
   baseZ: Record<string, ZodLike>
   cascades: string[]
@@ -863,6 +875,11 @@ interface ChildLike {
   parent: string
   schema: unknown
 }
+
+type OrgDefBranded = OrgDefSchema<ZodRawShape>
+
+type OrgScopedBranded = OrgSchema<ZodRawShape>
+
 interface OrgScopedOpts<F = unknown> extends OwnedOpts<F> {
   cascade?: boolean
   indexes?: { accessor: string; algorithm: string; columns: string[] }[]
@@ -874,6 +891,8 @@ interface OrgTableOpts<F = unknown> {
   unique?: ZodKeys<F>[]
 }
 
+type OwnedBranded = OwnedSchema<ZodRawShape>
+
 interface OwnedOpts<F = unknown> {
   extra?: Record<string, FieldBuilder>
   index?: ZodKeys<F>[]
@@ -882,7 +901,40 @@ interface OwnedOpts<F = unknown> {
   unique?: ZodKeys<F>[]
 }
 
+type RuntimeSchemaBrand = 'base' | 'org' | 'orgDef' | 'owned' | 'singleton'
+
 type SchemaHelpers = ReturnType<typeof makeSchema>
+
+type SingletonBranded = SingletonSchema<ZodRawShape>
+
+type TableArgInput = BaseBranded | ChildLike | OrgDefBranded | OrgScopedBranded | OwnedBranded | SingletonBranded
+
+type TableArgs<F> = F extends ChildLike
+  ? [childDef: F]
+  : F extends BaseBranded
+    ? [fields: F, opts: { key: string; ttl?: number }]
+    : F extends SingletonBranded
+      ? [fields: F]
+      : F extends TableArgInput
+        ? [fields: F, opts?: TableOpts<F>]
+        : never
+
+interface TableFn {
+  <F extends TableArgInput>(...args: TableArgs<F>): BsTable
+  file: () => BsTable
+}
+
+type TableOpts<F> = F extends OwnedBranded
+  ? OwnedOpts<F>
+  : F extends OrgScopedBranded
+    ? OrgScopedOpts<F>
+    : F extends OrgDefBranded
+      ? OrgTableOpts<F>
+      : F extends BaseBranded
+        ? { key: string; ttl?: number }
+        : F extends SingletonBranded
+          ? undefined
+          : never
 
 type TblChild = Parameters<SchemaHelpers['childTable']>[1]
 
@@ -895,6 +947,18 @@ type ZodKeys<F> = F extends { shape: infer S extends Record<string, unknown> } ?
 const fkSuffix = /Id$/u,
   isChildObj = (v: unknown): v is ChildLike =>
     typeof v === 'object' && v !== null && 'foreignKey' in v && 'parent' in v && 'schema' in v,
+  readSchemaBrand = (v: unknown): RuntimeSchemaBrand | undefined => {
+    if (!(typeof v === 'object' && v !== null && '__bs' in v)) return
+    const rawBrand = (v as { __bs?: unknown }).__bs
+    if (
+      rawBrand === 'owned' ||
+      rawBrand === 'org' ||
+      rawBrand === 'orgDef' ||
+      rawBrand === 'base' ||
+      rawBrand === 'singleton'
+    )
+      return rawBrand
+  },
   bsOf = (meta: BsTag, table: unknown): BsTable => ({ __bs: meta, table }),
   bsZod = (fields: unknown): undefined | ZodLike => (isZodObject(fields) ? fields : undefined),
   oKeys = (obj: object): string[] => Object.keys(obj),
@@ -979,61 +1043,86 @@ const fkSuffix = /Id$/u,
     if (oKeys(ctx.childZ).length > 0) schemas.children = ctx.childZ
     return schemas
   },
-  makeBsHelpers = (raw: SchemaHelpers) => ({
-    cacheTable: (keyFieldOrName: string | TblKey, fields: TblInput, options?: { ttl?: number }): BsTable => {
-      const keyName = typeof keyFieldOrName === 'string' ? keyFieldOrName : keyFieldOrName.name
-      return bsOf(
-        { category: 'base', keyName, ttl: options?.ttl, zod: bsZod(fields) },
-        raw.cacheTable(keyFieldOrName, fields)
-      )
-    },
-
-    childTable: (fkOrChild: ChildLike | string, schema?: TblChild): BsTable => {
-      if (isChildObj(fkOrChild))
+  makeBsHelpers = (raw: SchemaHelpers) => {
+    const cacheTable = (keyFieldOrName: string | TblKey, fields: TblInput, options?: { ttl?: number }): BsTable => {
+        const keyName = typeof keyFieldOrName === 'string' ? keyFieldOrName : keyFieldOrName.name
         return bsOf(
-          {
-            category: 'children',
-            childFk: fkOrChild.foreignKey,
-            childParent: fkOrChild.parent,
-            zod: bsZod(fkOrChild.schema)
-          },
-          raw.childTable(fkOrChild.foreignKey, fkOrChild.schema as never)
+          { category: 'base', keyName, ttl: options?.ttl, zod: bsZod(fields) },
+          raw.cacheTable(keyFieldOrName, fields)
         )
-      return bsOf(
-        { category: 'children', childFk: fkOrChild, childParent: fkOrChild.replace(fkSuffix, ''), zod: bsZod(schema) },
-        raw.childTable(fkOrChild, schema as never)
-      )
-    },
+      },
+      childTable = (fkOrChild: ChildLike | string, schema?: TblChild): BsTable => {
+        if (isChildObj(fkOrChild))
+          return bsOf(
+            {
+              category: 'children',
+              childFk: fkOrChild.foreignKey,
+              childParent: fkOrChild.parent,
+              zod: bsZod(fkOrChild.schema)
+            },
+            raw.childTable(fkOrChild.foreignKey, fkOrChild.schema as never)
+          )
+        return bsOf(
+          { category: 'children', childFk: fkOrChild, childParent: fkOrChild.replace(fkSuffix, ''), zod: bsZod(schema) },
+          raw.childTable(fkOrChild, schema as never)
+        )
+      },
+      fileTable = (): BsTable => bsOf({ category: 'file' }, raw.fileTable()),
+      orgScopedTable = <F extends TblInput>(fields: F, options?: OrgScopedOpts<F>): BsTable => {
+        const { cascade, extra, index, indexes, rateLimit, softDelete, unique } = options ?? {},
+          mergedExtra = mergeModifierExtra(fields, raw.t, { extra, index, unique }),
+          stdbOpts = indexes ? { indexes } : undefined
+        return bsOf(
+          { cascade, category: 'orgScoped', rateLimit, softDelete, zod: bsZod(fields) },
+          raw.orgScopedTable(fields, mergedExtra, stdbOpts)
+        )
+      },
+      orgTable = <F extends TblInput>(fields: F, options?: OrgTableOpts<F>): BsTable => {
+        const { extra, index, unique } = options ?? {},
+          mergedExtra = mergeModifierExtra(fields, raw.t, { extra, index, unique })
+        return bsOf({ category: 'org', zod: bsZod(fields) }, raw.ownedTable(fields, mergedExtra))
+      },
+      ownedTable = <F extends TblInput>(fields: F, options?: OwnedOpts<F>): BsTable => {
+        const { extra, index, rateLimit, softDelete, unique } = options ?? {},
+          mergedExtra = mergeModifierExtra(fields, raw.t, { extra, index, unique })
+        return bsOf({ category: 'owned', rateLimit, softDelete, zod: bsZod(fields) }, raw.ownedTable(fields, mergedExtra))
+      },
+      singletonTable = (fields: TblInput): BsTable =>
+        bsOf({ category: 'singleton', zod: bsZod(fields) }, raw.singletonTable(fields)),
+      tableBase = <F extends TableArgInput>(...args: TableArgs<F>): BsTable => {
+        const [fields, optionsRaw] = args,
+          options = optionsRaw as TableOpts<F> | undefined
+        if (isChildObj(fields)) return childTable(fields)
 
-    fileTable: (): BsTable => bsOf({ category: 'file' }, raw.fileTable()),
+        const brand = readSchemaBrand(fields)
+        if (brand === 'owned') return ownedTable(fields as OwnedBranded, options as OwnedOpts<OwnedBranded>)
+        if (brand === 'org') return orgScopedTable(fields as OrgScopedBranded, options as OrgScopedOpts<OrgScopedBranded>)
+        if (brand === 'orgDef') return orgTable(fields as OrgDefBranded, options as OrgTableOpts<OrgDefBranded>)
+        if (brand === 'singleton') return singletonTable(fields as SingletonBranded)
+        if (brand === 'base') {
+          if (!(options && typeof options === 'object' && 'key' in options && typeof options.key === 'string'))
+            return err('VALIDATION_FAILED', { message: 'Base schema tables require options.key when using table()' })
+          const baseOptions = options as { key: string; ttl?: number }
+          return cacheTable(baseOptions.key, fields as BaseBranded, { ttl: baseOptions.ttl })
+        }
+        return err('VALIDATION_FAILED', {
+          message: 'Unknown schema brand. Use makeOwned/makeOrgScoped/makeOrg/makeBase/makeSingleton before table()'
+        })
+      },
+      table = Object.assign(tableBase, { file: () => fileTable() }) as TableFn
 
-    orgScopedTable: <F extends TblInput>(fields: F, options?: OrgScopedOpts<F>): BsTable => {
-      const { cascade, extra, index, indexes, rateLimit, softDelete, unique } = options ?? {},
-        mergedExtra = mergeModifierExtra(fields, raw.t, { extra, index, unique }),
-        stdbOpts = indexes ? { indexes } : undefined
-      return bsOf(
-        { cascade, category: 'orgScoped', rateLimit, softDelete, zod: bsZod(fields) },
-        raw.orgScopedTable(fields, mergedExtra, stdbOpts)
-      )
-    },
-
-    orgTable: <F extends TblInput>(fields: F, options?: OrgTableOpts<F>): BsTable => {
-      const { extra, index, unique } = options ?? {},
-        mergedExtra = mergeModifierExtra(fields, raw.t, { extra, index, unique })
-      return bsOf({ category: 'org', zod: bsZod(fields) }, raw.ownedTable(fields, mergedExtra))
-    },
-
-    ownedTable: <F extends TblInput>(fields: F, options?: OwnedOpts<F>): BsTable => {
-      const { extra, index, rateLimit, softDelete, unique } = options ?? {},
-        mergedExtra = mergeModifierExtra(fields, raw.t, { extra, index, unique })
-      return bsOf({ category: 'owned', rateLimit, softDelete, zod: bsZod(fields) }, raw.ownedTable(fields, mergedExtra))
-    },
-
-    singletonTable: (fields: TblInput): BsTable =>
-      bsOf({ category: 'singleton', zod: bsZod(fields) }, raw.singletonTable(fields)),
-
-    t: raw.t
-  }),
+    return {
+      cacheTable,
+      childTable,
+      fileTable,
+      orgScopedTable,
+      orgTable,
+      ownedTable,
+      singletonTable,
+      t: raw.t,
+      table
+    }
+  },
   betterspace = (
     define: (helpers: {
       cacheTable: (keyFieldOrName: string | TblKey, fields: TblInput, options?: { ttl?: number }) => BsTable
@@ -1044,6 +1133,7 @@ const fkSuffix = /Id$/u,
       ownedTable: <F extends TblInput>(fields: F, options?: OwnedOpts<F>) => BsTable
       singletonTable: (fields: TblInput) => BsTable
       t: SchemaHelpers['t']
+      table: TableFn
     }) => Record<string, BsTable>
   ) => {
     const raw = makeSchema(),

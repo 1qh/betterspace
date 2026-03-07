@@ -43,6 +43,7 @@ export type {
   Mb,
   MutationCtxLike,
   MutCtx,
+  OrgDefSchema,
   OrgEnrichedDoc,
   OrgRole,
   OrgSchema,

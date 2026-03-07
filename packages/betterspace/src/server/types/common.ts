@@ -337,6 +337,7 @@ type BaseSchema<T extends ZodRawShape> = SchemaBrand<'base'> &
 interface BrandLabelMap {
   base: 'BaseSchema (from makeBase())'
   org: 'OrgSchema (from makeOrgScoped())'
+  orgDef: 'OrgDefSchema (from makeOrg())'
   owned: 'OwnedSchema (from makeOwned())'
   singleton: 'SingletonSchema (from makeSingleton())'
   unbranded: 'plain ZodObject (not branded)'
@@ -360,19 +361,25 @@ type InferReducerReturn<R> = R extends { __return: infer O } ? O : never
 type InferRow<S> =
   S extends OwnedSchema<infer T>
     ? DocBase<T> & { userId: string }
-    : S extends OrgSchema<infer T>
-      ? DocBase<T> & { orgId: number | string; userId: string }
-      : S extends BaseSchema<infer T>
-        ? DocBase<T>
-        : S extends SingletonSchema<infer T>
-          ? _.output<ZodObject<T>> & { updatedAt: number; userId: string }
-          : S extends ZodObject<infer T>
-            ? _.output<ZodObject<T>>
-            : never
+    : S extends OrgDefSchema<infer T>
+      ? DocBase<T> & { userId: string }
+      : S extends OrgSchema<infer T>
+        ? DocBase<T> & { orgId: number | string; userId: string }
+        : S extends BaseSchema<infer T>
+          ? DocBase<T>
+          : S extends SingletonSchema<infer T>
+            ? _.output<ZodObject<T>> & { updatedAt: number; userId: string }
+            : S extends ZodObject<infer T>
+              ? _.output<ZodObject<T>>
+              : never
 type InferRows<T extends Record<string, unknown>> = {
   [K in keyof T]: InferRow<T[K]>
 }
 type InferUpdate<S> = S extends ZodObject<infer T> ? Partial<_.output<ZodObject<T>>> : never
+
+type OrgDefSchema<T extends ZodRawShape> = SchemaBrand<'orgDef'> &
+  SchemaPhantoms<_.output<ZodObject<T>>, DocBase<T> & { userId: string }, Partial<_.output<ZodObject<T>>>> &
+  ZodObject<T>
 
 type OrgSchema<T extends ZodRawShape> = SchemaBrand<'org'> &
   SchemaPhantoms<
@@ -404,6 +411,7 @@ type SchemaHint<K extends string> = K extends keyof SchemaHintMap ? SchemaHintMa
 interface SchemaHintMap {
   base: 'Created by makeBase() → use cacheCrud() + baseTable()'
   org: 'Created by makeOrgScoped() → use orgCrud() + orgTable()'
+  orgDef: 'Created by makeOrg() → use table()'
   owned: 'Created by makeOwned() → use crud() + ownedTable()'
   singleton: 'Created by makeSingleton() → use singletonCrud() + singletonTable()'
 }
@@ -468,6 +476,7 @@ export type {
   MiddlewareCtx,
   MutationCtxLike,
   MutCtx,
+  OrgDefSchema,
   OrgEnrichedDoc,
   OrgRole,
   OrgSchema,

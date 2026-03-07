@@ -2,7 +2,7 @@ import type { ZodObject, ZodRawShape } from 'zod/v4'
 
 import { array, object, string } from 'zod/v4'
 
-import type { BaseSchema, OrgSchema, OwnedSchema, SchemaBrand, SingletonSchema } from './server/types'
+import type { BaseSchema, OrgDefSchema, OrgSchema, OwnedSchema, SchemaBrand, SingletonSchema } from './server/types'
 
 import { typed } from './server/bridge'
 
@@ -63,29 +63,41 @@ const cvFile = () =>
       .min(1)
       .regex(/^[a-z0-9-]+$/u)
   }),
-  /** Applies a schema brand to every entry in a schema map. */
   brandSchemas = <B extends string, T extends Record<string, ZodObject<ZodRawShape>>>(
+    brand: B,
     schemas: T
-  ): { [K in keyof T]: SchemaBrand<B> & T[K] } => typed(schemas),
-  /** Brands schemas for owned-table CRUD usage. */
+  ): { [K in keyof T]: SchemaBrand<B> & T[K] } => {
+    const keys = Object.keys(schemas)
+    for (const key of keys) {
+      const schema = schemas[key]
+      if (schema)
+        Object.defineProperty(schema as unknown as { __bs?: B }, '__bs', {
+          configurable: true,
+          enumerable: false,
+          value: brand
+        })
+    }
+    return typed(schemas)
+  },
   makeOwned = <T extends Record<string, ZodObject<ZodRawShape>>>(schemas: T) =>
-    brandSchemas<'owned', T>(schemas) as {
+    brandSchemas<'owned', T>('owned', schemas) as {
       [K in keyof T]: OwnedSchema<T[K] extends ZodObject<infer S> ? S : ZodRawShape> & T[K]
     },
-  /** Brands schemas for org-scoped CRUD usage. */
   makeOrgScoped = <T extends Record<string, ZodObject<ZodRawShape>>>(schemas: T) =>
-    brandSchemas<'org', T>(schemas) as {
+    brandSchemas<'org', T>('org', schemas) as {
       [K in keyof T]: OrgSchema<T[K] extends ZodObject<infer S> ? S : ZodRawShape> & T[K]
     },
-  /** Brands schemas for base table CRUD usage. */
+  makeOrg = <T extends Record<string, ZodObject<ZodRawShape>>>(schemas: T) =>
+    brandSchemas<'orgDef', T>('orgDef', schemas) as {
+      [K in keyof T]: OrgDefSchema<T[K] extends ZodObject<infer S> ? S : ZodRawShape> & T[K]
+    },
   makeBase = <T extends Record<string, ZodObject<ZodRawShape>>>(schemas: T) =>
-    brandSchemas<'base', T>(schemas) as {
+    brandSchemas<'base', T>('base', schemas) as {
       [K in keyof T]: BaseSchema<T[K] extends ZodObject<infer S> ? S : ZodRawShape> & T[K]
     },
-  /** Brands schemas for singleton table CRUD usage. */
   makeSingleton = <T extends Record<string, ZodObject<ZodRawShape>>>(schemas: T) =>
-    brandSchemas<'singleton', T>(schemas) as {
+    brandSchemas<'singleton', T>('singleton', schemas) as {
       [K in keyof T]: SingletonSchema<T[K] extends ZodObject<infer S> ? S : ZodRawShape> & T[K]
     }
 
-export { child, cvFile, cvFiles, makeBase, makeOrgScoped, makeOwned, makeSingleton, orgSchema }
+export { child, cvFile, cvFiles, makeBase, makeOrg, makeOrgScoped, makeOwned, makeSingleton, orgSchema }

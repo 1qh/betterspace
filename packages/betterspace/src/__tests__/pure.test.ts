@@ -51,6 +51,7 @@ import type {
   OrgCascadeTableConfig,
   OrgCrudOptions,
   OrgCrudResult,
+  OrgDefSchema,
   OrgSchema,
   OwnedSchema,
   RateLimitConfig,
@@ -139,7 +140,7 @@ import { DEFAULT_PAGE_SIZE, useOwnRows } from '../react/use-list'
 import { useMutation as useMutationDirect } from '../react/use-mutate'
 import { DEFAULT_DEBOUNCE_MS } from '../react/use-search'
 import { fetchWithRetry, withRetry } from '../retry'
-import { child, cvFile, cvFiles, makeBase, makeOrgScoped, makeOwned, makeSingleton } from '../schema'
+import { child, cvFile, cvFiles, makeBase, makeOrg, makeOrgScoped, makeOwned, makeSingleton } from '../schema'
 import { generateFieldValue, generateOne, generateSeed } from '../seed'
 import { flt, idx, indexFields, sch, typed } from '../server/bridge'
 import { ownedCascade } from '../server/crud'
@@ -1151,6 +1152,23 @@ describe('branded schema type enforcement', () => {
   })
 })
 
+describe('universal table()', () => {
+  test('makeOrg brands schemas with orgDef at runtime', () => {
+    const orgSchemas = makeOrg({ team: object({ name: string(), slug: string() }) }),
+      brand = (orgSchemas.team as unknown as { __bs?: unknown }).__bs
+    expect(brand).toBe('orgDef')
+    const typedOrgSchema: OrgDefSchema<typeof orgSchemas.team.shape> = orgSchemas.team
+    expect(typedOrgSchema).toBeDefined()
+  })
+
+  test('betterspace define helpers include table helper', async () => {
+    const { readFileSync } = await import('node:fs'),
+      { join } = await import('node:path'),
+      content = readFileSync(join(import.meta.dir, '..', 'server', 'setup.ts'), 'utf8')
+    expect(content.includes('table: TableFn')).toBe(true)
+  })
+})
+
 describe('branded schema error messages (SchemaTypeError)', () => {
   const ownedSchemas = makeOwned({
       blog: object({ content: string(), published: boolean(), title: string() })
@@ -1306,10 +1324,10 @@ describe('branded schema error messages (SchemaTypeError)', () => {
   })
 
   describe('BrandLabelMap completeness', () => {
-    test('BrandLabelMap has all 5 entries', () => {
+    test('BrandLabelMap has all 6 entries', () => {
       type Keys = keyof BrandLabelMap
-      const keys: Keys[] = ['owned', 'org', 'base', 'singleton', 'unbranded']
-      expect(keys).toHaveLength(5)
+      const keys: Keys[] = ['owned', 'org', 'orgDef', 'base', 'singleton', 'unbranded']
+      expect(keys).toHaveLength(6)
     })
   })
 })

@@ -1,4 +1,4 @@
-import { child, cvFile, cvFiles, makeBase, makeOrgScoped, makeOwned, makeSingleton } from 'betterspace/schema'
+import { child, cvFile, cvFiles, makeBase, makeOrg, makeOrgScoped, makeOwned, makeSingleton } from 'betterspace/schema'
 import { array, boolean, number, object, string, union, enum as zenum } from 'zod/v4'
 
 const file = cvFile(),
@@ -50,13 +50,13 @@ const file = cvFile(),
       voteCount: number()
     })
   }),
-  org = {
+  org = makeOrg({
     team: object({
       avatarId: file.optional(),
       name: string(),
       slug: string().regex(/^[a-z0-9-]+$/u)
     })
-  },
+  }),
   orgScoped = makeOrgScoped({
     project: object({
       description: string().optional(),
