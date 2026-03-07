@@ -254,13 +254,11 @@ system fields (`id`, `updatedAt`, `userId`, `orgId`) on every table.
 import { betterspace } from 'betterspace/server'
 import { owned, orgScoped, singleton } from '../../t'
 
-export default betterspace(
-  ({ ownedTable, orgScopedTable, singletonTable, t }) => ({
-    blog: ownedTable(owned.blog, { published: t.bool().index() }),
-    project: orgScopedTable(orgScoped.project),
-    blogProfile: singletonTable(singleton.blogProfile)
-  })
-)
+export default betterspace(({ table }) => ({
+  blog: table(owned.blog, { index: ['published'] }),
+  project: table(orgScoped.project),
+  blogProfile: table(singleton.blogProfile)
+}))
 ```
 
 **Resolution**: `betterspace()` replaces both `makeSchema()` (table definitions) and
@@ -821,10 +819,10 @@ The `betterspace()` function is a single-call replacement for the old `makeSchem
 
 **What changed for consumers**:
 
-- Tagged table helpers (`ownedTable`, `orgScopedTable`, `childTable`, etc.)
-  carry category metadata, so CRUD registration is inferred automatically.
+- The universal `table()` function auto-detects table type from the schema brand, so
+  CRUD registration is inferred automatically.
   No separate `crud`, `orgCrud`, or `singletonCrud` config fields needed.
-- `orgTable()` auto-creates `orgInvite`, `orgJoinRequest`, and `orgMember` tables.
+- `table(org.x)` auto-creates `orgInvite`, `orgJoinRequest`, and `orgMember` tables.
   No manual org system table definitions.
 - Options (`rateLimit`, `softDelete`, `cascade`, `ttl`) are inlined into each helper
   call instead of a separate config object.
@@ -850,8 +848,8 @@ export const reducers = spacetimedb.exportGroup(allExports())
 **New pattern (1 file)**:
 
 ```ts
-export default betterspace(({ ownedTable }) => ({
-  post: ownedTable(owned.post, { index: ['published'] })
+export default betterspace(({ table }) => ({
+  post: table(owned.post, { index: ['published'] })
 }))
 ```
 
@@ -869,7 +867,7 @@ Fields already defined in Zod no longer need SpacetimeDB type redeclaration just
 `.index()` or `.unique()`:
 
 **Before**: `ownedTable(owned.blog, { published: t.bool().index() })` **After**:
-`ownedTable(owned.blog, { index: ['published'] })`
+`table(owned.blog, { index: ['published'] })`
 
 The library auto-resolves the Zod field type to its SpacetimeDB equivalent and applies
 the modifier. Type-safe: misspelled field names produce a compile error.
@@ -894,12 +892,12 @@ child('chat', object({ parts: array(messagePart), role: zenum([...]) }))
 ```
 
 Auto-derives: `foreignKey = 'chatId'`, `parent = 'chat'`, `index = 'by_chat'`. No need
-to include the FK field in the schema — `childTable` adds it automatically.
+to include the FK field in the schema — `table()` adds it automatically.
 
-### 3. Simpler cacheTable
+### 3. Simpler cache tables
 
 **Before**: `cacheTable({ builder: t.u32().unique(), name: 'tmdbId' }, base.movie)`
-**After**: `cacheTable('tmdbId', base.movie)`
+**After**: `table(base.movie, { key: 'tmdbId' })`
 
 String key name defaults to `t.u32().unique()` builder.
 
@@ -910,7 +908,7 @@ Extra SpacetimeDB fields and table options merged into a single parameter:
 **Before**:
 `orgScopedTable(schema, { editors: t.array(t.identity()).optional() }, { cascade: true })`
 **After**:
-`orgScopedTable(schema, { cascade: true, extra: { editors: t.array(t.identity()).optional() } })`
+`table(schema, { cascade: true, extra: { editors: t.array(t.identity()).optional() } })`
 
 Consumer `src/index.ts` remains at 31 lines with cleaner, more declarative definitions.
 Consumer `t.ts` child definition went from 11 lines to 4 lines.

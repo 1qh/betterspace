@@ -1,25 +1,26 @@
 # Organizations
 
-`orgTable()` generates reducers for multi-tenant organization management: creating orgs,
-managing members, handling invites, and join requests.
+`table(org.x)` generates reducers for multi-tenant organization management: creating
+orgs, managing members, handling invites, and join requests.
 
 ## Schema setup
 
 Define your org fields in `t.ts` and wire everything up with `betterspace()`.
-`orgTable()` auto-creates the `orgMember`, `orgInvite`, and `orgJoinRequest` sub-tables.
+`table(org.x)` auto-creates the `orgMember`, `orgInvite`, and `orgJoinRequest`
+sub-tables.
 
 `t.ts`:
 
 ```typescript
-import { makeOrgScoped } from 'betterspace/schema'
+import { makeOrg, makeOrgScoped } from 'betterspace/schema'
 import { object, string } from 'zod/v4'
 
-const org = {
+const org = makeOrg({
     team: object({
       name: string().min(1),
       slug: string().regex(/^[a-z0-9-]+$/u)
     })
-  },
+  }),
   orgScoped = makeOrgScoped({
     project: object({ description: string().optional(), name: string().min(1) })
   })
@@ -31,22 +32,22 @@ export { org, orgScoped }
 
 ```typescript
 import { betterspace } from 'betterspace/server'
-import { org as orgFields, orgScoped } from '../../t'
+import { org, orgScoped } from '../../t'
 
-export default betterspace(({ orgScopedTable, orgTable }) => ({
-  org: orgTable(orgFields.team, { unique: ['slug'] }),
-  project: orgScopedTable(orgScoped.project, { cascade: true })
+export default betterspace(({ table }) => ({
+  org: table(org.team, { unique: ['slug'] }),
+  project: table(orgScoped.project, { cascade: true })
 }))
 ```
 
-`orgTable()` accepts the same field Zod schema you define for the org’s own fields.
+`table(org.x)` accepts the same field Zod schema you define for the org’s own fields.
 System fields (`id`, `updatedAt`, `userId`) are added automatically.
 The `unique` option creates a unique index on the given fields.
-Pass `cascade: true` on `orgScopedTable` to delete rows when the org is removed.
+Pass `cascade: true` on org-scoped tables to delete rows when the org is removed.
 
 ## Generated reducers
 
-`orgTable()` generates these reducers:
+`table(org.x)` generates these reducers:
 
 | Reducer                 | Description                                      |
 | ----------------------- | ------------------------------------------------ |
@@ -75,17 +76,18 @@ Pass `cascade: true` on `orgScopedTable` to delete rows when the org is removed.
 All reducers above are generated with typed signatures and runtime checks for org
 permissions, ownership transfers, invites, and join-request workflows.
 
-## orgScopedTable
+## Org-scoped tables
 
-`orgScopedTable` registers a table that belongs to an org and enforces org membership
-before any write. Pass the result of `makeOrgScoped()` from your schema file:
+`table(orgScoped.x)` registers a table that belongs to an org and enforces org
+membership before any write.
+Pass the result of `makeOrgScoped()` from your schema file:
 
 ```typescript
 import { betterspace } from 'betterspace/server'
 import { orgScoped } from '../../t'
 
-export default betterspace(({ orgScopedTable }) => ({
-  project: orgScopedTable(orgScoped.project)
+export default betterspace(({ table }) => ({
+  project: table(orgScoped.project)
 }))
 ```
 

@@ -282,15 +282,49 @@ Creates table definition helpers that automatically add system fields (`id`,
 `updatedAt`, `userId`, etc.). Uses dependency injection to avoid `import.meta.require`
 issues in SpacetimeDB’s V8 runtime.
 
+The primary interface is the universal `table()` function, which auto-detects the table
+type from the schema brand.
+The specific helpers (`ownedTable`, `orgScopedTable`, etc.)
+are still available as alternatives.
+
 ```typescript
 import { makeSchema } from 'betterspace/server'
 import { t, table } from 'spacetimedb/server'
 
-const { cacheTable, childTable, orgScopedTable, ownedTable, singletonTable } =
-  makeSchema({ t, table })
+const { table } = makeSchema({ t, table })
 ```
 
-**Returned helpers:**
+**`table()` — universal interface:**
+
+`table()` detects the schema brand (`owned`, `org`, `orgDef`, `base`, `singleton`) and
+applies the correct system fields automatically.
+Child tables are detected by the `ChildLike` shape (`foreignKey`, `parent`, `schema`).
+File tables use `table.file()`.
+
+```typescript
+const blog = table(owned.blog, { index: ['published'] })
+const project = table(orgScoped.project, { cascade: true })
+const org = table(org.team, { unique: ['slug'] })
+const profile = table(singleton.profile)
+const message = table(children.message)
+const movie = table(base.movie, { key: 'tmdbId' })
+const file = table.file()
+```
+
+All tables are set `{ public: true }` by default.
+
+**Options by table type:**
+
+| Table type | Available options                                                           |
+| ---------- | --------------------------------------------------------------------------- |
+| owned      | `index`, `unique`, `extra`, `softDelete`, `rateLimit`                       |
+| orgScoped  | `index`, `unique`, `extra`, `softDelete`, `rateLimit`, `cascade`, `indexes` |
+| org        | `index`, `unique`, `extra`                                                  |
+| base/cache | `key`, `ttl`                                                                |
+| singleton  | none                                                                        |
+| child      | none                                                                        |
+
+**Specific helpers (backward-compatible alternatives):**
 
 | Helper                               | System fields added                            | Signature             |
 | ------------------------------------ | ---------------------------------------------- | --------------------- |
@@ -300,30 +334,6 @@ const { cacheTable, childTable, orgScopedTable, ownedTable, singletonTable } =
 | `singletonTable(fields)`             | `updatedAt`, `userId`                          | One row per user      |
 | `cacheTable(keyName, fields, opts?)` | `id`, `cachedAt`, `invalidatedAt`, `updatedAt` | External data cache   |
 | `childTable(childDef)`               | `foreignKey`, `id`, `updatedAt`, `userId`      | Child of a parent row |
-
-**Usage:**
-
-```typescript
-const blog = ownedTable(owned.blog, { index: ['published'] })
-const project = orgScopedTable(orgScoped.project, { cascade: true })
-const org = orgTable(orgFields.team, { unique: ['slug'] })
-const profile = singletonTable(singleton.profile)
-const message = childTable(children.message)
-const movie = cacheTable('tmdbId', base.movie, { ttl: 7 * 24 * 60 * 60 * 1000 })
-```
-
-All helpers set `{ public: true }` by default.
-
-**Options by helper:**
-
-| Helper           | Available options                                                           |
-| ---------------- | --------------------------------------------------------------------------- |
-| `ownedTable`     | `index`, `unique`, `extra`, `softDelete`, `rateLimit`                       |
-| `orgScopedTable` | `index`, `unique`, `extra`, `softDelete`, `rateLimit`, `cascade`, `indexes` |
-| `orgTable`       | `index`, `unique`, `extra`                                                  |
-| `cacheTable`     | `ttl`                                                                       |
-| `singletonTable` | none                                                                        |
-| `childTable`     | none                                                                        |
 
 **`StdbDeps` interface** (what you pass to `makeSchema`):
 

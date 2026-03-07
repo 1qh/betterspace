@@ -66,8 +66,8 @@ With betterspace `betterspace()`:
 import { betterspace } from 'betterspace/server'
 import { owned } from './t'
 
-export default betterspace(({ ownedTable }) => ({
-  blog: ownedTable(owned.blog, { index: ['published'] })
+export default betterspace(({ table }) => ({
+  blog: table(owned.blog, { index: ['published'] })
 }))
 ```
 
@@ -83,8 +83,8 @@ real-time subscriptions.
 Here’s a full org-scoped CRUD with per-item editor permissions and soft delete:
 
 ```tsx
-export default betterspace(({ orgScopedTable, t }) => ({
-  wiki: orgScopedTable(orgScoped.wiki, {
+export default betterspace(({ table, t }) => ({
+  wiki: table(orgScoped.wiki, {
     cascade: true,
     extra: {
       deletedAt: t.timestamp().optional(),
@@ -352,8 +352,8 @@ Typos are caught before your code runs.
 ### Branded schemas prevent mismatches
 
 ```tsx
-ownedTable(owned.blog, { index: ['published'] }) // ✅ 'published' exists in schema
-ownedTable(owned.blog, { index: ['typo'] }) // ❌ compile error — 'typo' not in schema
+table(owned.blog, { index: ['published'] }) // ✅ 'published' exists in schema
+table(owned.blog, { index: ['typo'] }) // ❌ compile error — 'typo' not in schema
 ```
 
 ### Form fields are type-checked by value type
@@ -392,7 +392,7 @@ const form = useForm({ schema: owned.blog, onSubmit: ... })
 
 ```tsx
 import { makeOwned, makeSingleton } from 'betterspace/schema'
-import { object, string, boolean } from 'zod/v4'
+import { boolean, object, string } from 'zod/v4'
 
 const owned = makeOwned({
   blog: object({
@@ -415,9 +415,9 @@ export { owned, singleton }
 import { betterspace } from 'betterspace/server'
 import { owned, singleton } from '../../t'
 
-export default betterspace(({ ownedTable, singletonTable }) => ({
-  blog: ownedTable(owned.blog, { index: ['published'] }),
-  profile: singletonTable(singleton.profile)
+export default betterspace(({ table }) => ({
+  blog: table(owned.blog, { index: ['published'] }),
+  profile: table(singleton.profile)
 }))
 ```
 
@@ -460,13 +460,13 @@ It also auto-installs dependencies and creates `tsconfig.json` — no manual set
 
 ## 5 Table Types
 
-| Type        | Schema                    | Factory            | Use Case                               |
-| ----------- | ------------------------- | ------------------ | -------------------------------------- |
-| `owned`     | Table fields              | `ownedTable()`     | User-owned data (blog posts, chats)    |
-| `orgScoped` | Table fields + orgId      | `orgScopedTable()` | Org-scoped data (wikis, projects)      |
-| `children`  | Table fields + foreignKey | `childTable()`     | Nested under parent (messages in chat) |
-| `base`      | Table fields + cacheKey   | `cacheTable()`     | External API cache with TTL            |
-| `singleton` | Table fields              | `singletonTable()` | 1:1 per-user data (profile, settings)  |
+| Type        | Schema                    | Factory                          | Use Case                               |
+| ----------- | ------------------------- | -------------------------------- | -------------------------------------- |
+| `owned`     | Table fields              | `table(owned.x)`                 | User-owned data (blog posts, chats)    |
+| `orgScoped` | Table fields + orgId      | `table(orgScoped.x)`             | Org-scoped data (wikis, projects)      |
+| `children`  | Table fields + foreignKey | `table(children.x)`              | Nested under parent (messages in chat) |
+| `base`      | Table fields + cacheKey   | `table(base.x, { key: 'name' })` | External API cache with TTL            |
+| `singleton` | Table fields              | `table(singleton.x)`             | 1:1 per-user data (profile, settings)  |
 
 ## Demo Apps
 

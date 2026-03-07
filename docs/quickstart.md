@@ -110,9 +110,9 @@ System fields (`id`, `updatedAt`, `userId`) are added automatically:
 import { betterspace } from 'betterspace/server'
 import { owned, singleton } from '../../t'
 
-export default betterspace(({ ownedTable, singletonTable, t }) => ({
-  post: ownedTable(owned.post, { index: ['published'] }),
-  profile: singletonTable(singleton.profile)
+export default betterspace(({ table }) => ({
+  post: table(owned.post, { index: ['published'] }),
+  profile: table(singleton.profile)
 }))
 ```
 

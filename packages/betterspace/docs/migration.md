@@ -280,8 +280,8 @@ export { owned }
 import { betterspace } from 'betterspace/server'
 import { owned } from '../../t'
 
-export default betterspace(({ ownedTable }) => ({
-  post: ownedTable(owned.post, { index: ['published'] })
+export default betterspace(({ table }) => ({
+  post: table(owned.post, { index: ['published'] })
 }))
 ```
 

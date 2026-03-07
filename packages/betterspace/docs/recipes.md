@@ -28,15 +28,15 @@ export { children, owned }
 import { betterspace, makePresence } from 'betterspace/server'
 import { children, owned } from '../../t'
 
-export default betterspace(({ childTable, ownedTable, t }) => {
+export default betterspace(({ table, t }) => {
   const presence = makePresence({
     dataField: t.string(),
     roomIdField: t.string()
   })
 
   return {
-    chat: ownedTable(owned.chat, { index: ['isPublic'] }),
-    message: childTable(children.message),
+    chat: table(owned.chat, { index: ['isPublic'] }),
+    message: table(children.message),
     ...presence.tables
   }
 })
@@ -195,8 +195,8 @@ export { orgScoped }
 import { betterspace } from 'betterspace/server'
 import { orgScoped } from '../../t'
 
-export default betterspace(({ orgScopedTable }) => ({
-  project: orgScopedTable(orgScoped.project)
+export default betterspace(({ table }) => ({
+  project: table(orgScoped.project)
 }))
 ```
 
@@ -269,8 +269,8 @@ export { base }
 import { betterspace } from 'betterspace/server'
 import { base } from '../../t'
 
-export default betterspace(({ cacheTable }) => ({
-  movie: cacheTable('tmdbId', base.movie)
+export default betterspace(({ table }) => ({
+  movie: table(base.movie, { key: 'tmdbId' })
 }))
 ```
 
@@ -358,7 +358,7 @@ const MovieList = () => {
 
 ## Soft delete with restore
 
-Use `softDelete: true` in `orgScopedTable` to set `deletedAt` instead of deleting rows.
+Use `softDelete: true` to set `deletedAt` instead of deleting rows.
 
 ### Schema
 
@@ -381,8 +381,8 @@ export { orgScoped }
 import { betterspace } from 'betterspace/server'
 import { orgScoped } from '../../t'
 
-export default betterspace(({ orgScopedTable, t }) => ({
-  wiki: orgScopedTable(orgScoped.wiki, {
+export default betterspace(({ table, t }) => ({
+  wiki: table(orgScoped.wiki, {
     extra: { deletedAt: t.timestamp().optional() },
     softDelete: true
   })
