@@ -66,7 +66,6 @@
     "tsdown": "^0.20.3"
   },
   "peerDependencies": {
-    "@auth/core": "^0.41",
     "@stepperize/react": "latest",
     "@tanstack/react-form": "latest",
     "next": "latest",
