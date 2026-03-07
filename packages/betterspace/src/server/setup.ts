@@ -834,25 +834,193 @@ const regOwned = (schemas: Record<string, ZodLike>, ctx: RegCtx) => {
     }
   }
 
-interface BetterspaceConfig {
-  crud?: RegisterAllSchemas
-  options?: Record<string, CacheOptions & CrudOptions & OrgCrudOptions & { key?: string }>
-  org?: { cascadeTables?: string[]; fields: OrgFieldBuilders | ZodLike }
-  tables: (helpers: SchemaHelpers) => Record<string, unknown>
+interface BsCtx {
+  baseZ: Record<string, ZodLike>
+  cascades: string[]
+  childZ: Record<string, { foreignKey: string; parent: string; schema: ZodLike }>
+  orgScopedZ: Record<string, ZodLike>
+  ownedZ: Record<string, ZodLike>
+  singletonZ: Record<string, ZodLike>
+  tblOpts: Record<string, CacheOptions & CrudOptions & OrgCrudOptions & { key?: string }>
 }
+interface BsTable {
+  __bs: BsTag
+  table: unknown
+}
+interface BsTag {
+  cascade?: boolean
+  category: 'base' | 'children' | 'file' | 'org' | 'orgScoped' | 'owned' | 'singleton'
+  childFk?: string
+  childParent?: string
+  keyName?: string
+  rateLimit?: { max: number; window: number }
+  softDelete?: boolean
+  ttl?: number
+  zod?: ZodLike
+}
+interface ChildLike {
+  foreignKey: string
+  parent: string
+  schema: unknown
+}
+interface OrgScopedOpts extends OwnedOpts {
+  cascade?: boolean
+  indexes?: { accessor: string; algorithm: string; columns: string[] }[]
+}
+
+interface OwnedOpts {
+  rateLimit?: { max: number; window: number }
+  softDelete?: boolean
+}
+
 type SchemaHelpers = ReturnType<typeof makeSchema>
 
-const betterspace = (config: BetterspaceConfig) => {
-  const helpers = makeSchema(),
-    spacetimedb = helpers.schema(config.tables(helpers) as never),
-    s = setupCrud(spacetimedb as SpacetimeDbLike)
+type TblChild = Parameters<SchemaHelpers['childTable']>[1]
 
-  if (config.crud) s.registerAll(config.crud, config.options)
-  if (config.org)
-    s.org(config.org.fields, config.org.cascadeTables ? { cascadeTables: config.org.cascadeTables } : undefined)
+type TblExtra = Parameters<SchemaHelpers['ownedTable']>[1]
 
-  return spacetimedb.exportGroup(s.allExports() as never)
-}
+type TblInput = Parameters<SchemaHelpers['ownedTable']>[0]
+
+type TblKey = Parameters<SchemaHelpers['cacheTable']>[0]
+
+const fkSuffix = /Id$/u,
+  isChildObj = (v: unknown): v is ChildLike =>
+    typeof v === 'object' && v !== null && 'foreignKey' in v && 'parent' in v && 'schema' in v,
+  bsOf = (meta: BsTag, table: unknown): BsTable => ({ __bs: meta, table }),
+  bsZod = (fields: unknown): undefined | ZodLike => (isZodObject(fields) ? fields : undefined),
+  oKeys = (obj: object): string[] => Object.keys(obj),
+  collectBsOpts = (name: string, m: BsTag, ctx: BsCtx) => {
+    const o: Record<string, unknown> = {}
+    if (m.rateLimit) o.rateLimit = m.rateLimit
+    if (m.softDelete) o.softDelete = m.softDelete
+    if (m.ttl !== undefined) o.ttl = m.ttl
+    if (m.keyName) o.key = m.keyName
+    if (oKeys(o).length > 0) ctx.tblOpts[name] = o as never
+  },
+  collectBsSchema = (name: string, m: BsTag, ctx: BsCtx): { fileNs?: boolean | string; orgZod?: ZodLike } => {
+    if (m.category === 'owned' && m.zod) ctx.ownedZ[name] = m.zod
+    if (m.category === 'orgScoped') {
+      if (m.zod) ctx.orgScopedZ[name] = m.zod
+      if (m.cascade) ctx.cascades.push(name)
+    }
+    if (m.category === 'singleton' && m.zod) ctx.singletonZ[name] = m.zod
+    if (m.category === 'base' && m.zod) ctx.baseZ[name] = m.zod
+    if (m.category === 'children' && m.zod && m.childFk && m.childParent)
+      ctx.childZ[name] = { foreignKey: m.childFk, parent: m.childParent, schema: m.zod }
+    if (m.category === 'file') return { fileNs: name === 'file' ? true : name }
+    if (m.category === 'org') return { orgZod: m.zod }
+    return {}
+  },
+  buildBsSchemas = (ctx: BsCtx): RegisterAllSchemas => {
+    const schemas: RegisterAllSchemas = {}
+    if (oKeys(ctx.ownedZ).length > 0) schemas.owned = ctx.ownedZ
+    if (oKeys(ctx.orgScopedZ).length > 0) schemas.orgScoped = ctx.orgScopedZ
+    if (oKeys(ctx.singletonZ).length > 0) schemas.singleton = ctx.singletonZ
+    if (oKeys(ctx.baseZ).length > 0) schemas.base = ctx.baseZ
+    if (oKeys(ctx.childZ).length > 0) schemas.children = ctx.childZ
+    return schemas
+  },
+  makeBsHelpers = (raw: SchemaHelpers) => ({
+    cacheTable: (keyField: TblKey, fields: TblInput, options?: { ttl?: number }): BsTable =>
+      bsOf(
+        { category: 'base', keyName: keyField.name, ttl: options?.ttl, zod: bsZod(fields) },
+        raw.cacheTable(keyField, fields)
+      ),
+
+    childTable: (fkOrChild: ChildLike | string, schema?: TblChild): BsTable => {
+      if (isChildObj(fkOrChild))
+        return bsOf(
+          {
+            category: 'children',
+            childFk: fkOrChild.foreignKey,
+            childParent: fkOrChild.parent,
+            zod: bsZod(fkOrChild.schema)
+          },
+          raw.childTable(fkOrChild.foreignKey, fkOrChild.schema as never)
+        )
+      return bsOf(
+        { category: 'children', childFk: fkOrChild, childParent: fkOrChild.replace(fkSuffix, ''), zod: bsZod(schema) },
+        raw.childTable(fkOrChild, schema as never)
+      )
+    },
+
+    fileTable: (): BsTable => bsOf({ category: 'file' }, raw.fileTable()),
+
+    orgScopedTable: (fields: TblInput, extra?: TblExtra, options?: OrgScopedOpts): BsTable => {
+      const { cascade, rateLimit, softDelete, ...stdbOpts } = options ?? {}
+      return bsOf(
+        { cascade, category: 'orgScoped', rateLimit, softDelete, zod: bsZod(fields) },
+        raw.orgScopedTable(fields, extra, oKeys(stdbOpts).length > 0 ? stdbOpts : undefined)
+      )
+    },
+
+    orgTable: (fields: TblInput, extra?: TblExtra): BsTable =>
+      bsOf({ category: 'org', zod: bsZod(fields) }, raw.ownedTable(fields, extra)),
+
+    ownedTable: (fields: TblInput, extra?: TblExtra, options?: OwnedOpts): BsTable =>
+      bsOf(
+        { category: 'owned', rateLimit: options?.rateLimit, softDelete: options?.softDelete, zod: bsZod(fields) },
+        raw.ownedTable(fields, extra)
+      ),
+
+    singletonTable: (fields: TblInput): BsTable =>
+      bsOf({ category: 'singleton', zod: bsZod(fields) }, raw.singletonTable(fields)),
+
+    t: raw.t
+  }),
+  betterspace = (
+    define: (helpers: {
+      cacheTable: (keyField: TblKey, fields: TblInput, options?: { ttl?: number }) => BsTable
+      childTable: (fkOrChild: ChildLike | string, schema?: TblChild) => BsTable
+      fileTable: () => BsTable
+      orgScopedTable: (fields: TblInput, extra?: TblExtra, options?: OrgScopedOpts) => BsTable
+      orgTable: (fields: TblInput, extra?: TblExtra) => BsTable
+      ownedTable: (fields: TblInput, extra?: TblExtra, options?: OwnedOpts) => BsTable
+      singletonTable: (fields: TblInput) => BsTable
+      t: SchemaHelpers['t']
+    }) => Record<string, BsTable>
+  ) => {
+    const raw = makeSchema(),
+      result = define(makeBsHelpers(raw) as never),
+      rawTables: Record<string, unknown> = {},
+      ctx: BsCtx = {
+        baseZ: {},
+        cascades: [],
+        childZ: {},
+        orgScopedZ: {},
+        ownedZ: {},
+        singletonZ: {},
+        tblOpts: {}
+      }
+    let orgZod: undefined | ZodLike,
+      fileNs: boolean | string = false
+
+    const names = oKeys(result)
+    for (const name of names) {
+      const entry = result[name]
+      if (entry) {
+        rawTables[name] = entry.table
+        collectBsOpts(name, entry.__bs, ctx)
+        const { fileNs: fn, orgZod: oz } = collectBsSchema(name, entry.__bs, ctx)
+        if (oz) {
+          orgZod = oz
+          rawTables.orgInvite = raw.orgInviteTable()
+          rawTables.orgJoinRequest = raw.orgJoinRequestTable()
+          rawTables.orgMember = raw.orgMemberTable()
+        }
+        if (fn !== undefined) fileNs = fn
+      }
+    }
+
+    const spacetimedb = raw.schema(rawTables as never),
+      s = setupCrud(spacetimedb as SpacetimeDbLike),
+      schemas = buildBsSchemas(ctx)
+    if (fileNs) schemas.file = fileNs
+    if (oKeys(schemas).length > 0) s.registerAll(schemas, oKeys(ctx.tblOpts).length > 0 ? ctx.tblOpts : undefined)
+    if (orgZod) s.org(orgZod, ctx.cascades.length > 0 ? { cascadeTables: ctx.cascades } : undefined)
+
+    return spacetimedb.exportGroup(s.allExports() as never)
+  }
 
 export type { CrudDefaults, OrgTypeBuilders }
 export { betterspace, setup, setupCrud }
