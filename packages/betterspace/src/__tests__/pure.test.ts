@@ -1220,35 +1220,35 @@ describe('branded schema error messages (SchemaTypeError)', () => {
     test('owned expected, org got', () => {
       type Err = SchemaTypeError<'owned', 'org'>
       const msg: Err =
-        'Schema mismatch: expected OwnedSchema (from makeOwned()), got OrgSchema (from makeOrgScoped()). Created by makeOwned() \u2192 use crud() + ownedTable()'
+        'Schema mismatch: expected OwnedSchema (from makeOwned()), got OrgSchema (from makeOrgScoped()). Created by makeOwned() \u2192 use table()'
       expect(msg).toContain('Schema mismatch')
     })
 
     test('org expected, owned got', () => {
       type Err = SchemaTypeError<'org', 'owned'>
       const msg: Err =
-        'Schema mismatch: expected OrgSchema (from makeOrgScoped()), got OwnedSchema (from makeOwned()). Created by makeOrgScoped() \u2192 use orgCrud() + orgTable()'
+        'Schema mismatch: expected OrgSchema (from makeOrgScoped()), got OwnedSchema (from makeOwned()). Created by makeOrgScoped() \u2192 use table()'
       expect(msg).toContain('Schema mismatch')
     })
 
     test('base expected, singleton got', () => {
       type Err = SchemaTypeError<'base', 'singleton'>
       const msg: Err =
-        'Schema mismatch: expected BaseSchema (from makeBase()), got SingletonSchema (from makeSingleton()). Created by makeBase() \u2192 use cacheCrud() + baseTable()'
+        'Schema mismatch: expected BaseSchema (from makeBase()), got SingletonSchema (from makeSingleton()). Created by makeBase() \u2192 use table()'
       expect(msg).toContain('Schema mismatch')
     })
 
     test('singleton expected, unbranded got', () => {
       type Err = SchemaTypeError<'singleton', 'unbranded'>
       const msg: Err =
-        'Schema mismatch: expected SingletonSchema (from makeSingleton()), got plain ZodObject (not branded). Created by makeSingleton() \u2192 use singletonCrud() + singletonTable()'
+        'Schema mismatch: expected SingletonSchema (from makeSingleton()), got plain ZodObject (not branded). Created by makeSingleton() \u2192 use table()'
       expect(msg).toContain('Schema mismatch')
     })
 
     test('owned expected, unbranded got', () => {
       type Err = SchemaTypeError<'owned', 'unbranded'>
       const msg: Err =
-        'Schema mismatch: expected OwnedSchema (from makeOwned()), got plain ZodObject (not branded). Created by makeOwned() \u2192 use crud() + ownedTable()'
+        'Schema mismatch: expected OwnedSchema (from makeOwned()), got plain ZodObject (not branded). Created by makeOwned() \u2192 use table()'
       expect(msg).toContain('Schema mismatch')
     })
   })

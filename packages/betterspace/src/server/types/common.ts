@@ -409,11 +409,11 @@ interface SchemaBrand<K extends string> {
 type SchemaHint<K extends string> = K extends keyof SchemaHintMap ? SchemaHintMap[K] : string
 
 interface SchemaHintMap {
-  base: 'Created by makeBase() → use cacheCrud() + baseTable()'
-  org: 'Created by makeOrgScoped() → use orgCrud() + orgTable()'
+  base: 'Created by makeBase() → use table()'
+  org: 'Created by makeOrgScoped() → use table()'
   orgDef: 'Created by makeOrg() → use table()'
-  owned: 'Created by makeOwned() → use crud() + ownedTable()'
-  singleton: 'Created by makeSingleton() → use singletonCrud() + singletonTable()'
+  owned: 'Created by makeOwned() → use table()'
+  singleton: 'Created by makeSingleton() → use table()'
 }
 
 interface SchemaPhantoms<C, R, U> {
