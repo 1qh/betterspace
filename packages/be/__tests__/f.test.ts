@@ -137,7 +137,7 @@ describe('blog reducer flow', () => {
 })
 
 describe('chat and message reducers', () => {
-  test('message rows persist after chat remove in current module', async () => {
+  test('message rows hidden after chat remove due to children RLS JOIN', async () => {
     await withCtx(async ctx => {
       const [user] = ctx.users
       if (!user) throw new Error('Missing test user')
@@ -161,7 +161,7 @@ describe('chat and message reducers', () => {
 
       const messagesAfter = await listTable(ctx, 'message', user),
         forChatAfter = messagesAfter.filter(row => getNumber(row, 'chat_id') === chatId)
-      expect(forChatAfter.length).toBeGreaterThanOrEqual(2)
+      expect(forChatAfter).toHaveLength(0)
     })
   })
 })

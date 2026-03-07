@@ -49,6 +49,7 @@ export type { ListSort, SortDirection, SortMap, SortObject, WhereFieldValue } fr
 export { noop } from './list-utils'
 export type { MutationType, PendingMutation } from './optimistic-store'
 export { OptimisticProvider, usePendingMutations } from './optimistic-store'
+export type { ActiveOrgState, OrgContextValue, OrgDoc, OrgMembership, OrgProviderProps } from './org'
 export {
   canEditResource,
   createOrgHooks,

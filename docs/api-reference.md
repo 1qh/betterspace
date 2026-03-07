@@ -46,8 +46,9 @@ table. Define the schema with `schema({ owned: { ... } })`.
 
 | Option       | Description                                                                                   |
 | ------------ | --------------------------------------------------------------------------------------------- |
-| `index`      | Fields to index                                                                               |
+| `index`      | Fields to index (pub field is auto-indexed when specified)                                    |
 | `unique`     | Fields with a unique constraint                                                               |
+| `pub`        | RLS pub field. Auto-indexes the field. See [Security](security.md)                            |
 | `softDelete` | When `true`, `rm_*` sets `deletedAt` instead of deleting. Auto-injects the `deletedAt` field. |
 | `rateLimit`  | Rate limit config for write operations                                                        |
 
@@ -56,7 +57,10 @@ table. Define the schema with `schema({ owned: { ... } })`.
 ### table(s.orgScopedSchema) — org-scoped tables
 
 `table(s.orgScopedSchema)` generates org-scoped CRUD reducers that check org membership
-before writes. Define the schema with `schema({ orgScoped: { ... } })`.
+before writes.
+Define the schema with `schema({ orgScoped: { ... } })`. Cascade delete is
+enabled by default — org-scoped rows are automatically removed when the org is deleted.
+Opt out with `cascade: false`.
 
 **Generated reducers:**
 

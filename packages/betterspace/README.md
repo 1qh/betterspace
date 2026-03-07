@@ -88,7 +88,6 @@ Here’s a full org-scoped CRUD with per-item editor permissions and soft delete
 ```tsx
 export default betterspace(({ table, t }) => ({
   wiki: table(s.wiki, {
-    cascade: true,
     compoundIndex: ['orgId', 'slug'],
     extra: { editors: t.array(t.identity()).optional() },
     softDelete: true
@@ -96,8 +95,9 @@ export default betterspace(({ table, t }) => ({
 }))
 ```
 
-One call. Role-based access, editor ACL, soft delete with restore, cascade delete,
-compound indexes, auto-`deletedAt`, and bulk operations — all generated.
+One call. Role-based access, editor ACL, soft delete with restore, cascade delete
+(default for org-scoped), compound indexes, auto-`deletedAt`, and bulk operations — all
+generated.
 
 > [See all backend code: packages/be/src/](https://github.com/1qh/betterspace/tree/main/packages/be/src)
 
@@ -333,7 +333,7 @@ bun add betterspace
 
 | Import                      | What’s inside                                                                                                                                                                                                                                                                                                                                                                                                              |
 | --------------------------- | -------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
-| `betterspace`               | `guardApi`, `strictApi`, `zodFromTable`, `UndefinedToOptional` type, identity helpers                                                                                                                                                                                                                                                                                                                                      |
+| `betterspace`               | `guardApi`, `strictApi`, `zodFromTable`, identity helpers, server types (`InferCreate`, `InferRow`, `OrgRole`, `CrudResult`, ...)                                                                                                                                                                                                                                                                                          |
 | `betterspace/schema`        | `schema`, `child`, `cvFile`, `cvFiles` (legacy: `makeOwned`, `makeOrgScoped`, `makeBase`, `makeSingleton`, `orgSchema`)                                                                                                                                                                                                                                                                                                    |
 | `betterspace/server`        | `betterspace`, `table`, `setupCrud`, `setup`, CRUD factories, org helpers, middleware, error handling, test utilities                                                                                                                                                                                                                                                                                                      |
 | `betterspace/react`         | `useMut`, `useMutation`, `useMutate`, `useList`, `useOwnRows`, `useSearch`, `usePresence`, `useBulkSelection`, `useBulkMutate`, `useInfiniteList`, `useUpload`, `useSoftDelete`, `useCacheEntry`, `useOptimisticMutation`, `useErrorToast`, `relax`, `createOrgHooks`, `toWsUri`, `createTokenStore`, `createFileUploader`, `createSpacetimeClient`, `BetterspaceDevtools`, `SchemaPlayground`, org hooks, 50+ named types |
@@ -345,6 +345,7 @@ bun add betterspace
 | `betterspace/test/discover` | `discoverModules`                                                                                                                                                                                                                                                                                                                                                                                                          |
 | `betterspace/seed`          | `generateOne`, `generateSeed`, `generateFieldValue`                                                                                                                                                                                                                                                                                                                                                                        |
 | `betterspace/retry`         | `withRetry`, `fetchWithRetry`                                                                                                                                                                                                                                                                                                                                                                                              |
+| `betterspace/s3`            | `createS3UploadPresignedUrl`, `createS3DownloadPresignedUrl`                                                                                                                                                                                                                                                                                                                                                               |
 
 ## Type Safety
 
@@ -488,9 +489,9 @@ It also auto-installs dependencies and creates `tsconfig.json` — no manual set
 
 | Platform | Framework                   | Tests |
 | -------- | --------------------------- | ----: |
-| Web      | Playwright E2E              |   248 |
-| Backend  | SpacetimeDB test utilities  |    25 |
-| Library  | bun:test (`src/__tests__/`) |  1072 |
+| Web      | Playwright E2E              |   220 |
+| Backend  | SpacetimeDB test utilities  |    17 |
+| Library  | bun:test (`src/__tests__/`) |  1078 |
 
 ## Documentation
 

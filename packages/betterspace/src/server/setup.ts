@@ -33,7 +33,7 @@ import { err } from './helpers'
 import { composeMiddleware } from './middleware'
 import { makeOrg, makeOrgTables } from './org'
 import { makeOrgCrud } from './org-crud'
-import { RLS_COL, RLS_TBL, rlsSql, rlsWhereSender } from './rls'
+import { RLS_COL, RLS_TBL, rlsChildSql, rlsSql, rlsWhereSender } from './rls'
 import { makeSingletonCrud } from './singleton'
 import { makeSchema, zodToStdbFields } from './stdb-tables'
 
@@ -1018,6 +1018,13 @@ const compoundIndexToEntry = (columns: string[]): { accessor: string; algorithm:
   bsOf = (meta: BsTag, table: unknown): BsTable => ({ __bs: meta, table }),
   bsZod = (fields: unknown): undefined | ZodLike => (isZodObject(fields) ? fields : undefined),
   oKeys = (obj: object): string[] => Object.keys(obj),
+  withPubIndex = (index: string[] | undefined, pub: boolean | string | undefined): string[] | undefined => {
+    if (typeof pub !== 'string') return index
+    if (!index) return [pub]
+    for (const i of index) if (i === pub) return index
+
+    return [...index, pub]
+  },
   applyMod = (field: FieldBuilder, mod: 'index' | 'unique'): FieldBuilder => {
     const record = field as unknown as Record<string, unknown>
     if (typeof record[mod] === 'function') return (record[mod] as () => FieldBuilder)()
@@ -1138,11 +1145,11 @@ const compoundIndexToEntry = (columns: string[]): { accessor: string; algorithm:
       },
       fileTable = (): BsTable => bsOf({ category: 'file' }, raw.fileTable()),
       orgScopedTable = <F extends TblInput>(fields: F, options?: OrgScopedOpts<F>): BsTable => {
-        const { cascade, compoundIndex, extra, index, indexes, pub, rateLimit, softDelete, unique } = options ?? {},
+        const { cascade = true, compoundIndex, extra, index, indexes, pub, rateLimit, softDelete, unique } = options ?? {},
           sdExtra = softDelete ? { ...extra, deletedAt: raw.t.timestamp().optional() } : extra,
           mergedExtra = mergeModifierExtra(fields, raw.t, {
             extra: sdExtra,
-            index,
+            index: withPubIndex(index, pub),
             unique
           }),
           resolvedIndexes = compoundIndex ? [compoundIndexToEntry(compoundIndex), ...(indexes ?? [])] : indexes,
@@ -1173,7 +1180,7 @@ const compoundIndexToEntry = (columns: string[]): { accessor: string; algorithm:
           sdExtra = softDelete ? { ...extra, deletedAt: raw.t.timestamp().optional() } : extra,
           mergedExtra = mergeModifierExtra(fields, raw.t, {
             extra: sdExtra,
-            index,
+            index: withPubIndex(index, pub),
             unique
           })
         return bsOf(
@@ -1286,7 +1293,12 @@ const compoundIndexToEntry = (columns: string[]): { accessor: string; algorithm:
     for (const name of names) {
       const entry = result[name]
       if (entry) {
-        const sqls = rlsSql(name, entry.__bs.category, entry.__bs.pub)
+        let sqls: string[]
+        if (entry.__bs.category === 'children' && entry.__bs.childFk && entry.__bs.childParent) {
+          const parentEntry = result[entry.__bs.childParent]
+          sqls = rlsChildSql(name, entry.__bs.childFk, entry.__bs.childParent, parentEntry?.__bs.pub)
+        } else sqls = rlsSql(name, entry.__bs.category, entry.__bs.pub)
+
         for (const sql of sqls) addRls(sql)
       }
     }

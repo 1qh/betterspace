@@ -1,3 +1,4 @@
+/* eslint-disable @typescript-eslint/max-params */
 type RlsCategory = 'base' | 'children' | 'file' | 'org' | 'orgScoped' | 'owned' | 'singleton'
 type RlsPub = boolean | string | undefined
 
@@ -13,6 +14,15 @@ const RLS_COL = { orgId: 'orgId', userId: 'userId' } as const,
   rlsJoinWhereSender = (tbl: string, joinTbl: string, onCol: string): string =>
     `${rlsSelectJoin(tbl, joinTbl, onCol)} WHERE ${q(joinTbl, RLS_COL.userId)} = :sender`,
   rlsWherePub = (tbl: string, pubCol: string): string => `${rlsSelect(tbl)} WHERE ${q(tbl, pubCol)} = true`,
+  // oxlint-disable-next-line max-params
+  rlsChildJoinPubOrSender = (child: string, parent: string, fk: string, pubCol: string): string =>
+    `SELECT "${child}".* FROM "${child}" JOIN "${parent}" ON ${q(child, fk)} = ${q(parent, 'id')} WHERE ${q(parent, pubCol)} = true OR ${q(child, RLS_COL.userId)} = :sender`,
+  // oxlint-disable-next-line max-params
+  rlsChildSql = (name: string, fk: string, parent: string, parentPub?: RlsPub): string[] => {
+    if (parentPub === true) return []
+    if (typeof parentPub === 'string') return [rlsChildJoinPubOrSender(name, parent, fk, parentPub)]
+    return [rlsWhereSender(name, RLS_COL.userId)]
+  },
   rlsSql = (name: string, category: RlsCategory, pub?: RlsPub): string[] => {
     if (pub === true) return []
     if (category === 'owned' || category === 'children' || category === 'file') {
@@ -28,4 +38,4 @@ const RLS_COL = { orgId: 'orgId', userId: 'userId' } as const,
   }
 
 export type { RlsCategory, RlsPub }
-export { RLS_COL, RLS_TBL, rlsJoinWhereSender, rlsSql, rlsWherePub, rlsWhereSender }
+export { RLS_COL, RLS_TBL, rlsChildSql, rlsJoinWhereSender, rlsSql, rlsWherePub, rlsWhereSender }

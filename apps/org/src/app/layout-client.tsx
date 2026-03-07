@@ -1,6 +1,7 @@
 'use client'
 
-import type { OrgDoc, OrgRole } from 'betterspace'
+import type { OrgRole } from 'betterspace'
+import type { OrgDoc } from 'betterspace/react'
 import type { ReactNode } from 'react'
 
 import { OrgProvider } from 'betterspace/react'

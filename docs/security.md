@@ -12,17 +12,46 @@ It cannot be spoofed.
 
 ### How `pub` Maps to RLS
 
-| Consumer config      | Generated filter                                           |
-| -------------------- | ---------------------------------------------------------- |
-| `pub: true`          | No filter — table is fully public                          |
-| `pub: 'published'`   | `WHERE published = true OR userId = :sender`               |
-| No `pub` (owned)     | `WHERE userId = :sender`                                   |
-| No `pub` (children)  | `WHERE userId = :sender`                                   |
-| No `pub` (file)      | `WHERE userId = :sender`                                   |
-| No `pub` (orgScoped) | `JOIN orgMember ON orgId WHERE orgMember.userId = :sender` |
-| `base` / `cache`     | No filter — cache tables are public by design              |
+| Consumer config                | Generated filter                                                     |
+| ------------------------------ | -------------------------------------------------------------------- |
+| `pub: true`                    | No filter — table is fully public                                    |
+| `pub: 'published'`             | `WHERE published = true OR userId = :sender`                         |
+| No `pub` (owned)               | `WHERE userId = :sender`                                             |
+| No `pub` (file)                | `WHERE userId = :sender`                                             |
+| No `pub` (orgScoped)           | `JOIN orgMember ON orgId WHERE orgMember.userId = :sender`           |
+| `base` / `cache`               | No filter — cache tables are public by design                        |
+| Children (parent has `pub`)    | `JOIN parent ON fk WHERE parent.pubField = true OR userId = :sender` |
+| Children (parent fully public) | No filter — inherits parent’s public visibility                      |
+| Children (parent no `pub`)     | `WHERE userId = :sender`                                             |
 
 Multiple RLS rules on the same table are OR’d by SpacetimeDB.
+
+### Children RLS Inheritance
+
+Children tables automatically inherit their parent’s `pub` visibility.
+When the parent has `pub: 'isPublic'`, child rows are visible if the parent’s pub field
+is true OR the child row’s owner matches the caller:
+
+```sql
+SELECT "message".* FROM "message"
+JOIN "chat" ON "message"."chatId" = "chat"."id"
+WHERE "chat"."isPublic" = true OR "message"."userId" = :sender
+```
+
+Uses `JOIN` so child visibility is always derived from the parent.
+Messages in a public chat are visible to everyone, while messages in a private chat are
+only visible to the message sender.
+If the parent is deleted, child rows become invisible through this policy (SpacetimeDB
+only supports inner joins in RLS).
+
+### Auto-Indexed pub Fields
+
+When `pub: 'fieldName'` is specified, betterspace automatically creates an index on that
+field. No need to specify both `pub` and `index` for the same field:
+
+```tsx
+blog: table(s.blog, { pub: 'published' })
+```
 
 ### Example
 
@@ -32,20 +61,22 @@ export default betterspace(({ table }) => ({
   chat: table(s.chat, { pub: 'isPublic' }),
   message: table(s.message),
   movie: table(s.movie, { key: 'tmdbId' }),
-  project: table(s.project, { cascade: true }),
-  wiki: table(s.wiki, { cascade: true, softDelete: true }),
+  project: table(s.project),
+  wiki: table(s.wiki, { softDelete: true }),
   file: table.file()
 }))
 ```
 
 This generates:
 
-- `blog`: clients see published posts OR their own drafts
-- `chat`: clients see public chats OR their own private chats
-- `message`: children table — clients see only their own messages
+- `blog`: clients see published posts OR their own drafts (`published` auto-indexed)
+- `chat`: clients see public chats OR their own private chats (`isPublic` auto-indexed)
+- `message`: children of `chat` — inherits chat’s RLS (visible if chat is public OR own
+  message)
 - `movie`: cache table — no RLS (public data)
 - `project`: orgScoped — clients see projects only in orgs they belong to
-- `wiki`: orgScoped — same org-membership check
+  (cascade-deletes by default)
+- `wiki`: orgScoped — same org-membership check (cascade-deletes by default)
 - `file`: clients see only their own uploaded files
 
 The auto-generated RLS rules push to SpacetimeDB’s `moduleDef.rowLevelSecurity`. No
@@ -132,7 +163,6 @@ For per-item permissions beyond role-based access:
 
 ```tsx
 wiki: table(s.wiki, {
-  cascade: true,
   extra: { editors: t.array(t.identity()).optional() },
   softDelete: true
 })
@@ -143,12 +173,13 @@ Consumer code checks `canEditResource(resource, org)` to gate UI and server-side
 
 ### Cascade Delete
 
-```tsx
-project: table(s.project, { cascade: true })
-```
+Org-scoped tables cascade-delete by default when an org is deleted.
+All rows belonging to the deleted org are automatically removed.
+Opt out with `cascade: false` if needed:
 
-When an org is deleted, all cascade-enabled tables have their org-scoped rows removed
-automatically.
+```tsx
+project: table(s.project, { cascade: false })
+```
 
 ## Scalability Architecture
 
@@ -250,16 +281,16 @@ need them.
 
 All betterspace errors use discriminated error codes:
 
-| Code                | Meaning                                         |
-| ------------------- | ----------------------------------------------- |
-| `NOT_AUTHENTICATED` | No `ctx.sender` — client not connected          |
-| `NOT_FOUND`         | Row does not exist or caller lacks access       |
-| `NOT_AUTHORIZED`    | Caller is authenticated but lacks permission    |
-| `VALIDATION_FAILED` | Input failed Zod validation                     |
-| `CONFLICT`          | Row was modified since `expectedUpdatedAt`      |
-| `RATE_LIMITED`      | Too many mutations — includes `retryAfter` (ms) |
-| `DUPLICATE`         | Unique constraint violation                     |
-| `INTERNAL_ERROR`    | Unexpected server error                         |
+| Code                | Meaning                                                      |
+| ------------------- | ------------------------------------------------------------ |
+| `NOT_AUTHENTICATED` | No `ctx.sender` — client not connected                       |
+| `NOT_FOUND`         | Row does not exist or caller lacks access                    |
+| `FORBIDDEN`         | Caller lacks permission (non-owner write, insufficient role) |
+| `NOT_AUTHORIZED`    | Caller is not authorized to access the resource              |
+| `VALIDATION_FAILED` | Input failed Zod validation — includes field-level errors    |
+| `CONFLICT`          | Row was modified since `expectedUpdatedAt`                   |
+| `RATE_LIMITED`      | Too many mutations — includes `retryAfter` (ms)              |
+| `DUPLICATE`         | Unique constraint violation                                  |
 
 Errors include structured `ErrorData`:
 

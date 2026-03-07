@@ -194,7 +194,7 @@ import {
 } from '../server/middleware'
 import { orgCascade } from '../server/org-crud'
 import { HEARTBEAT_INTERVAL_MS, PRESENCE_TTL_MS } from '../server/presence'
-import { rlsSql } from '../server/rls'
+import { rlsChildSql, rlsSql } from '../server/rls'
 import { baseTable, orgTable, ownedTable, singletonTable } from '../server/schema-helpers'
 import { betterspace } from '../server/setup'
 import { isTestMode } from '../server/test'
@@ -10454,6 +10454,47 @@ describe('RLS SQL generation from pub metadata', () => {
   test('generated SQL for orgScoped uses SELECT table.* with JOIN', () => {
     const sqls = rlsSql('task', 'orgScoped')
     expect(sqls[0]?.startsWith('SELECT "task".* FROM "task" JOIN')).toBe(true)
+  })
+})
+
+describe('Children RLS parent inheritance', () => {
+  test('child inherits parent pub field — generates JOIN filter with pub OR sender', () => {
+    const sqls = rlsChildSql('message', 'chatId', 'chat', 'isPublic')
+    expect(sqls).toHaveLength(1)
+    expect(sqls[0]).toContain('JOIN "chat"')
+    expect(sqls[0]).toContain('"message"."chatId" = "chat"."id"')
+    expect(sqls[0]).toContain('"chat"."isPublic" = true')
+    expect(sqls[0]).toContain('"message"."userId" = :sender')
+    expect(sqls[0]).toContain('OR')
+  })
+
+  test('child with fully-public parent (pub=true) generates no RLS', () => {
+    const sqls = rlsChildSql('comment', 'postId', 'post', true)
+    expect(sqls).toHaveLength(0)
+  })
+
+  test('child without parent pub generates sender-only filter (no JOIN)', () => {
+    const sqls = rlsChildSql('note', 'taskId', 'task')
+    expect(sqls).toHaveLength(1)
+    expect(sqls[0]).toContain('"note"."userId" = :sender')
+    expect(sqls[0]).not.toContain('JOIN')
+  })
+
+  test('child with undefined parent pub generates sender-only filter', () => {
+    const sqls = rlsChildSql('attachment', 'docId', 'doc')
+    expect(sqls).toHaveLength(1)
+    expect(sqls[0]).toContain('"attachment"."userId" = :sender')
+  })
+
+  test('child JOIN SQL uses SELECT child.* format', () => {
+    const sqls = rlsChildSql('message', 'chatId', 'chat', 'isPublic')
+    expect(sqls[0]?.startsWith('SELECT "message".* FROM "message" JOIN')).toBe(true)
+  })
+
+  test('child JOIN references parent id column', () => {
+    const sqls = rlsChildSql('reply', 'commentId', 'comment', 'visible')
+    expect(sqls[0]).toContain('"reply"."commentId" = "comment"."id"')
+    expect(sqls[0]).toContain('"comment"."visible" = true')
   })
 })
 
