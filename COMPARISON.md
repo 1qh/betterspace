@@ -102,25 +102,20 @@ const togglePublish = m(
 
 **lazyconvex**: Each table has its own file — CRUD + custom endpoints co-located.
 
-**betterspace (after)**: Same per-table structure:
+**betterspace (after)**: 2-file backend — Zod schemas shared with frontend, single
+`betterspace()` call for all tables:
 
 ```
-packages/be/spacetimedb/src/
-├── tables.ts      (tables + schema — shared definitions)
-├── lazy.ts        (setupCrud + org — shared factories)
-├── blog.ts        (6 lines — crud('blog', owned.blog))
-├── chat.ts        (6 lines — crud('chat', owned.chat))
-├── message.ts     (6 lines — childCrud)
-├── movie.ts       (6 lines — cacheCrud)
-├── profile.ts     (7 lines — singletonCrud x2)
-├── org-tables.ts  (8 lines — orgCrud x3)
-├── file-upload.ts (12 lines — fileUpload)
-└── index.ts       (28 lines — thin entry, allExports())
+packages/be/spacetimedb/
+├── t.ts              (shared Zod schemas — 95 lines)
+└── src/
+    └── index.ts      (single betterspace() call — 31 lines)
 ```
 
-**Resolution**: Restructured from 387-line monolith to ~222 lines across 10 files.
-Each table’s CRUD is 6-12 lines.
-Custom logic can be co-located per file.
+**Resolution**: The `betterspace()` convenience function replaced the old 10-file
+structure. All table definitions, CRUD registration, org setup, and module export happen
+in one call.
+Consumer backend went from ~222 lines across 10 files to 31 lines in 1 file.
 
 ---
 
@@ -235,7 +230,7 @@ Consumer calls `allExports()` once at the end.
 
 ---
 
-## Gap 9: Schema Definition Verbosity (4.5x → 2.8x)
+## Gap 9: Schema Definition Verbosity (4.5x → 2.8x → 0.7x)
 
 **Status**: [x] CLOSED
 
@@ -251,44 +246,31 @@ const project = orgTable(orgScoped.project)
 **betterspace (before)**: 205-line `tables.ts` with manual `table()` calls repeating
 system fields (`id`, `updatedAt`, `userId`, `orgId`) on every table.
 
-**betterspace (after)**: 127-line `tables.ts` using `makeSchema()` helpers:
+**betterspace (intermediate)**: 127-line `tables.ts` using `makeSchema()` helpers.
+
+**betterspace (after)**: 31-line `src/index.ts` using `betterspace()`:
 
 ```ts
-import { makeSchema } from 'betterspace/server'
+import { betterspace } from 'betterspace/server'
+import { owned, orgScoped, singleton } from '../../t'
 
-const { childTable, orgScopedTable, ownedTable, singletonTable } = makeSchema({
-  t,
-  table
-})
-
-const blog = ownedTable(owned.blog, { published: t.bool().index() })
-const project = orgScopedTable(orgScoped.project)
-const message = childTable('chatId', {
-  parts: t.array(messagePart),
-  role: t.string()
-})
-const blogProfile = singletonTable(singleton.blogProfile)
+export default betterspace(
+  ({ ownedTable, orgScopedTable, singletonTable, t }) => ({
+    blog: ownedTable(owned.blog, { published: t.bool().index() }),
+    project: orgScopedTable(orgScoped.project),
+    blogProfile: singletonTable(singleton.blogProfile)
+  })
+)
 ```
 
-**Resolution**: Created `makeSchema(deps)` — accepts `{ t, table }` via dependency
-injection (avoiding `import.meta.require` which crashes in SpacetimeDB’s V8 runtime).
-Returns bound helpers: `ownedTable`, `orgScopedTable`, `singletonTable`, `cacheTable`,
-`childTable`. Each helper adds system fields automatically.
+**Resolution**: `betterspace()` replaces both `makeSchema()` (table definitions) and
+`setupCrud()` (CRUD registration).
+It accepts `{ t, table }` internally via dependency injection, wraps helpers with
+category tags so CRUD registration is automatic, and calls `registerAll()`, `org()`, and
+`exportGroup()` without any consumer involvement.
 
-Standard tables are now 1-liners.
-Only tables with special field layouts (movie, org system tables, file) still use manual
-`table()` calls.
-
-The remaining 2.8x ratio (127 vs 46 lines) is accounted for by:
-
-- SpacetimeDB `t.object()` inline types (messagePart, movieGenre) that Convex doesn’t
-  need
-- Movie table with 18 fields + custom genre type
-- Org system tables (orgMember, orgInvite, orgJoinRequest) with special layouts
-- File table with `uploadedAt` instead of `updatedAt`
-
-The core owned/orgScoped/singleton/child tables are 1-line each — matching lazyconvex
-DX.
+Consumer backend went from 205 lines to 31 lines.
+The 31-line backend covers all 11 tables across 4 demo apps.
 
 ---
 
@@ -830,6 +812,51 @@ These are expected divergences due to SpacetimeDB vs Convex fundamentals:
 
 ---
 
+## Phase 9: betterspace() Convenience Function
+
+**Status**: [x] COMPLETE
+
+The `betterspace()` function is a single-call replacement for the old `makeSchema()` +
+`setupCrud()` + manual export assembly pattern.
+
+**What changed for consumers**:
+
+- Tagged table helpers (`ownedTable`, `orgScopedTable`, `childTable`, etc.)
+  carry category metadata, so CRUD registration is inferred automatically.
+  No separate `crud`, `orgCrud`, or `singletonCrud` config fields needed.
+- `orgTable()` auto-creates `orgInvite`, `orgJoinRequest`, and `orgMember` tables.
+  No manual org system table definitions.
+- Options (`rateLimit`, `softDelete`, `cascade`, `ttl`) are inlined into each helper
+  call instead of a separate config object.
+- Consumer backend reduced from 45 lines (across 3 files) to 31 lines (1 file).
+- The old `crud`, `options`, `org`, and `allExports` config fields are eliminated.
+
+**Old pattern (3 files)**:
+
+```ts
+const { ownedTable } = makeSchema({ t, table })
+const post = ownedTable(owned.post, { published: t.bool().index() })
+const spacetimedb = schema({ post })
+export default spacetimedb
+
+const { crud, allExports } = setupCrud(spacetimedb, {
+  idField: t.u32(),
+  expectedUpdatedAtField: t.timestamp()
+})
+const postCrud = crud('post', owned.post)
+export const reducers = spacetimedb.exportGroup(allExports())
+```
+
+**New pattern (1 file)**:
+
+```ts
+export default betterspace(({ ownedTable, t }) => ({
+  post: ownedTable(owned.post, { published: t.bool().index() })
+}))
+```
+
+---
+
 ## Summary
 
 All 18 DX gaps are **CLOSED**. A developer moving from lazyconvex to betterspace writes
@@ -839,13 +866,13 @@ the same amount of code (or less) for equivalent functionality.
 | ----------------------------------- | ----------------------------------- | -------------------------- | ------ |
 | 1. Field redefinition               | 3-4x                                | 2x (platform minimum)      | CLOSED |
 | 2. Custom reducer factory           | Manual auth                         | `m()` in setupCrud         | CLOSED |
-| 3. Per-table files                  | 387-line monolith                   | 10 files, ~222 lines       | CLOSED |
+| 3. Per-table files                  | 387-line monolith                   | 2 files, 126 lines         | CLOSED |
 | 4. Org cascade                      | 24+ lines callbacks                 | `cascadeTables: ['task']`  | CLOSED |
 | 5. Org helper exports               | Missing 4 helpers                   | All exported               | CLOSED |
 | 6. uniqueCheck helper               | Missing                             | `makeUnique` exported      | CLOSED |
 | 7. makeOrg config                   | 50+ lines                           | 4 lines                    | CLOSED |
 | 8. Export assembly                  | Manual spreads                      | `allExports()`             | CLOSED |
-| 9. Schema verbosity                 | 205 lines (4.5x)                    | 127 lines, 1-line tables   | CLOSED |
+| 9. Schema verbosity                 | 205 lines (4.5x)                    | 31 lines, `betterspace()`  | CLOSED |
 | 10. `key: undefined` boilerplate    | Every omitted field explicit        | Only changed fields        | CLOSED |
 | 11. Schema variants boilerplate     | 44-line schema.ts + variants        | 24 lines, base schemas     | CLOSED |
 | 12. Leftover `key: undefined`       | `assigneeId: undefined`             | Omit optional fields       | CLOSED |

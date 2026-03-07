@@ -81,69 +81,39 @@ docker compose ps  # spacetimedb should show "healthy"
 ## Define your schema
 
 Create your SpacetimeDB module files.
-First, define shared field objects in a `t.ts` file, then define tables using
-`makeSchema()` helpers.
+Define shared Zod schemas in `t.ts`, then wire everything together with `betterspace()`
+in `src/index.ts`.
 
 ### Step 1: Field definitions (`t.ts`)
 
 ```typescript
-import { t } from 'spacetimedb/server'
+import { makeOwned, makeSingleton } from 'betterspace/schema'
+import { object, string } from 'zod/v4'
 
-const owned = {
-  post: { title: t.string(), content: t.string() }
-}
+const owned = makeOwned({
+  post: object({ title: string(), content: string() })
+})
 
-const singleton = {
-  profile: { displayName: t.string(), bio: t.string().optional() }
-}
+const singleton = makeSingleton({
+  profile: object({ displayName: string(), bio: string().optional() })
+})
 
 export { owned, singleton }
 ```
 
-### Step 2: Table definitions (`tables.ts`)
+### Step 2: Backend module (`src/index.ts`)
 
-`makeSchema()` accepts `{ t, table }` and returns helpers that add system fields (`id`,
-`updatedAt`, `userId`) automatically:
-
-```typescript
-import { makeSchema } from 'betterspace/server'
-import { schema, t, table } from 'spacetimedb/server'
-
-import { owned, singleton } from './t'
-
-const { ownedTable, singletonTable } = makeSchema({ t, table }),
-  post = ownedTable(owned.post, { published: t.bool().index() }),
-  profile = singletonTable(singleton.profile),
-  spacetimedb = schema({ post, profile })
-
-export default spacetimedb
-export { post, profile }
-```
-
-Each `ownedTable` call expands to a `table()` with `id`, `updatedAt`, `userId` + your
-fields. No manual system field repetition.
-
-### Step 3: CRUD reducers (`index.ts`)
-
-Use `setupCrud()` to generate reducers from your field definitions:
+`betterspace()` builds the schema, registers CRUD reducers, and exports the module.
+System fields (`id`, `updatedAt`, `userId`) are added automatically:
 
 ```typescript
-import { setupCrud } from 'betterspace/server'
-import { t } from 'spacetimedb/server'
+import { betterspace } from 'betterspace/server'
+import { owned, singleton } from '../../t'
 
-import spacetimedb from './tables'
-import { owned, singleton } from './t'
-
-const { crud, singletonCrud, allExports } = setupCrud(spacetimedb, {
-    expectedUpdatedAtField: t.timestamp(),
-    idField: t.u32()
-  }),
-  postCrud = crud('post', owned.post),
-  profileCrud = singletonCrud('profile', singleton.profile),
-  reducers = spacetimedb.exportGroup(allExports())
-
-export { reducers }
-export default spacetimedb
+export default betterspace(({ ownedTable, singletonTable, t }) => ({
+  post: ownedTable(owned.post, { published: t.bool().index() }),
+  profile: singletonTable(singleton.profile)
+}))
 ```
 
 ## Publish the module
@@ -357,8 +327,9 @@ export default BlogApp
 
 ## What just happened
 
-- `makeCrud` generated three reducers: `create_post`, `update_post`, `rm_post`
-- `makeSingletonCrud` generated `get_profile` and `upsert_profile`
+- `betterspace()` generated three reducers for `post`: `create_post`, `update_post`,
+  `rm_post`
+- `betterspace()` generated `get_profile` and `upsert_profile` for the singleton
 - `spacetime publish` compiled and deployed the module
 - `spacetime generate` created typed bindings from the deployed module
 - `useTable` opened a WebSocket subscription, receiving all rows and live updates

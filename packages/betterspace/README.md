@@ -60,24 +60,18 @@ const deletePost = spacetimedb.reducer(
 ~40 lines for 3 reducers.
 No validation, no file cleanup, no conflict detection.
 
-With betterspace `setupCrud()`:
+With betterspace `betterspace()`:
 
 ```tsx
-const { crud } = setupCrud(spacetimedb, {
-  expectedUpdatedAtField: t.timestamp(),
-  idField: t.u32()
-})
+import { betterspace } from 'betterspace/server'
+import { owned } from './t'
 
-const blogCrud = crud('blog', {
-  category: t.string(),
-  content: t.string(),
-  coverImage: t.string().optional(),
-  published: t.bool(),
-  title: t.string()
-})
+export default betterspace(({ ownedTable, t }) => ({
+  blog: ownedTable(owned.blog, { published: t.bool().index() })
+}))
 ```
 
-4 lines. `create`/`update`/`rm` reducers with auth, ownership, validation hooks, and
+One call. `create`/`update`/`rm` reducers with auth, ownership, validation hooks, and
 conflict detection — all included.
 
 ## Less Boilerplate, Same Capability
@@ -89,22 +83,17 @@ real-time subscriptions.
 Here’s a full org-scoped CRUD with per-item editor permissions and soft delete:
 
 ```tsx
-const wikiCrud = orgCrud(
-  'wiki',
-  {
-    content: t.string().optional(),
-    deletedAt: t.timestamp().optional(),
-    editors: t.array(t.identity()).optional(),
-    slug: t.string(),
-    status: t.string(),
-    title: t.string()
-  },
-  { softDelete: true }
-)
+export default betterspace(({ orgScopedTable, t }) => ({
+  wiki: orgScopedTable(
+    orgScoped.wiki,
+    { deletedAt: t.timestamp().optional(), editors: t.array(t.identity()).optional() },
+    { cascade: true, softDelete: true }
+  )
+}))
 ```
 
-One call. Role-based access, editor ACL, soft delete with restore, and bulk operations —
-all generated.
+One call. Role-based access, editor ACL, soft delete with restore, cascade delete, and
+bulk operations — all generated.
 
 > [See all backend code: packages/be/spacetimedb/src/](https://github.com/1qh/betterspace/tree/main/packages/be/spacetimedb/src)
 
@@ -341,7 +330,7 @@ bun add betterspace
 | --------------------------- | ---------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
 | `betterspace`               | `guardApi`, `strictApi`, `zodFromTable`, `UndefinedToOptional` type, identity helpers                                                                                                                                                                                                                                                                                                                                                          |
 | `betterspace/schema`        | `makeOwned`, `makeOrgScoped`, `makeBase`, `makeSingleton`, `child`, `cvFile`, `cvFiles`, `orgSchema`                                                                                                                                                                                                                                                                                                                                           |
-| `betterspace/server`        | `setupCrud`, `setup`, `makeCrud`, `makeChildCrud`, `makeOrgCrud`, `makeSingletonCrud`, `makeCacheCrud`, `makeOrg`, `makeFileUpload`, `makePresence`, table helpers, middleware, error handling, test utilities                                                                                                                                                                                                                                 |
+| `betterspace/server`        | `betterspace`, `setupCrud`, `setup`, `makeCrud`, `makeChildCrud`, `makeOrgCrud`, `makeSingletonCrud`, `makeCacheCrud`, `makeOrg`, `makeFileUpload`, `makePresence`, table helpers, middleware, error handling, test utilities                                                                                                                                                                                                                  |
 | `betterspace/react`         | `useList`, `useOwnRows`, `useSearch`, `usePresence`, `useBulkSelection`, `useMutate`, `useMutation`, `useBulkMutate`, `useInfiniteList`, `useUpload`, `useSoftDelete`, `useCacheEntry`, `useOptimisticMutation`, `useForm`, `useFormMutation`, `useErrorToast`, `relax`, `createOrgHooks`, `toWsUri`, `createTokenStore`, `createFileUploader`, `createSpacetimeClient`, `BetterspaceDevtools`, `SchemaPlayground`, org hooks, 50+ named types |
 | `betterspace/components`    | `Form`, `useForm`, `useFormMutation`, `ConflictDialog`, `AutoSaveIndicator`, `OfflineIndicator`, `PermissionGuard`, `ErrorBoundary`, `FileApiProvider`, `OrgAvatar`, `RoleBadge`, `EditorsSection`, `defineSteps`, 14 typed field components                                                                                                                                                                                                   |
 | `betterspace/next`          | `getToken`, `isAuthenticated`, `setActiveOrgCookie`, `clearActiveOrgCookie`, `getActiveOrg`, `makeImageRoute`                                                                                                                                                                                                                                                                                                                                  |
@@ -394,65 +383,43 @@ const form = useForm({ schema: owned.blog, onSubmit: ... })
 
 ## Quick Start
 
-### 1. Define table schemas
+### 1. Field definitions (`t.ts`)
 
 > [Real example: packages/be/t.ts](https://github.com/1qh/betterspace/blob/main/packages/be/t.ts)
 
 ```tsx
-import { t } from 'spacetimedb/server'
+import { makeOwned, makeSingleton } from 'betterspace/schema'
+import { object, string, boolean } from 'zod/v4'
 
-const owned = {
-  blog: {
-    category: t.string(),
-    content: t.string(),
-    coverImage: t.string().optional(),
-    published: t.bool(),
-    title: t.string()
-  }
-}
+const owned = makeOwned({
+  blog: object({
+    title: string().min(1),
+    content: string().min(3),
+    published: boolean()
+  })
+})
+
+const singleton = makeSingleton({
+  profile: object({ displayName: string(), bio: string().optional() })
+})
+
+export { owned, singleton }
 ```
 
-### 2. Define SpacetimeDB tables + generate reducers
+### 2. Backend module (`src/index.ts`)
 
 ```tsx
-import { setupCrud } from 'betterspace/server'
-import { schema, t, table } from 'spacetimedb/server'
+import { betterspace } from 'betterspace/server'
+import { owned, singleton } from '../../t'
 
-const blog = table(
-  { public: true },
-  {
-    category: t.string(),
-    content: t.string(),
-    coverImage: t.string().optional(),
-    id: t.u32().autoInc().primaryKey(),
-    published: t.bool().index(),
-    title: t.string(),
-    updatedAt: t.timestamp(),
-    userId: t.identity().index()
-  }
-)
-
-const spacetimedb = schema({ blog })
-
-const { crud, allExports } = setupCrud(spacetimedb, {
-  expectedUpdatedAtField: t.timestamp(),
-  idField: t.u32()
-})
-
-const blogCrud = crud('blog', {
-  category: t.string(),
-  content: t.string(),
-  coverImage: t.string().optional(),
-  published: t.bool(),
-  title: t.string()
-})
-
-export const reducers = spacetimedb.exportGroup(allExports())
-export default spacetimedb
+export default betterspace(({ ownedTable, singletonTable, t }) => ({
+  blog: ownedTable(owned.blog, { published: t.bool().index() }),
+  profile: singletonTable(singleton.profile)
+}))
 ```
 
-`setupCrud()` eliminates repeated `idField`, `pk`, `table` boilerplate across tables.
-For fine-grained control, use `makeCrud()` directly (see
+`betterspace()` builds the schema, registers all CRUD reducers, and exports the module
+in one call. For fine-grained control, use `makeCrud()` directly (see
 [API Reference](docs/api-reference.md)).
 
 ### 3. Publish the module
