@@ -12,31 +12,33 @@ sub-tables.
 `t.ts`:
 
 ```typescript
-import { makeOrg, makeOrgScoped } from 'betterspace/schema'
+import { schema } from 'betterspace/schema'
 import { object, string } from 'zod/v4'
 
-const org = makeOrg({
+const s = schema({
+  org: {
     team: object({
       name: string().min(1),
       slug: string().regex(/^[a-z0-9-]+$/u)
     })
-  }),
-  orgScoped = makeOrgScoped({
+  },
+  orgScoped: {
     project: object({ description: string().optional(), name: string().min(1) })
-  })
+  }
+})
 
-export { org, orgScoped }
+export { s }
 ```
 
 `index.ts`:
 
 ```typescript
 import { betterspace } from 'betterspace/server'
-import { org, orgScoped } from '../../t'
+import { s } from '../../t'
 
 export default betterspace(({ table }) => ({
-  org: table(org.team, { unique: ['slug'] }),
-  project: table(orgScoped.project, { cascade: true })
+  org: table(s.team, { unique: ['slug'] }),
+  project: table(s.project, { cascade: true })
 }))
 ```
 
@@ -78,16 +80,16 @@ permissions, ownership transfers, invites, and join-request workflows.
 
 ## Org-scoped tables
 
-`table(orgScoped.x)` registers a table that belongs to an org and enforces org
+`table(s.orgScopedEntry)` registers a table that belongs to an org and enforces org
 membership before any write.
-Pass the result of `makeOrgScoped()` from your schema file:
+Define org-scoped tables with `schema({ orgScoped: { ... } })` in your schema file:
 
 ```typescript
 import { betterspace } from 'betterspace/server'
-import { orgScoped } from '../../t'
+import { s } from '../../t'
 
 export default betterspace(({ table }) => ({
-  project: table(orgScoped.project)
+  project: table(s.project)
 }))
 ```
 
@@ -184,6 +186,62 @@ const CreateProject = () => {
     await createProject({ name })
   }
 }
+```
+
+### createOrgHooks
+
+`createOrgHooks` is a factory that returns typed org hooks bound to your org type.
+Use it when your org has extra fields beyond the base `OrgDoc` (e.g., a string `_id`
+from an external system), or when you need `orgId` coerced to a specific type before
+being injected into mutations.
+
+```typescript
+import { createOrgHooks } from 'betterspace/react'
+
+const { useActiveOrg, useMyOrgs, useOrg, useOrgMutation } = createOrgHooks<
+  Org & { _id: string }
+>({
+  orgIdForMutation: Number
+})
+```
+
+The `orgIdForMutation` option accepts a function that transforms the org’s `_id` string
+before injecting it as `orgId` into mutation calls.
+In the example above, `Number` converts the string ID to a number, matching a `u32`
+reducer argument.
+
+`useOrgMutation` returned from `createOrgHooks` uses the configured transform
+automatically:
+
+```typescript
+const update = useOrgMutation(useReducer(reducers.orgUpdate))
+await update(d) // orgId auto-injected as Number(org._id)
+```
+
+When `orgIdForMutation` is omitted, `orgId` is passed as-is (a string).
+
+### Org-scoped queries
+
+`useOrgQuery` automatically injects `orgId` into query arguments:
+
+```typescript
+'use client'
+
+import { useOrgQuery } from 'betterspace/react'
+
+const ProjectList = () => {
+  const projects = useOrgQuery(queryProject, { status: 'active' })
+  // Calls queryProject({ status: 'active', orgId: '<current-org-id>' })
+}
+```
+
+Pass `'skip'` to skip the query (e.g. when required data isn’t ready):
+
+```typescript
+const details = useOrgQuery(
+  queryProject,
+  selectedId ? { id: selectedId } : 'skip'
+)
 ```
 
 ## Read-side ACL with private tables and views

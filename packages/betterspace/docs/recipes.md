@@ -9,24 +9,26 @@ A chat app with rooms, messages, and live presence.
 `t.ts` (Zod schema definitions):
 
 ```typescript
-import { child, makeOwned } from 'betterspace/schema'
+import { child, schema } from 'betterspace/schema'
 import { boolean, object, string } from 'zod/v4'
 
-const owned = makeOwned({
+const s = schema({
+  owned: {
     chat: object({ isPublic: boolean(), title: string().min(1) })
-  }),
-  children = {
+  },
+  children: {
     message: child('chat', object({ content: string() }))
   }
+})
 
-export { children, owned }
+export { s }
 ```
 
 `index.ts` (backend module):
 
 ```typescript
 import { betterspace, makePresence } from 'betterspace/server'
-import { children, owned } from '../../t'
+import { s } from '../t'
 
 export default betterspace(({ table, t }) => {
   const presence = makePresence({
@@ -35,8 +37,8 @@ export default betterspace(({ table, t }) => {
   })
 
   return {
-    chat: table(owned.chat, { index: ['isPublic'] }),
-    message: table(children.message),
+    chat: table(s.chat, { index: ['isPublic'] }),
+    message: table(s.message),
     ...presence.tables
   }
 })
@@ -179,24 +181,26 @@ Projects and tasks that belong to an org, with member-only write access.
 `t.ts`:
 
 ```typescript
-import { makeOrgScoped } from 'betterspace/schema'
+import { schema } from 'betterspace/schema'
 import { object, string } from 'zod/v4'
 
-const orgScoped = makeOrgScoped({
-  project: object({ description: string().optional(), name: string().min(1) })
+const s = schema({
+  orgScoped: {
+    project: object({ description: string().optional(), name: string().min(1) })
+  }
 })
 
-export { orgScoped }
+export { s }
 ```
 
 `index.ts`:
 
 ```typescript
 import { betterspace } from 'betterspace/server'
-import { orgScoped } from '../../t'
+import { s } from '../t'
 
 export default betterspace(({ table }) => ({
-  project: table(orgScoped.project)
+  project: table(s.project)
 }))
 ```
 
@@ -248,29 +252,31 @@ Cache third-party API responses in SpacetimeDB with TTL-based invalidation.
 `t.ts`:
 
 ```typescript
-import { makeBase } from 'betterspace/schema'
+import { schema } from 'betterspace/schema'
 import { number, object, string } from 'zod/v4'
 
-const base = makeBase({
-  movie: object({
-    overview: string(),
-    title: string(),
-    tmdbId: number(),
-    voteAverage: number()
-  })
+const s = schema({
+  base: {
+    movie: object({
+      overview: string(),
+      title: string(),
+      tmdbId: number(),
+      voteAverage: number()
+    })
+  }
 })
 
-export { base }
+export { s }
 ```
 
 `index.ts`:
 
 ```typescript
 import { betterspace } from 'betterspace/server'
-import { base } from '../../t'
+import { s } from '../t'
 
 export default betterspace(({ table }) => ({
-  movie: table(base.movie, { key: 'tmdbId' })
+  movie: table(s.movie, { key: 'tmdbId' })
 }))
 ```
 
@@ -365,27 +371,26 @@ Use `softDelete: true` to set `deletedAt` instead of deleting rows.
 `t.ts`:
 
 ```typescript
-import { makeOrgScoped } from 'betterspace/schema'
+import { schema } from 'betterspace/schema'
 import { object, string } from 'zod/v4'
 
-const orgScoped = makeOrgScoped({
-  wiki: object({ content: string().optional(), title: string().min(1) })
+const s = schema({
+  orgScoped: {
+    wiki: object({ content: string().optional(), title: string().min(1) })
+  }
 })
 
-export { orgScoped }
+export { s }
 ```
 
 `index.ts`:
 
 ```typescript
 import { betterspace } from 'betterspace/server'
-import { orgScoped } from '../../t'
+import { s } from '../t'
 
-export default betterspace(({ table, t }) => ({
-  wiki: table(orgScoped.wiki, {
-    extra: { deletedAt: t.timestamp().optional() },
-    softDelete: true
-  })
+export default betterspace(({ table }) => ({
+  wiki: table(s.wiki, { softDelete: true })
 }))
 ```
 
@@ -420,22 +425,18 @@ Run side effects after a mutation completes: redirect, reset form state, show a 
 ```typescript
 'use client'
 
-import { useMutate } from 'betterspace/react'
-import { useReducer } from 'spacetimedb/react'
+import { useMut } from 'betterspace/react'
 import { useRouter } from 'next/navigation'
 import { reducers } from '@/generated/module_bindings'
 
 const CreatePostForm = () => {
   const router = useRouter()
-  const createPost = useReducer(reducers.create_post)
 
-  const save = useMutate(createPost, {
+  const save = useMut(reducers.create_post, {
     onSuccess: (_result, args) => {
-      // Redirect after successful create
       router.push('/posts')
     },
     onSettled: (_args, error) => {
-      // Always runs — clean up loading state
       setSubmitting(false)
       if (error) console.error('Create failed:', error)
     }
@@ -471,20 +472,22 @@ Derive prop types from your schema brands instead of duplicating type definition
 
 ```typescript
 import type { InferRow, InferCreate, InferUpdate } from 'betterspace/server'
-import { makeOwned } from 'betterspace/schema'
+import { schema } from 'betterspace/schema'
 import { boolean, object, string } from 'zod/v4'
 
-const schemas = makeOwned({
-  post: object({
-    title: string(),
-    content: string(),
-    published: boolean()
-  })
+const s = schema({
+  owned: {
+    post: object({
+      title: string(),
+      content: string(),
+      published: boolean()
+    })
+  }
 })
 
-type PostRow = InferRow<typeof schemas.post>
-type PostCreate = InferCreate<typeof schemas.post>
-type PostUpdate = InferUpdate<typeof schemas.post>
+type PostRow = InferRow<typeof s.post>
+type PostCreate = InferCreate<typeof s.post>
+type PostUpdate = InferUpdate<typeof s.post>
 
 const PostCard = ({ post }: { post: PostRow }) => (
   <div>
@@ -611,8 +614,7 @@ Surface server-side field validation errors back into your form UI.
 'use client'
 
 import { getFieldErrors } from 'betterspace/server'
-import { useMutate } from 'betterspace/react'
-import { useReducer } from 'spacetimedb/react'
+import { useMut } from 'betterspace/react'
 import { useState } from 'react'
 import { reducers } from '@/generated/module_bindings'
 import { z } from 'zod/v4'
@@ -624,17 +626,15 @@ const postSchema = z.object({
 })
 
 const CreatePost = () => {
-  const createPost = useReducer(reducers.create_post)
   const [fieldErrors, setFieldErrors] = useState<Partial<{ title: string; content: string }>>({})
 
-  const save = useMutate(createPost, {
+  const save = useMut(reducers.create_post, {
     onError: error => {
       const errors = getFieldErrors<typeof postSchema>(error)
       if (errors) {
         setFieldErrors(errors)
         return
       }
-      // Fall through to default toast for non-field errors
     }
   })
 
@@ -672,6 +672,7 @@ safely fall through to a generic error handler.
 
 `useMutation` combines `useReducer` + `useMutate` into one call, removing the
 intermediate variable.
+For an even shorter form, `useMut` skips passing `useReducer` entirely.
 
 Before:
 
@@ -684,7 +685,7 @@ const raw = useReducer(reducers.update_blog)
 const save = useMutate(raw, { onSuccess: () => toast.success('Saved') })
 ```
 
-After:
+With `useMutation`:
 
 ```typescript
 import { useMutation } from 'betterspace/react'
@@ -692,6 +693,17 @@ import { useReducer } from 'spacetimedb/react'
 import { reducers } from '@/generated/module_bindings'
 
 const save = useMutation(useReducer, reducers.update_blog, {
+  onSuccess: () => toast.success('Saved')
+})
+```
+
+With `useMut` (simplest):
+
+```typescript
+import { useMut } from 'betterspace/react'
+import { reducers } from '@/generated/module_bindings'
+
+const save = useMut(reducers.update_blog, {
   onSuccess: () => toast.success('Saved')
 })
 ```
@@ -799,20 +811,22 @@ Branded schemas expose `$inferRow`, `$inferCreate`, and `$inferUpdate` as readab
 properties. No import needed, just use `typeof schema.$inferRow`.
 
 ```typescript
-import { makeOwned } from 'betterspace/schema'
+import { schema } from 'betterspace/schema'
 import { boolean, object, string } from 'zod/v4'
 
-const schemas = makeOwned({
-  post: object({
-    title: string(),
-    content: string(),
-    published: boolean()
-  })
+const s = schema({
+  owned: {
+    post: object({
+      title: string(),
+      content: string(),
+      published: boolean()
+    })
+  }
 })
 
-type PostRow = typeof schemas.post.$inferRow
-type PostCreate = typeof schemas.post.$inferCreate
-type PostUpdate = typeof schemas.post.$inferUpdate
+type PostRow = typeof s.post.$inferRow
+type PostCreate = typeof s.post.$inferCreate
+type PostUpdate = typeof s.post.$inferUpdate
 ```
 
 `PostRow` includes the database-added fields (`id`, `updatedAt`, `userId` for owned

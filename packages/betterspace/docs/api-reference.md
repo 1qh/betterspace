@@ -2,53 +2,34 @@
 
 ## Server factories
 
-All factories are imported from `betterspace/server` (or the bundled
-`betterspace-server.js` for SpacetimeDB modules).
-
-### makeCrud
-
-Generates `create`, `update`, and `rm` reducers for a user-owned table.
+The primary API is `betterspace()` + `table()`, imported from `betterspace/server`.
+Define your schema with `schema()` from `betterspace/schema`, then pass each schema
+entry to `table()` inside `betterspace()`. All CRUD reducers are generated
+automatically.
 
 ```typescript
-import { makeCrud } from 'betterspace/server'
+import { betterspace } from 'betterspace/server'
+import { s } from '../t'
 
-const postCrud = makeCrud(spacetimedb, {
-  // Required: field definitions for create/update
-  fields: {
-    title: t.string(),
-    content: t.string(),
-    published: t.bool()
-  },
-
-  // Required: primary key type
-  idField: t.u32(),
-
-  // Required: primary key accessor
-  pk: tbl => tbl.id,
-
-  // Required: table accessor
-  table: db => db.post,
-
-  // Required: table name (used for reducer naming)
-  tableName: 'post',
-
-  // Optional: enables optimistic conflict detection
-  expectedUpdatedAtField: t.timestamp(),
-
-  // Optional: lifecycle hooks
-  options: {
-    softDelete: false, // set true to set deletedAt instead of deleting
-    hooks: {
-      beforeCreate: (ctx, { data }) => data,
-      afterCreate: (ctx, { data, row }) => {},
-      beforeUpdate: (ctx, { patch, prev }) => patch,
-      afterUpdate: (ctx, { next, patch, prev }) => {},
-      beforeDelete: (ctx, { row }) => {},
-      afterDelete: (ctx, { row }) => {}
-    }
-  }
-})
+export default betterspace(({ table }) => ({
+  blog: table(s.blog, { index: ['published'] }),
+  profile: table(s.profile),
+  project: table(s.project, { cascade: true }),
+  team: table(s.team, { unique: ['slug'] }),
+  movie: table(s.movie, { key: 'tmdbId' }),
+  message: table(s.message)
+}))
 ```
+
+The low-level factories (`makeCrud`, `makeOrgCrud`, `makeSingletonCrud`,
+`makeCacheCrud`, `makeChildCrud`) are internal implementations that `betterspace()`
+calls under the hood.
+They remain available for advanced use cases but you rarely need them directly.
+
+### table(s.ownedSchema) — user-owned tables
+
+`table(s.ownedSchema)` generates `create`, `update`, and `rm` reducers for a user-owned
+table. Define the schema with `schema({ owned: { ... } })`.
 
 **Generated reducers:**
 
@@ -61,36 +42,21 @@ const postCrud = makeCrud(spacetimedb, {
 **Ownership:** All write operations check `row.userId === ctx.sender`. Non-owners get a
 `FORBIDDEN` error.
 
+**Options:**
+
+| Option       | Description                                                                                   |
+| ------------ | --------------------------------------------------------------------------------------------- |
+| `index`      | Fields to index                                                                               |
+| `unique`     | Fields with a unique constraint                                                               |
+| `softDelete` | When `true`, `rm_*` sets `deletedAt` instead of deleting. Auto-injects the `deletedAt` field. |
+| `rateLimit`  | Rate limit config for write operations                                                        |
+
 ---
 
-### makeOrgCrud
+### table(s.orgScopedSchema) — org-scoped tables
 
-Like `makeCrud`, but for org-scoped tables.
-Checks org membership before writes.
-
-```typescript
-import { makeOrgCrud } from 'betterspace/server'
-
-const projectCrud = makeOrgCrud(spacetimedb, {
-  fields: {
-    name: t.string(),
-    description: t.string().optional()
-  },
-  idField: t.u32(),
-  orgIdField: t.u32(),
-  orgMemberTable: db => db.orgMember,
-  pk: tbl => tbl.id,
-  table: db => db.project,
-  tableName: 'project',
-  expectedUpdatedAtField: t.timestamp(),
-  options: {
-    softDelete: false,
-    hooks: {
-      /* same as makeCrud */
-    }
-  }
-})
-```
+`table(s.orgScopedSchema)` generates org-scoped CRUD reducers that check org membership
+before writes. Define the schema with `schema({ orgScoped: { ... } })`.
 
 **Generated reducers:**
 
@@ -102,28 +68,11 @@ const projectCrud = makeOrgCrud(spacetimedb, {
 
 ---
 
-### makeSingletonCrud
+### table(s.singletonSchema) — per-user singleton tables
 
-For per-user singleton records (one row per user, like a profile or settings).
-
-```typescript
-import { makeSingletonCrud } from 'betterspace/server'
-
-const profileCrud = makeSingletonCrud(spacetimedb, {
-  fields: {
-    displayName: t.string(),
-    bio: t.string().optional(),
-    theme: t.string()
-  },
-  table: db => db.profile,
-  tableName: 'profile',
-  options: {
-    hooks: {
-      /* beforeCreate, afterCreate, beforeUpdate, afterUpdate, beforeRead */
-    }
-  }
-})
-```
+`table(s.singletonSchema)` generates reducers for per-user singleton records (one row
+per user, like a profile or settings).
+Define the schema with `schema({ singleton: { ... } })`.
 
 **Generated reducers:**
 
@@ -134,30 +83,11 @@ const profileCrud = makeSingletonCrud(spacetimedb, {
 
 ---
 
-### makeCacheCrud
+### table(s.baseSchema, { key }) — cache/base tables
 
-For caching external data (e.g., third-party API responses) with TTL-based expiration.
-
-```typescript
-import { makeCacheCrud } from 'betterspace/server'
-
-const movieCrud = makeCacheCrud(spacetimedb, {
-  fields: {
-    title: t.string(),
-    overview: t.string(),
-    voteAverage: t.number()
-  },
-  // The unique key for cache lookup (not the auto-inc id)
-  keyField: t.number(),
-  keyName: 'tmdbId',
-  pk: tbl => tbl.tmdbId,
-  table: db => db.movie,
-  tableName: 'movie',
-  options: {
-    ttl: 7 * 24 * 60 * 60 * 1000 // 7 days in ms (default)
-  }
-})
-```
+`table(s.baseSchema, { key: 'keyField' })` generates reducers for caching external data
+(e.g., third-party API responses) with TTL-based expiration.
+Define the schema with `schema({ base: { ... } })`.
 
 **Generated reducers:**
 
@@ -173,29 +103,11 @@ Cache tables automatically get `cachedAt`, `invalidatedAt`, and `updatedAt` fiel
 
 ---
 
-### makeChildCrud
+### table(s.childSchema) — child tables
 
-For tables that belong to a parent row (e.g., messages in a chat).
-
-```typescript
-import { makeChildCrud } from 'betterspace/server'
-
-const messageCrud = makeChildCrud(spacetimedb, {
-  fields: {
-    content: t.string(),
-    role: t.string()
-  },
-  foreignKeyField: t.u32(),
-  foreignKeyName: 'chatId',
-  idField: t.u32(),
-  parentPk: tbl => tbl.id,
-  parentTable: db => db.chat,
-  pk: tbl => tbl.id,
-  table: db => db.message,
-  tableName: 'message',
-  expectedUpdatedAtField: t.timestamp()
-})
-```
+`table(s.childSchema)` generates reducers for tables that belong to a parent row (e.g.,
+messages in a chat).
+Define the schema with `schema({ children: { message: child('chat', ...) } })`.
 
 **Generated reducers:**
 
@@ -207,10 +119,11 @@ const messageCrud = makeChildCrud(spacetimedb, {
 
 ---
 
-### makeOrg
+### table(s.orgSchema) — org tables
 
-Generates the full suite of org management reducers.
-See [organizations](./organizations.md) for the full config reference.
+`table(s.orgSchema)` generates the full suite of org management reducers.
+Define the schema with `schema({ org: { ... } })`. See
+[organizations](./organizations.md) for the full config reference.
 
 ---
 
@@ -278,9 +191,10 @@ const fileCrud = makeFileUpload(spacetimedb, {
 
 ### makeSchema
 
-Creates table definition helpers that automatically add system fields (`id`,
-`updatedAt`, `userId`, etc.). Uses dependency injection to avoid `import.meta.require`
-issues in SpacetimeDB’s V8 runtime.
+`makeSchema` is used internally by `betterspace()` to create table definition helpers
+that automatically add system fields (`id`, `updatedAt`, `userId`, etc.). It uses
+dependency injection to avoid `import.meta.require` issues in SpacetimeDB’s V8 runtime.
+You don’t call it directly — `betterspace()` handles this for you.
 
 The primary interface is the universal `table()` function, which auto-detects the table
 type from the schema brand.
@@ -357,32 +271,9 @@ In practice, just pass `{ t, table }` from `spacetimedb/server`.
 
 ### setupCrud
 
-`setupCrud` is a convenience wrapper around `setup` that reduces repetitive table wiring
-for `crud`, `orgCrud`, `childCrud`, `singletonCrud`, `cacheCrud`, and `fileUpload`.
-
-```typescript
-import { setupCrud } from 'betterspace/server'
-
-const s = setupCrud(spacetimedb, {
-  expectedUpdatedAtField: t.timestamp(),
-  idField: t.u32(),
-  orgIdField: t.u32()
-})
-
-const postCrud = s.crud('post', {
-  title: t.string(),
-  content: t.string()
-})
-
-const uploadFns = s.fileUpload('file', 'file', {
-  contentType: t.string(),
-  filename: t.string(),
-  size: t.number(),
-  storageKey: t.string()
-})
-
-const reducers = spacetimedb.exportGroup(s.allExports())
-```
+`setupCrud` is a lower-level convenience wrapper superseded by `betterspace()` +
+`table()`. The `betterspace()` API is simpler and handles all the same table types with
+less boilerplate. `setupCrud` remains available for backward compatibility.
 
 ---
 
@@ -634,7 +525,8 @@ const results = useSearch(
 ### useCacheEntry
 
 Manages a single cache entry with automatic stale detection and refresh.
-Designed for use with `makeCacheCrud` tables where entries may become stale.
+Designed for use with cache tables (defined via `schema({ base: { ... } })`) where
+entries may become stale.
 
 ```typescript
 import { useCacheEntry } from 'betterspace/react'
@@ -2151,29 +2043,24 @@ Derive TypeScript types from betterspace schema brands.
 
 ```typescript
 import type { InferRow, InferCreate, InferUpdate } from 'betterspace/server'
-import { makeOwned, makeOrgScoped } from 'betterspace/schema'
-import { z } from 'zod/v4'
+import { schema } from 'betterspace/schema'
+import { boolean, object, string } from 'zod/v4'
 
-const schemas = makeOwned({
-  post: z.object({
-    title: z.string(),
-    content: z.string(),
-    published: z.boolean()
-  })
+const s = schema({
+  owned: {
+    post: object({
+      title: string(),
+      content: string(),
+      published: boolean()
+    })
+  }
 })
 
-// InferRow: the full row as stored in the database
-// Includes _id, _creationTime, updatedAt, userId (for owned)
-type PostRow = InferRow<typeof schemas.post>
-// { title: string; content: string; published: boolean; _id: number | string; _creationTime: number; updatedAt: number; userId: string }
+type PostRow = InferRow<typeof s.post>
 
-// InferCreate: the shape for creating a new row (all fields required)
-type PostCreate = InferCreate<typeof schemas.post>
-// { title: string; content: string; published: boolean }
+type PostCreate = InferCreate<typeof s.post>
 
-// InferUpdate: the shape for updating a row (all fields optional)
-type PostUpdate = InferUpdate<typeof schemas.post>
-// { title?: string; content?: string; published?: boolean }
+type PostUpdate = InferUpdate<typeof s.post>
 ```
 
 `InferRow` is brand-aware:
@@ -2236,8 +2123,8 @@ Zod nullable fields (`string | null`) can be passed through without conversion.
 
 `SchemaPhantoms<C, R, U>` is the interface that branded schemas implement to expose
 their inferred types as readable properties.
-You don’t construct it directly — it’s already on every schema returned by `makeOwned`,
-`makeOrgScoped`, `makeBase`, and `makeSingleton`.
+You don’t construct it directly — it’s already on every schema entry returned by
+`schema()`.
 
 ```typescript
 interface SchemaPhantoms<C, R, U> {
@@ -2252,23 +2139,27 @@ interface SchemaPhantoms<C, R, U> {
 }
 ```
 
-Access types via `typeof schema.$inferRow` (no import needed):
+Access types via `typeof s.post.$inferRow` (no import needed):
 
 ```typescript
-import { makeOwned } from 'betterspace/schema'
-import { z } from 'zod/v4'
+import { schema } from 'betterspace/schema'
+import { boolean, object, string } from 'zod/v4'
 
-const schemas = makeOwned({
-  post: z.object({
-    title: z.string(),
-    published: z.boolean()
-  })
+const s = schema({
+  owned: {
+    post: object({
+      title: string(),
+      published: boolean()
+    })
+  }
 })
 
-type PostRow = typeof schemas.post.$inferRow
-type PostCreate = typeof schemas.post.$inferCreate
-type PostUpdate = typeof schemas.post.$inferUpdate
+type PostRow = typeof s.post.$inferRow
+type PostCreate = typeof s.post.$inferCreate
+type PostUpdate = typeof s.post.$inferUpdate
 ```
+
+Access types via `typeof s.post.$inferRow` (no import needed):
 
 The `~types` accessor groups all three under one namespace:
 

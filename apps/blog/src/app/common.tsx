@@ -21,7 +21,7 @@ import { Dialog, DialogContent, DialogTrigger } from '@a/ui/dialog'
 import { FieldGroup } from '@a/ui/field'
 import { Spinner } from '@a/ui/spinner'
 import { Form, useFormMutation } from 'betterspace/components'
-import { useMutation, useOptimisticMutation } from 'betterspace/react'
+import { useMut, useOptimisticMutation } from 'betterspace/react'
 import { format, formatDistance } from 'date-fns'
 import { Pencil, Plus, Send, Trash, UserRound } from 'lucide-react'
 import Link from 'next/link'
@@ -36,7 +36,7 @@ import { Publish } from './[id]/edit/client'
 // eslint-disable-next-line no-restricted-properties
 const isPlaywrightTest = process.env.NEXT_PUBLIC_PLAYWRIGHT === '1',
   Delete = ({ id, onOptimisticRemove }: { id: number; onOptimisticRemove?: () => void }) => {
-    const rmBlog = useMutation(useReducer, reducers.rmBlog, {
+    const rmBlog = useMut(reducers.rmBlog, {
         toast: { error: 'Delete failed', success: 'Deleted' }
       }),
       { execute, isPending } = useOptimisticMutation({

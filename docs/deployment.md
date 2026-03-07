@@ -17,7 +17,7 @@ This starts:
 Publish your module:
 
 ```bash
-spacetime publish my-app --module-path packages/be/spacetimedb/
+spacetime publish my-app --module-path packages/be/
 ```
 
 Generate bindings:
@@ -25,8 +25,8 @@ Generate bindings:
 ```bash
 spacetime generate \
   --lang typescript \
-  --module-path packages/be/spacetimedb/ \
-  --out-dir packages/be/spacetimedb/module_bindings/
+  --module-path packages/be/ \
+  --out-dir packages/be/module_bindings/
 ```
 
 Start your Next.js app:
@@ -82,7 +82,7 @@ It handles hosting, scaling, and backups.
 spacetime login
 
 # Publish to Maincloud
-spacetime publish my-app --server maincloud --module-path packages/be/spacetimedb/
+spacetime publish my-app --server maincloud --module-path packages/be/
 ```
 
 The module is now available at `wss://maincloud.spacetimedb.com/my-app`.
@@ -97,7 +97,7 @@ NEXT_PUBLIC_MODULE_NAME=my-app
 ### Republishing
 
 ```bash
-spacetime publish my-app --server maincloud --module-path packages/be/spacetimedb/
+spacetime publish my-app --server maincloud --module-path packages/be/
 ```
 
 Republishing applies schema changes and updates reducer logic.
@@ -214,7 +214,7 @@ certbot renew --dry-run
 spacetime server add https://stdb.yourdomain.com --name myserver
 
 # Publish
-spacetime publish my-app --server myserver --module-path packages/be/spacetimedb/
+spacetime publish my-app --server myserver --module-path packages/be/
 ```
 
 ### Environment variables (self-hosted)
@@ -319,7 +319,7 @@ jobs:
         run: curl -sSf https://install.spacetimedb.com | sh
 
       - name: Publish SpacetimeDB module
-        run: spacetime publish my-app --server maincloud --module-path packages/be/spacetimedb/
+        run: spacetime publish my-app --server maincloud --module-path packages/be/
         env:
           SPACETIMEDB_TOKEN: ${{ secrets.SPACETIMEDB_TOKEN }}
 
@@ -327,8 +327,8 @@ jobs:
         run: |
           spacetime generate \
             --lang typescript \
-            --module-path packages/be/spacetimedb/ \
-            --out-dir packages/be/spacetimedb/module_bindings/
+            --module-path packages/be/ \
+            --out-dir packages/be/module_bindings/
 
       - name: Build Next.js
         run: bun run build

@@ -1,14 +1,14 @@
 {
   "name": "@a/be",
   "exports": {
-    "./spacetimedb": "./spacetimedb/module_bindings/index.ts",
-    "./spacetimedb/types": "./spacetimedb/module_bindings/types.ts",
+    "./spacetimedb": "./module_bindings/index.ts",
+    "./spacetimedb/types": "./module_bindings/types.ts",
     "./t": "./t.ts"
   },
   "scripts": {
     "build": "tsc",
     "clean": "git clean -xdf .cache .turbo dist node_modules",
-    "test": "bun with-env bun test spacetimedb/__tests__/f.test.ts spacetimedb/__tests__/org-api.test.ts spacetimedb/__tests__/edge.test.ts",
+    "test": "bun with-env bun test __tests__/f.test.ts __tests__/org-api.test.ts __tests__/edge.test.ts",
     "typecheck": "tsc --noEmit",
     "with-env": "dotenv -e ../../.env --"
   },

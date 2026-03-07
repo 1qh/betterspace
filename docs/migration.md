@@ -260,28 +260,30 @@ export default defineSchema({
 ```typescript
 // betterspace
 // packages/be/t.ts
-import { makeOwned } from 'betterspace/schema'
+import { schema } from 'betterspace/schema'
 import { boolean, object, string } from 'zod/v4'
 
-const owned = makeOwned({
-  post: object({
-    content: string(),
-    published: boolean(),
-    title: string()
-  })
+const s = schema({
+  owned: {
+    post: object({
+      content: string(),
+      published: boolean(),
+      title: string()
+    })
+  }
 })
 
-export { owned }
+export { s }
 ```
 
 ```typescript
 // betterspace
-// packages/be/spacetimedb/src/index.ts
+// packages/be/src/index.ts
 import { betterspace } from 'betterspace/server'
-import { owned } from '../../t'
+import { s } from '../t'
 
 export default betterspace(({ table }) => ({
-  post: table(owned.post, { index: ['published'] })
+  post: table(s.post, { index: ['published'] })
 }))
 ```
 
@@ -400,7 +402,7 @@ try {
 throw new SenderError('NOT_FOUND: post:update')
 
 // On client:
-import { extractErrorData, getErrorCode } from 'betterspace/server'
+import { extractErrorData, getErrorCode } from 'betterspace'
 
 try {
   await createPost(data)

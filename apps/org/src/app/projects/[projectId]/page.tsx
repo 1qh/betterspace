@@ -8,7 +8,7 @@ import type { SyntheticEvent } from 'react'
 import type { output } from 'zod/v4'
 
 import { reducers, tables } from '@a/be/spacetimedb'
-import { orgScoped } from '@a/be/t'
+import { s } from '@a/be/t'
 import { fail, sameIdentity } from '@a/fe/utils'
 import { Avatar, AvatarFallback, AvatarImage } from '@a/ui/avatar'
 import { Badge } from '@a/ui/badge'
@@ -29,9 +29,9 @@ import { useReducer, useSpacetimeDB, useTable } from 'spacetimedb/react'
 
 import { useOrg } from '~/hook/use-org'
 
-type Priority = NonNullable<output<typeof orgScoped.task>['priority']>
+type Priority = NonNullable<output<typeof s.task>['priority']>
 
-const priorityOptions = enumToOptions(orgScoped.task.shape.priority.unwrap()),
+const priorityOptions = enumToOptions(s.task.shape.priority.unwrap()),
   asPriority = (value: string | undefined): Priority =>
     value === 'high' || value === 'low' || value === 'medium' ? value : 'medium',
   PrioritySelect = ({ onValueChange, value }: { onValueChange: (v: Priority) => void; value: Priority }) => (

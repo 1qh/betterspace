@@ -499,13 +499,12 @@ call fails to compile.
 `packages/betterspace/` is the **published library** (`bun add betterspace`). Everything
 else is **consumer code** — demo apps that happen to live in the same monorepo:
 
-| Path                       | Role                                         | Can reference betterspace internals? |
-| -------------------------- | -------------------------------------------- | ------------------------------------ |
-| `packages/betterspace/`    | Library (npm published)                      | N/A — IS the library                 |
-| `packages/be/`             | Demo backend (consumer)                      | NO — uses public API only            |
-| `packages/be/spacetimedb/` | SpacetimeDB Rust module + generated bindings | NO                                   |
-| `apps/`                    | Demo web apps (consumer)                     | NO — uses public API only            |
-| `packages/ui/`             | Shared UI components (read-only)             | NO                                   |
+| Path                    | Role                                         | Can reference betterspace internals? |
+| ----------------------- | -------------------------------------------- | ------------------------------------ |
+| `packages/betterspace/` | Library (npm published)                      | N/A — IS the library                 |
+| `packages/be/`          | Demo backend (consumer) + SpacetimeDB module | NO — uses public API only            |
+| `apps/`                 | Demo web apps (consumer)                     | NO — uses public API only            |
+| `packages/ui/`          | Shared UI components (read-only)             | NO                                   |
 
 **The library must work for ANY project, not just these demos.** A developer who runs
 `bun add betterspace` and defines their own Zod schemas must get correct output without

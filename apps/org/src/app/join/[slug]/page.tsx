@@ -7,10 +7,10 @@ import { Button } from '@a/ui/button'
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@a/ui/card'
 import { Skeleton } from '@a/ui/skeleton'
 import { Form, OrgAvatar, useForm } from 'betterspace/components'
-import { setActiveOrgCookieClient, useMutation } from 'betterspace/react'
+import { setActiveOrgCookieClient, useMut } from 'betterspace/react'
 import { useRouter } from 'next/navigation'
 import { use } from 'react'
-import { useReducer, useSpacetimeDB, useTable } from 'spacetimedb/react'
+import { useSpacetimeDB, useTable } from 'spacetimedb/react'
 
 import { joinRequest } from '~/schema'
 
@@ -30,10 +30,10 @@ const JoinPage = ({ params }: { params: Promise<{ slug: string }> }) => {
         : null,
     membership =
       identity && org ? members.find(m => m.orgId === org.id && m.userId.toHexString() === identity.toHexString()) : null,
-    cancelRequest = useMutation(useReducer, reducers.orgCancelJoin, {
+    cancelRequest = useMut(reducers.orgCancelJoin, {
       toast: { error: 'Failed to cancel request', success: 'Request cancelled' }
     }),
-    requestJoin = useMutation(useReducer, reducers.orgRequestJoin, {
+    requestJoin = useMut(reducers.orgRequestJoin, {
       toast: { error: 'Join request failed', success: 'Join request sent' }
     }),
     form = useForm({

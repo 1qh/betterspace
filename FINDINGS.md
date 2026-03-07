@@ -557,9 +557,9 @@ pain. Document u64 as opt-in.
 SpacetimeDB handles TypeScript compilation during `spacetime publish`. No separate build
 step needed. For monorepo integration:
 
-- Module lives in its own directory (e.g., `packages/be/spacetimedb/`)
-- `spacetime publish --module-path packages/be/spacetimedb/` from repo root
-- `spacetime generate --module-path packages/be/spacetimedb/ --out-dir packages/betterspace/src/generated/`
+- Module lives in its own directory (e.g., `packages/be/`)
+- `spacetime publish --module-path packages/be/` from repo root
+- `spacetime generate --module-path packages/be/ --out-dir packages/betterspace/src/generated/`
 - Generated bindings import from `spacetimedb` package (must be in dependencies)
 
 ### Factory Composition Pattern

@@ -7,8 +7,7 @@ Only the server-side factory layer is replaced.
 
 ## What betterspace provides
 
-The factories (`makeCrud`, `makeOrgCrud`, etc.)
-generate reducer definitions.
+The factories (`betterspace()` and `table()`) generate reducer definitions.
 Ejecting means writing those reducers manually instead of using the factories.
 
 The client-side hooks (`useList`, `usePresence`, `useUpload`) are independent utilities.
@@ -16,16 +15,15 @@ You can keep using them after ejecting from the server factories.
 
 ## Step 1: understand what the factories generate
 
-For a `makeCrud` call like:
+For a `betterspace()` + `table()` setup like:
 
 ```typescript
-const postCrud = makeCrud(spacetimedb, {
-  fields: { title: t.string(), content: t.string(), published: t.bool() },
-  idField: t.u32(),
-  pk: tbl => tbl.id,
-  table: db => db.post,
-  tableName: 'post'
-})
+import { betterspace } from 'betterspace/server'
+import { s } from '../t'
+
+export default betterspace(({ table }) => ({
+  post: table(s.post, { index: ['published'] })
+}))
 ```
 
 The factory generates these three reducers:
@@ -86,16 +84,12 @@ spacetimedb.reducer({ name: 'rm_post' }, { id: t.u32() }, (ctx, { id }) => {
 In your module file, replace:
 
 ```typescript
-// Before (with betterspace)
-import { makeCrud } from 'betterspace/server'
+import { betterspace } from 'betterspace/server'
+import { s } from '../t'
 
-const postCrud = makeCrud(spacetimedb, {
-  /* config */
-})
-
-const reducers = spacetimedb.exportGroup({
-  ...postCrud.exports
-})
+export default betterspace(({ table }) => ({
+  post: table(s.post)
+}))
 ```
 
 With:
@@ -171,10 +165,6 @@ bun remove betterspace
 Update imports in your module file:
 
 ```typescript
-// Remove
-import { makeCrud, makeOrgCrud } from 'betterspace/server'
-
-// Keep (these are SpacetimeDB SDK imports)
 import { schema, t, table, SenderError } from 'spacetimedb/server'
 ```
 
@@ -200,8 +190,8 @@ If you want to remove betterspace entirely from the client too, replace:
 ## Step 5: republish and regenerate
 
 ```bash
-spacetime publish my-app --module-path packages/be/spacetimedb/
-spacetime generate --lang typescript --module-path packages/be/spacetimedb/ --out-dir packages/be/spacetimedb/module_bindings/
+spacetime publish my-app --module-path packages/be/
+spacetime generate --lang typescript --module-path packages/be/ --out-dir packages/be/module_bindings/
 ```
 
 The generated bindings are identical whether you used betterspace factories or wrote

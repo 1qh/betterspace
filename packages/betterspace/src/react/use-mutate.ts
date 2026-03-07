@@ -4,6 +4,7 @@
 
 import { useCallback } from 'react'
 import { toast } from 'sonner'
+import { useReducer as useStdbReducer } from 'spacetimedb/react'
 
 import type { RetryOptions } from '../retry'
 import type { UndefinedToOptional } from '../zod'
@@ -190,10 +191,15 @@ const isDev = typeof process !== 'undefined' && process.env.NODE_ENV !== 'produc
       strict = useMutate(useReducerHook(reducer), opts)
     return async (args: UndefinedToOptional<A>) => strict(args as Record<string, unknown> as A)
   },
+  useMut = <A extends Record<string, unknown>, R = void>(
+    reducer: unknown,
+    options?: MutateOptions<A, R>
+  ): ((args: UndefinedToOptional<A>) => Promise<R>) =>
+    useMutation(useStdbReducer as unknown as (desc: unknown) => (args: A) => Promise<R>, reducer, options),
   relax =
     <A extends Record<string, unknown>, R>(fn: (args: A) => Promise<R>): ((args: UndefinedToOptional<A>) => Promise<R>) =>
     async (args: UndefinedToOptional<A>) =>
       fn(args as Record<string, unknown> as A)
 
 export type { MutateOptions, MutateToast }
-export { defaultOnError, relax, useMutate, useMutation }
+export { defaultOnError, relax, useMut, useMutate, useMutation }

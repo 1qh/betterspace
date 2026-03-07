@@ -17,21 +17,14 @@ curl -sSf https://install.spacetimedb.com | sh
 
 ## Project setup
 
-Create a new project manually (a `bun create betterspace` template is coming):
-
 ```bash
 mkdir my-app && cd my-app
-bun init -y
-bun add betterspace spacetimedb
-bun add -d typescript @types/bun
+bunx betterspace init
 ```
 
-For a Next.js frontend:
-
-```bash
-bun add next react react-dom
-bun add -d @types/react @types/react-dom
-```
+`betterspace init` auto-installs all required dependencies and creates a `tsconfig.json`
+with the right settings.
+No manual `bun add` step needed.
 
 ## Start the local backend
 
@@ -87,18 +80,19 @@ in `src/index.ts`.
 ### Step 1: Field definitions (`t.ts`)
 
 ```typescript
-import { makeOwned, makeSingleton } from 'betterspace/schema'
-import { object, string } from 'zod/v4'
+import { schema } from 'betterspace/schema'
+import { boolean, object, string } from 'zod/v4'
 
-const owned = makeOwned({
-  post: object({ title: string(), content: string() })
+const s = schema({
+  owned: {
+    post: object({ title: string(), content: string() })
+  },
+  singleton: {
+    profile: object({ displayName: string(), bio: string().optional() })
+  }
 })
 
-const singleton = makeSingleton({
-  profile: object({ displayName: string(), bio: string().optional() })
-})
-
-export { owned, singleton }
+export { s }
 ```
 
 ### Step 2: Backend module (`src/index.ts`)
@@ -108,18 +102,18 @@ System fields (`id`, `updatedAt`, `userId`) are added automatically:
 
 ```typescript
 import { betterspace } from 'betterspace/server'
-import { owned, singleton } from '../../t'
+import { s } from '../t'
 
 export default betterspace(({ table }) => ({
-  post: table(owned.post, { index: ['published'] }),
-  profile: table(singleton.profile)
+  post: table(s.post, { index: ['published'] }),
+  profile: table(s.profile)
 }))
 ```
 
 ## Publish the module
 
 ```bash
-spacetime publish my-app --module-path packages/be/spacetimedb/
+spacetime publish my-app --module-path packages/be/
 ```
 
 This compiles your TypeScript module and deploys it to the local SpacetimeDB instance.
@@ -130,8 +124,8 @@ The module name (`my-app`) is what clients connect to.
 ```bash
 spacetime generate \
   --lang typescript \
-  --module-path packages/be/spacetimedb/ \
-  --out-dir packages/be/spacetimedb/module_bindings/
+  --module-path packages/be/ \
+  --out-dir packages/be/module_bindings/
 ```
 
 This generates typed client code from your module.
@@ -222,6 +216,47 @@ const PostList = () => {
 export default PostList
 ```
 
+### Filtering and search
+
+`useList` supports client-side filtering, sorting, and debounced search:
+
+```typescript
+'use client'
+
+import { useState } from 'react'
+import { useTable } from 'spacetimedb/react'
+import { tables } from '@/generated/module_bindings'
+import { useList } from 'betterspace/react'
+
+const PostSearch = () => {
+  const [posts, isReady] = useTable(tables.post)
+  const [query, setQuery] = useState('')
+
+  const { data, totalCount } = useList(posts, isReady, {
+    search: { query, fields: ['title', 'content'], debounceMs: 300 },
+    where: { published: true },
+    sort: { field: 'updatedAt', direction: 'desc' },
+  })
+
+  return (
+    <div>
+      <input value={query} onChange={e => setQuery(e.target.value)} placeholder="Search posts..." />
+      <p>{totalCount} results</p>
+      <ul>
+        {data.map(post => (
+          <li key={post.id}>{post.title}</li>
+        ))}
+      </ul>
+    </div>
+  )
+}
+
+export default PostSearch
+```
+
+The `debounceMs: 300` option delays the search filter until the user stops typing for
+300ms, avoiding unnecessary re-renders on every keystroke.
+
 ### Writing data
 
 `useReducer` returns a function that calls a server-side reducer:
@@ -264,15 +299,20 @@ Here’s a complete working component with create, update, and delete:
 ```typescript
 'use client'
 
-import { useReducer, useTable } from 'spacetimedb/react'
+import { useReducer, useSpacetimeDB, useTable } from 'spacetimedb/react'
 import { reducers, tables } from '@/generated/module_bindings'
-import { useList } from 'betterspace/react'
+import { useList, useOwnRows } from 'betterspace/react'
 
 const BlogApp = () => {
   const [posts, isReady] = useTable(tables.post)
-  const { data, hasMore, loadMore, totalCount } = useList(posts, isReady, {
+  const { identity } = useSpacetimeDB()
+
+  const ownedPosts = useOwnRows(posts, identity ? p => p.userId.isEqual(identity) : null)
+
+  const { data, hasMore, loadMore, totalCount } = useList(ownedPosts, isReady, {
     sort: { field: 'updatedAt', direction: 'desc' },
     pageSize: 20,
+    where: { own: true },
   })
 
   const createPost = useReducer(reducers.create_post)

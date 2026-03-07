@@ -137,10 +137,20 @@ import { createOptimisticStore, makeTempId } from '../react/optimistic-store'
 import { canEditResource } from '../react/org'
 import { collectSettled } from '../react/use-bulk-mutate'
 import { DEFAULT_PAGE_SIZE, useOwnRows } from '../react/use-list'
-import { useMutation as useMutationDirect } from '../react/use-mutate'
+import { useMutation as useMutationDirect, useMut as useMutDirect } from '../react/use-mutate'
 import { DEFAULT_DEBOUNCE_MS } from '../react/use-search'
 import { fetchWithRetry, withRetry } from '../retry'
-import { child, cvFile, cvFiles, makeBase, makeOrg, makeOrgScoped, makeOwned, makeSingleton } from '../schema'
+import {
+  schema as buildSchema,
+  child,
+  cvFile,
+  cvFiles,
+  makeBase,
+  makeOrg,
+  makeOrgScoped,
+  makeOwned,
+  makeSingleton
+} from '../schema'
 import { generateFieldValue, generateOne, generateSeed } from '../seed'
 import { flt, idx, indexFields, sch, typed } from '../server/bridge'
 import { ownedCascade } from '../server/crud'
@@ -184,6 +194,7 @@ import {
 import { orgCascade } from '../server/org-crud'
 import { HEARTBEAT_INTERVAL_MS, PRESENCE_TTL_MS } from '../server/presence'
 import { baseTable, orgTable, ownedTable, singletonTable } from '../server/schema-helpers'
+import { betterspace } from '../server/setup'
 import { isTestMode } from '../server/test'
 import { ERROR_MESSAGES } from '../server/types'
 import { extractChildren, extractFieldType, extractWrapperTables, generateMermaid } from '../viz'
@@ -8475,11 +8486,35 @@ describe('Sprint 5 skip sentinel type options', () => {
 })
 
 describe('Sprint 5 useMutation exports', () => {
+  test('useMut exists as export from use-mutate module', async () => {
+    const mod = await import('../react/use-mutate')
+    expect(mod).toHaveProperty('useMut')
+    expect(typeof mod.useMut).toBe('function')
+    expect(mod.useMut).toBe(useMutDirect)
+  })
+
   test('useMutation is exported from react index', async () => {
     const mod = await import('../react/index')
     expect(mod).toHaveProperty('useMutation')
     expect(typeof mod.useMutation).toBe('function')
     expect(mod.useMutation).toBe(useMutationDirect)
+  })
+
+  test('useMut is exported from react index', async () => {
+    const mod = await import('../react/index')
+    expect(mod).toHaveProperty('useMut')
+    expect(typeof mod.useMut).toBe('function')
+    expect(mod.useMut).toBe(useMutDirect)
+  })
+
+  test('useMut signature in source matches generic reducer-first contract', async () => {
+    const { readFileSync } = await import('node:fs'),
+      { join } = await import('node:path'),
+      content = readFileSync(join(import.meta.dir, '..', 'react', 'use-mutate.ts'), 'utf8')
+    expect(content.includes('useMut = <A extends Record<string, unknown>, R = void, D = unknown>(')).toBe(true)
+    expect(content.includes('reducer: D,')).toBe(true)
+    expect(content.includes('options?: MutateOptions<A, R>')).toBe(true)
+    expect(content.includes('): ((args: UndefinedToOptional<A>) => Promise<R>) =>')).toBe(true)
   })
 
   test('MutateOptions type is exported from react index', () => {
@@ -9069,6 +9104,244 @@ describe('Sprint 8 polish: useList skip returns isLoading false', () => {
   test('SkipInfiniteListResult has isLoading: false', () => {
     const skip: SkipInfiniteListResult = { data: [], hasMore: false, isLoading: false, loadMore: noop, totalCount: 0 }
     expect(skip.isLoading).toBe(false)
+  })
+})
+
+describe('unified schema()', () => {
+  const withUniversalTable = (run: (table: Parameters<Parameters<typeof betterspace>[0]>[0]['table']) => void): void => {
+    betterspace(({ table }) => {
+      run(table)
+      return {}
+    })
+  }
+
+  test('schema() brands owned schemas correctly', () => {
+    const s = buildSchema({ owned: { blog: object({ published: boolean(), title: string() }) } })
+    expect((s.blog as unknown as { __bs?: unknown }).__bs).toBe('owned')
+  })
+
+  test('schema() brands orgScoped schemas correctly', () => {
+    const s = buildSchema({ orgScoped: { wiki: object({ slug: string(), title: string() }) } })
+    expect((s.wiki as unknown as { __bs?: unknown }).__bs).toBe('org')
+  })
+
+  test('schema() brands org schemas correctly', () => {
+    const s = buildSchema({ org: { organization: object({ name: string(), slug: string() }) } })
+    expect((s.organization as unknown as { __bs?: unknown }).__bs).toBe('orgDef')
+  })
+
+  test('schema() brands base schemas correctly', () => {
+    const s = buildSchema({ base: { movie: object({ title: string(), tmdbId: number() }) } })
+    expect((s.movie as unknown as { __bs?: unknown }).__bs).toBe('base')
+  })
+
+  test('schema() brands singleton schemas correctly', () => {
+    const s = buildSchema({ singleton: { profile: object({ displayName: string() }) } })
+    expect((s.profile as unknown as { __bs?: unknown }).__bs).toBe('singleton')
+  })
+
+  test('schema() passes through children without branding', () => {
+    const childDef = child('blog', object({ blogId: string(), body: string() })),
+      s = buildSchema({ children: { comment: childDef } })
+    expect(s.comment.foreignKey).toBe('blogId')
+    expect(s.comment.parent).toBe('blog')
+    expect(s.comment.schema).toBeDefined()
+  })
+
+  test('schema() flattens all categories into single object', () => {
+    const s = buildSchema({
+      base: { movie: object({ title: string() }) },
+      children: { comment: child('blog', object({ blogId: string(), body: string() })) },
+      org: { organization: object({ name: string(), slug: string() }) },
+      orgScoped: { wiki: object({ slug: string(), title: string() }) },
+      owned: { blog: object({ published: boolean(), title: string() }) },
+      singleton: { profile: object({ displayName: string() }) }
+    })
+    expect(s.blog).toBeDefined()
+    expect(s.wiki).toBeDefined()
+    expect(s.organization).toBeDefined()
+    expect(s.movie).toBeDefined()
+    expect(s.profile).toBeDefined()
+    expect(s.comment).toBeDefined()
+  })
+
+  test('schema() preserves Zod shape access', () => {
+    const s = buildSchema({ owned: { blog: object({ title: string() }) } })
+    expect(s.blog.shape.title).toBeDefined()
+  })
+
+  test('schema() produces same result as individual makers', () => {
+    const unified = buildSchema({ owned: { blog: object({ published: boolean(), title: string() }) } }),
+      direct = makeOwned({ blog: object({ published: boolean(), title: string() }) })
+    expect((unified.blog as unknown as { __bs?: unknown }).__bs).toBe((direct.blog as unknown as { __bs?: unknown }).__bs)
+    expect(unified.blog.shape.title).toBeDefined()
+    expect(direct.blog.shape.title).toBeDefined()
+    expect(unified.blog.shape.published).toBeDefined()
+    expect(direct.blog.shape.published).toBeDefined()
+  })
+
+  test('schema() works with table()', () => {
+    let category: unknown
+    withUniversalTable(table => {
+      const s = buildSchema({ owned: { blog: object({ published: boolean(), title: string() }) } }),
+        blogTable = table(s.blog),
+        { __bs } = blogTable,
+        { category: tableCategory } = __bs
+      category = tableCategory
+    })
+    expect(category).toBe('owned')
+  })
+
+  test('schema() rejects non-ZodObject in owned', () => {
+    const acceptsConfig = (config: Parameters<typeof buildSchema>[0]) => config,
+      // @ts-expect-error - owned schemas must be ZodObject values
+      invalid = acceptsConfig({ owned: { blog: 'not-a-zod-object' } })
+    expect(invalid).toBeDefined()
+  })
+
+  test('schema() typed schemas work with table()', () => {
+    let category: unknown
+    withUniversalTable(table => {
+      const s = buildSchema({ owned: { blog: object({ title: string() }) } }),
+        blogTable = table(s.blog),
+        { __bs } = blogTable,
+        { category: tableCategory } = __bs
+      category = tableCategory
+    })
+    expect(category).toBe('owned')
+  })
+})
+
+describe('softDelete auto-adds deletedAt column', () => {
+  const readSetupSource = async (): Promise<string> => {
+    const { readFileSync } = await import('node:fs'),
+      { join } = await import('node:path')
+    return readFileSync(join(import.meta.dir, '..', 'server', 'setup.ts'), 'utf8')
+  }
+
+  test('setup source includes softDelete auto-injection code', async () => {
+    const content = await readSetupSource()
+    expect(content.includes('softDelete ? { ...extra, deletedAt: raw.t.timestamp().optional() } : extra')).toBe(true)
+  })
+
+  test('softDelete in ownedTable auto-injects deletedAt', async () => {
+    const content = await readSetupSource(),
+      ownedStart = content.indexOf('ownedTable = <F extends TblInput>(fields: F, options?: OwnedOpts<F>): BsTable => {'),
+      injected = content.indexOf('sdExtra = softDelete ? { ...extra, deletedAt:', ownedStart)
+    expect(ownedStart !== -1).toBe(true)
+    expect(injected > ownedStart).toBe(true)
+  })
+
+  test('softDelete in orgScopedTable auto-injects deletedAt', async () => {
+    const content = await readSetupSource(),
+      orgScopedStart = content.indexOf(
+        'orgScopedTable = <F extends TblInput>(fields: F, options?: OrgScopedOpts<F>): BsTable => {'
+      ),
+      injected = content.indexOf('sdExtra = softDelete ? { ...extra, deletedAt:', orgScopedStart)
+    expect(orgScopedStart !== -1).toBe(true)
+    expect(injected > orgScopedStart).toBe(true)
+  })
+})
+
+describe('compoundIndex shorthand', () => {
+  const readSetupSource = async (): Promise<string> => {
+    const { readFileSync } = await import('node:fs'),
+      { join } = await import('node:path')
+    return readFileSync(join(import.meta.dir, '..', 'server', 'setup.ts'), 'utf8')
+  }
+
+  test('compoundIndexToEntry function exists', async () => {
+    const content = await readSetupSource()
+    expect(content.includes('const compoundIndexToEntry = (columns: string[])')).toBe(true)
+  })
+
+  test('compoundIndexToEntry generates correct accessor name', async () => {
+    const content = await readSetupSource()
+    expect(
+      content.includes("columns.map((c, i) => (i === 0 ? c : c.charAt(0).toUpperCase() + c.slice(1))).join('')")
+    ).toBe(true)
+  })
+
+  test('OrgScopedOpts accepts compoundIndex', async () => {
+    const content = await readSetupSource()
+    expect(content.includes('compoundIndex?: ZodKeys<F>[]')).toBe(true)
+  })
+
+  test('algorithm type is union not string', async () => {
+    const content = await readSetupSource()
+    expect(content.includes("algorithm: 'btree' | 'hash'")).toBe(true)
+  })
+})
+
+describe('type-safe column references in table options', () => {
+  const withUniversalTable = (run: (table: Parameters<Parameters<typeof betterspace>[0]>[0]['table']) => void): void => {
+    betterspace(({ table }) => {
+      run(table)
+      return {}
+    })
+  }
+
+  test('index shorthand accepts valid field names', () => {
+    let category: unknown
+    withUniversalTable(table => {
+      const ownedSchema = buildSchema({ owned: { blog: object({ published: boolean(), title: string() }) } }),
+        blogTable = table(ownedSchema.blog, { index: ['published'] }),
+        { __bs } = blogTable,
+        { category: tableCategory } = __bs
+      category = tableCategory
+    })
+    expect(category).toBe('owned')
+  })
+
+  test('index shorthand rejects misspelled field names', () => {
+    withUniversalTable(table => {
+      const ownedSchema = buildSchema({ owned: { blog: object({ published: boolean(), title: string() }) } }),
+        // @ts-expect-error - publishd is not a valid blog field
+        invalid = table(ownedSchema.blog, { index: ['publishd'] })
+      expect(invalid).toBeDefined()
+    })
+  })
+
+  test('unique shorthand accepts valid field names', () => {
+    let category: unknown
+    withUniversalTable(table => {
+      const ownedSchema = buildSchema({ owned: { blog: object({ published: boolean(), title: string() }) } }),
+        blogTable = table(ownedSchema.blog, { unique: ['title'] }),
+        { __bs } = blogTable,
+        { category: tableCategory } = __bs
+      category = tableCategory
+    })
+    expect(category).toBe('owned')
+  })
+
+  test('unique shorthand rejects misspelled field names', () => {
+    withUniversalTable(table => {
+      const ownedSchema = buildSchema({ owned: { blog: object({ published: boolean(), title: string() }) } }),
+        // @ts-expect-error - titl is not a valid blog field
+        invalid = table(ownedSchema.blog, { unique: ['titl'] })
+      expect(invalid).toBeDefined()
+    })
+  })
+
+  test('compoundIndex accepts valid orgScoped field names', () => {
+    let category: unknown
+    withUniversalTable(table => {
+      const orgScopedSchema = buildSchema({ orgScoped: { wiki: object({ slug: string(), title: string() }) } }),
+        wikiTable = table(orgScopedSchema.wiki, { compoundIndex: ['slug', 'title'] }),
+        { __bs } = wikiTable,
+        { category: tableCategory } = __bs
+      category = tableCategory
+    })
+    expect(category).toBe('orgScoped')
+  })
+
+  test('compoundIndex rejects misspelled field names', () => {
+    withUniversalTable(table => {
+      const orgScopedSchema = buildSchema({ orgScoped: { wiki: object({ slug: string(), title: string() }) } }),
+        // @ts-expect-error - titl is not a valid wiki field
+        invalid = table(orgScopedSchema.wiki, { compoundIndex: ['slug', 'titl'] })
+      expect(invalid).toBeDefined()
+    })
   })
 })
 

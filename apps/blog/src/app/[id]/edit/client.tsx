@@ -12,7 +12,7 @@ import { Popover, PopoverContent, PopoverTrigger } from '@a/ui/popover'
 import { Spinner } from '@a/ui/spinner'
 import { Switch } from '@a/ui/switch'
 import { AutoSaveIndicator, Form, useFormMutation } from 'betterspace/components'
-import { useMutation } from 'betterspace/react'
+import { useMut } from 'betterspace/react'
 import { Settings } from 'lucide-react'
 import Link from 'next/link'
 import { useId, useTransition } from 'react'
@@ -28,7 +28,7 @@ const Publish = ({
     ...props
   }: Omit<ComponentProps<'div'>, 'id'> & { id: number; published: boolean }) => {
     const publishId = useId(),
-      update = useMutation(useReducer, reducers.updateBlog, {
+      update = useMut(reducers.updateBlog, {
         toast: {
           error: 'Failed to update publish status',
           success: (_result, args) => (args.published ? 'Published' : 'Unpublished')

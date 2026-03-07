@@ -6,10 +6,10 @@ and applies the diff.
 
 ## The basic workflow
 
-1. Edit your module (`packages/be/spacetimedb/src/index.ts`)
-2. Publish: `spacetime publish my-app --module-path packages/be/spacetimedb/`
+1. Edit your module (`packages/be/src/index.ts`)
+2. Publish: `spacetime publish my-app --module-path packages/be/`
 3. Regenerate bindings:
-   `spacetime generate --lang typescript --module-path packages/be/spacetimedb/ --out-dir packages/be/spacetimedb/module_bindings/`
+   `spacetime generate --lang typescript --module-path packages/be/ --out-dir packages/be/module_bindings/`
 4. Update client code to use new fields/tables
 
 ## Adding a field
@@ -46,7 +46,7 @@ const post = table(
 Publish:
 
 ```bash
-spacetime publish my-app --module-path packages/be/spacetimedb/
+spacetime publish my-app --module-path packages/be/
 ```
 
 Existing rows get `null` for the new optional field.
@@ -240,7 +240,7 @@ During development, you can wipe and republish:
 spacetime delete my-app
 
 # Republish fresh
-spacetime publish my-app --module-path packages/be/spacetimedb/
+spacetime publish my-app --module-path packages/be/
 ```
 
 This is only safe in local dev.

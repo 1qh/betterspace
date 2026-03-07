@@ -882,7 +882,8 @@ type OrgScopedBranded = OrgSchema<ZodRawShape>
 
 interface OrgScopedOpts<F = unknown> extends OwnedOpts<F> {
   cascade?: boolean
-  indexes?: { accessor: string; algorithm: string; columns: string[] }[]
+  compoundIndex?: ('orgId' | ZodKeys<F>)[]
+  indexes?: { accessor: string; algorithm: 'btree' | 'hash'; columns: string[] }[]
 }
 
 interface OrgTableOpts<F = unknown> {
@@ -944,7 +945,12 @@ type TblKey = Parameters<SchemaHelpers['cacheTable']>[0]
 
 type ZodKeys<F> = F extends { shape: infer S extends Record<string, unknown> } ? keyof S & string : string
 
-const fkSuffix = /Id$/u,
+const compoundIndexToEntry = (columns: string[]): { accessor: string; algorithm: 'btree'; columns: string[] } => ({
+    accessor: columns.map((c, i) => (i === 0 ? c : c.charAt(0).toUpperCase() + c.slice(1))).join(''),
+    algorithm: 'btree',
+    columns
+  }),
+  fkSuffix = /Id$/u,
   isChildObj = (v: unknown): v is ChildLike =>
     typeof v === 'object' && v !== null && 'foreignKey' in v && 'parent' in v && 'schema' in v,
   readSchemaBrand = (v: unknown): RuntimeSchemaBrand | undefined => {
@@ -1069,9 +1075,11 @@ const fkSuffix = /Id$/u,
       },
       fileTable = (): BsTable => bsOf({ category: 'file' }, raw.fileTable()),
       orgScopedTable = <F extends TblInput>(fields: F, options?: OrgScopedOpts<F>): BsTable => {
-        const { cascade, extra, index, indexes, rateLimit, softDelete, unique } = options ?? {},
-          mergedExtra = mergeModifierExtra(fields, raw.t, { extra, index, unique }),
-          stdbOpts = indexes ? { indexes } : undefined
+        const { cascade, compoundIndex, extra, index, indexes, rateLimit, softDelete, unique } = options ?? {},
+          sdExtra = softDelete ? { ...extra, deletedAt: raw.t.timestamp().optional() } : extra,
+          mergedExtra = mergeModifierExtra(fields, raw.t, { extra: sdExtra, index, unique }),
+          resolvedIndexes = compoundIndex ? [compoundIndexToEntry(compoundIndex), ...(indexes ?? [])] : indexes,
+          stdbOpts = resolvedIndexes ? { indexes: resolvedIndexes } : undefined
         return bsOf(
           { cascade, category: 'orgScoped', rateLimit, softDelete, zod: bsZod(fields) },
           raw.orgScopedTable(fields, mergedExtra, stdbOpts)
@@ -1084,7 +1092,8 @@ const fkSuffix = /Id$/u,
       },
       ownedTable = <F extends TblInput>(fields: F, options?: OwnedOpts<F>): BsTable => {
         const { extra, index, rateLimit, softDelete, unique } = options ?? {},
-          mergedExtra = mergeModifierExtra(fields, raw.t, { extra, index, unique })
+          sdExtra = softDelete ? { ...extra, deletedAt: raw.t.timestamp().optional() } : extra,
+          mergedExtra = mergeModifierExtra(fields, raw.t, { extra: sdExtra, index, unique })
         return bsOf({ category: 'owned', rateLimit, softDelete, zod: bsZod(fields) }, raw.ownedTable(fields, mergedExtra))
       },
       singletonTable = (fields: TblInput): BsTable =>

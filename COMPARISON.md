@@ -106,10 +106,10 @@ const togglePublish = m(
 `betterspace()` call for all tables:
 
 ```
-packages/be/spacetimedb/
-├── t.ts              (shared Zod schemas — 95 lines)
+packages/be/
+├── t.ts              (shared Zod schemas — 94 lines)
 └── src/
-    └── index.ts      (single betterspace() call — 31 lines)
+    └── index.ts      (single betterspace() call — 28 lines)
 ```
 
 **Resolution**: The `betterspace()` convenience function replaced the old 10-file

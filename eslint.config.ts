@@ -12,7 +12,7 @@ export default eslint({
       }
     },
     {
-      files: ['packages/be/spacetimedb/src/**/*.ts'],
+      files: ['packages/be/src/**/*.ts'],
       rules: {
         '@typescript-eslint/no-unsafe-assignment': 'off',
         'betterspace/no-duplicate-crud': 'off'
@@ -65,7 +65,7 @@ export default eslint({
       }
     }
   ],
-  ignores: ['packages/be/spacetimedb/module_bindings/**', 'packages/ui/**'],
+  ignores: ['packages/be/module_bindings/**', 'packages/ui/**'],
   rules: {
     '@eslint-react/hooks-extra/no-direct-set-state-in-use-effect': 'off',
     '@typescript-eslint/no-magic-numbers': 'off',

@@ -3,18 +3,17 @@
 // biome-ignore-all lint/style/noProcessEnv: intentional process.env access
 // biome-ignore-all lint/performance/noImgElement: external images
 'use client'
-import type { base } from '@a/be/t'
+import type { s } from '@a/be/t'
 import type { InferCreate } from 'betterspace'
 
 import { reducers } from '@a/be/spacetimedb'
 import { Badge } from '@a/ui/badge'
 import { Input } from '@a/ui/input'
 import { Skeleton } from '@a/ui/skeleton'
-import { useMutation } from 'betterspace/react'
+import { useMut } from 'betterspace/react'
 import { ArrowLeft } from 'lucide-react'
 import Link from 'next/link'
 import { useState, useTransition } from 'react'
-import { useReducer } from 'spacetimedb/react'
 
 const TMDB_IMG = 'https://image.tmdb.org/t/p/w300',
   TMDB_BACKDROP = 'https://image.tmdb.org/t/p/w780',
@@ -110,7 +109,7 @@ const TMDB_IMG = 'https://image.tmdb.org/t/p/w300',
   ]),
   formatMoney = (n: number | undefined) => (n ? `$${(n / 1_000_000).toFixed(1)}M` : 'N/A')
 
-type MovieDetailData = InferCreate<typeof base.movie>
+type MovieDetailData = InferCreate<typeof s.movie>
 
 interface TmdbMovieResponse {
   backdrop_path: null | string
@@ -163,8 +162,8 @@ const fetchMovie = async (id: number): Promise<MovieDetailData> => {
     }
   },
   Page = () => {
-    const createMovie = useMutation(useReducer, reducers.createMovie, {
-        getName: args => `movie.create:${args.tmdbId}`,
+    const createMovie = useMut(reducers.createMovie, {
+        getName: (args: { tmdbId: number }) => `movie.create:${args.tmdbId}`,
         toast: { error: 'Failed to cache movie', success: 'Movie cached' }
       }),
       [id, setId] = useState(''),

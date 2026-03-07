@@ -18,7 +18,7 @@ docker compose ps  # spacetimedb should show "healthy"
 Publish your module before running integration tests:
 
 ```bash
-spacetime publish my-app-test --module-path packages/be/spacetimedb/
+spacetime publish my-app-test --module-path packages/be/
 ```
 
 Use a separate module name for tests (e.g., `my-app-test`) so tests don’t interfere with
@@ -30,7 +30,7 @@ Bun’s built-in test runner works for testing pure logic, schema utilities, and
 server-side helpers.
 
 ```typescript
-// packages/be/spacetimedb/__tests__/schema.test.ts
+// packages/be/__tests__/schema.test.ts
 import { describe, expect, it } from 'bun:test'
 import { zodFromTable } from 'betterspace'
 import { tables } from '../module_bindings'
@@ -58,7 +58,7 @@ describe('zodFromTable', () => {
 Run unit tests:
 
 ```bash
-bun test packages/be/spacetimedb/__tests__/
+bun test packages/be/__tests__/
 ```
 
 ## Integration tests

@@ -10,12 +10,6 @@ export default defineConfig({
     ]
   },
   oxlint: {
-    ignorePatterns: ['_generated/', 'module_bindings', 'mobile/maestro/', 'packages/ui/'],
-    overrides: [
-      {
-        files: ['**/spacetimedb/blogProfile.ts', '**/spacetimedb/mobileAi.ts', '**/spacetimedb/orgProfile.ts'],
-        rules: { 'unicorn/filename-case': 'off' }
-      }
-    ]
+    ignorePatterns: ['_generated/', 'module_bindings', 'mobile/maestro/', 'packages/ui/']
   }
 })

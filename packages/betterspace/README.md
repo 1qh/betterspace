@@ -64,10 +64,10 @@ With betterspace `betterspace()`:
 
 ```tsx
 import { betterspace } from 'betterspace/server'
-import { owned } from './t'
+import { s } from './t'
 
 export default betterspace(({ table }) => ({
-  blog: table(owned.blog, { index: ['published'] })
+  blog: table(s.blog, { index: ['published'] })
 }))
 ```
 
@@ -84,21 +84,19 @@ Here’s a full org-scoped CRUD with per-item editor permissions and soft delete
 
 ```tsx
 export default betterspace(({ table, t }) => ({
-  wiki: table(orgScoped.wiki, {
+  wiki: table(s.wiki, {
     cascade: true,
-    extra: {
-      deletedAt: t.timestamp().optional(),
-      editors: t.array(t.identity()).optional()
-    },
+    compoundIndex: ['orgId', 'slug'],
+    extra: { editors: t.array(t.identity()).optional() },
     softDelete: true
   })
 }))
 ```
 
-One call. Role-based access, editor ACL, soft delete with restore, cascade delete, and
-bulk operations — all generated.
+One call. Role-based access, editor ACL, soft delete with restore, cascade delete,
+compound indexes, auto-`deletedAt`, and bulk operations — all generated.
 
-> [See all backend code: packages/be/spacetimedb/src/](https://github.com/1qh/betterspace/tree/main/packages/be/spacetimedb/src)
+> [See all backend code: packages/be/src/](https://github.com/1qh/betterspace/tree/main/packages/be/src)
 
 ## What You Get
 
@@ -192,8 +190,8 @@ Schema mismatches surface as clear compile-time errors with descriptive messages
 //   "Type 'ZodObject<...>' is not assignable to 'ZodObject<...>'"
 
 // With betterspace AssertSchema:
-//   "Schema mismatch: expected OwnedSchema (from makeOwned()),
-//    got OrgSchema (from makeOrgScoped())."
+//   "Schema mismatch: expected OwnedSchema (from schema({ owned: ... })),
+//    got OrgSchema (from schema({ orgScoped: ... }))."
 ```
 
 Use `AssertSchema<T, Expected>` in your own code to enforce schema brands:
@@ -329,20 +327,20 @@ bun add betterspace
 
 ## Entry Points
 
-| Import                      | What’s inside                                                                                                                                                                                                                                                                                                                                                                                                                                  |
-| --------------------------- | ---------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
-| `betterspace`               | `guardApi`, `strictApi`, `zodFromTable`, `UndefinedToOptional` type, identity helpers                                                                                                                                                                                                                                                                                                                                                          |
-| `betterspace/schema`        | `makeOwned`, `makeOrgScoped`, `makeBase`, `makeSingleton`, `child`, `cvFile`, `cvFiles`, `orgSchema`                                                                                                                                                                                                                                                                                                                                           |
-| `betterspace/server`        | `betterspace`, `setupCrud`, `setup`, `makeCrud`, `makeChildCrud`, `makeOrgCrud`, `makeSingletonCrud`, `makeCacheCrud`, `makeOrg`, `makeFileUpload`, `makePresence`, table helpers, middleware, error handling, test utilities                                                                                                                                                                                                                  |
-| `betterspace/react`         | `useList`, `useOwnRows`, `useSearch`, `usePresence`, `useBulkSelection`, `useMutate`, `useMutation`, `useBulkMutate`, `useInfiniteList`, `useUpload`, `useSoftDelete`, `useCacheEntry`, `useOptimisticMutation`, `useForm`, `useFormMutation`, `useErrorToast`, `relax`, `createOrgHooks`, `toWsUri`, `createTokenStore`, `createFileUploader`, `createSpacetimeClient`, `BetterspaceDevtools`, `SchemaPlayground`, org hooks, 50+ named types |
-| `betterspace/components`    | `Form`, `useForm`, `useFormMutation`, `ConflictDialog`, `AutoSaveIndicator`, `OfflineIndicator`, `PermissionGuard`, `ErrorBoundary`, `FileApiProvider`, `OrgAvatar`, `RoleBadge`, `EditorsSection`, `defineSteps`, 14 typed field components                                                                                                                                                                                                   |
-| `betterspace/next`          | `getToken`, `isAuthenticated`, `setActiveOrgCookie`, `clearActiveOrgCookie`, `getActiveOrg`, `makeImageRoute`                                                                                                                                                                                                                                                                                                                                  |
-| `betterspace/eslint`        | `plugin`, `recommended`, 16 lint rules                                                                                                                                                                                                                                                                                                                                                                                                         |
-| `betterspace/zod`           | `unwrapZod`, `cvFileKindOf`, `defaultValues`, `enumToOptions`, `pickValues`, `coerceOptionals`, `partialValues`                                                                                                                                                                                                                                                                                                                                |
-| `betterspace/test`          | `createTestContext`, `asUser`, `callReducer`, `queryTable`, `isTestMode`                                                                                                                                                                                                                                                                                                                                                                       |
-| `betterspace/test/discover` | `discoverModules`                                                                                                                                                                                                                                                                                                                                                                                                                              |
-| `betterspace/seed`          | `generateOne`, `generateSeed`, `generateFieldValue`                                                                                                                                                                                                                                                                                                                                                                                            |
-| `betterspace/retry`         | `withRetry`, `fetchWithRetry`                                                                                                                                                                                                                                                                                                                                                                                                                  |
+| Import                      | What’s inside                                                                                                                                                                                                                                                                                                                                                                                                              |
+| --------------------------- | -------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| `betterspace`               | `guardApi`, `strictApi`, `zodFromTable`, `UndefinedToOptional` type, identity helpers                                                                                                                                                                                                                                                                                                                                      |
+| `betterspace/schema`        | `schema`, `child`, `cvFile`, `cvFiles` (legacy: `makeOwned`, `makeOrgScoped`, `makeBase`, `makeSingleton`, `orgSchema`)                                                                                                                                                                                                                                                                                                    |
+| `betterspace/server`        | `betterspace`, `table`, `setupCrud`, `setup`, CRUD factories, org helpers, middleware, error handling, test utilities                                                                                                                                                                                                                                                                                                      |
+| `betterspace/react`         | `useMut`, `useMutation`, `useMutate`, `useList`, `useOwnRows`, `useSearch`, `usePresence`, `useBulkSelection`, `useBulkMutate`, `useInfiniteList`, `useUpload`, `useSoftDelete`, `useCacheEntry`, `useOptimisticMutation`, `useErrorToast`, `relax`, `createOrgHooks`, `toWsUri`, `createTokenStore`, `createFileUploader`, `createSpacetimeClient`, `BetterspaceDevtools`, `SchemaPlayground`, org hooks, 50+ named types |
+| `betterspace/components`    | `Form`, `useForm`, `useFormMutation`, `ConflictDialog`, `AutoSaveIndicator`, `OfflineIndicator`, `PermissionGuard`, `ErrorBoundary`, `FileApiProvider`, `OrgAvatar`, `RoleBadge`, `EditorsSection`, `defineSteps`, 14 typed field components                                                                                                                                                                               |
+| `betterspace/next`          | `getToken`, `isAuthenticated`, `setActiveOrgCookie`, `clearActiveOrgCookie`, `getActiveOrg`, `makeImageRoute`                                                                                                                                                                                                                                                                                                              |
+| `betterspace/eslint`        | `plugin`, `recommended`, 16 lint rules                                                                                                                                                                                                                                                                                                                                                                                     |
+| `betterspace/zod`           | `unwrapZod`, `cvFileKindOf`, `defaultValues`, `enumToOptions`, `pickValues`, `coerceOptionals`, `partialValues`                                                                                                                                                                                                                                                                                                            |
+| `betterspace/test`          | `createTestContext`, `asUser`, `callReducer`, `queryTable`, `isTestMode`                                                                                                                                                                                                                                                                                                                                                   |
+| `betterspace/test/discover` | `discoverModules`                                                                                                                                                                                                                                                                                                                                                                                                          |
+| `betterspace/seed`          | `generateOne`, `generateSeed`, `generateFieldValue`                                                                                                                                                                                                                                                                                                                                                                        |
+| `betterspace/retry`         | `withRetry`, `fetchWithRetry`                                                                                                                                                                                                                                                                                                                                                                                              |
 
 ## Type Safety
 
@@ -352,8 +350,8 @@ Typos are caught before your code runs.
 ### Branded schemas prevent mismatches
 
 ```tsx
-table(owned.blog, { index: ['published'] }) // ✅ 'published' exists in schema
-table(owned.blog, { index: ['typo'] }) // ❌ compile error — 'typo' not in schema
+table(s.blog, { index: ['published'] }) // ✅ 'published' exists in schema
+table(s.blog, { index: ['typo'] }) // ❌ compile error — 'typo' not in schema
 ```
 
 ### Form fields are type-checked by value type
@@ -369,19 +367,21 @@ table(owned.blog, { index: ['typo'] }) // ❌ compile error — 'typo' not in sc
 ### Zod schemas as single source of truth
 
 ```tsx
-// packages/be/z.ts — client-safe Zod schemas
-const owned = {
-  blog: object({
-    title: string().min(1, 'Required'),
-    content: string().min(3, 'At least 3 characters'),
-    category: zenum(['tech', 'life', 'tutorial']),
-    published: boolean(),
-    coverImage: cvFile().nullable().optional()
-  })
-}
+// packages/be/t.ts — client-safe Zod schemas
+const s = schema({
+  owned: {
+    blog: object({
+      title: string().min(1, 'Required'),
+      content: string().min(3, 'At least 3 characters'),
+      category: zenum(['tech', 'life', 'tutorial']),
+      published: boolean(),
+      coverImage: cvFile().nullable().optional()
+    })
+  }
+})
 
 // Forms use the same schemas — validation rules flow end-to-end
-const form = useForm({ schema: owned.blog, onSubmit: ... })
+const form = useForm({ schema: s.blog, onSubmit: ... })
 ```
 
 ## Quick Start
@@ -391,38 +391,39 @@ const form = useForm({ schema: owned.blog, onSubmit: ... })
 > [Real example: packages/be/t.ts](https://github.com/1qh/betterspace/blob/main/packages/be/t.ts)
 
 ```tsx
-import { makeOwned, makeSingleton } from 'betterspace/schema'
+import { schema } from 'betterspace/schema'
 import { boolean, object, string } from 'zod/v4'
 
-const owned = makeOwned({
-  blog: object({
-    title: string().min(1),
-    content: string().min(3),
-    published: boolean()
-  })
+const s = schema({
+  owned: {
+    blog: object({
+      title: string().min(1),
+      content: string().min(3),
+      published: boolean()
+    })
+  },
+  singleton: {
+    profile: object({ displayName: string(), bio: string().optional() })
+  }
 })
 
-const singleton = makeSingleton({
-  profile: object({ displayName: string(), bio: string().optional() })
-})
-
-export { owned, singleton }
+export { s }
 ```
 
 ### 2. Backend module (`src/index.ts`)
 
 ```tsx
 import { betterspace } from 'betterspace/server'
-import { owned, singleton } from '../../t'
+import { s } from '../t'
 
 export default betterspace(({ table }) => ({
-  blog: table(owned.blog, { index: ['published'] }),
-  profile: table(singleton.profile)
+  blog: table(s.blog, { index: ['published'] }),
+  profile: table(s.profile)
 }))
 ```
 
 `betterspace()` builds the schema, registers all CRUD reducers, and exports the module
-in one call. For fine-grained control, use `makeCrud()` directly (see
+in one call. For fine-grained control, use `setup()` directly (see
 [API Reference](docs/api-reference.md)).
 
 ### 3. Publish the module
@@ -444,15 +445,15 @@ const { data: blogs, loadMore } = useList(allBlogs, isReady, {
 Everything works out of the box.
 Opt out only when needed.
 
-| Default             | What it does                                                                                   | Opt out                                          |
-| ------------------- | ---------------------------------------------------------------------------------------------- | ------------------------------------------------ |
-| Auto-derived labels | `coverImage` renders as “Cover Image”                                                          | `label={false}` or `label="Custom"`              |
-| Error toasts        | `useMutate` and forms show toast on error                                                      | `onError: false`                                 |
-| Toast shorthand     | `useMutation(useReducer, reducers.create, { toast: { success: 'Created', error: 'Failed' } })` | Omit `toast`                                     |
-| Devtools panel      | Auto-mounts in dev mode inside forms                                                           | Manual `<BetterspaceDevtools>` for customization |
-| File upload warning | Console warning if file fields lack `<FileApiProvider>`                                        | Add the provider                                 |
-| Form data return    | Forms auto-return submitted data for reset                                                     | Return custom data from `onSubmit`               |
-| Devtools tracking   | Mutations, subscriptions, and cache tracked in dev panel                                       | Dev mode only                                    |
+| Default             | What it does                                                                  | Opt out                                          |
+| ------------------- | ----------------------------------------------------------------------------- | ------------------------------------------------ |
+| Auto-derived labels | `coverImage` renders as “Cover Image”                                         | `label={false}` or `label="Custom"`              |
+| Error toasts        | `useMutate` and forms show toast on error                                     | `onError: false`                                 |
+| Toast shorthand     | `useMut(reducers.create, { toast: { success: 'Created', error: 'Failed' } })` | Omit `toast`                                     |
+| Devtools panel      | Auto-mounts in dev mode inside forms                                          | Manual `<BetterspaceDevtools>` for customization |
+| File upload warning | Console warning if file fields lack `<FileApiProvider>`                       | Add the provider                                 |
+| Form data return    | Forms auto-return submitted data for reset                                    | Return custom data from `onSubmit`               |
+| Devtools tracking   | Mutations, subscriptions, and cache tracked in dev panel                      | Dev mode only                                    |
 
 `bunx betterspace init` scaffolds new projects with all defaults pre-configured: guarded
 API wrapper, `FileApiProvider`, `ErrorBoundary`, and commented middleware examples.
@@ -472,12 +473,12 @@ It also auto-installs dependencies and creates `tsconfig.json` — no manual set
 
 4 real-world web apps showcase betterspace in production use:
 
-| App                                                              | What it shows                                        | Backend                                                                                                       |
-| ---------------------------------------------------------------- | ---------------------------------------------------- | ------------------------------------------------------------------------------------------------------------- |
-| [Movie](https://github.com/1qh/betterspace/tree/main/apps/movie) | Cache factory, TMDB integration, no-auth             | [spacetimedb/src/index.ts](https://github.com/1qh/betterspace/blob/main/packages/be/spacetimedb/src/index.ts) |
-| [Blog](https://github.com/1qh/betterspace/tree/main/apps/blog)   | Owned CRUD, forms, file upload, pagination, profile  | [spacetimedb/src/index.ts](https://github.com/1qh/betterspace/blob/main/packages/be/spacetimedb/src/index.ts) |
-| [Chat](https://github.com/1qh/betterspace/tree/main/apps/chat)   | Child CRUD, public/auth split, AI streaming          | [spacetimedb/src/index.ts](https://github.com/1qh/betterspace/blob/main/packages/be/spacetimedb/src/index.ts) |
-| [Org](https://github.com/1qh/betterspace/tree/main/apps/org)     | Multi-tenancy, ACL, soft delete, invites, onboarding | [spacetimedb/src/index.ts](https://github.com/1qh/betterspace/blob/main/packages/be/spacetimedb/src/index.ts) |
+| App                                                              | What it shows                                        | Backend                                                                               |
+| ---------------------------------------------------------------- | ---------------------------------------------------- | ------------------------------------------------------------------------------------- |
+| [Movie](https://github.com/1qh/betterspace/tree/main/apps/movie) | Cache factory, TMDB integration, no-auth             | [src/index.ts](https://github.com/1qh/betterspace/blob/main/packages/be/src/index.ts) |
+| [Blog](https://github.com/1qh/betterspace/tree/main/apps/blog)   | Owned CRUD, forms, file upload, pagination, profile  | [src/index.ts](https://github.com/1qh/betterspace/blob/main/packages/be/src/index.ts) |
+| [Chat](https://github.com/1qh/betterspace/tree/main/apps/chat)   | Child CRUD, public/auth split, AI streaming          | [src/index.ts](https://github.com/1qh/betterspace/blob/main/packages/be/src/index.ts) |
+| [Org](https://github.com/1qh/betterspace/tree/main/apps/org)     | Multi-tenancy, ACL, soft delete, invites, onboarding | [src/index.ts](https://github.com/1qh/betterspace/blob/main/packages/be/src/index.ts) |
 
 ### Test Coverage
 

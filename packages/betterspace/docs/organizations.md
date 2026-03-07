@@ -12,31 +12,33 @@ sub-tables.
 `t.ts`:
 
 ```typescript
-import { makeOrg, makeOrgScoped } from 'betterspace/schema'
+import { schema } from 'betterspace/schema'
 import { object, string } from 'zod/v4'
 
-const org = makeOrg({
+const s = schema({
+  org: {
     team: object({
       name: string().min(1),
       slug: string().regex(/^[a-z0-9-]+$/u)
     })
-  }),
-  orgScoped = makeOrgScoped({
+  },
+  orgScoped: {
     project: object({ description: string().optional(), name: string().min(1) })
-  })
+  }
+})
 
-export { org, orgScoped }
+export { s }
 ```
 
 `index.ts`:
 
 ```typescript
 import { betterspace } from 'betterspace/server'
-import { org, orgScoped } from '../../t'
+import { s } from '../../t'
 
 export default betterspace(({ table }) => ({
-  org: table(org.team, { unique: ['slug'] }),
-  project: table(orgScoped.project, { cascade: true })
+  org: table(s.team, { unique: ['slug'] }),
+  project: table(s.project, { cascade: true })
 }))
 ```
 
@@ -78,16 +80,16 @@ permissions, ownership transfers, invites, and join-request workflows.
 
 ## Org-scoped tables
 
-`table(orgScoped.x)` registers a table that belongs to an org and enforces org
+`table(s.orgScopedEntry)` registers a table that belongs to an org and enforces org
 membership before any write.
-Pass the result of `makeOrgScoped()` from your schema file:
+Define org-scoped tables with `schema({ orgScoped: { ... } })` in your schema file:
 
 ```typescript
 import { betterspace } from 'betterspace/server'
-import { orgScoped } from '../../t'
+import { s } from '../../t'
 
 export default betterspace(({ table }) => ({
-  project: table(orgScoped.project)
+  project: table(s.project)
 }))
 ```
 

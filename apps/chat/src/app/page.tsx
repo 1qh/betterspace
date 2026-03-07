@@ -6,17 +6,17 @@ import { Conversation, ConversationContent, ConversationEmptyState } from '@a/ui
 import { PromptInput, PromptInputFooter, PromptInputSubmit, PromptInputTextarea } from '@a/ui/ai-elements/prompt-input'
 import { Label } from '@a/ui/label'
 import { Switch } from '@a/ui/switch'
-import { useMutation } from 'betterspace/react'
+import { useMut } from 'betterspace/react'
 import { SparklesIcon } from 'lucide-react'
 import { useRouter } from 'next/navigation'
 import { useEffect, useId, useRef, useState, useTransition } from 'react'
-import { useReducer, useSpacetimeDB, useTable } from 'spacetimedb/react'
+import { useSpacetimeDB, useTable } from 'spacetimedb/react'
 
 const Page = () => {
   const router = useRouter(),
     publicToggleId = useId(),
     pendingTitleRef = useRef<null | string>(null),
-    createChat = useMutation(useReducer, reducers.createChat, {
+    createChat = useMut(reducers.createChat, {
       onSuccess: () => {
         pendingTitleRef.current = null
       },

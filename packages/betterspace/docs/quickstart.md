@@ -80,18 +80,19 @@ in `src/index.ts`.
 ### Step 1: Field definitions (`t.ts`)
 
 ```typescript
-import { makeOwned, makeSingleton } from 'betterspace/schema'
-import { object, string } from 'zod/v4'
+import { schema } from 'betterspace/schema'
+import { boolean, object, string } from 'zod/v4'
 
-const owned = makeOwned({
-  post: object({ title: string(), content: string() })
+const s = schema({
+  owned: {
+    post: object({ title: string(), content: string() })
+  },
+  singleton: {
+    profile: object({ displayName: string(), bio: string().optional() })
+  }
 })
 
-const singleton = makeSingleton({
-  profile: object({ displayName: string(), bio: string().optional() })
-})
-
-export { owned, singleton }
+export { s }
 ```
 
 ### Step 2: Backend module (`src/index.ts`)
@@ -101,18 +102,18 @@ System fields (`id`, `updatedAt`, `userId`) are added automatically:
 
 ```typescript
 import { betterspace } from 'betterspace/server'
-import { owned, singleton } from '../../t'
+import { s } from '../t'
 
 export default betterspace(({ table }) => ({
-  post: table(owned.post, { index: ['published'] }),
-  profile: table(singleton.profile)
+  post: table(s.post, { index: ['published'] }),
+  profile: table(s.profile)
 }))
 ```
 
 ## Publish the module
 
 ```bash
-spacetime publish my-app --module-path packages/be/spacetimedb/
+spacetime publish my-app --module-path packages/be/
 ```
 
 This compiles your TypeScript module and deploys it to the local SpacetimeDB instance.
@@ -123,8 +124,8 @@ The module name (`my-app`) is what clients connect to.
 ```bash
 spacetime generate \
   --lang typescript \
-  --module-path packages/be/spacetimedb/ \
-  --out-dir packages/be/spacetimedb/module_bindings/
+  --module-path packages/be/ \
+  --out-dir packages/be/module_bindings/
 ```
 
 This generates typed client code from your module.
