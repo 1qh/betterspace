@@ -70,7 +70,7 @@ import { betterspace } from 'betterspace/server'
 import { s } from './t'
 
 export default betterspace(({ table }) => ({
-  blog: table(s.blog, { index: ['published'] })
+  blog: table(s.blog, { pub: 'published' })
 }))
 ```
 
@@ -355,8 +355,8 @@ Typos are caught before your code runs.
 ### Branded schemas prevent mismatches
 
 ```tsx
-table(s.blog, { index: ['published'] }) // ✅ 'published' exists in schema
-table(s.blog, { index: ['typo'] }) // ❌ compile error — 'typo' not in schema
+table(s.blog, { pub: 'published' }) // ✅ 'published' exists in schema
+table(s.blog, { pub: 'typo' }) // ❌ compile error — 'typo' not in schema
 ```
 
 ### Form fields are type-checked by value type
@@ -422,7 +422,7 @@ import { betterspace } from 'betterspace/server'
 import { s } from '../t'
 
 export default betterspace(({ table }) => ({
-  blog: table(s.blog, { index: ['published'] }),
+  blog: table(s.blog, { pub: 'published' }),
   profile: table(s.profile)
 }))
 ```
@@ -516,7 +516,7 @@ The library is independently testable without the demo apps:
 
 ```bash
 cd packages/betterspace
-bun test src/__tests__/  # 1072 library-only tests, no SpacetimeDB needed
+bun test src/__tests__/  # 1078 library-only tests, no SpacetimeDB needed
 bun lint          # library-scoped linting
 bun typecheck     # library-only type checking
 ```

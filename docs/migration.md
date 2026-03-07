@@ -283,7 +283,7 @@ import { betterspace } from 'betterspace/server'
 import { s } from '../t'
 
 export default betterspace(({ table }) => ({
-  post: table(s.post, { index: ['published'] })
+  post: table(s.post, { pub: 'published' })
 }))
 ```
 
@@ -294,7 +294,7 @@ Key differences:
 - Convex IDs are strings (`Id<"post">`). SpacetimeDB IDs are numbers (`u32`).
 - Both add system fields automatically (`id`, `updatedAt`, `userId` in betterspace;
   `_id`, `_creationTime` in Convex).
-- betterspace uses `{ index: ['published'] }` shorthand instead of
+- betterspace uses `{ pub: 'published' }` which auto-indexes and sets RLS, instead of
   `.index('by_published', ['published'])`.
 
 ## IDs

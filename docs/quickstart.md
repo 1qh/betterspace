@@ -105,7 +105,7 @@ import { betterspace } from 'betterspace/server'
 import { s } from '../t'
 
 export default betterspace(({ table }) => ({
-  post: table(s.post, { index: ['published'] }),
+  post: table(s.post, { pub: 'published' }),
   profile: table(s.profile)
 }))
 ```

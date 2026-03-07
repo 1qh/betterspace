@@ -38,14 +38,15 @@ import { s } from '../../t'
 
 export default betterspace(({ table }) => ({
   org: table(s.team, { unique: ['slug'] }),
-  project: table(s.project, { cascade: true })
+  project: table(s.project)
 }))
 ```
 
 `table(org.x)` accepts the same field Zod schema you define for the org’s own fields.
 System fields (`id`, `updatedAt`, `userId`) are added automatically.
 The `unique` option creates a unique index on the given fields.
-Pass `cascade: true` on org-scoped tables to delete rows when the org is removed.
+Org-scoped tables cascade-delete by default when an org is removed.
+Opt out with `cascade: false` if needed.
 
 ## Generated reducers
 

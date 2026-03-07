@@ -12,9 +12,9 @@ import { betterspace } from 'betterspace/server'
 import { s } from '../t'
 
 export default betterspace(({ table }) => ({
-  blog: table(s.blog, { index: ['published'] }),
+  blog: table(s.blog, { pub: 'published' }),
   profile: table(s.profile),
-  project: table(s.project, { cascade: true }),
+  project: table(s.project),
   team: table(s.team, { unique: ['slug'] }),
   movie: table(s.movie, { key: 'tmdbId' }),
   message: table(s.message)
@@ -220,8 +220,8 @@ Child tables are detected by the `ChildLike` shape (`foreignKey`, `parent`, `sch
 File tables use `table.file()`.
 
 ```typescript
-const blog = table(owned.blog, { index: ['published'] })
-const project = table(orgScoped.project, { cascade: true })
+const blog = table(owned.blog, { pub: 'published' })
+const project = table(orgScoped.project)
 const org = table(org.team, { unique: ['slug'] })
 const profile = table(singleton.profile)
 const message = table(children.message)
