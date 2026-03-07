@@ -23,7 +23,7 @@ import { composeMiddleware } from './middleware'
 import { makeOrg, makeOrgTables } from './org'
 import { makeOrgCrud } from './org-crud'
 import { makeSingletonCrud } from './singleton'
-import { zodToStdbFields } from './stdb-tables'
+import { makeSchema, zodToStdbFields } from './stdb-tables'
 
 interface CrudDefaults {
   expectedUpdatedAtField?: TypeBuilder<unknown, AlgebraicTypeType>
@@ -834,5 +834,25 @@ const regOwned = (schemas: Record<string, ZodLike>, ctx: RegCtx) => {
     }
   }
 
+interface BetterspaceConfig {
+  crud?: RegisterAllSchemas
+  options?: Record<string, CacheOptions & CrudOptions & OrgCrudOptions & { key?: string }>
+  org?: { cascadeTables?: string[]; fields: OrgFieldBuilders | ZodLike }
+  tables: (helpers: SchemaHelpers) => Record<string, unknown>
+}
+type SchemaHelpers = ReturnType<typeof makeSchema>
+
+const betterspace = (config: BetterspaceConfig) => {
+  const helpers = makeSchema(),
+    spacetimedb = helpers.schema(config.tables(helpers) as never),
+    s = setupCrud(spacetimedb as SpacetimeDbLike)
+
+  if (config.crud) s.registerAll(config.crud, config.options)
+  if (config.org)
+    s.org(config.org.fields, config.org.cascadeTables ? { cascadeTables: config.org.cascadeTables } : undefined)
+
+  return spacetimedb.exportGroup(s.allExports() as never)
+}
+
 export type { CrudDefaults, OrgTypeBuilders }
-export { setup, setupCrud }
+export { betterspace, setup, setupCrud }

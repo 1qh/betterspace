@@ -1,8 +1,17 @@
-import { makeSchema, setupCrud } from 'betterspace/server'
+import { betterspace } from 'betterspace/server'
 
 import { base, children, org as orgFields, orgScoped, owned, singleton } from '../../t'
 
-const {
+export default betterspace({
+  crud: { base, children, file: true, orgScoped, owned, singleton },
+  options: {
+    blog: { rateLimit: { max: 10, window: 60_000 } },
+    chat: { rateLimit: { max: 10, window: 60_000 } },
+    movie: { key: 'tmdbId' },
+    wiki: { softDelete: true }
+  },
+  org: { cascadeTables: ['task', 'project', 'wiki'], fields: orgFields.team },
+  tables: ({
     cacheTable,
     childTable,
     fileTable,
@@ -11,11 +20,9 @@ const {
     orgMemberTable,
     orgScopedTable,
     ownedTable,
-    schema,
     singletonTable,
     t
-  } = makeSchema(),
-  spacetimedb = schema({
+  }) => ({
     blog: ownedTable(owned.blog, { published: t.bool().index() }),
     blogProfile: singletonTable(singleton.blogProfile),
     chat: ownedTable(owned.chat, { isPublic: t.bool().index() }),
@@ -34,36 +41,5 @@ const {
       { deletedAt: t.timestamp().optional(), editors: t.array(t.identity()).optional() },
       { indexes: [{ accessor: 'orgIdSlug', algorithm: 'btree' as const, columns: ['orgId', 'slug'] }] }
     )
-  }),
-  { allExports, cacheCrud, childCrud, crud, fileUpload, m, org, orgCrud, register, registerAll, singletonCrud } =
-    setupCrud(spacetimedb),
-  orgFns = org(orgFields.team, { cascadeTables: ['task', 'project', 'wiki'] })
-
-registerAll(
-  { base, children, file: true, orgScoped, owned, singleton },
-  {
-    blog: { rateLimit: { max: 10, window: 60_000 } },
-    chat: { rateLimit: { max: 10, window: 60_000 } },
-    movie: { key: 'tmdbId' },
-    wiki: { softDelete: true }
-  }
-)
-
-const reducers = spacetimedb.exportGroup(allExports())
-
-export {
-  allExports,
-  cacheCrud,
-  childCrud,
-  crud,
-  fileUpload,
-  m,
-  org,
-  orgCrud,
-  orgFns,
-  reducers,
-  register,
-  registerAll,
-  singletonCrud
-}
-export default spacetimedb
+  })
+})

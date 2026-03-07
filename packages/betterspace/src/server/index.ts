@@ -48,7 +48,7 @@ export {
   uploadTables
 } from './schema-helpers'
 export type { CrudDefaults, OrgTypeBuilders } from './setup'
-export { setup, setupCrud } from './setup'
+export { betterspace, setup, setupCrud } from './setup'
 export { makeSingletonCrud } from './singleton'
 export type { StdbDeps } from './stdb-tables'
 export { makeSchema, zodToStdbFields } from './stdb-tables'
