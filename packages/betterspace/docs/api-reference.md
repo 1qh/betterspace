@@ -292,27 +292,38 @@ const { cacheTable, childTable, orgScopedTable, ownedTable, singletonTable } =
 
 **Returned helpers:**
 
-| Helper                          | System fields added                            | Signature             |
-| ------------------------------- | ---------------------------------------------- | --------------------- |
-| `ownedTable(fields, opts?)`     | `id`, `updatedAt`, `userId`                    | User-owned table      |
-| `orgScopedTable(fields, opts?)` | `id`, `orgId`, `updatedAt`, `userId`           | Org-scoped table      |
-| `singletonTable(fields, opts?)` | `updatedAt`, `userId`                          | One row per user      |
-| `cacheTable(keyName, fields)`   | `id`, `cachedAt`, `invalidatedAt`, `updatedAt` | External data cache   |
-| `childTable(childDef)`          | `foreignKey`, `id`, `updatedAt`, `userId`      | Child of a parent row |
+| Helper                               | System fields added                            | Signature             |
+| ------------------------------------ | ---------------------------------------------- | --------------------- |
+| `ownedTable(fields, opts?)`          | `id`, `updatedAt`, `userId`                    | User-owned table      |
+| `orgScopedTable(fields, opts?)`      | `id`, `orgId`, `updatedAt`, `userId`           | Org-scoped table      |
+| `orgTable(fields, opts?)`            | `id`, `updatedAt`, `userId` + org sub-tables   | Organization table    |
+| `singletonTable(fields)`             | `updatedAt`, `userId`                          | One row per user      |
+| `cacheTable(keyName, fields, opts?)` | `id`, `cachedAt`, `invalidatedAt`, `updatedAt` | External data cache   |
+| `childTable(childDef)`               | `foreignKey`, `id`, `updatedAt`, `userId`      | Child of a parent row |
 
 **Usage:**
 
 ```typescript
 const blog = ownedTable(owned.blog, { index: ['published'] })
 const project = orgScopedTable(orgScoped.project, { cascade: true })
+const org = orgTable(orgFields.team, { unique: ['slug'] })
 const profile = singletonTable(singleton.profile)
 const message = childTable(children.message)
-const movie = cacheTable('tmdbId', base.movie)
+const movie = cacheTable('tmdbId', base.movie, { ttl: 7 * 24 * 60 * 60 * 1000 })
 ```
 
 All helpers set `{ public: true }` by default.
-Pass `opts` to override table options (e.g., `index`, `unique`, `cascade`, `softDelete`,
-`extra`).
+
+**Options by helper:**
+
+| Helper           | Available options                                                           |
+| ---------------- | --------------------------------------------------------------------------- |
+| `ownedTable`     | `index`, `unique`, `extra`, `softDelete`, `rateLimit`                       |
+| `orgScopedTable` | `index`, `unique`, `extra`, `softDelete`, `rateLimit`, `cascade`, `indexes` |
+| `orgTable`       | `index`, `unique`, `extra`                                                  |
+| `cacheTable`     | `ttl`                                                                       |
+| `singletonTable` | none                                                                        |
+| `childTable`     | none                                                                        |
 
 **`StdbDeps` interface** (what you pass to `makeSchema`):
 
