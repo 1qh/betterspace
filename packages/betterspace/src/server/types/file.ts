@@ -53,31 +53,7 @@ interface FileUploadTableLike<Row> {
 
 type ReducerExportLike = ReducerExport<never, never>
 
-interface S3PresignCommonOptions {
-  accessKeyId: string
-  bucket: string
-  endpoint: string
-  expiresInSeconds?: number
-  key: string
-  region: string
-  secretAccessKey: string
-  sessionToken?: string
-}
-
-type S3PresignDownloadOptions = S3PresignCommonOptions
-
-interface S3PresignedUrl {
-  expiresAt: number
-  headers: Record<string, string>
-  key: string
-  method: 'GET' | 'PUT'
-  url: string
-}
-
-interface S3PresignUploadOptions extends S3PresignCommonOptions {
-  contentType?: string
-}
-
+export type { S3PresignDownloadOptions, S3PresignedUrl, S3PresignUploadOptions } from '../../s3'
 export type {
   FileRowShape,
   FileUploadBuilder,
@@ -85,8 +61,5 @@ export type {
   FileUploadExports,
   FileUploadFields,
   FileUploadPkLike,
-  FileUploadTableLike,
-  S3PresignDownloadOptions,
-  S3PresignedUrl,
-  S3PresignUploadOptions
+  FileUploadTableLike
 }

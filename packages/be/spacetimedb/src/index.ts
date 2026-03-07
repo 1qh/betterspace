@@ -35,22 +35,35 @@ const {
       { indexes: [{ accessor: 'orgIdSlug', algorithm: 'btree' as const, columns: ['orgId', 'slug'] }] }
     )
   }),
-  { allExports, cacheCrud, childCrud, crud, fileUpload, m, org, orgCrud, register, singletonCrud } =
+  { allExports, cacheCrud, childCrud, crud, fileUpload, m, org, orgCrud, register, registerAll, singletonCrud } =
     setupCrud(spacetimedb),
   orgFns = org(orgFields.team, { cascadeTables: ['task', 'project', 'wiki'] })
 
-crud('blog', owned.blog, { rateLimit: { max: 10, window: 60_000 } })
-crud('chat', owned.chat, { rateLimit: { max: 10, window: 60_000 } })
-childCrud('message', { foreignKey: 'chatId', table: 'chat' }, children.message.schema)
-cacheCrud('movie', 'tmdbId', base.movie)
-orgCrud('project', orgScoped.project)
-orgCrud('task', orgScoped.task)
-orgCrud('wiki', orgScoped.wiki, { softDelete: true })
-singletonCrud('blogProfile', singleton.blogProfile)
-singletonCrud('orgProfile', singleton.orgProfile)
-fileUpload('file')
+registerAll(
+  { base, children, file: true, orgScoped, owned, singleton },
+  {
+    blog: { rateLimit: { max: 10, window: 60_000 } },
+    chat: { rateLimit: { max: 10, window: 60_000 } },
+    movie: { key: 'tmdbId' },
+    wiki: { softDelete: true }
+  }
+)
 
 const reducers = spacetimedb.exportGroup(allExports())
 
-export { allExports, cacheCrud, childCrud, crud, fileUpload, m, org, orgCrud, orgFns, reducers, register, singletonCrud }
+export {
+  allExports,
+  cacheCrud,
+  childCrud,
+  crud,
+  fileUpload,
+  m,
+  org,
+  orgCrud,
+  orgFns,
+  reducers,
+  register,
+  registerAll,
+  singletonCrud
+}
 export default spacetimedb

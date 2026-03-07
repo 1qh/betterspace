@@ -1,7 +1,7 @@
 // biome-ignore-all lint/style/noProcessEnv: server-only route
 import type { NextRequest } from 'next/server'
 
-import { createS3UploadPresignedUrl } from 'betterspace/server'
+import { createS3UploadPresignedUrl } from 'betterspace/s3'
 import { NextResponse } from 'next/server'
 
 interface PresignBody {

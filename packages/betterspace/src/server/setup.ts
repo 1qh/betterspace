@@ -41,6 +41,15 @@ interface OrgTypeBuilders {
 
 type ReducerExportRecord = Record<string, ReducerExport<never, never>>
 
+interface RegisterAllSchemas {
+  base?: Record<string, ZodLike>
+  children?: Record<string, { foreignKey: string; parent: string; schema: ZodLike }>
+  file?: boolean | string
+  orgScoped?: Record<string, ZodLike>
+  owned?: Record<string, ZodLike>
+  singleton?: Record<string, ZodLike>
+}
+
 interface SetupConfig {
   hooks?: GlobalHooks
   middleware?: Middleware[]
@@ -486,7 +495,124 @@ const dbTable: (db: unknown, name: string) => unknown = (db, name) => (db as Rec
     typeof (v as { shape: unknown }).shape === 'object' &&
     (v as { shape: unknown }).shape !== null,
   resolveCrudFields = (fields: unknown, tableName: string, defaults: CrudDefaults): unknown =>
-    isZodObject(fields) && defaults.t ? zodToStdbFields(fields.shape, defaults.t, tableName) : fields,
+    isZodObject(fields) && defaults.t ? zodToStdbFields(fields.shape, defaults.t, tableName) : fields
+
+interface RegCtx {
+  defaults: CrudDefaults
+  expectedUpdatedAtField: TypeBuilder<unknown, AlgebraicTypeType>
+  fkField: TypeBuilder<unknown, AlgebraicTypeType>
+  idField: TypeBuilder<unknown, AlgebraicTypeType>
+  opts: RegTableOpts
+  orgIdField: TypeBuilder<unknown, AlgebraicTypeType>
+  s: SetupResult
+}
+type RegTableOpts = Record<string, CacheOptions & CrudOptions & OrgCrudOptions & { key?: string }> | undefined
+
+type SetupResult = ReturnType<typeof setup>
+
+const regOwned = (schemas: Record<string, ZodLike>, ctx: RegCtx) => {
+    const names = Object.keys(schemas)
+    for (const name of names) {
+      const fields = schemas[name]
+      if (fields)
+        ctx.s.crud({
+          expectedUpdatedAtField: ctx.expectedUpdatedAtField as never,
+          fields: resolveCrudFields(fields, name, ctx.defaults) as CrudFieldBuilders,
+          idField: ctx.idField as never,
+          options: (ctx.opts?.[name] ?? undefined) as never,
+          pk: pkById as never,
+          table: tblOf(name) as never,
+          tableName: name
+        })
+    }
+  },
+  regOrgScoped = (schemas: Record<string, ZodLike>, ctx: RegCtx) => {
+    const names = Object.keys(schemas)
+    for (const name of names) {
+      const fields = schemas[name]
+      if (fields)
+        ctx.s.orgCrud({
+          expectedUpdatedAtField: ctx.expectedUpdatedAtField as never,
+          fields: resolveCrudFields(fields, name, ctx.defaults) as OrgCrudFieldBuilders,
+          idField: ctx.idField as never,
+          options: (ctx.opts?.[name] ?? undefined) as never,
+          orgIdField: ctx.orgIdField as never,
+          orgMemberTable: tblOf('orgMember') as never,
+          pk: pkById as never,
+          table: tblOf(name) as never,
+          tableName: name
+        })
+    }
+  },
+  regSingleton = (schemas: Record<string, ZodLike>, ctx: RegCtx) => {
+    const names = Object.keys(schemas)
+    for (const name of names) {
+      const fields = schemas[name]
+      if (fields)
+        ctx.s.singletonCrud({
+          fields: resolveCrudFields(fields, name, ctx.defaults) as SingletonFieldBuilders,
+          options: (ctx.opts?.[name] ?? undefined) as never,
+          table: tblOf(name) as never,
+          tableName: name
+        })
+    }
+  },
+  regBase = (schemas: Record<string, ZodLike>, ctx: RegCtx) => {
+    const names = Object.keys(schemas)
+    for (const name of names) {
+      const fields = schemas[name]
+      if (fields) {
+        const tableOpts = ctx.opts?.[name],
+          keyName = tableOpts?.key ?? 'id'
+        ctx.s.cacheCrud({
+          fields: resolveCrudFields(fields, name, ctx.defaults) as CacheFieldBuilders,
+          keyField: ctx.idField as never,
+          keyName,
+          options: tableOpts?.ttl === undefined ? undefined : { ttl: tableOpts.ttl },
+          pk: pkByKey(keyName) as never,
+          table: tblOf(name) as never,
+          tableName: name
+        })
+      }
+    }
+  },
+  regChildren = (schemas: Record<string, { foreignKey: string; parent: string; schema: ZodLike }>, ctx: RegCtx) => {
+    const names = Object.keys(schemas)
+    for (const name of names) {
+      const entry = schemas[name]
+      if (entry)
+        ctx.s.childCrud({
+          expectedUpdatedAtField: ctx.expectedUpdatedAtField as never,
+          fields: resolveCrudFields(entry.schema, name, ctx.defaults) as CrudFieldBuilders,
+          foreignKeyField: ctx.fkField as never,
+          foreignKeyName: entry.foreignKey,
+          idField: ctx.idField as never,
+          options: (ctx.opts?.[name] ?? undefined) as never,
+          parentPk: pkById as never,
+          parentTable: tblOf(entry.parent) as never,
+          pk: pkById as never,
+          table: tblOf(name) as never,
+          tableName: name
+        })
+    }
+  },
+  regFile = (file: boolean | string, ctx: RegCtx & { spacetimedb: SpacetimeDbLike; stdbT: ZodBridgeT }) => {
+    const namespace = typeof file === 'string' ? file : 'file',
+      resolvedFields = {
+        contentType: ctx.stdbT.string(),
+        filename: ctx.stdbT.string(),
+        size: ctx.stdbT.number(),
+        storageKey: ctx.stdbT.string()
+      } as FileUploadFields,
+      result = makeFileUpload(ctx.spacetimedb as Parameters<typeof makeFileUpload>[0], {
+        fields: resolvedFields,
+        idField: ctx.idField as never,
+        namespace,
+        pk: pkById as never,
+        table: tblOf(namespace) as never
+      })
+    registerExports(ctx.s.exports, result.exports)
+  },
   /** Convenience wrapper around setup with shared field defaults. */
   setupCrud = (spacetimedb: SpacetimeDbLike, defaults: CrudDefaults = {}, config?: SetupConfig) => {
     const s = setup(spacetimedb, config),
@@ -673,6 +799,27 @@ const dbTable: (db: unknown, name: string) => unknown = (db, name) => (db as Rec
 
       register: (exports: Record<string, ReducerExport<never, never>>) => {
         registerExports(s.exports, exports)
+      },
+
+      registerAll: (
+        schemas: RegisterAllSchemas,
+        tableOptions?: Record<string, CacheOptions & CrudOptions & OrgCrudOptions & { key?: string }>
+      ) => {
+        const ctx: RegCtx = {
+          defaults: resolvedDefaults,
+          expectedUpdatedAtField,
+          fkField,
+          idField,
+          opts: tableOptions,
+          orgIdField: oIdField,
+          s
+        }
+        if (schemas.owned) regOwned(schemas.owned, ctx)
+        if (schemas.orgScoped) regOrgScoped(schemas.orgScoped, ctx)
+        if (schemas.singleton) regSingleton(schemas.singleton, ctx)
+        if (schemas.base) regBase(schemas.base, ctx)
+        if (schemas.children) regChildren(schemas.children, ctx)
+        if (schemas.file) regFile(schemas.file, { ...ctx, spacetimedb, stdbT })
       },
 
       singletonCrud: (tableName: string, fields: SingletonFieldBuilders | ZodLike, options?: SingletonOptions) => {

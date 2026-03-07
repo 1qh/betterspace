@@ -53,6 +53,7 @@ const isDev = process.env.NODE_ENV === 'development',
     ],
     images: imageDomains ? { remotePatterns: imageDomains.map(hostname => ({ hostname })) } : undefined,
     reactCompiler: true,
+    serverExternalPackages: ['spacetimedb/server'],
     transpilePackages: ['@a/ui', '@a/be', '@a/fe']
   })
 
