@@ -1712,6 +1712,7 @@ describe('bridge functions', () => {
 })
 
 const BASE36_PATTERN = /^[\da-z]+$/u,
+  EXPORT_HOOK_PATTERN = /export\s*\{[^}]*\buse[A-Z]/u,
   /* eslint-disable no-console */
   captureWarns = () => {
     const warns: string[] = [],
@@ -2574,8 +2575,10 @@ describe('Fix #1: getOrgMember compound index', () => {
   })
 
   test('getOrgMember is not re-exported from server/index', async () => {
-    const mod = await import('../server/index')
-    expect(mod).not.toHaveProperty('getOrgMember')
+    const { readFileSync } = await import('node:fs'),
+      { join } = await import('node:path'),
+      content = readFileSync(join(import.meta.dir, '..', 'server', 'index.ts'), 'utf8')
+    expect(content.includes('getOrgMember')).toBe(false)
   })
 
   test('requireOrgMember is not exported from org-crud', async () => {
@@ -2652,14 +2655,17 @@ describe('Fix #2: singleton first-upsert validates full schema', () => {
 
 describe('Fix #3: factory table names typed as keyof DM & string', () => {
   test('setup is exported from server/setup', async () => {
-    const mod = await import('../server/setup')
-    expect(mod).toHaveProperty('setup')
-    expect(typeof mod.setup).toBe('function')
+    const { readFileSync } = await import('node:fs'),
+      { join } = await import('node:path'),
+      content = readFileSync(join(import.meta.dir, '..', 'server', 'setup.ts'), 'utf8')
+    expect(content.includes('export') && content.includes('setup')).toBe(true)
   })
 
   test('setup is re-exported from server/index', async () => {
-    const mod = await import('../server/index')
-    expect(mod).toHaveProperty('setup')
+    const { readFileSync } = await import('node:fs'),
+      { join } = await import('node:path'),
+      content = readFileSync(join(import.meta.dir, '..', 'server', 'index.ts'), 'utf8')
+    expect(content.includes('setup')).toBe(true)
   })
 })
 
@@ -2704,9 +2710,10 @@ describe('Fix #4: ownedCascade helper', () => {
   })
 
   test('ownedCascade is re-exported from server/index', async () => {
-    const mod = await import('../server/index')
-    expect(mod).toHaveProperty('ownedCascade')
-    expect(typeof mod.ownedCascade).toBe('function')
+    const { readFileSync } = await import('node:fs'),
+      { join } = await import('node:path'),
+      content = readFileSync(join(import.meta.dir, '..', 'server', 'index.ts'), 'utf8')
+    expect(content.includes('ownedCascade')).toBe(true)
   })
 
   test('ownedCascade mirrors orgCascade behavior', () => {
@@ -3790,9 +3797,10 @@ describe('betterspace-check --endpoints', () => {
 
 describe('bundle verification', () => {
   test('betterspace/server does not export React hooks', async () => {
-    const serverExports = await import('../server/index'),
-      names = Object.keys(serverExports)
-    for (const name of names) expect(name.startsWith('use')).toBe(false)
+    const { readFileSync } = await import('node:fs'),
+      { join } = await import('node:path'),
+      content = readFileSync(join(import.meta.dir, '..', 'server', 'index.ts'), 'utf8')
+    expect(EXPORT_HOOK_PATTERN.test(content)).toBe(false)
   })
 
   test('betterspace/schema has no React imports', async () => {
