@@ -3,6 +3,8 @@
 import type { Identity, Timestamp } from 'spacetimedb'
 import type { AlgebraicTypeType, ReducerExport, TypeBuilder } from 'spacetimedb/server'
 
+import { t } from 'spacetimedb/server'
+
 import type { OrgFieldBuilders } from './org'
 import type { ZodBridgeT } from './stdb-tables'
 import type { GlobalHookCtx, GlobalHooks, Middleware, Rec } from './types'
@@ -24,9 +26,9 @@ import { makeSingletonCrud } from './singleton'
 import { zodToStdbFields } from './stdb-tables'
 
 interface CrudDefaults {
-  expectedUpdatedAtField: TypeBuilder<unknown, AlgebraicTypeType>
+  expectedUpdatedAtField?: TypeBuilder<unknown, AlgebraicTypeType>
   foreignKeyField?: TypeBuilder<unknown, AlgebraicTypeType>
-  idField: TypeBuilder<unknown, AlgebraicTypeType>
+  idField?: TypeBuilder<unknown, AlgebraicTypeType>
   orgIdField?: TypeBuilder<unknown, AlgebraicTypeType>
   t?: ZodBridgeT
 }
@@ -486,11 +488,19 @@ const dbTable: (db: unknown, name: string) => unknown = (db, name) => (db as Rec
   resolveCrudFields = (fields: unknown, tableName: string, defaults: CrudDefaults): unknown =>
     isZodObject(fields) && defaults.t ? zodToStdbFields(fields.shape, defaults.t, tableName) : fields,
   /** Convenience wrapper around setup with shared field defaults. */
-  setupCrud = (spacetimedb: SpacetimeDbLike, defaults: CrudDefaults, config?: SetupConfig) => {
+  setupCrud = (spacetimedb: SpacetimeDbLike, defaults: CrudDefaults = {}, config?: SetupConfig) => {
     const s = setup(spacetimedb, config),
-      { expectedUpdatedAtField, idField } = defaults,
-      fkField = defaults.foreignKeyField ?? idField,
-      oIdField = defaults.orgIdField ?? idField
+      resolvedDefaults: Required<CrudDefaults> = {
+        expectedUpdatedAtField: defaults.expectedUpdatedAtField ?? t.timestamp(),
+        foreignKeyField: defaults.foreignKeyField ?? defaults.idField ?? t.u32(),
+        idField: defaults.idField ?? t.u32(),
+        orgIdField: defaults.orgIdField ?? defaults.idField ?? t.u32(),
+        t: defaults.t ?? t
+      },
+      { expectedUpdatedAtField, idField } = resolvedDefaults,
+      fkField = resolvedDefaults.foreignKeyField,
+      oIdField = resolvedDefaults.orgIdField,
+      stdbT = resolvedDefaults.t
 
     return {
       allExports: s.allExports,
@@ -503,7 +513,7 @@ const dbTable: (db: unknown, name: string) => unknown = (db, name) => (db as Rec
           keyField?: TypeBuilder<unknown, AlgebraicTypeType>
         }
       ) => {
-        const resolvedFields = resolveCrudFields(fields, tableName, defaults)
+        const resolvedFields = resolveCrudFields(fields, tableName, resolvedDefaults)
         return s.cacheCrud({
           fields: resolvedFields as CacheFieldBuilders,
           keyField: (options?.keyField ?? idField) as never,
@@ -521,7 +531,7 @@ const dbTable: (db: unknown, name: string) => unknown = (db, name) => (db as Rec
         fields: CrudFieldBuilders | ZodLike,
         options?: CrudOptions
       ) => {
-        const resolvedFields = resolveCrudFields(fields, tableName, defaults)
+        const resolvedFields = resolveCrudFields(fields, tableName, resolvedDefaults)
         return s.childCrud({
           expectedUpdatedAtField: expectedUpdatedAtField as never,
           fields: resolvedFields as CrudFieldBuilders,
@@ -538,7 +548,7 @@ const dbTable: (db: unknown, name: string) => unknown = (db, name) => (db as Rec
       },
 
       crud: (tableName: string, fields: CrudFieldBuilders | ZodLike, options?: CrudOptions) => {
-        const resolvedFields = resolveCrudFields(fields, tableName, defaults)
+        const resolvedFields = resolveCrudFields(fields, tableName, resolvedDefaults)
         return s.crud({
           expectedUpdatedAtField: expectedUpdatedAtField as never,
           fields: resolvedFields as CrudFieldBuilders,
@@ -554,18 +564,26 @@ const dbTable: (db: unknown, name: string) => unknown = (db, name) => (db as Rec
 
       fileUpload: (
         namespace: string,
-        tableName: string,
-        fields: FileUploadFields,
+        tableName: string = namespace,
+        fields?: FileUploadFields,
         options?: { allowedTypes?: Set<string>; maxFileSize?: number }
       ) => {
-        const result = makeFileUpload(spacetimedb as Parameters<typeof makeFileUpload>[0], {
-          ...options,
-          fields,
-          idField: idField as never,
-          namespace,
-          pk: pkById as never,
-          table: tblOf(tableName) as never
-        })
+        const resolvedFields =
+            fields ??
+            ({
+              contentType: stdbT.string(),
+              filename: stdbT.string(),
+              size: stdbT.number(),
+              storageKey: stdbT.string()
+            } as FileUploadFields),
+          result = makeFileUpload(spacetimedb as Parameters<typeof makeFileUpload>[0], {
+            ...options,
+            fields: resolvedFields,
+            idField: idField as never,
+            namespace,
+            pk: pkById as never,
+            table: tblOf(tableName) as never
+          })
         registerExports(s.exports, result.exports)
         return result
       },
@@ -586,19 +604,19 @@ const dbTable: (db: unknown, name: string) => unknown = (db, name) => (db as Rec
 
       org: (
         orgFields: OrgFieldBuilders | ZodLike,
-        orgOpts: {
+        orgOpts?: {
           cascadeTables?: string[]
-          t: OrgTypeBuilders
+          t?: OrgTypeBuilders
         }
       ) => {
-        const stdbT = orgOpts.t,
-          resolvedOrgFields = resolveCrudFields(orgFields, 'org', defaults) as OrgFieldBuilders,
+        const orgTypes = orgOpts?.t ?? stdbT,
+          resolvedOrgFields = resolveCrudFields(orgFields, 'org', resolvedDefaults) as OrgFieldBuilders,
           cascadeConfigs: {
             deleteById: (db: unknown, id: unknown) => boolean
             rowsByOrg: (db: unknown, orgId: unknown) => Iterable<{ id: unknown }>
           }[] = []
 
-        if (orgOpts.cascadeTables)
+        if (orgOpts?.cascadeTables)
           for (const tableName of orgOpts.cascadeTables)
             cascadeConfigs.push({
               deleteById: (db: unknown, id: unknown) =>
@@ -611,15 +629,15 @@ const dbTable: (db: unknown, name: string) => unknown = (db, name) => (db as Rec
 
         return s.org({
           builders: {
-            email: stdbT.string(),
+            email: orgTypes.string(),
             inviteId: idField,
-            isAdmin: stdbT.bool(),
+            isAdmin: orgTypes.bool(),
             memberId: idField,
-            message: stdbT.string(),
-            newOwnerId: stdbT.identity(),
+            message: orgTypes.string(),
+            newOwnerId: orgTypes.identity(),
             orgId: oIdField,
             requestId: idField,
-            token: stdbT.string()
+            token: orgTypes.string()
           },
           cascadeTables: cascadeConfigs.length > 0 ? cascadeConfigs : undefined,
           fields: resolvedOrgFields,
@@ -639,7 +657,7 @@ const dbTable: (db: unknown, name: string) => unknown = (db, name) => (db as Rec
           orgMemberTable?: TableAccessor
         }
       ) => {
-        const resolvedFields = resolveCrudFields(fields, tableName, defaults)
+        const resolvedFields = resolveCrudFields(fields, tableName, resolvedDefaults)
         return s.orgCrud({
           expectedUpdatedAtField: expectedUpdatedAtField as never,
           fields: resolvedFields as OrgCrudFieldBuilders,
@@ -658,7 +676,7 @@ const dbTable: (db: unknown, name: string) => unknown = (db, name) => (db as Rec
       },
 
       singletonCrud: (tableName: string, fields: SingletonFieldBuilders | ZodLike, options?: SingletonOptions) => {
-        const resolvedFields = resolveCrudFields(fields, tableName, defaults)
+        const resolvedFields = resolveCrudFields(fields, tableName, resolvedDefaults)
         return s.singletonCrud({
           fields: resolvedFields as SingletonFieldBuilders,
           options: options as never,

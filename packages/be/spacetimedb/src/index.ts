@@ -1,10 +1,14 @@
-import { t } from 'spacetimedb/server'
+import { setupCrud } from 'betterspace/server'
 
-import { base, children, orgScoped, owned, singleton } from '../../t'
-import { allExports, cacheCrud, childCrud, crud, fileUpload, orgCrud, singletonCrud } from './lazy'
+import { base, children, org as orgFields, orgScoped, owned, singleton } from '../../t'
 import spacetimedb from './tables'
 
-const blog = crud('blog', owned.blog, { rateLimit: { max: 10, window: 60_000 } }),
+const { allExports, cacheCrud, childCrud, crud, exports, fileUpload, m, org, orgCrud, register, singletonCrud } =
+    setupCrud(spacetimedb),
+  orgFns = org(orgFields.team, {
+    cascadeTables: ['task', 'project', 'wiki']
+  }),
+  blog = crud('blog', owned.blog, { rateLimit: { max: 10, window: 60_000 } }),
   chat = crud('chat', owned.chat, { rateLimit: { max: 10, window: 60_000 } }),
   message = childCrud('message', { foreignKey: 'chatId', table: 'chat' }, children.message.schema),
   movie = cacheCrud('movie', 'tmdbId', base.movie),
@@ -13,16 +17,25 @@ const blog = crud('blog', owned.blog, { rateLimit: { max: 10, window: 60_000 } }
   wiki = orgCrud('wiki', orgScoped.wiki, { softDelete: true }),
   blogProfile = singletonCrud('blogProfile', singleton.blogProfile),
   orgProfile = singletonCrud('orgProfile', singleton.orgProfile),
-  file = fileUpload('file', 'file', {
-    contentType: t.string(),
-    filename: t.string(),
-    size: t.number(),
-    storageKey: t.string()
-  }),
+  file = fileUpload('file'),
   modules = [blog, chat, file, message, movie, project, task, wiki, blogProfile, orgProfile],
   reducers = spacetimedb.exportGroup(allExports())
 
 if (modules.length === 0) throw new Error('No modules registered')
 
-export { reducers }
+export {
+  allExports,
+  cacheCrud,
+  childCrud,
+  crud,
+  exports,
+  fileUpload,
+  m,
+  org,
+  orgCrud,
+  orgFns,
+  reducers,
+  register,
+  singletonCrud
+}
 export default spacetimedb
