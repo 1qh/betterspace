@@ -1,5 +1,4 @@
 import { makeSchema } from 'betterspace/server'
-import { schema, t, table } from 'spacetimedb/server'
 
 import { base, children, org as orgFields, orgScoped, owned, singleton } from '../../t'
 
@@ -12,8 +11,10 @@ const {
     orgMemberTable,
     orgScopedTable,
     ownedTable,
-    singletonTable
-  } = makeSchema({ t, table }),
+    schema,
+    singletonTable,
+    t
+  } = makeSchema(),
   blog = ownedTable(owned.blog, { published: t.bool().index() }),
   blogProfile = singletonTable(singleton.blogProfile),
   chat = ownedTable(owned.chat, { isPublic: t.bool().index() }),

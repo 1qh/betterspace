@@ -1,5 +1,7 @@
 import type { AlgebraicTypeType, ColumnBuilder, ColumnMetadata, table as stdbTable, TypeBuilder } from 'spacetimedb/server'
 
+import { schema as stdbSchema, t as stdbT, table as stdbTableFn } from 'spacetimedb/server'
+
 type FieldBuilder =
   | ColumnBuilder<unknown, AlgebraicTypeType, ColumnMetadata<unknown>>
   | TypeBuilder<unknown, AlgebraicTypeType>
@@ -33,7 +35,7 @@ type TableOptions = Record<string, unknown>
 interface ZodBridgeT {
   array: (element: StdbTypeBuilder) => FieldBuilder & { optional: () => FieldBuilder }
   bool: () => OptionalFieldBuilder
-  identity: () => { index: () => FieldBuilder }
+  identity: () => StdbTypeBuilder & { index: () => FieldBuilder; optional: () => FieldBuilder }
   number: () => FieldBuilder & { optional: () => FieldBuilder }
   object: (name: string, fields: Record<string, StdbTypeBuilder>) => FieldBuilder & { optional: () => FieldBuilder }
   string: () => OptionalFieldBuilder
@@ -178,8 +180,10 @@ const isRecord = (value: unknown): value is Record<string, unknown> => typeof va
     if (isZodObject(fields)) return zodToStdbFields(fields.shape ?? {}, t, tableName)
     return fields as TableFields
   },
-  makeSchema = (deps: StdbDeps) => {
-    const { t, table } = deps,
+  makeSchema = (deps?: Partial<StdbDeps>) => {
+    const t = deps?.t ?? (stdbT as unknown as ZodBridgeT),
+      table = deps?.table ?? stdbTableFn,
+      schema = stdbSchema,
       tbl = (opts: TableOptions, fields: TableFields): StdbTable =>
         table({ public: true, ...opts } as never, fields as never),
       cacheTable = (keyField: KeyField, fields: TableInput, opts?: TableOptions): StdbTable =>
@@ -303,7 +307,9 @@ const isRecord = (value: unknown): value is Record<string, unknown> => typeof va
       orgMemberTable,
       orgScopedTable,
       ownedTable,
-      singletonTable
+      schema,
+      singletonTable,
+      t
     }
   }
 
