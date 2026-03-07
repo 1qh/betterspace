@@ -1,167 +1,52 @@
 # Organizations
 
-The `makeOrg` factory generates reducers for multi-tenant organization management:
-creating orgs, managing members, handling invites, and join requests.
+`orgTable()` generates reducers for multi-tenant organization management: creating orgs,
+managing members, handling invites, and join requests.
 
 ## Schema setup
 
-Organizations require several tables.
-Define them in your SpacetimeDB module:
+Define your org fields in `t.ts` and wire everything up with `betterspace()`.
+`orgTable()` auto-creates the `orgMember`, `orgInvite`, and `orgJoinRequest` sub-tables.
+
+`t.ts`:
 
 ```typescript
-import { makeOrg, makeOrgCrud } from 'betterspace/server'
-import { schema, t, table } from 'spacetimedb/server'
+import { makeOrgScoped } from 'betterspace/schema'
+import { object, string } from 'zod/v4'
 
-const org = table(
-    { public: true },
-    {
-      id: t.u32().autoInc().primaryKey(),
-      name: t.string(),
-      slug: t.string().unique(),
-      avatarId: t.string().optional(),
-      updatedAt: t.timestamp(),
-      userId: t.identity().index() // owner
-    }
-  ),
-  orgMember = table(
-    { public: true },
-    {
-      id: t.u32().autoInc().primaryKey(),
-      orgId: t.u32().index(),
-      userId: t.identity().index(),
-      isAdmin: t.bool(),
-      updatedAt: t.timestamp()
-    }
-  ),
-  orgInvite = table(
-    { public: true },
-    {
-      id: t.u32().autoInc().primaryKey(),
-      orgId: t.u32().index(),
-      email: t.string(),
-      token: t.string().unique(),
-      isAdmin: t.bool(),
-      expiresAt: t.number()
-    }
-  ),
-  orgJoinRequest = table(
-    { public: true },
-    {
-      id: t.u32().autoInc().primaryKey(),
-      orgId: t.u32().index(),
-      userId: t.identity().index(),
-      status: t.string().index(),
-      message: t.string().optional()
-    }
-  ),
-  // Org-scoped resource table
-  project = table(
-    { public: true },
-    {
-      id: t.u32().autoInc().primaryKey(),
-      orgId: t.u32().index(),
-      name: t.string(),
-      description: t.string().optional(),
-      updatedAt: t.timestamp(),
-      userId: t.identity().index()
-    }
-  ),
-  spacetimedb = schema({
-    org,
-    orgMember,
-    orgInvite,
-    orgJoinRequest,
-    project
+const org = {
+    team: object({
+      name: string().min(1),
+      slug: string().regex(/^[a-z0-9-]+$/u)
+    })
+  },
+  orgScoped = makeOrgScoped({
+    project: object({ description: string().optional(), name: string().min(1) })
   })
+
+export { org, orgScoped }
 ```
 
-## makeOrgTables
-
-`makeOrgTables` is a convenience helper that creates all four org tables (`org`,
-`orgMember`, `orgInvite`, `orgJoinRequest`) with the standard field layout in one call.
-
-Before:
+`index.ts`:
 
 ```typescript
-const org = table(
-    { public: true },
-    {
-      id: t.u32().autoInc().primaryKey(),
-      name: t.string(),
-      slug: t.string().unique(),
-      avatarId: t.string().optional(),
-      updatedAt: t.timestamp(),
-      userId: t.identity().index()
-    }
-  ),
-  orgMember = table(
-    { public: true },
-    {
-      id: t.u32().autoInc().primaryKey(),
-      orgId: t.u32().index(),
-      userId: t.identity().index(),
-      isAdmin: t.bool(),
-      updatedAt: t.timestamp()
-    }
-  ),
-  orgInvite = table(
-    { public: true },
-    {
-      id: t.u32().autoInc().primaryKey(),
-      orgId: t.u32().index(),
-      email: t.string(),
-      token: t.string().unique(),
-      isAdmin: t.bool(),
-      expiresAt: t.number()
-    }
-  ),
-  orgJoinRequest = table(
-    { public: true },
-    {
-      id: t.u32().autoInc().primaryKey(),
-      orgId: t.u32().index(),
-      userId: t.identity().index(),
-      status: t.string().index(),
-      message: t.string().optional()
-    }
-  )
+import { betterspace } from 'betterspace/server'
+import { org as orgFields, orgScoped } from '../../t'
+
+export default betterspace(({ orgScopedTable, orgTable }) => ({
+  org: orgTable(orgFields.team, { unique: ['slug'] }),
+  project: orgScopedTable(orgScoped.project, { cascade: true })
+}))
 ```
 
-After:
-
-```typescript
-import { makeOrgTables } from 'betterspace/server'
-
-const { org, orgMember, orgInvite, orgJoinRequest } = makeOrgTables()
-```
-
-Pass the result directly into `schema()`:
-
-```typescript
-const spacetimedb = schema({ ...makeOrgTables(), project })
-```
-
----
-
-## org factory
-
-```typescript
-const { org } = setupCrud(spacetimedb, defaults)
-
-const orgFns = org(orgFields.team, {
-  cascadeTables: ['task', 'project', 'wiki'],
-  t
-})
-```
-
-`org()` derives all builders, table accessors, and cascade callbacks from the field
-definitions automatically.
-Pass the org fields object and a list of table names to cascade-delete when an org is
-removed.
+`orgTable()` accepts the same field Zod schema you define for the org’s own fields.
+System fields (`id`, `updatedAt`, `userId`) are added automatically.
+The `unique` option creates a unique index on the given fields.
+Pass `cascade: true` on `orgScopedTable` to delete rows when the org is removed.
 
 ## Generated reducers
 
-`org()` generates these reducers:
+`orgTable()` generates these reducers:
 
 | Reducer                 | Description                                      |
 | ----------------------- | ------------------------------------------------ |
@@ -190,25 +75,18 @@ removed.
 All reducers above are generated with typed signatures and runtime checks for org
 permissions, ownership transfers, invites, and join-request workflows.
 
-## makeOrgCrud factory
+## orgScopedTable
 
-For tables that belong to an org, use `makeOrgCrud`. It enforces org membership before
-any write:
+`orgScopedTable` registers a table that belongs to an org and enforces org membership
+before any write. Pass the result of `makeOrgScoped()` from your schema file:
 
 ```typescript
-const projectCrud = makeOrgCrud(spacetimedb, {
-  expectedUpdatedAtField: t.timestamp(),
-  fields: {
-    name: t.string(),
-    description: t.string().optional()
-  },
-  idField: t.u32(),
-  orgIdField: t.u32(),
-  orgMemberTable: db => db.orgMember,
-  pk: tbl => tbl.id,
-  table: db => db.project,
-  tableName: 'project'
-})
+import { betterspace } from 'betterspace/server'
+import { orgScoped } from '../../t'
+
+export default betterspace(({ orgScopedTable }) => ({
+  project: orgScopedTable(orgScoped.project)
+}))
 ```
 
 Generated reducers: `create_project`, `update_project`, `rm_project`.
@@ -365,26 +243,14 @@ const details = useOrgQuery(
 ## Read-side ACL with private tables and views
 
 For data that should only be visible to org members, use private tables with public
-views filtered by `ctx.sender`:
+views filtered by `ctx.sender`. This is a SpacetimeDB-level feature configured outside
+of `betterspace()`:
 
-```typescript
-// In your SpacetimeDB module
-const privateData = table(
-  { public: false }, // clients cannot subscribe directly
-  {
-    id: t.u32().autoInc().primaryKey(),
-    orgId: t.u32().index(),
-    content: t.string(),
-    userId: t.identity().index()
-  }
-)
-
-// Define a view that filters by org membership
-// (View SQL defined separately in your module)
-// CREATE VIEW my_org_data AS
-//   SELECT d.* FROM private_data d
-//   JOIN org_member m ON m.org_id = d.org_id
-//   WHERE m.user_id = ctx_sender()
+```sql
+CREATE VIEW my_org_data AS
+  SELECT d.* FROM private_data d
+  JOIN org_member m ON m.org_id = d.org_id
+  WHERE m.user_id = ctx_sender()
 ```
 
 Clients subscribe to the view, not the base table.

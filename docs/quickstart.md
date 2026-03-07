@@ -111,7 +111,7 @@ import { betterspace } from 'betterspace/server'
 import { owned, singleton } from '../../t'
 
 export default betterspace(({ ownedTable, singletonTable, t }) => ({
-  post: ownedTable(owned.post, { published: t.bool().index() }),
+  post: ownedTable(owned.post, { index: ['published'] }),
   profile: singletonTable(singleton.profile)
 }))
 ```

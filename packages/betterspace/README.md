@@ -66,8 +66,8 @@ With betterspace `betterspace()`:
 import { betterspace } from 'betterspace/server'
 import { owned } from './t'
 
-export default betterspace(({ ownedTable, t }) => ({
-  blog: ownedTable(owned.blog, { published: t.bool().index() })
+export default betterspace(({ ownedTable }) => ({
+  blog: ownedTable(owned.blog, { index: ['published'] })
 }))
 ```
 
@@ -84,11 +84,14 @@ Here’s a full org-scoped CRUD with per-item editor permissions and soft delete
 
 ```tsx
 export default betterspace(({ orgScopedTable, t }) => ({
-  wiki: orgScopedTable(
-    orgScoped.wiki,
-    { deletedAt: t.timestamp().optional(), editors: t.array(t.identity()).optional() },
-    { cascade: true, softDelete: true }
-  )
+  wiki: orgScopedTable(orgScoped.wiki, {
+    cascade: true,
+    extra: {
+      deletedAt: t.timestamp().optional(),
+      editors: t.array(t.identity()).optional()
+    },
+    softDelete: true
+  })
 }))
 ```
 
@@ -349,8 +352,8 @@ Typos are caught before your code runs.
 ### Branded schemas prevent mismatches
 
 ```tsx
-makeCrud(spacetimedb, { ... })      // ✅ compiles with owned table
-makeOrgCrud(spacetimedb, { ... })   // ✅ compiles with org-scoped table
+ownedTable(owned.blog, { index: ['published'] }) // ✅ 'published' exists in schema
+ownedTable(owned.blog, { index: ['typo'] }) // ❌ compile error — 'typo' not in schema
 ```
 
 ### Form fields are type-checked by value type
@@ -412,8 +415,8 @@ export { owned, singleton }
 import { betterspace } from 'betterspace/server'
 import { owned, singleton } from '../../t'
 
-export default betterspace(({ ownedTable, singletonTable, t }) => ({
-  blog: ownedTable(owned.blog, { published: t.bool().index() }),
+export default betterspace(({ ownedTable, singletonTable }) => ({
+  blog: ownedTable(owned.blog, { index: ['published'] }),
   profile: singletonTable(singleton.profile)
 }))
 ```
@@ -457,13 +460,13 @@ It also auto-installs dependencies and creates `tsconfig.json` — no manual set
 
 ## 5 Table Types
 
-| Type        | Schema                    | Factory               | Use Case                               |
-| ----------- | ------------------------- | --------------------- | -------------------------------------- |
-| `owned`     | Table fields              | `makeCrud()`          | User-owned data (blog posts, chats)    |
-| `orgScoped` | Table fields + orgId      | `makeOrgCrud()`       | Org-scoped data (wikis, projects)      |
-| `children`  | Table fields + foreignKey | `makeChildCrud()`     | Nested under parent (messages in chat) |
-| `base`      | Table fields + cacheKey   | `makeCacheCrud()`     | External API cache with TTL            |
-| `singleton` | Table fields              | `makeSingletonCrud()` | 1:1 per-user data (profile, settings)  |
+| Type        | Schema                    | Factory            | Use Case                               |
+| ----------- | ------------------------- | ------------------ | -------------------------------------- |
+| `owned`     | Table fields              | `ownedTable()`     | User-owned data (blog posts, chats)    |
+| `orgScoped` | Table fields + orgId      | `orgScopedTable()` | Org-scoped data (wikis, projects)      |
+| `children`  | Table fields + foreignKey | `childTable()`     | Nested under parent (messages in chat) |
+| `base`      | Table fields + cacheKey   | `cacheTable()`     | External API cache with TTL            |
+| `singleton` | Table fields              | `singletonTable()` | 1:1 per-user data (profile, settings)  |
 
 ## Demo Apps
 

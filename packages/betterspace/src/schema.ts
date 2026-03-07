@@ -6,18 +6,17 @@ import type { BaseSchema, OrgSchema, OwnedSchema, SchemaBrand, SingletonSchema }
 
 import { typed } from './server/bridge'
 
-/** Creates a file-id schema annotated for Betterspace file inputs. */
-const cvFile = () =>
-    string()
-      .min(1)
-      .meta({ cv: 'file' as const }),
-  /** Creates an array schema for multi-file fields. */
-  cvFiles = () => array(cvFile()).meta({ cv: 'files' as const }),
-  /** Declares child table metadata including inferred default index name.
-   * @param config - Child relationship configuration
-   * @returns Normalized child metadata
-   */
-  child = <
+interface ChildFn {
+  <const P extends string, S extends ZodRawShape>(
+    parent: P,
+    schema: ZodObject<S>
+  ): {
+    foreignKey: `${P}Id`
+    index: string
+    parent: P
+    schema: ZodObject<S>
+  }
+  <
     const P extends string,
     const S extends ZodRawShape,
     const FK extends keyof S & string,
@@ -34,10 +33,28 @@ const cvFile = () =>
     parent: P
     parentSchema?: ZodObject<PS>
     schema: ZodObject<S>
-  } => ({
-    ...config,
-    index: config.index ?? `by_${config.parent}`
-  }),
+  }
+}
+
+/** Creates a file-id schema annotated for Betterspace file inputs. */
+const cvFile = () =>
+    string()
+      .min(1)
+      .meta({ cv: 'file' as const }),
+  /** Creates an array schema for multi-file fields. */
+  cvFiles = () => array(cvFile()).meta({ cv: 'files' as const }),
+  child: ChildFn = (configOrParent: Record<string, unknown> | string, childSchema?: ZodObject<ZodRawShape>) => {
+    if (typeof configOrParent === 'string')
+      return {
+        foreignKey: `${configOrParent}Id`,
+        index: `by_${configOrParent}`,
+        parent: configOrParent,
+        schema: childSchema
+      } as never
+
+    const config = configOrParent as { index?: string; parent: string }
+    return { ...configOrParent, index: config.index ?? `by_${config.parent}` } as never
+  },
   /** Default organization schema used by org helpers. */
   orgSchema = object({
     avatarId: string().min(1).nullable().optional(),

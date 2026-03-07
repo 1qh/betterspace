@@ -6,7 +6,7 @@ import type { AlgebraicTypeType, ReducerExport, TypeBuilder } from 'spacetimedb/
 import { t } from 'spacetimedb/server'
 
 import type { OrgFieldBuilders } from './org'
-import type { ZodBridgeT } from './stdb-tables'
+import type { FieldBuilder, ZodBridgeT } from './stdb-tables'
 import type { GlobalHookCtx, GlobalHooks, Middleware, Rec } from './types'
 import type { CacheFieldBuilders, CacheOptions } from './types/cache'
 import type { CrudFieldBuilders, CrudHooks, CrudOptions } from './types/crud'
@@ -863,25 +863,34 @@ interface ChildLike {
   parent: string
   schema: unknown
 }
-interface OrgScopedOpts extends OwnedOpts {
+interface OrgScopedOpts<F = unknown> extends OwnedOpts<F> {
   cascade?: boolean
   indexes?: { accessor: string; algorithm: string; columns: string[] }[]
 }
 
-interface OwnedOpts {
+interface OrgTableOpts<F = unknown> {
+  extra?: Record<string, FieldBuilder>
+  index?: ZodKeys<F>[]
+  unique?: ZodKeys<F>[]
+}
+
+interface OwnedOpts<F = unknown> {
+  extra?: Record<string, FieldBuilder>
+  index?: ZodKeys<F>[]
   rateLimit?: { max: number; window: number }
   softDelete?: boolean
+  unique?: ZodKeys<F>[]
 }
 
 type SchemaHelpers = ReturnType<typeof makeSchema>
 
 type TblChild = Parameters<SchemaHelpers['childTable']>[1]
 
-type TblExtra = Parameters<SchemaHelpers['ownedTable']>[1]
-
 type TblInput = Parameters<SchemaHelpers['ownedTable']>[0]
 
 type TblKey = Parameters<SchemaHelpers['cacheTable']>[0]
+
+type ZodKeys<F> = F extends { shape: infer S extends Record<string, unknown> } ? keyof S & string : string
 
 const fkSuffix = /Id$/u,
   isChildObj = (v: unknown): v is ChildLike =>
@@ -889,6 +898,56 @@ const fkSuffix = /Id$/u,
   bsOf = (meta: BsTag, table: unknown): BsTable => ({ __bs: meta, table }),
   bsZod = (fields: unknown): undefined | ZodLike => (isZodObject(fields) ? fields : undefined),
   oKeys = (obj: object): string[] => Object.keys(obj),
+  applyMod = (field: FieldBuilder, mod: 'index' | 'unique'): FieldBuilder => {
+    const record = field as unknown as Record<string, unknown>
+    if (typeof record[mod] === 'function') return (record[mod] as () => FieldBuilder)()
+    return field
+  },
+  applyModFields = (
+    resolved: Record<string, FieldBuilder>,
+    names: string[],
+    mod: 'index' | 'unique',
+    out: Record<string, FieldBuilder>
+  ): boolean => {
+    let changed = false
+    for (const name of names) {
+      const field = resolved[name]
+      if (field) {
+        out[name] = applyMod(field, mod)
+        changed = true
+      }
+    }
+    return changed
+  },
+  mergeModifierExtra = (
+    fields: unknown,
+    bridgeT: ZodBridgeT,
+    mods: { extra?: Record<string, FieldBuilder>; index?: string[]; unique?: string[] }
+  ): Record<string, FieldBuilder> | undefined => {
+    const { extra, index: indexFields, unique: uniqueFields } = mods,
+      result: Record<string, FieldBuilder> = {},
+      hasIndex = indexFields ? indexFields.length > 0 : false,
+      hasUnique = uniqueFields ? uniqueFields.length > 0 : false,
+      hasModifiers = hasIndex ? true : hasUnique,
+      zod = hasModifiers ? bsZod(fields) : undefined
+    let hasFields = false
+    if (zod?.shape) {
+      const resolved = zodToStdbFields(zod.shape, bridgeT, '')
+      if (indexFields && applyModFields(resolved, indexFields, 'index', result)) hasFields = true
+      if (uniqueFields && applyModFields(resolved, uniqueFields, 'unique', result)) hasFields = true
+    }
+    if (extra) {
+      const names = oKeys(extra)
+      for (const name of names) {
+        const val = extra[name]
+        if (val) {
+          result[name] = val
+          hasFields = true
+        }
+      }
+    }
+    return hasFields ? result : undefined
+  },
   collectBsOpts = (name: string, m: BsTag, ctx: BsCtx) => {
     const o: Record<string, unknown> = {}
     if (m.rateLimit) o.rateLimit = m.rateLimit
@@ -921,11 +980,13 @@ const fkSuffix = /Id$/u,
     return schemas
   },
   makeBsHelpers = (raw: SchemaHelpers) => ({
-    cacheTable: (keyField: TblKey, fields: TblInput, options?: { ttl?: number }): BsTable =>
-      bsOf(
-        { category: 'base', keyName: keyField.name, ttl: options?.ttl, zod: bsZod(fields) },
-        raw.cacheTable(keyField, fields)
-      ),
+    cacheTable: (keyFieldOrName: string | TblKey, fields: TblInput, options?: { ttl?: number }): BsTable => {
+      const keyName = typeof keyFieldOrName === 'string' ? keyFieldOrName : keyFieldOrName.name
+      return bsOf(
+        { category: 'base', keyName, ttl: options?.ttl, zod: bsZod(fields) },
+        raw.cacheTable(keyFieldOrName, fields)
+      )
+    },
 
     childTable: (fkOrChild: ChildLike | string, schema?: TblChild): BsTable => {
       if (isChildObj(fkOrChild))
@@ -946,22 +1007,27 @@ const fkSuffix = /Id$/u,
 
     fileTable: (): BsTable => bsOf({ category: 'file' }, raw.fileTable()),
 
-    orgScopedTable: (fields: TblInput, extra?: TblExtra, options?: OrgScopedOpts): BsTable => {
-      const { cascade, rateLimit, softDelete, ...stdbOpts } = options ?? {}
+    orgScopedTable: <F extends TblInput>(fields: F, options?: OrgScopedOpts<F>): BsTable => {
+      const { cascade, extra, index, indexes, rateLimit, softDelete, unique } = options ?? {},
+        mergedExtra = mergeModifierExtra(fields, raw.t, { extra, index, unique }),
+        stdbOpts = indexes ? { indexes } : undefined
       return bsOf(
         { cascade, category: 'orgScoped', rateLimit, softDelete, zod: bsZod(fields) },
-        raw.orgScopedTable(fields, extra, oKeys(stdbOpts).length > 0 ? stdbOpts : undefined)
+        raw.orgScopedTable(fields, mergedExtra, stdbOpts)
       )
     },
 
-    orgTable: (fields: TblInput, extra?: TblExtra): BsTable =>
-      bsOf({ category: 'org', zod: bsZod(fields) }, raw.ownedTable(fields, extra)),
+    orgTable: <F extends TblInput>(fields: F, options?: OrgTableOpts<F>): BsTable => {
+      const { extra, index, unique } = options ?? {},
+        mergedExtra = mergeModifierExtra(fields, raw.t, { extra, index, unique })
+      return bsOf({ category: 'org', zod: bsZod(fields) }, raw.ownedTable(fields, mergedExtra))
+    },
 
-    ownedTable: (fields: TblInput, extra?: TblExtra, options?: OwnedOpts): BsTable =>
-      bsOf(
-        { category: 'owned', rateLimit: options?.rateLimit, softDelete: options?.softDelete, zod: bsZod(fields) },
-        raw.ownedTable(fields, extra)
-      ),
+    ownedTable: <F extends TblInput>(fields: F, options?: OwnedOpts<F>): BsTable => {
+      const { extra, index, rateLimit, softDelete, unique } = options ?? {},
+        mergedExtra = mergeModifierExtra(fields, raw.t, { extra, index, unique })
+      return bsOf({ category: 'owned', rateLimit, softDelete, zod: bsZod(fields) }, raw.ownedTable(fields, mergedExtra))
+    },
 
     singletonTable: (fields: TblInput): BsTable =>
       bsOf({ category: 'singleton', zod: bsZod(fields) }, raw.singletonTable(fields)),
@@ -970,12 +1036,12 @@ const fkSuffix = /Id$/u,
   }),
   betterspace = (
     define: (helpers: {
-      cacheTable: (keyField: TblKey, fields: TblInput, options?: { ttl?: number }) => BsTable
+      cacheTable: (keyFieldOrName: string | TblKey, fields: TblInput, options?: { ttl?: number }) => BsTable
       childTable: (fkOrChild: ChildLike | string, schema?: TblChild) => BsTable
       fileTable: () => BsTable
-      orgScopedTable: (fields: TblInput, extra?: TblExtra, options?: OrgScopedOpts) => BsTable
-      orgTable: (fields: TblInput, extra?: TblExtra) => BsTable
-      ownedTable: (fields: TblInput, extra?: TblExtra, options?: OwnedOpts) => BsTable
+      orgScopedTable: <F extends TblInput>(fields: F, options?: OrgScopedOpts<F>) => BsTable
+      orgTable: <F extends TblInput>(fields: F, options?: OrgTableOpts<F>) => BsTable
+      ownedTable: <F extends TblInput>(fields: F, options?: OwnedOpts<F>) => BsTable
       singletonTable: (fields: TblInput) => BsTable
       t: SchemaHelpers['t']
     }) => Record<string, BsTable>

@@ -716,6 +716,39 @@ describe('typesafe field references', () => {
     expect(_invalid).toBeDefined()
   })
 
+  test('child() string overload derives foreignKey from parent name', () => {
+    const result = child('chat', object({ content: string(), role: string() }))
+    expect(result.foreignKey).toBe('chatId')
+    expect(result.parent).toBe('chat')
+    expect(result.index).toBe('by_chat')
+    expect(result.schema).toBeDefined()
+  })
+
+  test('child() string overload infers foreignKey type as template literal', () => {
+    const result = child('chat', object({ content: string(), role: string() })),
+      fk: 'chatId' = result.foreignKey
+    expect(fk).toBe('chatId')
+  })
+
+  test('child() string overload works with various parent names', () => {
+    const r1 = child('blog', object({ text: string() }))
+    expect(r1.foreignKey).toBe('blogId')
+    expect(r1.parent).toBe('blog')
+    expect(r1.index).toBe('by_blog')
+
+    const r2 = child('project', object({ name: string() }))
+    expect(r2.foreignKey).toBe('projectId')
+    expect(r2.parent).toBe('project')
+    expect(r2.index).toBe('by_project')
+  })
+
+  test('child() config overload still works with FK validation', () => {
+    const result = child({ foreignKey: 'chatId', parent: 'chat', schema: messageSchema })
+    expect(result.foreignKey).toBe('chatId')
+    expect(result.parent).toBe('chat')
+    expect(result.index).toBe('by_chat')
+  })
+
   test('search is not part of CrudOptions type', () => {
     type MsgShape = typeof messageSchema.shape
     type HasSearch = 'search' extends keyof CrudOptions<MsgShape> ? true : false

@@ -4,28 +4,27 @@ import { base, children, org as orgFields, orgScoped, owned, singleton } from '.
 
 export default betterspace(
   ({ cacheTable, childTable, fileTable, orgScopedTable, orgTable, ownedTable, singletonTable, t }) => ({
-    blog: ownedTable(owned.blog, { published: t.bool().index() }, { rateLimit: { max: 10, window: 60_000 } }),
+    blog: ownedTable(owned.blog, { index: ['published'], rateLimit: { max: 10, window: 60_000 } }),
     blogProfile: singletonTable(singleton.blogProfile),
-    chat: ownedTable(owned.chat, { isPublic: t.bool().index() }, { rateLimit: { max: 10, window: 60_000 } }),
+    chat: ownedTable(owned.chat, { index: ['isPublic'], rateLimit: { max: 10, window: 60_000 } }),
     file: fileTable(),
     message: childTable(children.message),
-    movie: cacheTable({ builder: t.u32().unique(), name: 'tmdbId' }, base.movie),
-    org: orgTable(orgFields.team, { slug: t.string().unique() }),
+    movie: cacheTable('tmdbId', base.movie),
+    org: orgTable(orgFields.team, { unique: ['slug'] }),
     orgProfile: singletonTable(singleton.orgProfile),
-    project: orgScopedTable(orgScoped.project, { editors: t.array(t.identity()).optional() }, { cascade: true }),
-    task: orgScopedTable(
-      orgScoped.task,
-      { assigneeId: t.identity().optional(), projectId: t.u32().index() },
-      { cascade: true }
-    ),
-    wiki: orgScopedTable(
-      orgScoped.wiki,
-      { deletedAt: t.timestamp().optional(), editors: t.array(t.identity()).optional() },
-      {
-        cascade: true,
-        indexes: [{ accessor: 'orgIdSlug', algorithm: 'btree' as const, columns: ['orgId', 'slug'] }],
-        softDelete: true
-      }
-    )
+    project: orgScopedTable(orgScoped.project, {
+      cascade: true,
+      extra: { editors: t.array(t.identity()).optional() }
+    }),
+    task: orgScopedTable(orgScoped.task, {
+      cascade: true,
+      extra: { assigneeId: t.identity().optional(), projectId: t.u32().index() }
+    }),
+    wiki: orgScopedTable(orgScoped.wiki, {
+      cascade: true,
+      extra: { deletedAt: t.timestamp().optional(), editors: t.array(t.identity()).optional() },
+      indexes: [{ accessor: 'orgIdSlug', algorithm: 'btree' as const, columns: ['orgId', 'slug'] }],
+      softDelete: true
+    })
   })
 )

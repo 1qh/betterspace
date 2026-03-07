@@ -6,74 +6,40 @@ A chat app with rooms, messages, and live presence.
 
 ### Schema
 
-```typescript
-// packages/be/spacetimedb/src/index.ts
-import { makeCrud, makeChildCrud, makePresence } from 'betterspace/server'
-import { schema, t, table } from 'spacetimedb/server'
+`t.ts` (Zod schema definitions):
 
-const chat = table(
-    { public: true },
-    {
-      id: t.u32().autoInc().primaryKey(),
-      title: t.string(),
-      isPublic: t.bool().index(),
-      updatedAt: t.timestamp(),
-      userId: t.identity().index()
-    }
-  ),
-  message = table(
-    { public: true },
-    {
-      id: t.u32().autoInc().primaryKey(),
-      chatId: t.u32().index(),
-      content: t.string(),
-      updatedAt: t.timestamp(),
-      userId: t.identity().index()
-    }
-  ),
-  presence = table(
-    { public: true },
-    {
-      id: t.u32().autoInc().primaryKey(),
-      roomId: t.string().index(),
-      userId: t.identity().index(),
-      data: t.string(),
-      lastSeen: t.timestamp()
-    }
-  ),
-  spacetimedb = schema({ chat, message, presence }),
-  chatCrud = makeCrud(spacetimedb, {
-    fields: { title: t.string(), isPublic: t.bool() },
-    idField: t.u32(),
-    pk: tbl => tbl.id,
-    table: db => db.chat,
-    tableName: 'chat'
+```typescript
+import { child, makeOwned } from 'betterspace/schema'
+import { boolean, object, string } from 'zod/v4'
+
+const owned = makeOwned({
+    chat: object({ isPublic: boolean(), title: string().min(1) })
   }),
-  messageCrud = makeChildCrud(spacetimedb, {
-    fields: { content: t.string() },
-    foreignKeyField: t.u32(),
-    foreignKeyName: 'chatId',
-    idField: t.u32(),
-    parentPk: tbl => tbl.id,
-    parentTable: db => db.chat,
-    pk: tbl => tbl.id,
-    table: db => db.message,
-    tableName: 'message'
-  }),
-  presenceFns = makePresence(spacetimedb, {
+  children = {
+    message: child('chat', object({ content: string() }))
+  }
+
+export { children, owned }
+```
+
+`index.ts` (backend module):
+
+```typescript
+import { betterspace, makePresence } from 'betterspace/server'
+import { children, owned } from '../../t'
+
+export default betterspace(({ childTable, ownedTable, t }) => {
+  const presence = makePresence({
     dataField: t.string(),
-    roomIdField: t.string(),
-    pk: tbl => tbl.id,
-    table: db => db.presence
-  }),
-  reducers = spacetimedb.exportGroup({
-    ...chatCrud.exports,
-    ...messageCrud.exports,
-    ...presenceFns.exports
+    roomIdField: t.string()
   })
 
-export { reducers }
-export default spacetimedb
+  return {
+    chat: ownedTable(owned.chat, { index: ['isPublic'] }),
+    message: childTable(children.message),
+    ...presence.tables
+  }
+})
 ```
 
 ### Chat component
@@ -210,26 +176,28 @@ Projects and tasks that belong to an org, with member-only write access.
 
 ### Schema
 
+`t.ts`:
+
 ```typescript
-const project = table(
-    { public: true },
-    {
-      id: t.u32().autoInc().primaryKey(),
-      orgId: t.u32().index(),
-      name: t.string(),
-      updatedAt: t.timestamp(),
-      userId: t.identity().index()
-    }
-  ),
-  projectCrud = makeOrgCrud(spacetimedb, {
-    fields: { name: t.string() },
-    idField: t.u32(),
-    orgIdField: t.u32(),
-    orgMemberTable: db => db.orgMember,
-    pk: tbl => tbl.id,
-    table: db => db.project,
-    tableName: 'project'
-  })
+import { makeOrgScoped } from 'betterspace/schema'
+import { object, string } from 'zod/v4'
+
+const orgScoped = makeOrgScoped({
+  project: object({ description: string().optional(), name: string().min(1) })
+})
+
+export { orgScoped }
+```
+
+`index.ts`:
+
+```typescript
+import { betterspace } from 'betterspace/server'
+import { orgScoped } from '../../t'
+
+export default betterspace(({ orgScopedTable }) => ({
+  project: orgScopedTable(orgScoped.project)
+}))
 ```
 
 ### Client
@@ -277,33 +245,33 @@ Cache third-party API responses in SpacetimeDB with TTL-based invalidation.
 
 ### Schema
 
+`t.ts`:
+
 ```typescript
-const movie = table(
-    { public: true },
-    {
-      id: t.u32().autoInc().primaryKey(),
-      tmdbId: t.u32().unique(),
-      title: t.string(),
-      overview: t.string(),
-      voteAverage: t.number(),
-      cachedAt: t.timestamp(),
-      invalidatedAt: t.timestamp().optional(),
-      updatedAt: t.timestamp()
-    }
-  ),
-  movieCrud = makeCacheCrud(spacetimedb, {
-    fields: {
-      title: t.string(),
-      overview: t.string(),
-      voteAverage: t.number()
-    },
-    keyField: t.number(),
-    keyName: 'tmdbId',
-    pk: tbl => tbl.tmdbId,
-    table: db => db.movie,
-    tableName: 'movie',
-    options: { ttl: 7 * 24 * 60 * 60 * 1000 }
+import { makeBase } from 'betterspace/schema'
+import { number, object, string } from 'zod/v4'
+
+const base = makeBase({
+  movie: object({
+    overview: string(),
+    title: string(),
+    tmdbId: number(),
+    voteAverage: number()
   })
+})
+
+export { base }
+```
+
+`index.ts`:
+
+```typescript
+import { betterspace } from 'betterspace/server'
+import { base } from '../../t'
+
+export default betterspace(({ cacheTable }) => ({
+  movie: cacheTable('tmdbId', base.movie)
+}))
 ```
 
 ### Next.js API route for cache population
@@ -390,36 +358,35 @@ const MovieList = () => {
 
 ## Soft delete with restore
 
-Use `softDelete: true` in `makeCrud` to set `deletedAt` instead of deleting rows.
+Use `softDelete: true` in `orgScopedTable` to set `deletedAt` instead of deleting rows.
 
 ### Schema
 
+`t.ts`:
+
 ```typescript
-const wiki = table(
-    { public: true },
-    {
-      id: t.u32().autoInc().primaryKey(),
-      title: t.string(),
-      content: t.string().optional(),
-      deletedAt: t.timestamp().optional(),
-      updatedAt: t.timestamp(),
-      userId: t.identity().index()
-    }
-  ),
-  wikiCrud = makeOrgCrud(spacetimedb, {
-    fields: {
-      title: t.string(),
-      content: t.string().optional(),
-      deletedAt: t.timestamp().optional()
-    },
-    idField: t.u32(),
-    orgIdField: t.u32(),
-    orgMemberTable: db => db.orgMember,
-    pk: tbl => tbl.id,
-    table: db => db.wiki,
-    tableName: 'wiki',
-    options: { softDelete: true }
+import { makeOrgScoped } from 'betterspace/schema'
+import { object, string } from 'zod/v4'
+
+const orgScoped = makeOrgScoped({
+  wiki: object({ content: string().optional(), title: string().min(1) })
+})
+
+export { orgScoped }
+```
+
+`index.ts`:
+
+```typescript
+import { betterspace } from 'betterspace/server'
+import { orgScoped } from '../../t'
+
+export default betterspace(({ orgScopedTable, t }) => ({
+  wiki: orgScopedTable(orgScoped.wiki, {
+    extra: { deletedAt: t.timestamp().optional() },
+    softDelete: true
   })
+}))
 ```
 
 ### Client: filter out deleted rows
@@ -448,7 +415,7 @@ const restore = async (id: number) => {
 
 ## Post-mutation workflows with onSuccess and onSettled
 
-Run side effects after a mutation completes — redirect, reset form state, show a toast.
+Run side effects after a mutation completes: redirect, reset form state, show a toast.
 
 ```typescript
 'use client'
@@ -505,13 +472,13 @@ Derive prop types from your schema brands instead of duplicating type definition
 ```typescript
 import type { InferRow, InferCreate, InferUpdate } from 'betterspace/server'
 import { makeOwned } from 'betterspace/schema'
-import { z } from 'zod/v4'
+import { boolean, object, string } from 'zod/v4'
 
 const schemas = makeOwned({
-  post: z.object({
-    title: z.string(),
-    content: z.string(),
-    published: z.boolean()
+  post: object({
+    title: string(),
+    content: string(),
+    published: boolean()
   })
 })
 
@@ -519,7 +486,6 @@ type PostRow = InferRow<typeof schemas.post>
 type PostCreate = InferCreate<typeof schemas.post>
 type PostUpdate = InferUpdate<typeof schemas.post>
 
-// Use in component props
 const PostCard = ({ post }: { post: PostRow }) => (
   <div>
     <h2>{post.title}</h2>
@@ -537,10 +503,9 @@ const EditPostForm = ({ post, onSubmit }: { post: PostRow; onSubmit: (data: Post
 }
 ```
 
-`InferRow` includes the database-added fields (`_id`, `_creationTime`, `updatedAt`,
-`userId` for owned schemas).
-`InferCreate` is the raw field shape — what you pass to the create reducer.
-`InferUpdate` makes all fields optional — what you pass to the update reducer.
+`InferRow` includes the database-added fields (`id`, `updatedAt`, `userId` for owned
+schemas). `InferCreate` is the raw field shape, what you pass to the create reducer.
+`InferUpdate` makes all fields optional, what you pass to the update reducer.
 
 ---
 
@@ -584,12 +549,12 @@ Define one base schema and derive both create and update variants from it.
 
 ```typescript
 import { schemaVariants } from 'betterspace/zod'
-import { z } from 'zod/v4'
+import { boolean, object, string } from 'zod/v4'
 
-const postSchema = z.object({
-  title: z.string().min(1, 'Title is required'),
-  content: z.string().min(10, 'Content must be at least 10 characters'),
-  published: z.boolean()
+const postSchema = object({
+  title: string().min(1, 'Title is required'),
+  content: string().min(10, 'Content must be at least 10 characters'),
+  published: boolean()
 })
 
 // create: all fields required
@@ -615,7 +580,7 @@ const CreatePost = () => {
   )
 }
 
-// Edit form — same schema, update variant
+// Edit form, update variant
 const EditPost = ({ post }: { post: PostRow }) => {
   const updatePost = useReducer(reducers.update_post)
   const form = useForm({
@@ -731,7 +696,7 @@ const save = useMutation(useReducer, reducers.update_blog, {
 })
 ```
 
-All `MutateOptions` work the same way — `onSuccess`, `onSettled`, `onError`, `retry`,
+All `MutateOptions` work the same way: `onSuccess`, `onSettled`, `onError`, `retry`,
 `optimistic`, etc.
 
 ---
@@ -757,16 +722,21 @@ const save = useMutation(useReducer, reducers.update_blog, {
 After:
 
 ```typescript
-import { useMutation } from 'betterspace/react'
+import { getFieldErrors } from 'betterspace/server'
+import { useMutate } from 'betterspace/react'
 import { useReducer } from 'spacetimedb/react'
+import { useState } from 'react'
 import { reducers } from '@/generated/module_bindings'
+import { boolean, object, string } from 'zod/v4'
 
-const save = useMutation(useReducer, reducers.update_blog, {
-  toast: { success: 'Saved', error: 'Save failed' }
+const postSchema = object({
+  title: string().min(1),
+  content: string().min(10),
+  published: boolean()
 })
 ```
 
-`fieldErrors` defaults to `true` — if the server returns field validation errors, the
+`fieldErrors` defaults to `true`. If the server returns field validation errors, the
 first one is toasted before the generic `error` message.
 Set `fieldErrors: false` to skip that behavior.
 
@@ -782,7 +752,7 @@ const save = useMutation(useReducer, reducers.update_blog, {
 })
 ```
 
-`onSuccess` and `toast.success` compose — both run when provided.
+`onSuccess` and `toast.success` compose; both run when provided.
 
 ---
 
@@ -826,17 +796,17 @@ than as toasts.
 ## Phantom type inference
 
 Branded schemas expose `$inferRow`, `$inferCreate`, and `$inferUpdate` as readable
-properties. No import needed — just use `typeof schema.$inferRow`.
+properties. No import needed, just use `typeof schema.$inferRow`.
 
 ```typescript
 import { makeOwned } from 'betterspace/schema'
-import { z } from 'zod/v4'
+import { boolean, object, string } from 'zod/v4'
 
 const schemas = makeOwned({
-  post: z.object({
-    title: z.string(),
-    content: z.string(),
-    published: z.boolean()
+  post: object({
+    title: string(),
+    content: string(),
+    published: boolean()
   })
 })
 
@@ -845,9 +815,8 @@ type PostCreate = typeof schemas.post.$inferCreate
 type PostUpdate = typeof schemas.post.$inferUpdate
 ```
 
-`PostRow` includes the database-added fields (`_id`, `_creationTime`, `updatedAt`,
-`userId` for owned schemas).
-This is equivalent to `InferRow<typeof postSchema>` but skips the import.
+`PostRow` includes the database-added fields (`id`, `updatedAt`, `userId` for owned
+schemas). This is equivalent to `InferRow<typeof postSchema>` but skips the import.
 
 The `~types` accessor groups all three:
 
@@ -895,7 +864,7 @@ try {
 }
 ```
 
-For most cases, `handleError` or `matchError` is simpler — they parse the error
-internally without the `_tag` check.
+For most cases, `handleError` or `matchError` is simpler.
+They parse the error internally without the `_tag` check.
 Use `_tag` when you need to re-throw non-betterspace errors or integrate with an
 external error boundary that inspects error shape.

@@ -24,16 +24,13 @@ const file = cvFile(),
     })
   }),
   children = {
-    message: child({
-      foreignKey: 'chatId',
-      parent: 'chat',
-      parentSchema: owned.chat,
-      schema: object({
-        chatId: number(),
+    message: child(
+      'chat',
+      object({
         parts: array(messagePart),
         role: zenum(['user', 'assistant', 'system'])
       })
-    })
+    )
   },
   base = makeBase({
     movie: object({

@@ -259,32 +259,41 @@ export default defineSchema({
 
 ```typescript
 // betterspace
+// packages/be/t.ts
+import { makeOwned } from 'betterspace/schema'
+import { boolean, object, string } from 'zod/v4'
+
+const owned = makeOwned({
+  post: object({
+    content: string(),
+    published: boolean(),
+    title: string()
+  })
+})
+
+export { owned }
+```
+
+```typescript
+// betterspace
 // packages/be/spacetimedb/src/index.ts
-import { schema, t, table } from 'spacetimedb/server'
+import { betterspace } from 'betterspace/server'
+import { owned } from '../../t'
 
-const post = table(
-  { public: true },
-  {
-    id: t.u32().autoInc().primaryKey(),
-    title: t.string(),
-    content: t.string(),
-    published: t.bool().index(),
-    updatedAt: t.timestamp(),
-    userId: t.identity().index()
-  }
-)
-
-const spacetimedb = schema({ post })
+export default betterspace(({ ownedTable }) => ({
+  post: ownedTable(owned.post, { index: ['published'] })
+}))
 ```
 
 Key differences:
 
 - Convex uses `v.string()`, `v.boolean()`, etc.
-  SpacetimeDB uses `t.string()`, `t.bool()`, etc.
+  betterspace uses standard Zod: `string()`, `boolean()`, etc.
 - Convex IDs are strings (`Id<"post">`). SpacetimeDB IDs are numbers (`u32`).
-- SpacetimeDB requires explicit `id`, `updatedAt`, and `userId` fields.
-  Convex adds `_id` and `_creationTime` automatically.
-- SpacetimeDB tables need `{ public: true }` to be subscribable by clients.
+- Both add system fields automatically (`id`, `updatedAt`, `userId` in betterspace;
+  `_id`, `_creationTime` in Convex).
+- betterspace uses `{ index: ['published'] }` shorthand instead of
+  `.index('by_published', ['published'])`.
 
 ## IDs
 

@@ -186,8 +186,10 @@ const isRecord = (value: unknown): value is Record<string, unknown> => typeof va
       schema = stdbSchema,
       tbl = (opts: TableOptions, fields: TableFields): StdbTable =>
         table({ public: true, ...opts } as never, fields as never),
-      cacheTable = (keyField: KeyField, fields: TableInput, opts?: TableOptions): StdbTable =>
-        tbl(
+      cacheTable = (keyFieldOrName: KeyField | string, fields: TableInput, opts?: TableOptions): StdbTable => {
+        const keyField: KeyField =
+          typeof keyFieldOrName === 'string' ? { builder: t.u32().unique(), name: keyFieldOrName } : keyFieldOrName
+        return tbl(
           { ...opts },
           {
             ...resolveFields(fields, t, 'cache'),
@@ -198,7 +200,8 @@ const isRecord = (value: unknown): value is Record<string, unknown> => typeof va
             [keyField.name]: keyField.builder,
             updatedAt: t.timestamp()
           }
-        ),
+        )
+      },
       childTable = (foreignKeyName: string, fields: TableInput, opts?: TableOptions): StdbTable =>
         tbl(
           { ...opts },
@@ -313,5 +316,5 @@ const isRecord = (value: unknown): value is Record<string, unknown> => typeof va
     }
   }
 
-export type { StdbDeps, StdbTable, ZodBridgeT }
+export type { FieldBuilder, StdbDeps, StdbTable, TableFields, ZodBridgeT }
 export { makeSchema, zodToStdbFields }

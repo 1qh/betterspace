@@ -850,10 +850,70 @@ export const reducers = spacetimedb.exportGroup(allExports())
 **New pattern (1 file)**:
 
 ```ts
-export default betterspace(({ ownedTable, t }) => ({
-  post: ownedTable(owned.post, { published: t.bool().index() })
+export default betterspace(({ ownedTable }) => ({
+  post: ownedTable(owned.post, { index: ['published'] })
 }))
 ```
+
+---
+
+## Phase 10: API Simplification — index/unique shorthand, child() overload, cacheTable string
+
+**Status**: [x] COMPLETE
+
+Three further simplifications to eliminate remaining boilerplate:
+
+### 1. Index/Unique shorthand
+
+Fields already defined in Zod no longer need SpacetimeDB type redeclaration just to add
+`.index()` or `.unique()`:
+
+**Before**: `ownedTable(owned.blog, { published: t.bool().index() })` **After**:
+`ownedTable(owned.blog, { index: ['published'] })`
+
+The library auto-resolves the Zod field type to its SpacetimeDB equivalent and applies
+the modifier. Type-safe: misspelled field names produce a compile error.
+
+### 2. Simpler child()
+
+**Before**:
+
+```ts
+child({
+  foreignKey: 'chatId',
+  parent: 'chat',
+  parentSchema: owned.chat,
+  schema: object({ chatId: number(), parts: array(messagePart), role: zenum([...]) })
+})
+```
+
+**After**:
+
+```ts
+child('chat', object({ parts: array(messagePart), role: zenum([...]) }))
+```
+
+Auto-derives: `foreignKey = 'chatId'`, `parent = 'chat'`, `index = 'by_chat'`. No need
+to include the FK field in the schema — `childTable` adds it automatically.
+
+### 3. Simpler cacheTable
+
+**Before**: `cacheTable({ builder: t.u32().unique(), name: 'tmdbId' }, base.movie)`
+**After**: `cacheTable('tmdbId', base.movie)`
+
+String key name defaults to `t.u32().unique()` builder.
+
+### 4. Merged options
+
+Extra SpacetimeDB fields and table options merged into a single parameter:
+
+**Before**:
+`orgScopedTable(schema, { editors: t.array(t.identity()).optional() }, { cascade: true })`
+**After**:
+`orgScopedTable(schema, { cascade: true, extra: { editors: t.array(t.identity()).optional() } })`
+
+Consumer `src/index.ts` remains at 31 lines with cleaner, more declarative definitions.
+Consumer `t.ts` child definition went from 11 lines to 4 lines.
 
 ---
 
