@@ -25,7 +25,7 @@ const RLS_COL = { orgId: 'orgId', userId: 'userId' } as const,
   },
   rlsSql = (name: string, category: RlsCategory, pub?: RlsPub): string[] => {
     if (pub === true) return []
-    if (category === 'owned' || category === 'children' || category === 'file') {
+    if (category === 'owned' || category === 'children' || category === 'file' || category === 'singleton') {
       if (typeof pub === 'string') return [rlsWherePubOrSender(name, pub, RLS_COL.userId)]
       return [rlsWhereSender(name, RLS_COL.userId)]
     }

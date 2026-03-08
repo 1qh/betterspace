@@ -10373,6 +10373,17 @@ describe('type-safe column references in table options', () => {
     expect(metadata).toMatchObject({ category: 'owned', pub: 'published' })
   })
 
+  test('pub option rejects misspelled field names', () => {
+    withUniversalTable(table => {
+      const ownedSchema = buildSchema({
+          owned: { blog: object({ published: boolean(), title: string() }) }
+        }),
+        // @ts-expect-error - publishd is not a valid blog field
+        invalid = table(ownedSchema.blog, { pub: 'publishd' })
+      expect(invalid).toBeDefined()
+    })
+  })
+
   test('setup source constrains pub option to typed schema keys', async () => {
     const { readFileSync } = await import('node:fs'),
       { join } = await import('node:path'),
@@ -10436,9 +10447,10 @@ describe('RLS SQL generation from pub metadata', () => {
     expect(sqls).toHaveLength(0)
   })
 
-  test('singleton table generates no RLS', () => {
+  test('singleton table generates userId RLS for per-user isolation', () => {
     const sqls = rlsSql('settings', 'singleton')
-    expect(sqls).toHaveLength(0)
+    expect(sqls).toHaveLength(1)
+    expect(sqls[0]).toContain('"settings"."userId" = :sender')
   })
 
   test('org table generates no RLS', () => {

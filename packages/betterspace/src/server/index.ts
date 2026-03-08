@@ -26,7 +26,8 @@ export {
   makeUnique,
   matchError,
   ok,
-  time
+  time,
+  warnLargeFilterSet
 } from './helpers'
 export { auditLog, composeMiddleware, inputSanitize, slowQueryWarn } from './middleware'
 export { makeOrg, makeOrgTables } from './org'

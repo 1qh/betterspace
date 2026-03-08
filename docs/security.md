@@ -18,6 +18,7 @@ It cannot be spoofed.
 | `pub: 'published'`             | `WHERE published = true OR userId = :sender`                         |
 | No `pub` (owned)               | `WHERE userId = :sender`                                             |
 | No `pub` (file)                | `WHERE userId = :sender`                                             |
+| No `pub` (singleton)           | `WHERE userId = :sender` — per-user isolation                        |
 | No `pub` (orgScoped)           | `JOIN orgMember ON orgId WHERE orgMember.userId = :sender`           |
 | `base` / `cache`               | No filter — cache tables are public by design                        |
 | Children (parent has `pub`)    | `JOIN parent ON fk WHERE parent.pubField = true OR userId = :sender` |
@@ -94,7 +95,7 @@ All generated CRUD reducers enforce access control via `ctx.sender`:
 | `orgScoped` | Org members only       | Row owner or org admin    |
 | `children`  | Parent row owner only  | Parent row owner only     |
 | `singleton` | Any authenticated user | Owner only (1:1 per user) |
-| `base`      | Any authenticated user | Any authenticated user    |
+| `base`      | Server-side only       | Server-side only          |
 | `file`      | Any authenticated user | File owner only           |
 
 ### Input Validation
@@ -253,6 +254,21 @@ SpacetimeDB holds all data in RAM. Tables must stay bounded:
 
 Hot data (last 30 days) stays in SpacetimeDB for real-time access.
 Cold data (older) moves to external storage for historical queries.
+
+### Runtime Safeguards
+
+`warnLargeFilterSet` (from `betterspace/server`) warns or throws when client-side
+filtering exceeds a threshold (default: 1000 rows).
+Use it in subscription handlers to catch unbounded data patterns during development:
+
+```tsx
+import { warnLargeFilterSet } from 'betterspace/server'
+
+warnLargeFilterSet(rows.length, 'posts', 'home-feed')
+warnLargeFilterSet(rows.length, 'posts', 'home-feed', true)
+```
+
+Pass `true` as the fourth argument for strict mode (throws instead of warns).
 
 ### Anti-Patterns
 
