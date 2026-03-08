@@ -108,10 +108,14 @@ const DAY_HOURS = 24,
   SECONDS_PER_MINUTE = 60,
   SEVEN_DAYS_MS = DAYS_PER_WEEK * DAY_HOURS * MINUTES_PER_HOUR * SECONDS_PER_MINUTE * MILLIS_PER_SECOND,
   TOKEN_BASE = 36,
+  TOKEN_BYTES = 24,
+  TOKEN_LENGTH = 32,
   makeInviteToken = (): string => {
-    const cryptoApi = globalThis.crypto as undefined | { randomUUID?: () => string }
-    if (cryptoApi && typeof cryptoApi.randomUUID === 'function') return cryptoApi.randomUUID()
-    return `${Date.now()}_${Math.random().toString(TOKEN_BASE).slice(2)}`
+    const bytes = new Uint8Array(TOKEN_BYTES)
+    crypto.getRandomValues(bytes)
+    let token = ''
+    for (const b of bytes) token += b.toString(TOKEN_BASE).padStart(2, '0').slice(0, 2)
+    return token.slice(0, TOKEN_LENGTH)
   },
   findOrgMember = <OrgId, MemberId, MemberRow extends OrgMemberRowLike<MemberId, OrgId>>(
     orgMemberTable: Iterable<MemberRow>,
@@ -388,4 +392,4 @@ export type {
   OrgPkLike,
   OrgRowLike
 }
-export { makeInviteReducers }
+export { makeInviteReducers, makeInviteToken }

@@ -5,10 +5,6 @@ import type { GlobalHookCtx, GlobalHooks, Middleware, MiddlewareCtx, Rec } from 
 import { log } from './helpers'
 
 const withOp = (ctx: GlobalHookCtx, op: MiddlewareCtx['operation']): MiddlewareCtx => ({ ...ctx, operation: op }),
-  /** Composes middleware hooks into a single global hook set.
-   * @param middlewares - Middleware chain to execute in order
-   * @returns Combined global hooks
-   */
   // oxlint-disable-next-line max-statements
   composeMiddleware = (...middlewares: Middleware[]): GlobalHooks => {
     const hooks: GlobalHooks = {},
@@ -61,11 +57,6 @@ const withOp = (ctx: GlobalHookCtx, op: MiddlewareCtx['operation']): MiddlewareC
 
     return hooks
   },
-  /**
-   * Creates a middleware that logs structured audit entries for create, update, and delete operations.
-   * @param opts - Optional log level and verbosity settings
-   * @returns Middleware that emits audit log entries
-   */
   auditLog = (opts?: { logLevel?: 'debug' | 'info'; verbose?: boolean }): Middleware => {
     const level = opts?.logLevel ?? 'info',
       verbose = opts?.verbose ?? false
@@ -87,11 +78,6 @@ const withOp = (ctx: GlobalHookCtx, op: MiddlewareCtx['operation']): MiddlewareC
     }
   },
   DEFAULT_SLOW_THRESHOLD_MS = 500,
-  /**
-   * Creates a middleware that warns when mutation operations exceed a configurable time threshold.
-   * @param opts - Optional threshold in milliseconds (default 500ms)
-   * @returns Middleware that logs slow operation warnings
-   */
   slowQueryWarn = (opts?: { threshold?: number }): Middleware => {
     const threshold = opts?.threshold ?? DEFAULT_SLOW_THRESHOLD_MS
     return {
@@ -123,7 +109,18 @@ const withOp = (ctx: GlobalHookCtx, op: MiddlewareCtx['operation']): MiddlewareC
   },
   SCRIPT_TAG_PATTERN = /<script\b[^<]*(?:(?!<\/script>)<[^<]*)*<\/script>/giu,
   EVENT_HANDLER_PATTERN = /\bon\w+\s*=/giu,
-  sanitizeString = (val: string): string => val.replace(SCRIPT_TAG_PATTERN, '').replace(EVENT_HANDLER_PATTERN, ''),
+  JAVASCRIPT_PROTO_PATTERN = /javascript\s*:/giu,
+  DATA_URI_SCRIPT_PATTERN = /data\s*:\s*text\/html/giu,
+  DANGEROUS_TAG_PATTERN = /<\s*\/?\s*(?:iframe|object|embed|applet|form|base|meta)\b[^>]*>/giu,
+  HTML_ENCODED_SCRIPT_PATTERN = /&#(?:x0*(?:3c|3e)|0*(?:60|62));/giu,
+  sanitizeString = (val: string): string =>
+    val
+      .replace(SCRIPT_TAG_PATTERN, '')
+      .replace(EVENT_HANDLER_PATTERN, '')
+      .replace(JAVASCRIPT_PROTO_PATTERN, '')
+      .replace(DATA_URI_SCRIPT_PATTERN, '')
+      .replace(DANGEROUS_TAG_PATTERN, '')
+      .replace(HTML_ENCODED_SCRIPT_PATTERN, ''),
   sanitizeRec = (data: Rec): Rec => {
     const result: Rec = {}
     for (const key of Object.keys(data)) {
@@ -132,11 +129,6 @@ const withOp = (ctx: GlobalHookCtx, op: MiddlewareCtx['operation']): MiddlewareC
     }
     return result
   },
-  /**
-   * Creates a middleware that strips `<script>` tags and inline event handlers from string fields before writes.
-   * @param opts - Optional list of specific fields to sanitize; defaults to all string fields
-   * @returns Middleware that sanitizes input data
-   */
   inputSanitize = (opts?: { fields?: string[] }): Middleware => {
     const targetFields = opts?.fields ? new Set(opts.fields) : undefined
     return {

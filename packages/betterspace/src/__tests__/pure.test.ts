@@ -197,6 +197,7 @@ import {
   slowQueryWarn
 } from '../server/middleware'
 import { orgCascade } from '../server/org-crud'
+import { makeInviteToken } from '../server/org-invites'
 import { HEARTBEAT_INTERVAL_MS, PRESENCE_TTL_MS } from '../server/presence'
 import { rlsChildSql, rlsSql } from '../server/rls'
 import { baseTable, orgTable, ownedTable, singletonTable } from '../server/schema-helpers'
@@ -231,7 +232,8 @@ declare module '../server/types/common' {
   }
 }
 
-const VOID = undefined,
+const TOKEN_CHARS_PATTERN = /^[0-9a-z]+$/u,
+  VOID = undefined,
   makeSenderError = (data: unknown): Error => {
     if (typeof data === 'string') return new Error(data)
     if (!(data && typeof data === 'object')) return new Error(String(data))
@@ -8832,6 +8834,13 @@ describe('doctor', () => {
         items: [{ _id: '1' }],
         orgId: 'org_1'
       },
+      bulkSelectionWithRm: ReactIndexTypes.UseBulkSelectionOpts = {
+        items: [{ _id: '1' }],
+        orgId: 'org_1',
+        rm: async () => {
+          String(0)
+        }
+      },
       cacheEntryOptionsType: ReactIndexTypes.UseCacheEntryOptions<{ id: string }, { _id: string; stale?: boolean }> = {
         args: { id: '1' },
         data: null,
@@ -8894,6 +8903,7 @@ describe('doctor', () => {
         SoftDeleteOpts: softDeleteType,
         UseBulkMutateOptions: bulkMutateOptionsType,
         UseBulkSelectionOpts: bulkSelectionType,
+        UseBulkSelectionOptsRm: bulkSelectionWithRm,
         UseCacheEntryOptions: cacheEntryOptionsType,
         UseCacheEntryResult: cacheEntryResultType,
         UseSearchOptions: searchOptionsType,
@@ -10763,5 +10773,211 @@ describe('FormToastOption type', () => {
     const opt: FormToastOption = {}
     expect(opt.success).toBeUndefined()
     expect(opt.error).toBeUndefined()
+  })
+})
+
+describe('makeInviteToken', () => {
+  test('returns a string of length 32', () => {
+    const token = makeInviteToken()
+    expect(token).toHaveLength(32)
+  })
+
+  test('returns only valid base-36 characters', () => {
+    const token = makeInviteToken()
+    expect(token).toMatch(TOKEN_CHARS_PATTERN)
+  })
+
+  test('generates unique tokens on successive calls', () => {
+    const tokens = new Set<string>()
+    for (let i = 0; i < 100; i += 1) tokens.add(makeInviteToken())
+    expect(tokens.size).toBe(100)
+  })
+
+  test('does not contain Date.now patterns', () => {
+    const token = makeInviteToken()
+    expect(token).not.toContain('_')
+  })
+
+  test('uses cryptographic randomness', () => {
+    const tokens: string[] = []
+    for (let i = 0; i < 50; i += 1) tokens.push(makeInviteToken())
+    const uniqueChars = new Set(tokens.join(''))
+    expect(uniqueChars.size).toBeGreaterThan(10)
+  })
+})
+
+const jsProto = 'javascript',
+  jsColon = `${jsProto}:`
+
+describe('sanitizeString (extended patterns)', () => {
+  test('removes javascript protocol', () => {
+    expect(sanitizeString(`click ${jsColon} alert(1)`)).toBe('click  alert(1)')
+  })
+
+  test('removes javascript protocol with spaces', () => {
+    expect(sanitizeString(`${jsProto} : void(0)`)).toBe(' void(0)')
+  })
+
+  test('removes javascript protocol case-insensitive', () => {
+    expect(sanitizeString(`${jsProto.toUpperCase()}: alert(1)`)).toBe(' alert(1)')
+  })
+
+  test('removes data:text/html URIs', () => {
+    expect(sanitizeString('src=data:text/html,<script>x</script>')).toBe('src=,')
+  })
+
+  test('removes data: text/html with spaces', () => {
+    expect(sanitizeString('data : text/html')).toBe('')
+  })
+
+  test('removes iframe tags', () => {
+    expect(sanitizeString('<iframe src="evil.com"></iframe>')).toBe('')
+  })
+
+  test('removes object tags', () => {
+    expect(sanitizeString('<object data="flash.swf"></object>')).toBe('')
+  })
+
+  test('removes embed tags', () => {
+    expect(sanitizeString('<embed src="plugin">')).toBe('')
+  })
+
+  test('removes applet tags', () => {
+    expect(sanitizeString('<applet code="Evil.class"></applet>')).toBe('')
+  })
+
+  test('removes form tags', () => {
+    expect(sanitizeString('<form action="evil"><input></form>')).toBe('<input>')
+  })
+
+  test('removes base tags', () => {
+    expect(sanitizeString('<base href="evil.com">')).toBe('')
+  })
+
+  test('removes meta tags', () => {
+    expect(sanitizeString('<meta http-equiv="refresh" content="0;url=evil">')).toBe('')
+  })
+
+  test('removes self-closing dangerous tags', () => {
+    expect(sanitizeString('<iframe/>')).toBe('')
+  })
+
+  test('removes closing dangerous tags', () => {
+    expect(sanitizeString('</iframe>')).toBe('')
+  })
+
+  test('removes HTML-encoded angle brackets (hex)', () => {
+    expect(sanitizeString('&#x3c;script&#x3e;')).toBe('script')
+  })
+
+  test('removes HTML-encoded angle brackets (decimal)', () => {
+    expect(sanitizeString('&#60;script&#62;')).toBe('script')
+  })
+
+  test('removes HTML-encoded with leading zeros', () => {
+    expect(sanitizeString('&#x003c;script&#x003e;')).toBe('script')
+  })
+
+  test('handles combined attack vectors', () => {
+    const input = `<script>x</script><iframe src="y"><img onerror= z>${jsColon} w`,
+      result = sanitizeString(input)
+    expect(result).not.toContain('<script')
+    expect(result).not.toContain('<iframe')
+    expect(result).not.toContain('onerror=')
+    expect(result).not.toContain(jsColon)
+  })
+
+  test('preserves safe HTML elements', () => {
+    expect(sanitizeString('<p>paragraph</p><span>text</span>')).toBe('<p>paragraph</p><span>text</span>')
+  })
+
+  test('preserves URLs with data in path', () => {
+    expect(sanitizeString('https://example.com/data/page')).toBe('https://example.com/data/page')
+  })
+})
+
+describe('UseBulkSelectionOpts rm option type', () => {
+  test('accepts rm without bulkRm', () => {
+    const opts: ReactIndexTypes.UseBulkSelectionOpts = {
+      items: [{ _id: '1' }, { _id: '2' }],
+      orgId: 'org_1',
+      rm: async () => {
+        String(0)
+      }
+    }
+    expect(opts.rm).toBeDefined()
+    expect(opts.bulkRm).toBeUndefined()
+  })
+
+  test('accepts bulkRm without rm', () => {
+    const opts: ReactIndexTypes.UseBulkSelectionOpts = {
+      bulkRm: async () => {
+        String(0)
+      },
+      items: [{ _id: '1' }],
+      orgId: 'org_1'
+    }
+    expect(opts.bulkRm).toBeDefined()
+    expect(opts.rm).toBeUndefined()
+  })
+
+  test('accepts both rm and bulkRm', () => {
+    const opts: ReactIndexTypes.UseBulkSelectionOpts = {
+      bulkRm: async () => {
+        String(0)
+      },
+      items: [],
+      orgId: 'org_1',
+      rm: async () => {
+        String(0)
+      }
+    }
+    expect(opts.rm).toBeDefined()
+    expect(opts.bulkRm).toBeDefined()
+  })
+
+  test('accepts neither rm nor bulkRm', () => {
+    const opts: ReactIndexTypes.UseBulkSelectionOpts = {
+      items: [],
+      orgId: 'org_1'
+    }
+    expect(opts.rm).toBeUndefined()
+    expect(opts.bulkRm).toBeUndefined()
+  })
+
+  test('rm receives string id parameter', () => {
+    let captured = ''
+    const opts: ReactIndexTypes.UseBulkSelectionOpts = {
+      items: [],
+      orgId: 'org_1',
+      rm: async (id: string) => {
+        captured = id
+      }
+    }
+    opts.rm?.('test-id')
+    expect(captured).toBe('test-id')
+  })
+
+  test('rm with all optional callbacks', () => {
+    let errorCalled = false,
+      successCount = 0
+    const opts: ReactIndexTypes.UseBulkSelectionOpts = {
+      items: [{ _id: 'a' }],
+      onError: () => {
+        errorCalled = true
+      },
+      onSuccess: (count: number) => {
+        successCount = count
+      },
+      orgId: 'org_1',
+      rm: async () => {
+        String(0)
+      }
+    }
+    opts.onError?.(new Error('test'))
+    opts.onSuccess?.(5)
+    expect(errorCalled).toBe(true)
+    expect(successCount).toBe(5)
+    expect(opts.rm).toBeDefined()
   })
 })
