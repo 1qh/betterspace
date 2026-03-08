@@ -16,6 +16,7 @@ import type {
   OrgDefSchema,
   OrgSchema,
   OwnedSchema,
+  RateLimitInput,
   Rec,
   SingletonSchema
 } from './types'
@@ -29,7 +30,7 @@ import { makeCacheCrud } from './cache-crud'
 import { makeChildCrud } from './child'
 import { makeCrud } from './crud'
 import { makeFileUpload } from './file'
-import { err } from './helpers'
+import { err, normalizeRateLimit } from './helpers'
 import { composeMiddleware } from './middleware'
 import { makeOrg, makeOrgTables } from './org'
 import { makeOrgCrud } from './org-crud'
@@ -947,7 +948,7 @@ interface OwnedOpts<F = unknown> {
   extra?: Record<string, FieldBuilder>
   index?: ZodKeys<F>[]
   pub?: boolean | ZodKeys<F>
-  rateLimit?: { max: number; window: number }
+  rateLimit?: RateLimitInput
   softDelete?: boolean
   unique?: ZodKeys<F>[]
 }
@@ -1145,7 +1146,18 @@ const compoundIndexToEntry = (columns: string[]): { accessor: string; algorithm:
       },
       fileTable = (): BsTable => bsOf({ category: 'file' }, raw.fileTable()),
       orgScopedTable = <F extends TblInput>(fields: F, options?: OrgScopedOpts<F>): BsTable => {
-        const { cascade = true, compoundIndex, extra, index, indexes, pub, rateLimit, softDelete, unique } = options ?? {},
+        const {
+            cascade = true,
+            compoundIndex,
+            extra,
+            index,
+            indexes,
+            pub,
+            rateLimit: rlInput,
+            softDelete,
+            unique
+          } = options ?? {},
+          rateLimit = rlInput ? normalizeRateLimit(rlInput) : undefined,
           sdExtra = softDelete ? { ...extra, deletedAt: raw.t.timestamp().optional() } : extra,
           mergedExtra = mergeModifierExtra(fields, raw.t, {
             extra: sdExtra,
@@ -1176,7 +1188,8 @@ const compoundIndexToEntry = (columns: string[]): { accessor: string; algorithm:
         return bsOf({ category: 'org', zod: bsZod(fields) }, raw.ownedTable(fields, mergedExtra))
       },
       ownedTable = <F extends TblInput>(fields: F, options?: OwnedOpts<F>): BsTable => {
-        const { extra, index, pub, rateLimit, softDelete, unique } = options ?? {},
+        const { extra, index, pub, rateLimit: rlInput, softDelete, unique } = options ?? {},
+          rateLimit = rlInput ? normalizeRateLimit(rlInput) : undefined,
           sdExtra = softDelete ? { ...extra, deletedAt: raw.t.timestamp().optional() } : extra,
           mergedExtra = mergeModifierExtra(fields, raw.t, {
             extra: sdExtra,
@@ -1296,7 +1309,12 @@ const compoundIndexToEntry = (columns: string[]): { accessor: string; algorithm:
         let sqls: string[]
         if (entry.__bs.category === 'children' && entry.__bs.childFk && entry.__bs.childParent) {
           const parentEntry = result[entry.__bs.childParent]
-          sqls = rlsChildSql(name, entry.__bs.childFk, entry.__bs.childParent, parentEntry?.__bs.pub)
+          sqls = rlsChildSql({
+            fk: entry.__bs.childFk,
+            name,
+            parent: entry.__bs.childParent,
+            parentPub: parentEntry?.__bs.pub
+          })
         } else sqls = rlsSql(name, entry.__bs.category, entry.__bs.pub)
 
         for (const sql of sqls) addRls(sql)

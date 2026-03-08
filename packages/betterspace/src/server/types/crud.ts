@@ -1,6 +1,8 @@
 import type { Identity, Timestamp } from 'spacetimedb'
 import type { AlgebraicTypeType, ColumnBuilder, ColumnMetadata, ReducerExport, TypeBuilder } from 'spacetimedb/server'
 
+import type { RateLimitConfig } from './common'
+
 interface CascadeOption {
   foreignKey: string
   table: string
@@ -82,7 +84,7 @@ interface CrudOptions<
 > {
   cascade?: CascadeOption[]
   hooks?: CrudHooks<DB, Row, CreateArgs, UpdatePatch>
-  rateLimit?: { max: number; window: number }
+  rateLimit?: RateLimitConfig
   softDelete?: boolean
 }
 

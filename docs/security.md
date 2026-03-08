@@ -135,10 +135,12 @@ If the row was modified since the client last read it, the update is rejected wi
 ### Rate Limiting
 
 ```tsx
-blog: table(s.blog, { rateLimit: { max: 10, window: 60_000 } })
+blog: table(s.blog, { rateLimit: 10 })
+blog: table(s.blog, { rateLimit: { max: 10, window: 30_000 } })
 ```
 
-Limits each user to 10 mutations per 60 seconds on that table.
+A number means “max N per minute” (60s window).
+Pass an object for custom windows.
 Exceeding the limit returns `RATE_LIMITED` with a `retryAfter` value in milliseconds.
 
 ## Org ACL (Access Control Lists)
@@ -264,11 +266,16 @@ Use it in subscription handlers to catch unbounded data patterns during developm
 ```tsx
 import { warnLargeFilterSet } from 'betterspace/server'
 
-warnLargeFilterSet(rows.length, 'posts', 'home-feed')
-warnLargeFilterSet(rows.length, 'posts', 'home-feed', true)
+warnLargeFilterSet({ count: rows.length, table: 'posts', context: 'home-feed' })
+warnLargeFilterSet({
+  count: rows.length,
+  table: 'posts',
+  context: 'home-feed',
+  strict: true
+})
 ```
 
-Pass `true` as the fourth argument for strict mode (throws instead of warns).
+Pass `strict: true` for strict mode (throws instead of warns).
 
 ### Anti-Patterns
 

@@ -491,7 +491,7 @@ It also auto-installs dependencies and creates `tsconfig.json` — no manual set
 | -------- | --------------------------- | ----: |
 | Web      | Playwright E2E              |   220 |
 | Backend  | SpacetimeDB test utilities  |    17 |
-| Library  | bun:test (`src/__tests__/`) |  1078 |
+| Library  | bun:test (`src/__tests__/`) |  1082 |
 
 ## Documentation
 
@@ -516,7 +516,7 @@ The library is independently testable without the demo apps:
 
 ```bash
 cd packages/betterspace
-bun test src/__tests__/  # 1078 library-only tests, no SpacetimeDB needed
+bun test src/__tests__/  # 1082 library-only tests, no SpacetimeDB needed
 bun lint          # library-scoped linting
 bun typecheck     # library-only type checking
 ```

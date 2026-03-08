@@ -1,5 +1,5 @@
 #!/usr/bin/env bun
-/* eslint-disable no-console, @typescript-eslint/max-params */
+/* eslint-disable no-console */
 /** biome-ignore-all lint/style/noProcessEnv: cli */
 // biome-ignore-all lint/nursery/noFloatingPromises: event handler
 // oxlint-disable no-await-expression-member
@@ -164,7 +164,17 @@ export { ${name}Table }
     for (const f of fields) lines.push(`${f.name}: input.${f.name}`)
     return lines.join(', ')
   },
-  genReducerContent = (name: string, type: TableType, fields: ParsedField[], parent: string): string => {
+  genReducerContent = ({
+    fields,
+    name,
+    parent,
+    type
+  }: {
+    fields: ParsedField[]
+    name: string
+    parent: string
+    type: TableType
+  }): string => {
     const createFields: string[] = []
     for (const f of fields) createFields.push(`  ${f.name}${f.optional ? '?' : ''}: ${fieldToInputType(f)}`)
     if (type === 'child') createFields.unshift('  parentId: string')
@@ -359,7 +369,7 @@ export default ${component}Page
     if (
       writeIfNotExists(
         reducerFile,
-        genReducerContent(flags.name, flags.type, fields, flags.parent),
+        genReducerContent({ fields, name: flags.name, parent: flags.parent, type: flags.type }),
         `${flags.moduleDir}/reducers/${flags.name}.ts`
       )
     )

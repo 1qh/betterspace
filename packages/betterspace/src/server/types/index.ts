@@ -55,6 +55,7 @@ export type {
   QueryCtxLike,
   QueryLike,
   RateLimitConfig,
+  RateLimitInput,
   ReadCtx,
   Rec,
   ReducerCtx,

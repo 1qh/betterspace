@@ -50,7 +50,7 @@ table. Define the schema with `schema({ owned: { ... } })`.
 | `unique`     | Fields with a unique constraint                                                               |
 | `pub`        | RLS pub field. Auto-indexes the field. See [Security](security.md)                            |
 | `softDelete` | When `true`, `rm_*` sets `deletedAt` instead of deleting. Auto-injects the `deletedAt` field. |
-| `rateLimit`  | Rate limit config for write operations                                                        |
+| `rateLimit`  | Rate limit: `number` (max per minute) or `{ max, window }` for custom window                  |
 
 ---
 

@@ -1,5 +1,5 @@
 // biome-ignore-all lint/suspicious/useAwait: async without await
-/* eslint-disable max-depth, @typescript-eslint/max-params */
+/* eslint-disable max-depth */
 import type { ZodObject, output as ZodOutput, ZodRawShape } from 'zod/v4'
 
 import { Identity } from 'spacetimedb'
@@ -15,6 +15,7 @@ import type {
   Qb,
   QueryCtxLike,
   RateLimitConfig,
+  RateLimitInput,
   StorageLike,
   WithUrls
 } from './types'
@@ -38,7 +39,10 @@ const TOKEN_BYTES = 24,
   TOKEN_RADIX = 36,
   TOKEN_LENGTH = 32,
   SEVEN_DAYS_MS = 7 * 24 * 60 * 60 * 1000,
+  RATE_LIMIT_DEFAULT_WINDOW = 60_000,
   RUNTIME_FILTER_WARN_THRESHOLD = 1000,
+  normalizeRateLimit = (input: RateLimitInput): RateLimitConfig =>
+    typeof input === 'number' ? { max: input, window: RATE_LIMIT_DEFAULT_WINDOW } : input,
   generateToken = () => {
     const bytes = new Uint8Array(TOKEN_BYTES)
     crypto.getRandomValues(bytes)
@@ -57,7 +61,17 @@ const TOKEN_BYTES = 24,
     // eslint-disable-next-line no-console
     console[level](JSON.stringify({ level, msg, ts: Date.now(), ...data }))
   },
-  warnLargeFilterSet = (count: number, table: string, context: string, strict?: boolean) => {
+  warnLargeFilterSet = ({
+    context,
+    count,
+    strict,
+    table
+  }: {
+    context: string
+    count: number
+    strict?: boolean
+    table: string
+  }) => {
     if (count > RUNTIME_FILTER_WARN_THRESHOLD) {
       const msg = `Runtime filtering ${count} docs in "${table}" (${context}) exceeds ${RUNTIME_FILTER_WARN_THRESHOLD} threshold. Add an index for better performance.`
       if (strict) throw new Error(msg)
@@ -672,6 +686,7 @@ export {
   matchError,
   matchW,
   noFetcher,
+  normalizeRateLimit,
   ok,
   ownGet,
   parseSenderMessage,

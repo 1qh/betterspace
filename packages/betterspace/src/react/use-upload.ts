@@ -1,6 +1,5 @@
 // biome-ignore-all lint/suspicious/useAwait: async without await
 'use client'
-/* eslint-disable @typescript-eslint/max-params */
 // oxlint-disable promise/avoid-new
 
 import { useRef, useState } from 'react'
@@ -145,23 +144,38 @@ const DEFAULT_API_ENDPOINT = '/api/upload/presign',
     }
     xhr.upload.addEventListener('progress', handleProgress)
   },
-  startXhrUpload = (xhr: XMLHttpRequest, file: File, presigned: PresignedUpload, signal?: AbortSignal): boolean => {
+  startXhrUpload = ({
+    file,
+    presigned,
+    signal,
+    xhr
+  }: {
+    file: File
+    presigned: PresignedUpload
+    signal?: AbortSignal
+    xhr: XMLHttpRequest
+  }): boolean => {
     const headers = { ...presigned.headers }
     xhr.open(presigned.method ?? 'PUT', presigned.uploadUrl)
     if (!hasContentTypeHeader(headers)) xhr.setRequestHeader('Content-Type', toContentType(file))
     applyHeaders(xhr, headers)
     return registerAbortListener(xhr, signal)
   },
-  uploadWithXhr = async (
-    file: File,
-    presigned: PresignedUpload,
-    onProgress: (progress: number) => void,
+  uploadWithXhr = async ({
+    file,
+    onProgress,
+    presigned,
+    signal
+  }: {
+    file: File
+    onProgress: (progress: number) => void
+    presigned: PresignedUpload
     signal?: AbortSignal
-  ): Promise<UploadResult> =>
+  }): Promise<UploadResult> =>
     new Promise(resolve => {
       const xhr = new XMLHttpRequest(),
         handlers = makeUploadHandlers(xhr, presigned, resolve),
-        isAborted = startXhrUpload(xhr, file, presigned, signal)
+        isAborted = startXhrUpload({ file, presigned, signal, xhr })
       xhr.addEventListener('error', handlers.onError)
       xhr.addEventListener('abort', handlers.onAbort)
       xhr.addEventListener('load', handlers.onLoad)
@@ -215,7 +229,12 @@ const DEFAULT_API_ENDPOINT = '/api/upload/presign',
       },
       runUpload = async (file: File, uploadId: number, signal?: AbortSignal): Promise<UploadResult> => {
         const presigned = await getPresignedUrl(file),
-          uploaded = await uploadWithXhr(file, presigned, value => setUploadProgress(uploadId, value), signal)
+          uploaded = await uploadWithXhr({
+            file,
+            onProgress: value => setUploadProgress(uploadId, value),
+            presigned,
+            signal
+          })
         if (!uploaded.ok) {
           onUploadError(uploaded.code)
           return uploaded

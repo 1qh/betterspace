@@ -177,6 +177,7 @@ import {
   makeUnique,
   matchError,
   matchW,
+  normalizeRateLimit,
   ok,
   parseSenderMessage,
   RUNTIME_FILTER_WARN_THRESHOLD,
@@ -711,6 +712,16 @@ describe('CrudOptions search config', () => {
     }
     expect(opts.rateLimit?.max).toBe(5)
     expect(opts.rateLimit?.window).toBe(5000)
+  })
+
+  test('normalizeRateLimit converts number to object with 60s window', () => {
+    const result = normalizeRateLimit(10)
+    expect(result).toEqual({ max: 10, window: 60_000 })
+  })
+
+  test('normalizeRateLimit passes through object unchanged', () => {
+    const input = { max: 5, window: 30_000 }
+    expect(normalizeRateLimit(input)).toEqual(input)
   })
 
   test('CrudOptions cascade remains typed as CascadeOption array', () => {
@@ -1830,21 +1841,21 @@ describe('warnLargeFilterSet', () => {
 
   test('does not warn below threshold', () => {
     const { origWarn, warns } = captureWarns()
-    warnLargeFilterSet(999, 'blog', 'list')
+    warnLargeFilterSet({ context: 'list', count: 999, table: 'blog' })
     console.warn = origWarn
     expect(warns).toHaveLength(0)
   })
 
   test('does not warn at exactly threshold', () => {
     const { origWarn, warns } = captureWarns()
-    warnLargeFilterSet(1000, 'blog', 'list')
+    warnLargeFilterSet({ context: 'list', count: 1000, table: 'blog' })
     console.warn = origWarn
     expect(warns).toHaveLength(0)
   })
 
   test('warns above threshold', () => {
     const { origWarn, warns } = captureWarns()
-    warnLargeFilterSet(1001, 'blog', 'list')
+    warnLargeFilterSet({ context: 'list', count: 1001, table: 'blog' })
     console.warn = origWarn
     expect(warns).toHaveLength(1)
     expect(warns[0]).toContain('large_filter_set')
@@ -1853,7 +1864,7 @@ describe('warnLargeFilterSet', () => {
 
   test('warn message includes count, table, context, threshold', () => {
     const { origWarn, warns } = captureWarns()
-    warnLargeFilterSet(5000, 'wiki', 'search')
+    warnLargeFilterSet({ context: 'search', count: 5000, table: 'wiki' })
     console.warn = origWarn
     expect(warns).toHaveLength(1)
     const parsed = JSON.parse(String(warns[0])) as Record<string, unknown>
@@ -1866,21 +1877,23 @@ describe('warnLargeFilterSet', () => {
 
   test('zero count does not warn', () => {
     const { origWarn, warns } = captureWarns()
-    warnLargeFilterSet(0, 'blog', 'list')
+    warnLargeFilterSet({ context: 'list', count: 0, table: 'blog' })
     console.warn = origWarn
     expect(warns).toHaveLength(0)
   })
 
   test('strict mode throws above threshold', () => {
-    expect(() => warnLargeFilterSet(1001, 'blog', 'list', true)).toThrow('Runtime filtering 1001 docs')
+    expect(() => warnLargeFilterSet({ context: 'list', count: 1001, strict: true, table: 'blog' })).toThrow(
+      'Runtime filtering 1001 docs'
+    )
   })
 
   test('strict mode does not throw below threshold', () => {
-    expect(() => warnLargeFilterSet(999, 'blog', 'list', true)).not.toThrow()
+    expect(() => warnLargeFilterSet({ context: 'list', count: 999, strict: true, table: 'blog' })).not.toThrow()
   })
 
   test('strict mode does not throw at exactly threshold', () => {
-    expect(() => warnLargeFilterSet(1000, 'blog', 'list', true)).not.toThrow()
+    expect(() => warnLargeFilterSet({ context: 'list', count: 1000, strict: true, table: 'blog' })).not.toThrow()
   })
 })
 
@@ -8418,39 +8431,59 @@ describe('betterspace add command', () => {
 
   describe('genEndpointContent', () => {
     test('generates owned endpoint', () => {
-      const content = genEndpointContent('blog', 'owned', [{ name: 'title', optional: false, type: 'string' }], '')
+      const content = genEndpointContent({
+        fields: [{ name: 'title', optional: false, type: 'string' }],
+        name: 'blog',
+        parent: '',
+        type: 'owned'
+      })
       expect(content).toContain("import { reducer } from 'spacetimedb'")
       expect(content).toContain('makeCrud')
       expect(content).toContain("'blog.create'")
     })
 
     test('generates org endpoint', () => {
-      const content = genEndpointContent('wiki', 'org', [{ name: 'title', optional: false, type: 'string' }], '')
+      const content = genEndpointContent({
+        fields: [{ name: 'title', optional: false, type: 'string' }],
+        name: 'wiki',
+        parent: '',
+        type: 'org'
+      })
       expect(content).toContain('makeOrg')
       expect(content).toContain('orgId: string')
       expect(content).toContain("'wiki.create'")
     })
 
     test('generates singleton endpoint', () => {
-      const content = genEndpointContent(
-        'profile',
-        'singleton',
-        [{ name: 'displayName', optional: false, type: 'string' }],
-        ''
-      )
+      const content = genEndpointContent({
+        fields: [{ name: 'displayName', optional: false, type: 'string' }],
+        name: 'profile',
+        parent: '',
+        type: 'singleton'
+      })
       expect(content).toContain('makeCrud')
       expect(content).toContain('userId: string')
       expect(content).toContain("'profile.rm'")
     })
 
     test('generates cache endpoint', () => {
-      const content = genEndpointContent('movie', 'cache', [{ name: 'title', optional: false, type: 'string' }], '')
+      const content = genEndpointContent({
+        fields: [{ name: 'title', optional: false, type: 'string' }],
+        name: 'movie',
+        parent: '',
+        type: 'cache'
+      })
       expect(content).toContain('makeCacheCrud')
       expect(content).toContain("'movie.create'")
     })
 
     test('generates child endpoint', () => {
-      const content = genEndpointContent('message', 'child', [{ name: 'text', optional: false, type: 'string' }], 'chat')
+      const content = genEndpointContent({
+        fields: [{ name: 'text', optional: false, type: 'string' }],
+        name: 'message',
+        parent: 'chat',
+        type: 'child'
+      })
       expect(content).toContain('makeChildCrud')
       expect(content).toContain("parent: 'chat'")
     })
@@ -10303,6 +10336,18 @@ describe('type-safe column references in table options', () => {
     expect(category).toBe('orgScoped')
   })
 
+  test('table() accepts rateLimit number shorthand', () => {
+    let rl: undefined | { max: number; window: number }
+    withUniversalTable(table => {
+      const ownedSchema = buildSchema({
+          owned: { blog: object({ published: boolean(), title: string() }) }
+        }),
+        blogTable = table(ownedSchema.blog, { rateLimit: 10 })
+      rl = blogTable.__bs.rateLimit
+    })
+    expect(rl).toEqual({ max: 10, window: 60_000 })
+  })
+
   test('compoundIndex rejects misspelled field names', () => {
     withUniversalTable(table => {
       const orgScopedSchema = buildSchema({
@@ -10471,7 +10516,7 @@ describe('RLS SQL generation from pub metadata', () => {
 
 describe('Children RLS parent inheritance', () => {
   test('child inherits parent pub field — generates JOIN filter with pub OR sender', () => {
-    const sqls = rlsChildSql('message', 'chatId', 'chat', 'isPublic')
+    const sqls = rlsChildSql({ fk: 'chatId', name: 'message', parent: 'chat', parentPub: 'isPublic' })
     expect(sqls).toHaveLength(1)
     expect(sqls[0]).toContain('JOIN "chat"')
     expect(sqls[0]).toContain('"message"."chatId" = "chat"."id"')
@@ -10481,30 +10526,30 @@ describe('Children RLS parent inheritance', () => {
   })
 
   test('child with fully-public parent (pub=true) generates no RLS', () => {
-    const sqls = rlsChildSql('comment', 'postId', 'post', true)
+    const sqls = rlsChildSql({ fk: 'postId', name: 'comment', parent: 'post', parentPub: true })
     expect(sqls).toHaveLength(0)
   })
 
   test('child without parent pub generates sender-only filter (no JOIN)', () => {
-    const sqls = rlsChildSql('note', 'taskId', 'task')
+    const sqls = rlsChildSql({ fk: 'taskId', name: 'note', parent: 'task' })
     expect(sqls).toHaveLength(1)
     expect(sqls[0]).toContain('"note"."userId" = :sender')
     expect(sqls[0]).not.toContain('JOIN')
   })
 
   test('child with undefined parent pub generates sender-only filter', () => {
-    const sqls = rlsChildSql('attachment', 'docId', 'doc')
+    const sqls = rlsChildSql({ fk: 'docId', name: 'attachment', parent: 'doc' })
     expect(sqls).toHaveLength(1)
     expect(sqls[0]).toContain('"attachment"."userId" = :sender')
   })
 
   test('child JOIN SQL uses SELECT child.* format', () => {
-    const sqls = rlsChildSql('message', 'chatId', 'chat', 'isPublic')
+    const sqls = rlsChildSql({ fk: 'chatId', name: 'message', parent: 'chat', parentPub: 'isPublic' })
     expect(sqls[0]?.startsWith('SELECT "message".* FROM "message" JOIN')).toBe(true)
   })
 
   test('child JOIN references parent id column', () => {
-    const sqls = rlsChildSql('reply', 'commentId', 'comment', 'visible')
+    const sqls = rlsChildSql({ fk: 'commentId', name: 'reply', parent: 'comment', parentPub: 'visible' })
     expect(sqls[0]).toContain('"reply"."commentId" = "comment"."id"')
     expect(sqls[0]).toContain('"comment"."visible" = true')
   })

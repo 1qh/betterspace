@@ -187,6 +187,8 @@ interface RateLimitConfig {
   window: number
 }
 
+type RateLimitInput = number | RateLimitConfig
+
 interface ReadCtx {
   db: DbLike
   storage?: StorageLike
@@ -488,6 +490,7 @@ export type {
   QueryCtxLike,
   QueryLike,
   RateLimitConfig,
+  RateLimitInput,
   ReadCtx,
   Rec,
   ReducerCtx,

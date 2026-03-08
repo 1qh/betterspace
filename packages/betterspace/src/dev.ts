@@ -114,8 +114,17 @@ const green = (s: string) => `\u001B[32m${s}\u001B[0m`,
     console.log(`  --no-watch         ${dim('Disable module watch auto-republish')}`)
     console.log('  --help, -h         Show this help\n')
   },
-  // eslint-disable-next-line @typescript-eslint/max-params
-  runSyncCommand = (command: string, cmdArgs: string[], cwd: string, label: string): boolean => {
+  runSyncCommand = ({
+    cmdArgs,
+    command,
+    cwd,
+    label
+  }: {
+    cmdArgs: string[]
+    command: string
+    cwd: string
+    label: string
+  }): boolean => {
     const result: SpawnSyncReturns<Buffer> = spawnSync(command, cmdArgs, {
       cwd,
       env: process.env,
@@ -174,24 +183,35 @@ const green = (s: string) => `\u001B[32m${s}\u001B[0m`,
     }
     return { args: ['dev'], command: 'next' }
   },
-  // eslint-disable-next-line @typescript-eslint/max-params
-  createPublishAndGenerate = (cwd: string, spacetimeBin: string, moduleDirAbs: string, moduleName: string) => () => {
-    console.log(`\n${bold('Publishing SpacetimeDB module...')}`)
-    const publishOk = runSyncCommand(
-      spacetimeBin,
-      ['publish', '--module-path', moduleDirAbs, moduleName],
+  createPublishAndGenerate =
+    ({
       cwd,
-      `spacetime publish ${moduleName}`
-    )
-    if (!publishOk) return false
-    console.log(bold('Generating TypeScript bindings...'))
-    return runSyncCommand(
-      spacetimeBin,
-      ['generate', '--lang', 'typescript', '--project-path', moduleDirAbs],
-      cwd,
-      'spacetime generate'
-    )
-  },
+      moduleDirAbs,
+      moduleName,
+      spacetimeBin
+    }: {
+      cwd: string
+      moduleDirAbs: string
+      moduleName: string
+      spacetimeBin: string
+    }) =>
+    () => {
+      console.log(`\n${bold('Publishing SpacetimeDB module...')}`)
+      const publishOk = runSyncCommand({
+        cmdArgs: ['publish', '--module-path', moduleDirAbs, moduleName],
+        command: spacetimeBin,
+        cwd,
+        label: `spacetime publish ${moduleName}`
+      })
+      if (!publishOk) return false
+      console.log(bold('Generating TypeScript bindings...'))
+      return runSyncCommand({
+        cmdArgs: ['generate', '--lang', 'typescript', '--project-path', moduleDirAbs],
+        command: spacetimeBin,
+        cwd,
+        label: 'spacetime generate'
+      })
+    },
   startWatching = (moduleDirAbs: string, onChange: () => void): FSWatcher =>
     watch(moduleDirAbs, { recursive: true }, (_eventType, filename) => {
       if (typeof filename !== 'string') return
@@ -260,7 +280,12 @@ const green = (s: string) => `\u001B[32m${s}\u001B[0m`,
     if (flags.docker)
       if (composeFile) {
         console.log(`\n${bold('Starting Docker services...')}`)
-        const dockerOk = runSyncCommand('docker', ['compose', 'up', '-d'], cwd, 'docker compose up -d')
+        const dockerOk = runSyncCommand({
+          cmdArgs: ['compose', 'up', '-d'],
+          command: 'docker',
+          cwd,
+          label: 'docker compose up -d'
+        })
         if (!dockerOk) process.exit(1)
       } else console.log(`${yellow('⚠')} No docker compose file found, skipping Docker startup.`)
     else console.log(dim('Skipping Docker startup (--no-docker).'))
@@ -273,7 +298,7 @@ const green = (s: string) => `\u001B[32m${s}\u001B[0m`,
     }
     console.log(`${green('✓')} SpacetimeDB is healthy`)
 
-    const publishAndGenerate = createPublishAndGenerate(cwd, spacetimeBin, moduleDirAbs, moduleName)
+    const publishAndGenerate = createPublishAndGenerate({ cwd, moduleDirAbs, moduleName, spacetimeBin })
     if (!publishAndGenerate()) process.exit(1)
     console.log(`${green('✓')} Initial publish + generate complete`)
 
