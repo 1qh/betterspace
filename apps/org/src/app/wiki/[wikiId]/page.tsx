@@ -1,20 +1,19 @@
-/* oxlint-disable promise/prefer-await-to-then */
+// biome-ignore-all lint/nursery/noFloatingPromises: event handler
 'use client'
 
 import type { OrgProfile, Wiki } from '@a/be/spacetimedb/types'
 
 import { reducers, tables } from '@a/be/spacetimedb'
-import { fail, sameIdentity } from '@a/fe/utils'
+import { sameIdentity } from '@a/fe/utils'
 import { Badge } from '@a/ui/badge'
 import { Button } from '@a/ui/button'
 import { Skeleton } from '@a/ui/skeleton'
 import { EditorsSection } from 'betterspace/components'
-import { noop } from 'betterspace/react'
+import { noop, useMut } from 'betterspace/react'
 import { Pencil, RotateCcw, Trash2 } from 'lucide-react'
 import Link from 'next/link'
 import { use } from 'react'
-import { toast } from 'sonner'
-import { useReducer, useSpacetimeDB, useTable } from 'spacetimedb/react'
+import { useSpacetimeDB, useTable } from 'spacetimedb/react'
 
 import { useOrg } from '~/hook/use-org'
 
@@ -27,7 +26,7 @@ const emptyMembers: never[] = [],
       [allWikis] = useTable(tables.wiki),
       [allProfiles] = useTable(tables.orgProfile),
       wiki = allWikis.find((w: Wiki) => w.id === id && w.orgId === Number(org._id)),
-      updateWiki = useReducer(reducers.updateWiki),
+      updateWiki = useMut(reducers.updateWiki, { toast: { success: 'Wiki restored' } }),
       profileByUserId = new Map<string, OrgProfile>(),
       restoreMut = async (args: { id: number }) => {
         if (!wiki) return
@@ -55,12 +54,7 @@ const emptyMembers: never[] = [],
         return { email: '', name: profile?.displayName ?? userId.slice(0, 8), userId }
       }),
       canEditWiki =
-        isAdmin || sameIdentity(wiki.userId, identity) || editorsList.some(e => e.userId === identity.toHexString()),
-      handleRestore = () => {
-        restoreMut({ id: wiki.id })
-          .then(() => toast.success('Wiki restored'))
-          .catch(fail)
-      }
+        isAdmin || sameIdentity(wiki.userId, identity) || editorsList.some(e => e.userId === identity.toHexString())
 
     return (
       <div className='space-y-6'>
@@ -72,7 +66,13 @@ const emptyMembers: never[] = [],
               <Trash2 className='size-4' />
               <span className='text-sm font-medium'>This wiki page has been deleted</span>
             </div>
-            <Button data-testid='restore-wiki-detail' onClick={handleRestore} size='sm' variant='outline'>
+            <Button
+              data-testid='restore-wiki-detail'
+              onClick={() => {
+                restoreMut({ id: wiki.id })
+              }}
+              size='sm'
+              variant='outline'>
               <RotateCcw className='mr-1.5 size-3.5' />
               Restore
             </Button>

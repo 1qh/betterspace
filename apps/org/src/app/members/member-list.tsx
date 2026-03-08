@@ -1,11 +1,10 @@
-/* oxlint-disable promise/prefer-await-to-then */
-
+// biome-ignore-all lint/nursery/noFloatingPromises: event handler
+/* eslint-disable @typescript-eslint/strict-void-return */
 'use client'
 
 import type { OrgMember, OrgProfile } from '@a/be/spacetimedb/types'
 
 import { reducers, tables } from '@a/be/spacetimedb'
-import { fail } from '@a/fe/utils'
 import { Avatar, AvatarFallback, AvatarImage } from '@a/ui/avatar'
 import { Button } from '@a/ui/button'
 import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuTrigger } from '@a/ui/dropdown-menu'
@@ -13,11 +12,10 @@ import { Input } from '@a/ui/input'
 import { Skeleton } from '@a/ui/skeleton'
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@a/ui/table'
 import { RoleBadge } from 'betterspace/components'
-import { useSearch } from 'betterspace/react'
+import { useMut, useSearch } from 'betterspace/react'
 import { MoreHorizontal, Search, UserMinus } from 'lucide-react'
 import { useState } from 'react'
-import { toast } from 'sonner'
-import { useReducer, useSpacetimeDB, useTable } from 'spacetimedb/react'
+import { useSpacetimeDB, useTable } from 'spacetimedb/react'
 
 import { useOrg } from '~/hook/use-org'
 
@@ -26,8 +24,12 @@ const MemberList = () => {
     { identity } = useSpacetimeDB(),
     [allMembers, isReady] = useTable(tables.orgMember),
     [profiles] = useTable(tables.orgProfile),
-    removeMember = useReducer(reducers.orgRemoveMember),
-    setAdmin = useReducer(reducers.orgSetAdmin),
+    removeMember = useMut(reducers.orgRemoveMember, { toast: { success: 'Member removed' } }),
+    setAdmin = useMut(reducers.orgSetAdmin, {
+      toast: {
+        success: (_result, args) => (args.isAdmin ? 'Promoted to admin' : 'Demoted to member')
+      }
+    }),
     [query, setQuery] = useState(''),
     profileByUserId = new Map<string, OrgProfile>()
 
@@ -55,19 +57,6 @@ const MemberList = () => {
     displayMembers = query.trim() ? filteredMembers : members
 
   if (!identity) return <Skeleton className='h-40 w-full' />
-
-  type MemberId = (typeof members)[number]['memberId']
-
-  const handleRemove = (memberId: MemberId) => {
-      removeMember({ memberId })
-        .then(() => toast.success('Member removed'))
-        .catch(fail)
-    },
-    handleToggleAdmin = (memberId: MemberId, isAdmin: boolean) => {
-      setAdmin({ isAdmin: !isAdmin, memberId })
-        .then(() => toast.success(isAdmin ? 'Demoted to member' : 'Promoted to admin'))
-        .catch(fail)
-    }
 
   return (
     <div className='flex flex-col gap-3'>
@@ -110,12 +99,14 @@ const MemberList = () => {
                         </DropdownMenuTrigger>
                         <DropdownMenuContent align='end'>
                           {canManageAdmins ? (
-                            <DropdownMenuItem onSelect={() => handleToggleAdmin(memberId, m.role === 'admin')}>
+                            <DropdownMenuItem onSelect={async () => setAdmin({ isAdmin: m.role !== 'admin', memberId })}>
                               {m.role === 'admin' ? 'Demote to member' : 'Promote to admin'}
                             </DropdownMenuItem>
                           ) : null}
                           {(myRole === 'owner' || m.role === 'member') && (
-                            <DropdownMenuItem className='text-destructive' onSelect={() => handleRemove(memberId)}>
+                            <DropdownMenuItem
+                              className='text-destructive'
+                              onSelect={async () => removeMember({ memberId })}>
                               <UserMinus className='mr-2 size-4' />
                               Remove
                             </DropdownMenuItem>

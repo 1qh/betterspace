@@ -1,5 +1,4 @@
-/* oxlint-disable promise/prefer-await-to-then, promise/always-return */
-
+// biome-ignore-all lint/nursery/noFloatingPromises: event handler
 'use client'
 
 import { reducers } from '@a/be/spacetimedb'
@@ -22,18 +21,10 @@ const AcceptInvitePage = ({ params }: { params: Promise<{ token: string }> }) =>
       },
       onSuccess: () => {
         setAccepted(true)
+        setTimeout(() => router.push('/'), 1500)
       },
       toast: { success: 'Welcome to the organization!' }
-    }),
-    handleAccept = () => {
-      acceptInvite({ token })
-        .then(() => {
-          setTimeout(() => router.push('/'), 1500)
-        })
-        .catch((acceptError: unknown) => {
-          setInviteError(acceptError instanceof Error ? acceptError.message : 'Invalid or expired invite')
-        })
-    }
+    })
 
   if (accepted)
     return (
@@ -69,7 +60,11 @@ const AcceptInvitePage = ({ params }: { params: Promise<{ token: string }> }) =>
           <CardDescription>You&apos;ve been invited to join an organization.</CardDescription>
         </CardHeader>
         <CardContent className='flex justify-center'>
-          <Button onClick={handleAccept} size='lg'>
+          <Button
+            onClick={() => {
+              acceptInvite({ token })
+            }}
+            size='lg'>
             Accept invite
           </Button>
         </CardContent>

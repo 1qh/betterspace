@@ -1,4 +1,3 @@
-/* oxlint-disable promise/prefer-await-to-then, promise/always-return, promise/catch-or-return */
 // biome-ignore-all lint/nursery/noFloatingPromises: event handler
 'use client'
 
@@ -11,6 +10,7 @@ import { Card, CardContent, CardHeader, CardTitle } from '@a/ui/card'
 import { FieldGroup } from '@a/ui/field'
 import { Skeleton } from '@a/ui/skeleton'
 import { AutoSaveIndicator, Form, PermissionGuard, useFormMutation } from 'betterspace/components'
+import { useMut } from 'betterspace/react'
 import { pickValues } from 'betterspace/zod'
 import { useRouter } from 'next/navigation'
 import { use } from 'react'
@@ -25,7 +25,10 @@ const EditWikiForm = ({ wikiId }: { wikiId: number }) => {
       { org } = useOrg(),
       [wikis] = useTable(tables.wiki),
       wiki = wikis.find((w: Wiki) => w.id === wikiId && w.orgId === Number(org._id)),
-      removeWiki = useReducer(reducers.rmWiki),
+      removeWiki = useMut(reducers.rmWiki, {
+        onSuccess: () => router.push('/wiki'),
+        toast: { success: 'Wiki page deleted' }
+      }),
       form = useFormMutation({
         mutate: useReducer(reducers.updateWiki),
         onSuccess: () => {
@@ -41,13 +44,7 @@ const EditWikiForm = ({ wikiId }: { wikiId: number }) => {
           id: wikiId
         }),
         values: wiki ? pickValues(wikiSchema, wiki) : undefined
-      }),
-      handleDelete = () => {
-        removeWiki({ id: wikiId }).then(() => {
-          toast.success('Wiki page deleted')
-          router.push('/wiki')
-        })
-      }
+      })
 
     if (!wiki) return <Skeleton className='h-40' />
 
@@ -66,7 +63,12 @@ const EditWikiForm = ({ wikiId }: { wikiId: number }) => {
             <div className='flex items-center gap-2'>
               <AutoSaveIndicator data-testid='auto-save-indicator' lastSaved={form.lastSaved} />
               <span className='flex-1' />
-              <Button onClick={handleDelete} type='button' variant='destructive'>
+              <Button
+                onClick={() => {
+                  removeWiki({ id: wikiId })
+                }}
+                type='button'
+                variant='destructive'>
                 Delete
               </Button>
             </div>

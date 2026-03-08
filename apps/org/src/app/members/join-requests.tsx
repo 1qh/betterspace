@@ -1,18 +1,17 @@
-/* oxlint-disable promise/prefer-await-to-then */
+// biome-ignore-all lint/nursery/noFloatingPromises: event handler
 'use client'
 
 import type { OrgJoinRequest } from '@a/be/spacetimedb/types'
 
 import { reducers, tables } from '@a/be/spacetimedb'
-import { fail } from '@a/fe/utils'
 import { Avatar, AvatarFallback } from '@a/ui/avatar'
 import { Button } from '@a/ui/button'
 import { Switch } from '@a/ui/switch'
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@a/ui/table'
+import { useMut } from 'betterspace/react'
 import { Check, X } from 'lucide-react'
 import { useState } from 'react'
-import { toast } from 'sonner'
-import { useReducer, useTable } from 'spacetimedb/react'
+import { useTable } from 'spacetimedb/react'
 
 import { useOrg } from '~/hook/use-org'
 
@@ -22,24 +21,11 @@ const JoinRequests = () => {
     requests = allRequests
       .filter((r: OrgJoinRequest) => r.orgId === Number(org._id) && r.status === 'pending')
       .map((r: OrgJoinRequest) => ({ request: r })),
-    approveRequest = useReducer(reducers.orgApproveJoin),
-    rejectRequest = useReducer(reducers.orgRejectJoin),
+    approveRequest = useMut(reducers.orgApproveJoin, { toast: { success: 'Request approved' } }),
+    rejectRequest = useMut(reducers.orgRejectJoin, { toast: { success: 'Request rejected' } }),
     [asAdmin, setAsAdmin] = useState<Record<string, boolean>>({})
 
   if (requests.length === 0) return null
-
-  type ReqId = NonNullable<typeof requests>[number]['request']['id']
-
-  const handleApprove = (requestId: ReqId, isAdmin: boolean) => {
-      approveRequest({ isAdmin, requestId })
-        .then(() => toast.success('Request approved'))
-        .catch(fail)
-    },
-    handleReject = (requestId: ReqId) => {
-      rejectRequest({ requestId })
-        .then(() => toast.success('Request rejected'))
-        .catch(fail)
-    }
 
   return (
     <div className='space-y-2'>
@@ -72,10 +58,20 @@ const JoinRequests = () => {
                 />
               </TableCell>
               <TableCell className='flex gap-1'>
-                <Button onClick={() => handleApprove(r.id, asAdmin[`${r.id}`] ?? false)} size='icon' variant='ghost'>
+                <Button
+                  onClick={() => {
+                    approveRequest({ isAdmin: asAdmin[`${r.id}`] ?? false, requestId: r.id })
+                  }}
+                  size='icon'
+                  variant='ghost'>
                   <Check className='size-4 text-green-600' />
                 </Button>
-                <Button onClick={() => handleReject(r.id)} size='icon' variant='ghost'>
+                <Button
+                  onClick={() => {
+                    rejectRequest({ requestId: r.id })
+                  }}
+                  size='icon'
+                  variant='ghost'>
                   <X className='size-4 text-red-600' />
                 </Button>
               </TableCell>
