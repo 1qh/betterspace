@@ -1,4 +1,4 @@
-/* oxlint-disable promise/prefer-await-to-then, react-perf/jsx-no-new-array-as-prop */
+/* oxlint-disable react-perf/jsx-no-new-array-as-prop */
 // biome-ignore-all lint/nursery/noFloatingPromises: event handler
 
 'use client'
@@ -19,13 +19,13 @@ import { Input } from '@a/ui/input'
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@a/ui/select'
 import { Skeleton } from '@a/ui/skeleton'
 import { EditorsSection } from 'betterspace/components'
-import { noop, relax, useBulkMutate } from 'betterspace/react'
+import { noop, useBulkMutate, useMut } from 'betterspace/react'
 import { enumToOptions } from 'betterspace/zod'
 import { Check, Pencil, Plus, Trash, X } from 'lucide-react'
 import Link from 'next/link'
 import { use, useState } from 'react'
 import { toast } from 'sonner'
-import { useReducer, useSpacetimeDB, useTable } from 'spacetimedb/react'
+import { useSpacetimeDB, useTable } from 'spacetimedb/react'
 
 import { useOrg } from '~/hook/use-org'
 
@@ -64,16 +64,12 @@ const TaskRow = ({ canAssign, canEdit, members, onAssign, onDelete, onToggle, on
     const [editing, setEditing] = useState(false),
       [editTitle, setEditTitle] = useState(() => t.title),
       [editPriority, setEditPriority] = useState<Priority>(() => asPriority(t.priority)),
-      handleSave = () => {
+      handleSave = async () => {
         if (!editTitle.trim()) return
 
-        onUpdate(editTitle, editPriority)
-          .then(() => {
-            setEditing(false)
-            toast.success('Task updated')
-            return null
-          })
-          .catch(fail)
+        await onUpdate(editTitle, editPriority)
+        setEditing(false)
+        toast.success('Task updated')
       },
       handleCancel = () => {
         setEditTitle(t.title)
@@ -88,7 +84,12 @@ const TaskRow = ({ canAssign, canEdit, members, onAssign, onDelete, onToggle, on
         <div className='flex items-center gap-2 py-2'>
           <Input className='flex-1' onChange={e => setEditTitle(e.target.value)} value={editTitle} />
           <PrioritySelect onValueChange={setEditPriority} value={editPriority} />
-          <Button onClick={handleSave} size='icon' variant='ghost'>
+          <Button
+            onClick={() => {
+              handleSave()
+            }}
+            size='icon'
+            variant='ghost'>
             <Check className='size-4 text-green-600' />
           </Button>
           <Button onClick={handleCancel} size='icon' variant='ghost'>
@@ -153,10 +154,13 @@ const TaskRow = ({ canAssign, canEdit, members, onAssign, onDelete, onToggle, on
       tasks = allTasks.filter((t: Task) => t.projectId === pid && t.orgId === Number(org._id)),
       members = allMembers.filter((m: OrgMember) => m.orgId === Number(org._id)),
       profileByUserId = new Map<string, OrgProfile>(),
-      createTask = relax(useReducer(reducers.createTask)),
-      updateTask = relax(useReducer(reducers.updateTask)),
-      removeTask = useReducer(reducers.rmTask),
       [title, setTitle] = useState(''),
+      createTask = useMut(reducers.createTask, {
+        onSuccess: () => setTitle(''),
+        toast: { success: 'Task added' }
+      }),
+      updateTask = useMut(reducers.updateTask),
+      removeTask = useMut(reducers.rmTask, { toast: { success: 'Task deleted' } }),
       [priority, setPriority] = useState<Priority>('medium'),
       [selected, setSelected] = useState<Set<number>>(() => new Set()),
       bulkDelete = useBulkMutate(removeTask, {
@@ -200,19 +204,13 @@ const TaskRow = ({ canAssign, canEdit, members, onAssign, onDelete, onToggle, on
       }),
       doAddTask = async () => {
         if (!title.trim()) return
-        try {
-          await createTask({
-            completed: false,
-            orgId: Number(org._id),
-            priority,
-            projectId: pid,
-            title
-          })
-          setTitle('')
-          toast.success('Task added')
-        } catch (error) {
-          fail(error)
-        }
+        await createTask({
+          completed: false,
+          orgId: Number(org._id),
+          priority,
+          projectId: pid,
+          title
+        })
       },
       handleAddTask = (e: SyntheticEvent) => {
         e.preventDefault()
@@ -221,12 +219,7 @@ const TaskRow = ({ canAssign, canEdit, members, onAssign, onDelete, onToggle, on
       handleToggle = (id: number) => {
         const current = tasks.find(t => t.id === id)
         if (!current) return
-        updateTask({ completed: !current.completed, expectedUpdatedAt: current.updatedAt, id }).catch(fail)
-      },
-      handleDeleteTask = (id: number) => {
-        removeTask({ id })
-          .then(() => toast.success('Task deleted'))
-          .catch(fail)
+        updateTask({ completed: !current.completed, expectedUpdatedAt: current.updatedAt, id })
       },
       toggleSelect = (id: number) => {
         setSelected(prev => {
@@ -333,9 +326,11 @@ const TaskRow = ({ canAssign, canEdit, members, onAssign, onDelete, onToggle, on
                           const assignee = userId
                             ? members.find(m => m.userId.toHexString() === userId)?.userId
                             : undefined
-                          updateTask({ assigneeId: assignee, expectedUpdatedAt: t.updatedAt, id: t.id }).catch(fail)
+                          updateTask({ assigneeId: assignee, expectedUpdatedAt: t.updatedAt, id: t.id })
                         }}
-                        onDelete={() => handleDeleteTask(t.id)}
+                        onDelete={() => {
+                          removeTask({ id: t.id })
+                        }}
                         onToggle={() => handleToggle(t.id)}
                         onUpdate={async (newTitle, newPriority) => {
                           await updateTask({

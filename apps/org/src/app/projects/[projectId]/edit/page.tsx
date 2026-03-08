@@ -1,16 +1,16 @@
-/* oxlint-disable promise/prefer-await-to-then, promise/always-return */
-
+// biome-ignore-all lint/nursery/noFloatingPromises: event handler
 'use client'
 
 import type { Project, Task } from '@a/be/spacetimedb/types'
 
 import { reducers, tables } from '@a/be/spacetimedb'
-import { fail, sameIdentity } from '@a/fe/utils'
+import { sameIdentity } from '@a/fe/utils'
 import { Button } from '@a/ui/button'
 import { Card, CardContent, CardHeader, CardTitle } from '@a/ui/card'
 import { FieldGroup } from '@a/ui/field'
 import { Skeleton } from '@a/ui/skeleton'
 import { Form, PermissionGuard, useFormMutation } from 'betterspace/components'
+import { useMut } from 'betterspace/react'
 import { pickValues } from 'betterspace/zod'
 import { useRouter } from 'next/navigation'
 import { use } from 'react'
@@ -25,7 +25,10 @@ const EditProjectForm = ({ projectId, taskCount }: { projectId: number; taskCoun
       { org } = useOrg(),
       [projects] = useTable(tables.project),
       project = projects.find((p: Project) => p.id === projectId && p.orgId === Number(org._id)),
-      removeProject = useReducer(reducers.rmProject),
+      removeProject = useMut(reducers.rmProject, {
+        onSuccess: () => router.push('/projects'),
+        toast: { success: 'Project deleted' }
+      }),
       form = useFormMutation({
         mutate: useReducer(reducers.updateProject),
         onSuccess: () => {
@@ -40,11 +43,6 @@ const EditProjectForm = ({ projectId, taskCount }: { projectId: number; taskCoun
       handleDelete = () => {
         if (taskCount < 0) return
         removeProject({ id: projectId })
-          .then(() => {
-            toast.success('Project deleted')
-            router.push('/projects')
-          })
-          .catch(fail)
       }
 
     if (!project) return <Skeleton className='h-40' />
