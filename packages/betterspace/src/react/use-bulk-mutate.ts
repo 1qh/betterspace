@@ -2,6 +2,7 @@
 
 import { useCallback, useState } from 'react'
 
+import { BULK_MAX } from '../constants'
 import { defaultOnError } from './use-mutate'
 
 interface BulkProgress {
@@ -50,6 +51,8 @@ const collectSettled = <R>(settled: PromiseSettledResult<R>[]): { errors: unknow
       run = useCallback(
         async (items: A[]): Promise<BulkResult<R>> => {
           if (items.length === 0) return { errors: [], results: [], settled: [] }
+          if (items.length > BULK_MAX)
+            throw new Error(`Bulk operation exceeds maximum of ${BULK_MAX} items (got ${items.length})`)
           setIsPending(true)
           const total = items.length
           let succeeded = 0,
