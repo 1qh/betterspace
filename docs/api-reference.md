@@ -579,14 +579,54 @@ const { data, isLoading, isStale, refresh } = useCacheEntry({
 
 ### useBulkSelection
 
-Multi-select state management for list UIs.
+Multi-select state management with built-in bulk delete and optional undo.
 
 ```typescript
 import { useBulkSelection } from 'betterspace/react'
 
-const { selected, toggle, toggleAll, clear, isSelected, isAllSelected, count } =
-  useBulkSelection(posts.map(p => p.id))
+const { selected, toggleSelect, toggleSelectAll, clear, handleBulkDelete } =
+  useBulkSelection({
+    items: projects,
+    orgId,
+    rm: id => rmProject({ id: Number(id) }),
+    restore: args => restoreProject({ id: Number(args.id) }),
+    toast: (msg, opts) => {
+      toast(msg, opts)
+    },
+    undoLabel: 'project',
+    onSuccess: count => {
+      toast(`${count} deleted`)
+    }
+  })
 ```
+
+Pass `rm` for single-item delete — the hook loops over selected IDs internally.
+Pass `bulkRm` instead if you have a dedicated bulk reducer.
+
+**Options:**
+
+| Option      | Type                                                           | Description                                                          |
+| ----------- | -------------------------------------------------------------- | -------------------------------------------------------------------- |
+| `items`     | `{ _id: string }[]`                                            | All items in the list (for toggle-all)                               |
+| `orgId`     | `string`                                                       | Org context passed to `bulkRm`                                       |
+| `rm`        | `(id: string) => Promise<unknown>`                             | Single-item remover — hook handles looping + `Promise.all`           |
+| `bulkRm`    | `(args: { ids: string[]; orgId: string }) => Promise<unknown>` | Dedicated bulk reducer (takes precedence over `rm`)                  |
+| `restore`   | `(args: { id: string }) => Promise<unknown>`                   | Enables undo toast with restore action                               |
+| `toast`     | `ToastFn`                                                      | Toast function for delete/restore notifications                      |
+| `undoLabel` | `string`                                                       | Entity name for undo toast (e.g. `'project'` → “3 projects deleted”) |
+| `undoMs`    | `number`                                                       | Undo toast duration (default: 5000ms)                                |
+| `onSuccess` | `(count: number) => void`                                      | Called after successful bulk delete                                  |
+| `onError`   | `(error: unknown) => void`                                     | Called on bulk delete or restore failure                             |
+
+**Returns:**
+
+| Field              | Type                   | Description                      |
+| ------------------ | ---------------------- | -------------------------------- |
+| `selected`         | `Set<string>`          | Currently selected IDs           |
+| `toggleSelect`     | `(id: string) => void` | Toggle a single item’s selection |
+| `toggleSelectAll`  | `() => void`           | Select all / deselect all        |
+| `clear`            | `() => void`           | Deselect all                     |
+| `handleBulkDelete` | `() => Promise<void>`  | Delete all selected items        |
 
 ---
 

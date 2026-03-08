@@ -126,6 +126,42 @@ A `createBlog({ title: '', content: 'x', category: 'invalid' })` call fails with
 }
 ```
 
+### Input Sanitization (XSS Prevention)
+
+All string inputs are sanitized server-side before database writes.
+The `inputSanitize` middleware strips dangerous content from every string field:
+
+| Attack Vector           | Pattern Removed                                                             |
+| ----------------------- | --------------------------------------------------------------------------- |
+| Script injection        | `<script>...</script>` tags                                                 |
+| Event handler injection | `onclick=`, `onerror=`, any `on*=` attributes                               |
+| Protocol-based XSS      | `javascript:` protocol in URLs                                              |
+| Data URI injection      | `data:text/html` URIs that execute code                                     |
+| Dangerous HTML elements | `<iframe>`, `<object>`, `<embed>`, `<applet>`, `<form>`, `<base>`, `<meta>` |
+| HTML entity obfuscation | Encoded angle brackets (`&#x3c;`, `&#60;`, `&#x3e;`, `&#62;`)               |
+
+Sanitization is applied recursively to all string values in nested objects and arrays.
+The `inputSanitize` middleware is applied to all generated CRUD reducers by default — no
+consumer configuration required.
+
+For custom reducers, apply it manually:
+
+```tsx
+import { inputSanitize } from 'betterspace/server'
+
+const myReducer = composeMiddleware(
+  inputSanitize({ fields: ['title', 'content'] }),
+  handler
+)
+```
+
+### Cryptographic Token Generation
+
+Invite tokens and other security-sensitive identifiers use `crypto.getRandomValues()` to
+generate 32-character base-36 tokens from 24 cryptographically random bytes.
+No fallback to `Math.random()` or `Date.now()` — all tokens are cryptographically
+unpredictable.
+
 ### Conflict Detection
 
 Update reducers accept an `expectedUpdatedAt` parameter.
