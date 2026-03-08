@@ -71,8 +71,20 @@ No validation, no file cleanup, no conflict detection.
 With betterspace `betterspace()`:
 
 ```tsx
+import { schema } from 'betterspace/schema'
 import { betterspace } from 'betterspace/server'
-import { s } from './t'
+import { boolean, object, string } from 'zod/v4'
+
+const s = schema({
+  owned: {
+    blog: object({
+      title: string().min(1),
+      content: string(),
+      category: string(),
+      published: boolean()
+    })
+  }
+})
 
 export default betterspace(({ table }) => ({
   blog: table(s.blog, { pub: 'published' })
