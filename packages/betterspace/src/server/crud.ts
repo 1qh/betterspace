@@ -5,6 +5,7 @@ import type { ZodObject, ZodRawShape } from 'zod/v4'
 import type { OwnedRow, PkLike, TableLike } from './reducer-utils'
 import type { CrudConfig, CrudExports, CrudFieldBuilders, CrudFieldValues, CrudPkLike, CrudTableLike } from './types/crud'
 
+import { enforceRateLimit } from './helpers'
 import { applyPatch, getOwnedRow, makeError, makeOptionalFields, pickPatch, timestampEquals } from './reducer-utils'
 
 type UpdateArgs<F extends CrudFieldBuilders, Id> = Partial<CrudFieldValues<F>> & { expectedUpdatedAt?: Timestamp; id: Id }
@@ -54,6 +55,7 @@ const makeCrud = <
     if (expectedUpdatedAtField) updateParams.expectedUpdatedAt = expectedUpdatedAtField.optional()
 
     const createReducer = spacetimedb.reducer({ name: createName }, fields, (ctx, args) => {
+        if (options?.rateLimit) enforceRateLimit(tableName, ctx.sender, options.rateLimit)
         const typedArgs = args as CrudFieldValues<F>,
           hookCtx = { db: ctx.db, sender: ctx.sender, timestamp: ctx.timestamp },
           table = tableAccessor(ctx.db)

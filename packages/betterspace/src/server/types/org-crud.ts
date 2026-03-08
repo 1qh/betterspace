@@ -1,6 +1,7 @@
 import type { Identity, Timestamp } from 'spacetimedb'
 import type { AlgebraicTypeType, ColumnBuilder, ColumnMetadata, ReducerExport, TypeBuilder } from 'spacetimedb/server'
 
+import type { RateLimitConfig } from './common'
 import type { CrudHooks, HookCtx } from './crud'
 
 interface CanEditOpts {
@@ -87,6 +88,7 @@ interface OrgCrudOptions<
 > {
   acl?: boolean
   hooks?: CrudHooks<DB, Row, CreateArgs, UpdatePatch>
+  rateLimit?: RateLimitConfig
   softDelete?: boolean
 }
 

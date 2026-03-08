@@ -12,6 +12,7 @@ import type {
   CrudTableLike
 } from './types/child'
 
+import { enforceRateLimit } from './helpers'
 import { applyPatch, getOwnedRow, makeError, makeOptionalFields, pickPatch, timestampEquals } from './reducer-utils'
 
 type UpdateArgs<F extends CrudFieldBuilders, Id> = Partial<CrudFieldValues<F>> & { expectedUpdatedAt?: Timestamp; id: Id }
@@ -83,6 +84,7 @@ const makeChildCrud = <
   if (expectedUpdatedAtField) updateParams.expectedUpdatedAt = expectedUpdatedAtField.optional()
 
   const createReducer = spacetimedb.reducer({ name: createName }, createParams, (ctx, args) => {
+      if (options?.rateLimit) enforceRateLimit(tableName, ctx.sender, options.rateLimit)
       const typedArgs = args as CrudFieldValues<F> & Record<string, unknown>,
         hookCtx = { db: ctx.db, sender: ctx.sender, timestamp: ctx.timestamp },
         table = tableAccessor(ctx.db),

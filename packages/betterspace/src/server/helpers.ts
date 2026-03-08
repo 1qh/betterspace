@@ -356,6 +356,34 @@ const TOKEN_BYTES = 24,
       })
     )
   },
+  rlState = new Map<string, { count: number; windowStart: number }>(),
+  resetRateLimitState = () => {
+    rlState.clear()
+  },
+  enforceRateLimit = (tableName: string, sender: Identity, config: RateLimitConfig) => {
+    const key = `${tableName}:${identityToHex(sender)}`,
+      now = Date.now(),
+      existing = rlState.get(key)
+    if (!existing) {
+      rlState.set(key, { count: 1, windowStart: now })
+      return
+    }
+    if (now - existing.windowStart >= config.window) {
+      rlState.set(key, { count: 1, windowStart: now })
+      return
+    }
+    if (existing.count >= config.max) {
+      const retryAfter = config.window - (now - existing.windowStart)
+      err('RATE_LIMITED', {
+        debug: `${tableName}:create`,
+        limit: { max: config.max, remaining: 0, window: config.window },
+        op: 'create',
+        retryAfter,
+        table: tableName
+      })
+    }
+    existing.count += 1
+  },
   dbInsert = async (db: DbLike, table: string, data: Record<string, unknown>) => {
     const d = db as DbLike & Record<string, unknown>,
       tableApi = d[table] as undefined | { insert?: (row: Record<string, unknown>) => Promise<unknown> }
@@ -659,6 +687,7 @@ export {
   dbInsert,
   dbPatch,
   detectFiles,
+  enforceRateLimit,
   err,
   errValidation,
   extractErrorData,
@@ -693,6 +722,7 @@ export {
   pgOpts,
   pickFields,
   readCtx,
+  resetRateLimitState,
   RUNTIME_FILTER_WARN_THRESHOLD,
   SEVEN_DAYS_MS,
   time,

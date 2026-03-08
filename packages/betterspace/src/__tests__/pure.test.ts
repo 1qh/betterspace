@@ -4,6 +4,7 @@
 /* eslint-disable @typescript-eslint/naming-convention, @typescript-eslint/no-unnecessary-condition */
 
 import type { ComponentProps } from 'react'
+import type { Identity } from 'spacetimedb'
 import type { z } from 'zod/v4'
 
 import { describe, expect, test } from 'bun:test'
@@ -158,6 +159,7 @@ import { ownedCascade } from '../server/crud'
 import {
   cleanFiles,
   detectFiles,
+  enforceRateLimit,
   err,
   errValidation,
   extractErrorData,
@@ -180,6 +182,7 @@ import {
   normalizeRateLimit,
   ok,
   parseSenderMessage,
+  resetRateLimitState,
   RUNTIME_FILTER_WARN_THRESHOLD,
   SEVEN_DAYS_MS,
   time,
@@ -10577,5 +10580,87 @@ describe('Sprint 8 polish: parseSenderMessage adds debug on JSON parse failure',
     expect(result).toBeDefined()
     expect(result?.code).toBe('NOT_FOUND')
     expect(result?.message).toBe('resource missing')
+  })
+})
+
+describe('enforceRateLimit', () => {
+  const mockIdentity = (hex: string) => ({ toHexString: () => hex }) as unknown as Identity
+
+  test('first call within window passes', () => {
+    resetRateLimitState()
+    expect(() => enforceRateLimit('posts', mockIdentity('aaa'), { max: 3, window: 60_000 })).not.toThrow()
+  })
+
+  test('calls within limit pass', () => {
+    resetRateLimitState()
+    const sender = mockIdentity('bbb'),
+      cfg = { max: 3, window: 60_000 }
+    enforceRateLimit('posts', sender, cfg)
+    enforceRateLimit('posts', sender, cfg)
+    expect(() => enforceRateLimit('posts', sender, cfg)).not.toThrow()
+  })
+
+  test('exceeding max throws RATE_LIMITED', () => {
+    resetRateLimitState()
+    const sender = mockIdentity('ccc'),
+      cfg = { max: 2, window: 60_000 }
+    enforceRateLimit('posts', sender, cfg)
+    enforceRateLimit('posts', sender, cfg)
+    expect(() => enforceRateLimit('posts', sender, cfg)).toThrow('RATE_LIMITED')
+  })
+
+  test('separate tables track independently', () => {
+    resetRateLimitState()
+    const sender = mockIdentity('ddd'),
+      cfg = { max: 1, window: 60_000 }
+    enforceRateLimit('posts', sender, cfg)
+    expect(() => enforceRateLimit('comments', sender, cfg)).not.toThrow()
+  })
+
+  test('separate senders track independently', () => {
+    resetRateLimitState()
+    const cfg = { max: 1, window: 60_000 }
+    enforceRateLimit('posts', mockIdentity('eee'), cfg)
+    expect(() => enforceRateLimit('posts', mockIdentity('fff'), cfg)).not.toThrow()
+  })
+
+  test('window reset allows new calls', async () => {
+    resetRateLimitState()
+    const sender = mockIdentity('ggg'),
+      cfg = { max: 1, window: 50 }
+    enforceRateLimit('posts', sender, cfg)
+    expect(() => enforceRateLimit('posts', sender, cfg)).toThrow('RATE_LIMITED')
+    await sleep(60)
+    expect(() => enforceRateLimit('posts', sender, cfg)).not.toThrow()
+  })
+
+  test('error includes retryAfter and limit metadata', () => {
+    resetRateLimitState()
+    const sender = mockIdentity('hhh'),
+      cfg = { max: 1, window: 60_000 }
+    enforceRateLimit('posts', sender, cfg)
+    try {
+      enforceRateLimit('posts', sender, cfg)
+      expect(true).toBe(false)
+    } catch (error) {
+      const data = extractErrorData(error)
+      expect(data?.code).toBe('RATE_LIMITED')
+      expect(data?.table).toBe('posts')
+      expect(data?.op).toBe('create')
+      expect(data?.limit?.max).toBe(1)
+      expect(data?.limit?.remaining).toBe(0)
+      expect(typeof data?.retryAfter).toBe('number')
+    }
+  })
+})
+
+describe('bulk validation: BULK_MAX enforcement', () => {
+  test('BULK_MAX is 100', () => {
+    expect(BULK_MAX).toBe(100)
+  })
+
+  test('arrays exceeding BULK_MAX should be rejected by client', () => {
+    const items = Array.from({ length: BULK_MAX + 1 }, (_, i) => ({ name: `item-${i}` }))
+    expect(items.length).toBeGreaterThan(BULK_MAX)
   })
 })

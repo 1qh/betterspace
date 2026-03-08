@@ -13,6 +13,7 @@ import type {
   OrgCrudTableLike
 } from './types/org-crud'
 
+import { enforceRateLimit } from './helpers'
 import { identityEquals, makeError, makeOptionalFields, pickPatch, timestampEquals } from './reducer-utils'
 
 type UpdateArgs<F extends OrgCrudFieldBuilders, Id> = Partial<OrgCrudFieldValues<F>> & {
@@ -172,6 +173,7 @@ const applyOrgPatch = <Row extends OrgCrudOwnedRow<OrgId>, OrgId>(
     for (const key of fieldKeys) createParams[key] = fields[key] as TypeBuilder<unknown, AlgebraicTypeType>
 
     const createReducer = spacetimedb.reducer({ name: createName }, createParams, (ctx, args) => {
+        if (options?.rateLimit) enforceRateLimit(tableName, ctx.sender, options.rateLimit)
         const typedArgs = args as OrgCrudFieldValues<F> & { orgId: OrgId },
           hookCtx = { db: ctx.db, sender: ctx.sender, timestamp: ctx.timestamp },
           table = tableAccessor(ctx.db),
