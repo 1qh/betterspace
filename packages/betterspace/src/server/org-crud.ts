@@ -14,26 +14,14 @@ import type {
 } from './types/org-crud'
 
 import { enforceRateLimit } from './helpers'
-import { identityEquals, makeError, makeOptionalFields, pickPatch, timestampEquals } from './reducer-utils'
+import { applyPatch, identityEquals, makeError, makeOptionalFields, pickPatch, timestampEquals } from './reducer-utils'
 
 type UpdateArgs<F extends OrgCrudFieldBuilders, Id> = Partial<OrgCrudFieldValues<F>> & {
   expectedUpdatedAt?: Timestamp
   id: Id
 }
 
-const applyOrgPatch = <Row extends OrgCrudOwnedRow<OrgId>, OrgId>(
-    row: Row,
-    patch: Record<string, unknown>,
-    timestamp: Timestamp
-  ): Row => {
-    const nextRecord = { ...(row as unknown as Record<string, unknown>) },
-      patchKeys = Object.keys(patch)
-    for (const key of patchKeys) nextRecord[key] = patch[key]
-    nextRecord.updatedAt = timestamp
-    return nextRecord as unknown as Row
-  },
-  /** Looks up membership for a user within an organization. */
-  checkMembership = <OrgId, Member extends OrgCrudMemberLike<OrgId>>(
+const checkMembership = <OrgId, Member extends OrgCrudMemberLike<OrgId>>(
     orgMemberTable: Iterable<Member>,
     orgId: OrgId,
     sender: Identity
@@ -230,7 +218,7 @@ const applyOrgPatch = <Row extends OrgCrudOwnedRow<OrgId>, OrgId>(
           }) as unknown as Record<string, unknown>
 
         const prev = row as unknown as Row,
-          next = pk.update(applyOrgPatch(prev, patch, ctx.timestamp)) as unknown as Row
+          next = pk.update(applyPatch(prev, patch, ctx.timestamp)) as unknown as Row
         if (hooks?.afterUpdate)
           hooks.afterUpdate(hookCtx, {
             next,

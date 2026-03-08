@@ -8,7 +8,7 @@ import type {
   SingletonTableLike
 } from './types/singleton'
 
-import { identityEquals, makeError, makeOptionalFields } from './reducer-utils'
+import { applyPatch, identityEquals, makeError, makeOptionalFields, pickPatch } from './reducer-utils'
 
 interface SingletonRow {
   createdAt: Timestamp
@@ -20,19 +20,6 @@ const findByUser = (table: SingletonTableLike<SingletonRow>, sender: Identity): 
     for (const row of table) if (identityEquals(row.userId, sender)) return row
 
     return null
-  },
-  applyPatch = <Row extends SingletonRow>(
-    row: Row,
-    patch: Record<string, unknown>,
-    opts: { fieldNames: string[]; timestamp: Timestamp }
-  ): Row => {
-    const nextRecord = { ...(row as unknown as Record<string, unknown>) }
-    for (const key of opts.fieldNames) {
-      const value = patch[key]
-      if (value !== undefined) nextRecord[key] = value
-    }
-    nextRecord.updatedAt = opts.timestamp
-    return nextRecord as unknown as Row
   },
   /** Generates get and upsert reducers for a per-user singleton table. */
   makeSingletonCrud = <
@@ -84,7 +71,12 @@ const findByUser = (table: SingletonTableLike<SingletonRow>, sender: Identity): 
               patch: patchRecord as unknown as Partial<SingletonFieldValues<F>>,
               prev: existing as unknown as Row
             })
-          const nextRecord = applyPatch(existing as unknown as Row, patchRecord, { fieldNames, timestamp: ctx.timestamp })
+          const filteredPatch = pickPatch(patchRecord, fieldNames),
+            nextRecord = applyPatch(
+              existing as unknown as Record<string, unknown>,
+              filteredPatch,
+              ctx.timestamp
+            ) as unknown as Row
           table.update(nextRecord)
           if (hooks?.afterUpdate)
             hooks.afterUpdate(hookCtx, {

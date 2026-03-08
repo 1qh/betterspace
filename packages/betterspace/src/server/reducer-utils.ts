@@ -60,7 +60,11 @@ const makeError = (code: string, message: string): Error => new Error(`${code}: 
     }
     return patchRecord
   },
-  applyPatch = <Row extends OwnedRow>(row: Row, patch: Record<string, unknown>, timestamp: Timestamp): Row => {
+  applyPatch = <Row extends Record<string, unknown>>(
+    row: Row,
+    patch: Record<string, unknown>,
+    timestamp: Timestamp
+  ): Row => {
     const nextRecord = { ...(row as unknown as Record<string, unknown>) },
       patchKeys = Object.keys(patch)
     for (const key of patchKeys) nextRecord[key] = patch[key]

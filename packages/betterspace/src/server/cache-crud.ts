@@ -9,7 +9,7 @@ import type {
   CacheTableLike
 } from './types/cache'
 
-import { makeError, makeOptionalFields, pickPatch } from './reducer-utils'
+import { applyPatch, makeError, makeOptionalFields, pickPatch } from './reducer-utils'
 
 type UpdateArgs<F extends CacheFieldBuilders> = Partial<CacheFieldValues<F>>
 
@@ -127,19 +127,8 @@ const DAYS_PER_WEEK = 7,
         if (!row) throw makeError('NOT_FOUND', `${tableName}:update`)
 
         const patch = pickPatch(typedArgs, fieldNames),
-          nextRecord = {
-            ...(row as unknown as Record<string, unknown>),
-            invalidatedAt: null,
-            updatedAt: ctx.timestamp
-          } as Record<string, unknown>,
-          patchKeys = Object.keys(patch)
-
-        for (const key of patchKeys) {
-          const value = patch[key]
-          if (value !== undefined) nextRecord[key] = value
-        }
-
-        pk.update(nextRecord as Row)
+          merged = { ...patch, invalidatedAt: null }
+        pk.update(applyPatch(row as unknown as Record<string, unknown>, merged, ctx.timestamp) as unknown as Row)
       }),
       rmReducer = spacetimedb.reducer({ name: rmName }, { [keyName]: keyField }, (ctx, args) => {
         const typedArgs = args as Record<string, unknown>,
