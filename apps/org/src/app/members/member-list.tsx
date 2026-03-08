@@ -18,11 +18,12 @@ import { useState } from 'react'
 import { useSpacetimeDB, useTable } from 'spacetimedb/react'
 
 import { useOrg } from '~/hook/use-org'
+import { useOrgTable } from '~/hook/use-org-table'
 
 const MemberList = () => {
   const { canManageAdmins, canManageMembers, org, role: myRole } = useOrg(),
     { identity } = useSpacetimeDB(),
-    [allMembers, isReady] = useTable(tables.orgMember),
+    [memberRows, isReady] = useOrgTable(tables.orgMember) as [OrgMember[], boolean],
     [profiles] = useTable(tables.orgProfile),
     removeMember = useMut(reducers.orgRemoveMember, { toast: { success: 'Member removed' } }),
     setAdmin = useMut(reducers.orgSetAdmin, {
@@ -35,20 +36,18 @@ const MemberList = () => {
 
   for (const p of profiles) profileByUserId.set(p.userId.toHexString(), p)
 
-  const members = allMembers
-      .filter((m: OrgMember) => m.orgId === Number(org._id))
-      .map((m: OrgMember) => {
-        const p = profileByUserId.get(m.userId.toHexString()),
-          role: 'admin' | 'member' | 'owner' =
-            m.userId.toHexString() === org.userId.toHexString() ? 'owner' : m.isAdmin ? 'admin' : 'member'
-        return {
-          memberId: m.id,
-          name: p?.displayName ?? 'Unknown',
-          role,
-          user: p ? { image: p.avatar ?? null, name: p.displayName } : null,
-          userId: m.userId.toHexString()
-        }
-      }),
+  const members = memberRows.map(m => {
+      const p = profileByUserId.get(m.userId.toHexString()),
+        role: 'admin' | 'member' | 'owner' =
+          m.userId.toHexString() === org.userId.toHexString() ? 'owner' : m.isAdmin ? 'admin' : 'member'
+      return {
+        memberId: m.id,
+        name: p?.displayName ?? 'Unknown',
+        role,
+        user: p ? { image: p.avatar ?? null, name: p.displayName } : null,
+        userId: m.userId.toHexString()
+      }
+    }),
     { results: filteredMembers } = useSearch(
       members,
       isReady,

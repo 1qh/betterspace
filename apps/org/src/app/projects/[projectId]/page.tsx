@@ -28,6 +28,7 @@ import { toast } from 'sonner'
 import { useSpacetimeDB, useTable } from 'spacetimedb/react'
 
 import { useOrg } from '~/hook/use-org'
+import { useOrgTable } from '~/hook/use-org-table'
 
 type Priority = NonNullable<output<typeof s.task>['priority']>
 
@@ -146,13 +147,12 @@ const TaskRow = ({ canAssign, canEdit, members, onAssign, onDelete, onToggle, on
       pid = Number(projectId),
       { isAdmin, org } = useOrg(),
       { identity } = useSpacetimeDB(),
-      [allProjects] = useTable(tables.project),
-      [allTasks] = useTable(tables.task),
-      [allMembers] = useTable(tables.orgMember),
+      [allProjects] = useOrgTable(tables.project) as [Project[], boolean],
+      [allTasks] = useOrgTable(tables.task) as [Task[], boolean],
+      [members] = useOrgTable(tables.orgMember) as [OrgMember[], boolean],
       [allProfiles] = useTable(tables.orgProfile),
-      project = allProjects.find((p: Project) => p.id === pid && p.orgId === Number(org._id)),
-      tasks = allTasks.filter((t: Task) => t.projectId === pid && t.orgId === Number(org._id)),
-      members = allMembers.filter((m: OrgMember) => m.orgId === Number(org._id)),
+      project = allProjects.find(p => p.id === pid),
+      tasks = allTasks.filter(t => t.projectId === pid),
       profileByUserId = new Map<string, OrgProfile>(),
       [title, setTitle] = useState(''),
       createTask = useMut(reducers.createTask, {

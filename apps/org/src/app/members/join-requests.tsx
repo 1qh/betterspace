@@ -11,16 +11,12 @@ import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@
 import { useMut } from 'betterspace/react'
 import { Check, X } from 'lucide-react'
 import { useState } from 'react'
-import { useTable } from 'spacetimedb/react'
 
-import { useOrg } from '~/hook/use-org'
+import { useOrgTable } from '~/hook/use-org-table'
 
 const JoinRequests = () => {
-  const { org } = useOrg(),
-    [allRequests] = useTable(tables.orgJoinRequest),
-    requests = allRequests
-      .filter((r: OrgJoinRequest) => r.orgId === Number(org._id) && r.status === 'pending')
-      .map((r: OrgJoinRequest) => ({ request: r })),
+  const [orgRequests] = useOrgTable(tables.orgJoinRequest) as [OrgJoinRequest[], boolean],
+    requests = orgRequests.filter(r => r.status === 'pending').map(r => ({ request: r })),
     approveRequest = useMut(reducers.orgApproveJoin, { toast: { success: 'Request approved' } }),
     rejectRequest = useMut(reducers.orgRejectJoin, { toast: { success: 'Request rejected' } }),
     [asAdmin, setAsAdmin] = useState<Record<string, boolean>>({})

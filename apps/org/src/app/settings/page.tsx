@@ -13,9 +13,10 @@ import { clearActiveOrgCookie } from 'betterspace/next'
 import { useMutate } from 'betterspace/react'
 import { useRouter } from 'next/navigation'
 import { useState } from 'react'
-import { useReducer, useTable } from 'spacetimedb/react'
+import { useReducer } from 'spacetimedb/react'
 
 import { useOrg, useOrgMutation } from '~/hook/use-org'
+import { useOrgTable } from '~/hook/use-org-table'
 
 import OrgSettingsForm from './org-settings-form'
 
@@ -50,8 +51,7 @@ const OrgSettingsPage = () => {
         toast: { success: 'Ownership transferred' }
       }
     ),
-    [allMembers] = useTable(tables.orgMember),
-    members = allMembers.filter((m: OrgMember) => m.orgId === Number(org._id)),
+    [members] = useOrgTable(tables.orgMember) as [OrgMember[], boolean],
     [transferTarget, setTransferTarget] = useState<string>('')
 
   if (!isAdmin)

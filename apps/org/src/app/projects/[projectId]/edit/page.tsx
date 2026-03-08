@@ -15,16 +15,16 @@ import { pickValues } from 'betterspace/zod'
 import { useRouter } from 'next/navigation'
 import { use } from 'react'
 import { toast } from 'sonner'
-import { useReducer, useSpacetimeDB, useTable } from 'spacetimedb/react'
+import { useReducer, useSpacetimeDB } from 'spacetimedb/react'
 
 import { useOrg } from '~/hook/use-org'
+import { useOrgTable } from '~/hook/use-org-table'
 import { project as projectSchema } from '~/schema'
 
 const EditProjectForm = ({ projectId, taskCount }: { projectId: number; taskCount: number }) => {
     const router = useRouter(),
-      { org } = useOrg(),
-      [projects] = useTable(tables.project),
-      project = projects.find((p: Project) => p.id === projectId && p.orgId === Number(org._id)),
+      [projects] = useOrgTable(tables.project) as [Project[], boolean],
+      project = projects.find(p => p.id === projectId),
       removeProject = useMut(reducers.rmProject, {
         onSuccess: () => router.push('/projects'),
         toast: { success: 'Project deleted' }
@@ -72,12 +72,12 @@ const EditProjectForm = ({ projectId, taskCount }: { projectId: number; taskCoun
   EditProjectPage = ({ params }: { params: Promise<{ projectId: string }> }) => {
     const { projectId } = use(params),
       pid = Number(projectId),
-      { isAdmin, org } = useOrg(),
+      { isAdmin } = useOrg(),
       { identity } = useSpacetimeDB(),
-      [projects] = useTable(tables.project),
-      [tasks] = useTable(tables.task),
-      project = projects.find((p: Project) => p.id === pid && p.orgId === Number(org._id)),
-      projectTasks = tasks.filter((t: Task) => t.projectId === pid && t.orgId === Number(org._id))
+      [projects] = useOrgTable(tables.project) as [Project[], boolean],
+      [tasks] = useOrgTable(tables.task) as [Task[], boolean],
+      project = projects.find(p => p.id === pid),
+      projectTasks = tasks.filter(t => t.projectId === pid)
 
     if (!(project && identity)) return <Skeleton className='h-40' />
 

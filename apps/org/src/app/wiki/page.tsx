@@ -17,29 +17,30 @@ import { FileText, Plus, RotateCcw, Search, Trash2 } from 'lucide-react'
 import Link from 'next/link'
 import { useState } from 'react'
 import { toast } from 'sonner'
-import { useReducer, useTable } from 'spacetimedb/react'
+import { useReducer } from 'spacetimedb/react'
 
 import { useOrg } from '~/hook/use-org'
+import { useOrgTable } from '~/hook/use-org-table'
 
 const WikiPage = () => {
   const { isAdmin, org } = useOrg(),
     [showDeleted, setShowDeleted] = useState(false),
     [query, setQuery] = useState(''),
-    [allWikis, isWikisReady] = useTable(tables.wiki),
+    [allWikis, isWikisReady] = useOrgTable(tables.wiki) as [Wiki[], boolean],
     orgWikis = allWikis
 
-      .filter((w: Wiki) => w.orgId === Number(org._id) && w.deletedAt === undefined)
+      .filter(w => w.deletedAt === undefined)
       // oxlint-disable-next-line oxc/no-map-spread
-      .map((w: Wiki) => ({ ...w, _id: `${w.id}` })),
+      .map(w => ({ ...w, _id: `${w.id}` })),
     { results: wikis } = useSearch(orgWikis, isWikisReady, {
       fields: ['title', 'slug'],
       query
     }),
     deletedWikis = allWikis
 
-      .filter((w: Wiki) => w.orgId === Number(org._id) && w.deletedAt !== undefined)
+      .filter(w => w.deletedAt !== undefined)
       // oxlint-disable-next-line oxc/no-map-spread
-      .map((w: Wiki) => ({ ...w, _id: `${w.id}` })),
+      .map(w => ({ ...w, _id: `${w.id}` })),
     updateWiki = useReducer(reducers.updateWiki),
     restoreMut = async (args: { id: string }) => {
       const wiki = allWikis.find(w => w.id === Number(args.id))

@@ -14,17 +14,17 @@ import { FolderOpen, Plus, Search } from 'lucide-react'
 import Link from 'next/link'
 import { useState } from 'react'
 import { toast } from 'sonner'
-import { useReducer, useTable } from 'spacetimedb/react'
+import { useReducer } from 'spacetimedb/react'
 
 import { useOrg } from '~/hook/use-org'
+import { useOrgTable } from '~/hook/use-org-table'
 
 const ProjectsPage = () => {
   const { isAdmin, org } = useOrg(),
-    [allProjects, isProjectsReady] = useTable(tables.project),
-    orgProjects = allProjects
-      .filter((p: Project) => p.orgId === Number(org._id))
+    [orgProjectRows, isProjectsReady] = useOrgTable(tables.project) as [Project[], boolean],
+    orgProjects = orgProjectRows
       // oxlint-disable-next-line oxc/no-map-spread
-      .map((p: Project) => ({ ...p, _id: `${p.id}` })),
+      .map(p => ({ ...p, _id: `${p.id}` })),
     [query, setQuery] = useState(''),
     { results: projects } = useSearch(orgProjects, isProjectsReady, {
       fields: ['name', 'description'],

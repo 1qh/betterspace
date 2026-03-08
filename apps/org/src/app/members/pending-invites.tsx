@@ -13,14 +13,11 @@ import { RoleBadge } from 'betterspace/components'
 import { useMut } from 'betterspace/react'
 import { Copy, Trash } from 'lucide-react'
 import { toast } from 'sonner'
-import { useTable } from 'spacetimedb/react'
 
-import { useOrg } from '~/hook/use-org'
+import { useOrgTable } from '~/hook/use-org-table'
 
 const PendingInvites = () => {
-  const { org } = useOrg(),
-    [allInvites] = useTable(tables.orgInvite),
-    invites = allInvites.filter((i: OrgInvite) => i.orgId === Number(org._id)),
+  const [invites] = useOrgTable(tables.orgInvite) as [OrgInvite[], boolean],
     revokeInvite = useMut(reducers.orgRevokeInvite, { toast: { success: 'Invite revoked' } })
 
   if (invites.length === 0) return null

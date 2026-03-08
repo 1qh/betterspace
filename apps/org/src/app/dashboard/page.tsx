@@ -5,16 +5,15 @@ import { Card, CardContent, CardHeader, CardTitle } from '@a/ui/card'
 import { RoleBadge } from 'betterspace/components'
 import { FolderOpen, Users } from 'lucide-react'
 import Link from 'next/link'
-import { useTable } from 'spacetimedb/react'
 
 import { useOrg } from '~/hook/use-org'
+import { useOrgTable } from '~/hook/use-org-table'
 
 const OrgDashboard = () => {
   const { org, role } = useOrg(),
-    [allMembers] = useTable(tables.orgMember),
-    [allProjects] = useTable(tables.project),
-    members = allMembers.filter(m => m.orgId === Number(org._id)),
-    projects = allProjects.filter(p => p.orgId === Number(org._id)).slice(0, 5)
+    [members] = useOrgTable(tables.orgMember),
+    [orgProjects] = useOrgTable(tables.project),
+    projects = orgProjects.slice(0, 5)
 
   return (
     <div className='space-y-6'>
