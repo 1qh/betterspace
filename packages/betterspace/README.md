@@ -8,7 +8,12 @@ real-time WebSocket subscriptions, pagination, search, conflict detection, soft 
 org multi-tenancy with ACL, Row-Level Security via `clientVisibilityFilter` — all
 generated. Ship a production app in minutes, not days.
 
-Scales to 100M+ users on a single SpacetimeDB instance.
+SpacetimeDB runs server-side logic in-memory with WASM, so there’s no network hop
+between your app logic and the database.
+betterspace adds auto-generated indexes, bulk operation limits, rate limiting, input
+sanitization, and Row-Level Security filters that minimize data transferred per
+subscription. Together these make a single SpacetimeDB instance viable at very high user
+counts without horizontal sharding.
 See [Security & Scalability](docs/security.md) for architecture details.
 
 ## Before / After
@@ -491,7 +496,7 @@ It also auto-installs dependencies and creates `tsconfig.json` — no manual set
 | -------- | --------------------------- | ----: |
 | Web      | Playwright E2E              |   220 |
 | Backend  | SpacetimeDB test utilities  |    17 |
-| Library  | bun:test (`src/__tests__/`) |  1082 |
+| Library  | bun:test (`src/__tests__/`) |  1091 |
 
 ## Documentation
 
@@ -516,7 +521,7 @@ The library is independently testable without the demo apps:
 
 ```bash
 cd packages/betterspace
-bun test src/__tests__/  # 1082 library-only tests, no SpacetimeDB needed
+bun test src/__tests__/  # 1091 library-only tests, no SpacetimeDB needed
 bun lint          # library-scoped linting
 bun typecheck     # library-only type checking
 ```

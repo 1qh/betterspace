@@ -1791,6 +1791,106 @@ errValidation({ title: 'Required', slug: 'Already taken' })
 
 ---
 
+### Server Middleware
+
+betterspace ships four built-in middleware factories exported from `betterspace/server`.
+Pass them as an array to the second argument of `betterspace()`:
+
+```typescript
+import { betterspace } from 'betterspace/server'
+import { auditLog, inputSanitize, slowQueryWarn } from 'betterspace/server'
+
+export default betterspace(
+  ({ table }) => ({
+    blog: table(s.blog, { pub: 'published' })
+  }),
+  {
+    middleware: [inputSanitize(), auditLog(), slowQueryWarn({ threshold: 200 })]
+  }
+)
+```
+
+Middleware runs in array order for `before*` hooks and in reverse order for `after*`
+hooks, matching the standard onion model.
+
+#### `composeMiddleware`
+
+```typescript
+composeMiddleware(...middlewares: Middleware[]): GlobalHooks
+```
+
+Chains multiple middleware into a single `GlobalHooks` object consumed by the
+betterspace setup internals.
+You don’t call this directly — betterspace calls it when it processes the `middleware`
+array you pass. It’s exported for advanced use cases where you need to compose hooks
+outside of the standard setup flow.
+
+#### `inputSanitize`
+
+```typescript
+inputSanitize(opts?: { fields?: string[] }): Middleware
+```
+
+Strips `<script>` tags and inline event handlers (`onXxx=`) from string fields in create
+and update data before the operation reaches the reducer.
+By default it sanitizes every string field.
+Pass `{ fields: ['content', 'bio'] }` to target specific fields only.
+
+#### `auditLog`
+
+```typescript
+auditLog(opts?: { logLevel?: 'debug' | 'info'; verbose?: boolean }): Middleware
+```
+
+Logs a structured audit entry for every create, update, and delete operation.
+Each entry includes the sender identity, table name, and operation type.
+Set `verbose: true` to also log the data or field details involved.
+Default log level is `'info'`.
+
+#### `slowQueryWarn`
+
+```typescript
+slowQueryWarn(opts?: { threshold?: number }): Middleware
+```
+
+Emits a warning when any reducer operation exceeds the time threshold.
+Logs the table name, operation, and actual duration so you can identify hot paths.
+Default threshold is 500ms.
+
+#### Custom middleware
+
+Implement the `Middleware` interface to write your own:
+
+```typescript
+interface Middleware {
+  name: string
+  beforeCreate?: (ctx: MiddlewareCtx, args: { data: Rec }) => Rec | Promise<Rec>
+  afterCreate?: (
+    ctx: MiddlewareCtx,
+    args: { data: Rec; row: Rec }
+  ) => void | Promise<void>
+  beforeUpdate?: (
+    ctx: MiddlewareCtx,
+    args: { patch: Rec; prev: Rec }
+  ) => Rec | Promise<Rec>
+  afterUpdate?: (
+    ctx: MiddlewareCtx,
+    args: { next: Rec; patch: Rec; prev: Rec }
+  ) => void | Promise<void>
+  beforeDelete?: (
+    ctx: MiddlewareCtx,
+    args: { row: Rec }
+  ) => void | Promise<void>
+  afterDelete?: (ctx: MiddlewareCtx, args: { row: Rec }) => void | Promise<void>
+}
+```
+
+`before*` hooks return the (possibly mutated) data or patch object.
+`after*` hooks are fire-and-forget.
+`MiddlewareCtx` carries the sender identity and table name so you can branch on them.
+
+---
+
 ## CLI
 
 ### `betterspace init` pre-flight checks
