@@ -2,7 +2,7 @@
 /* eslint-disable @typescript-eslint/strict-void-return */
 'use client'
 
-import type { OrgMember, OrgProfile } from '@a/be/spacetimedb/types'
+import type { OrgMember } from '@a/be/spacetimedb/types'
 
 import { reducers, tables } from '@a/be/spacetimedb'
 import { Avatar, AvatarFallback, AvatarImage } from '@a/ui/avatar'
@@ -15,16 +15,17 @@ import { RoleBadge } from 'betterspace/components'
 import { useMut, useSearch } from 'betterspace/react'
 import { MoreHorizontal, Search, UserMinus } from 'lucide-react'
 import { useState } from 'react'
-import { useSpacetimeDB, useTable } from 'spacetimedb/react'
+import { useSpacetimeDB } from 'spacetimedb/react'
 
 import { useOrg } from '~/hook/use-org'
 import { useOrgTable } from '~/hook/use-org-table'
+import { useProfileMap } from '~/hook/use-profile-map'
 
 const MemberList = () => {
   const { canManageAdmins, canManageMembers, org, role: myRole } = useOrg(),
     { identity } = useSpacetimeDB(),
     [memberRows, isReady] = useOrgTable(tables.orgMember) as [OrgMember[], boolean],
-    [profiles] = useTable(tables.orgProfile),
+    profileByUserId = useProfileMap(),
     removeMember = useMut(reducers.orgRemoveMember, { toast: { success: 'Member removed' } }),
     setAdmin = useMut(reducers.orgSetAdmin, {
       toast: {
@@ -32,11 +33,7 @@ const MemberList = () => {
       }
     }),
     [query, setQuery] = useState(''),
-    profileByUserId = new Map<string, OrgProfile>()
-
-  for (const p of profiles) profileByUserId.set(p.userId.toHexString(), p)
-
-  const members = memberRows.map(m => {
+    members = memberRows.map(m => {
       const p = profileByUserId.get(m.userId.toHexString()),
         role: 'admin' | 'member' | 'owner' =
           m.userId.toHexString() === org.userId.toHexString() ? 'owner' : m.isAdmin ? 'admin' : 'member'

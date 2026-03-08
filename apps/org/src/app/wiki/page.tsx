@@ -6,7 +6,7 @@
 import type { Wiki } from '@a/be/spacetimedb/types'
 
 import { reducers, tables } from '@a/be/spacetimedb'
-import { fail } from '@a/fe/utils'
+import { fail, withStringId } from '@a/fe/utils'
 import { Badge } from '@a/ui/badge'
 import { Button } from '@a/ui/button'
 import { Card, CardContent, CardHeader, CardTitle } from '@a/ui/card'
@@ -27,20 +27,12 @@ const WikiPage = () => {
     [showDeleted, setShowDeleted] = useState(false),
     [query, setQuery] = useState(''),
     [allWikis, isWikisReady] = useOrgTable(tables.wiki) as [Wiki[], boolean],
-    orgWikis = allWikis
-
-      .filter(w => w.deletedAt === undefined)
-      // oxlint-disable-next-line oxc/no-map-spread
-      .map(w => ({ ...w, _id: `${w.id}` })),
+    orgWikis = allWikis.filter(w => w.deletedAt === undefined).map(withStringId),
     { results: wikis } = useSearch(orgWikis, isWikisReady, {
       fields: ['title', 'slug'],
       query
     }),
-    deletedWikis = allWikis
-
-      .filter(w => w.deletedAt !== undefined)
-      // oxlint-disable-next-line oxc/no-map-spread
-      .map(w => ({ ...w, _id: `${w.id}` })),
+    deletedWikis = allWikis.filter(w => w.deletedAt !== undefined).map(withStringId),
     updateWiki = useReducer(reducers.updateWiki),
     restoreMut = async (args: { id: string }) => {
       const wiki = allWikis.find(w => w.id === Number(args.id))

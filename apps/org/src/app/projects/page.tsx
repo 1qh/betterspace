@@ -4,7 +4,7 @@
 import type { Project } from '@a/be/spacetimedb/types'
 
 import { reducers, tables } from '@a/be/spacetimedb'
-import { fail } from '@a/fe/utils'
+import { fail, withStringId } from '@a/fe/utils'
 import { Button } from '@a/ui/button'
 import { Card, CardContent, CardHeader, CardTitle } from '@a/ui/card'
 import { Checkbox } from '@a/ui/checkbox'
@@ -22,9 +22,7 @@ import { useOrgTable } from '~/hook/use-org-table'
 const ProjectsPage = () => {
   const { isAdmin, org } = useOrg(),
     [orgProjectRows, isProjectsReady] = useOrgTable(tables.project) as [Project[], boolean],
-    orgProjects = orgProjectRows
-      // oxlint-disable-next-line oxc/no-map-spread
-      .map(p => ({ ...p, _id: `${p.id}` })),
+    orgProjects = orgProjectRows.map(withStringId),
     [query, setQuery] = useState(''),
     { results: projects } = useSearch(orgProjects, isProjectsReady, {
       fields: ['name', 'description'],

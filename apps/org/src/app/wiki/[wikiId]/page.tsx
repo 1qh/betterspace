@@ -1,7 +1,7 @@
 // biome-ignore-all lint/nursery/noFloatingPromises: event handler
 'use client'
 
-import type { OrgProfile, Wiki } from '@a/be/spacetimedb/types'
+import type { Wiki } from '@a/be/spacetimedb/types'
 
 import { reducers, tables } from '@a/be/spacetimedb'
 import { sameIdentity } from '@a/fe/utils'
@@ -16,6 +16,7 @@ import { use } from 'react'
 import { useSpacetimeDB, useTable } from 'spacetimedb/react'
 
 import { useOrg } from '~/hook/use-org'
+import { useProfileMap } from '~/hook/use-profile-map'
 
 const emptyMembers: never[] = [],
   WikiDetailPage = ({ params }: { params: Promise<{ wikiId: string }> }) => {
@@ -24,10 +25,9 @@ const emptyMembers: never[] = [],
       { isAdmin, org } = useOrg(),
       { identity } = useSpacetimeDB(),
       [allWikis] = useTable(tables.wiki),
-      [allProfiles] = useTable(tables.orgProfile),
       wiki = allWikis.find((w: Wiki) => w.id === id && w.orgId === Number(org._id)),
       updateWiki = useMut(reducers.updateWiki, { toast: { success: 'Wiki restored' } }),
-      profileByUserId = new Map<string, OrgProfile>(),
+      profileByUserId = useProfileMap(),
       restoreMut = async (args: { id: number }) => {
         if (!wiki) return
         await updateWiki({
@@ -41,8 +41,6 @@ const emptyMembers: never[] = [],
           title: wiki.title
         })
       }
-
-    for (const p of allProfiles) profileByUserId.set(p.userId.toHexString(), p)
 
     if (!(wiki && identity)) return <Skeleton className='h-40' />
 

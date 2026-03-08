@@ -47,6 +47,10 @@ const getCode = (error: unknown) => {
     return ''
   },
   sameIdentity = (a: { toHexString: () => string }, b: { toHexString: () => string }) =>
-    a.toHexString() === b.toHexString()
+    a.toHexString() === b.toHexString(),
+  withStringId = <T extends { id: number }>(item: T): T & { _id: string } => ({
+    ...item,
+    _id: `${item.id}`
+  })
 
-export { fail, formatDate, formatExpiry, parseId, sameIdentity, toIdentityKey }
+export { fail, formatDate, formatExpiry, parseId, sameIdentity, toIdentityKey, withStringId }

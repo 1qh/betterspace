@@ -3,7 +3,7 @@
 
 'use client'
 
-import type { OrgMember, OrgProfile, Project, Task } from '@a/be/spacetimedb/types'
+import type { OrgMember, Project, Task } from '@a/be/spacetimedb/types'
 import type { SyntheticEvent } from 'react'
 import type { output } from 'zod/v4'
 
@@ -25,10 +25,11 @@ import { Check, Pencil, Plus, Trash, X } from 'lucide-react'
 import Link from 'next/link'
 import { use, useState } from 'react'
 import { toast } from 'sonner'
-import { useSpacetimeDB, useTable } from 'spacetimedb/react'
+import { useSpacetimeDB } from 'spacetimedb/react'
 
 import { useOrg } from '~/hook/use-org'
 import { useOrgTable } from '~/hook/use-org-table'
+import { useProfileMap } from '~/hook/use-profile-map'
 
 type Priority = NonNullable<output<typeof s.task>['priority']>
 
@@ -150,10 +151,9 @@ const TaskRow = ({ canAssign, canEdit, members, onAssign, onDelete, onToggle, on
       [allProjects] = useOrgTable(tables.project) as [Project[], boolean],
       [allTasks] = useOrgTable(tables.task) as [Task[], boolean],
       [members] = useOrgTable(tables.orgMember) as [OrgMember[], boolean],
-      [allProfiles] = useTable(tables.orgProfile),
+      profileByUserId = useProfileMap(),
       project = allProjects.find(p => p.id === pid),
       tasks = allTasks.filter(t => t.projectId === pid),
-      profileByUserId = new Map<string, OrgProfile>(),
       [title, setTitle] = useState(''),
       createTask = useMut(reducers.createTask, {
         onSuccess: () => setTitle(''),
@@ -185,8 +185,6 @@ const TaskRow = ({ canAssign, canEdit, members, onAssign, onDelete, onToggle, on
           setSelected(new Set())
         }
       })
-
-    for (const p of allProfiles) profileByUserId.set(p.userId.toHexString(), p)
 
     if (!(project && identity)) return <Skeleton className='h-40' />
 

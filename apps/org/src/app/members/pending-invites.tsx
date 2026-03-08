@@ -1,4 +1,4 @@
-/* oxlint-disable promise/prefer-await-to-then */
+/* eslint-disable @typescript-eslint/strict-void-return */
 // biome-ignore-all lint/nursery/useGlobalThis: browser API
 // biome-ignore-all lint/nursery/noFloatingPromises: event handler
 'use client'
@@ -22,12 +22,14 @@ const PendingInvites = () => {
 
   if (invites.length === 0) return null
 
-  const handleCopy = (token: string) => {
+  const handleCopy = async (token: string) => {
     const url = `${window.location.origin}/invite/${token}`
-    navigator.clipboard
-      .writeText(url)
-      .then(() => toast.success('Invite link copied'))
-      .catch(() => toast.error('Failed to copy'))
+    try {
+      await navigator.clipboard.writeText(url)
+      toast.success('Invite link copied')
+    } catch {
+      toast.error('Failed to copy')
+    }
   }
 
   return (
@@ -51,7 +53,7 @@ const PendingInvites = () => {
               </TableCell>
               <TableCell className='text-sm text-muted-foreground'>{formatExpiry(i.expiresAt)}</TableCell>
               <TableCell className='flex gap-1'>
-                <Button onClick={() => handleCopy(i.token)} size='icon' variant='ghost'>
+                <Button onClick={async () => handleCopy(i.token)} size='icon' variant='ghost'>
                   <Copy className='size-4' />
                 </Button>
                 <Button
