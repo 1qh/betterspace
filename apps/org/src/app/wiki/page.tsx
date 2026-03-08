@@ -49,17 +49,12 @@ const WikiPage = () => {
       })
     },
     rmWiki = useReducer(reducers.rmWiki),
-    bulkRm = async ({ ids }: { ids: string[]; orgId: string }) => {
-      const tasks: Promise<void>[] = []
-      for (const id of ids) tasks.push(rmWiki({ id: Number(id) }))
-      await Promise.all(tasks)
-    },
     { clear, handleBulkDelete, selected, toggleSelect, toggleSelectAll } = useBulkSelection({
-      bulkRm,
       items: wikis,
       onError: fail,
       orgId: org._id,
       restore: restoreMut,
+      rm: async id => rmWiki({ id: Number(id) }),
       toast: (msg, opts) => {
         toast(msg, opts)
       },

@@ -2,29 +2,25 @@
 
 'use client'
 
-import { useCallback, useState } from 'react'
+import { useCallback, useMemo, useState } from 'react'
 
 import type { ToastFn } from './use-soft-delete'
 
 import { UNDO_MS } from '../constants'
 
 interface UseBulkSelectionOpts {
-  bulkRm: (args: { ids: string[]; orgId: string }) => Promise<unknown>
+  bulkRm?: (args: { ids: string[]; orgId: string }) => Promise<unknown>
   items: { _id: string }[]
   onError?: (error: unknown) => void
   onSuccess?: (count: number) => void
   orgId: string
   restore?: (args: { id: string }) => Promise<unknown>
+  rm?: (id: string) => Promise<unknown>
   toast?: ToastFn
   undoLabel?: string
   undoMs?: number
 }
 
-/**
- * Manages selected row ids and provides bulk delete with optional undo.
- * @param options Selection state inputs and bulk mutation handlers.
- * @returns Selection state plus toggle, clear, and bulk-delete actions.
- */
 const useBulkSelection = ({
   bulkRm,
   items,
@@ -32,11 +28,24 @@ const useBulkSelection = ({
   onSuccess,
   orgId,
   restore,
+  rm,
   toast: t,
   undoLabel,
   undoMs = UNDO_MS
 }: UseBulkSelectionOpts) => {
-  const [selected, setSelected] = useState<Set<string>>(() => new Set()),
+  const effectiveBulkRm = useMemo(
+      () =>
+        bulkRm ??
+        (rm
+          ? async ({ ids }: { ids: string[] }) => {
+              const tasks: Promise<unknown>[] = []
+              for (const id of ids) tasks.push(rm(id))
+              await Promise.all(tasks)
+            }
+          : undefined),
+      [bulkRm, rm]
+    ),
+    [selected, setSelected] = useState<Set<string>>(() => new Set()),
     clear = useCallback(() => {
       setSelected(new Set<string>())
     }, []),
@@ -58,11 +67,11 @@ const useBulkSelection = ({
       setSelected(next)
     }, [items, selected.size]),
     handleBulkDelete = useCallback(async () => {
-      if (selected.size === 0) return
+      if (selected.size === 0 || !effectiveBulkRm) return
       const ids = [...selected],
         count = ids.length
       try {
-        await bulkRm({ ids, orgId })
+        await effectiveBulkRm({ ids, orgId })
         setSelected(new Set<string>())
         if (!(t && restore)) {
           onSuccess?.(count)
@@ -91,7 +100,7 @@ const useBulkSelection = ({
       } catch (error) {
         onError?.(error)
       }
-    }, [bulkRm, onError, onSuccess, orgId, restore, selected, t, undoLabel, undoMs])
+    }, [effectiveBulkRm, onError, onSuccess, orgId, restore, selected, t, undoLabel, undoMs])
 
   return { clear, handleBulkDelete, selected, toggleSelect, toggleSelectAll }
 }

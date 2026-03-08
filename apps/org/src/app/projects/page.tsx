@@ -29,19 +29,14 @@ const ProjectsPage = () => {
       query
     }),
     rmProject = useReducer(reducers.rmProject),
-    bulkRm = async ({ ids }: { ids: string[]; orgId: string }) => {
-      const tasks: Promise<void>[] = []
-      for (const id of ids) tasks.push(rmProject({ id: Number(id) }))
-      await Promise.all(tasks)
-    },
     { clear, handleBulkDelete, selected, toggleSelect, toggleSelectAll } = useBulkSelection({
-      bulkRm,
       items: projects,
       onError: fail,
       onSuccess: (count: number) => {
         toast.success(`${count} project(s) deleted`)
       },
-      orgId: org._id
+      orgId: org._id,
+      rm: async id => rmProject({ id: Number(id) })
     })
 
   return (
