@@ -1,19 +1,18 @@
-/* oxlint-disable promise/prefer-await-to-then, promise/always-return */
 /* eslint-disable no-alert */
 /** biome-ignore-all lint/suspicious/noAlert: demo page uses native confirm */
+// biome-ignore-all lint/nursery/noFloatingPromises: event handler
 'use client'
 
 import type { OrgMember } from '@a/be/spacetimedb/types'
 
 import { reducers, tables } from '@a/be/spacetimedb'
-import { fail } from '@a/fe/utils'
 import { Button } from '@a/ui/button'
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@a/ui/card'
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@a/ui/select'
 import { clearActiveOrgCookie } from 'betterspace/next'
+import { useMutate } from 'betterspace/react'
 import { useRouter } from 'next/navigation'
 import { useState } from 'react'
-import { toast } from 'sonner'
 import { useReducer, useTable } from 'spacetimedb/react'
 
 import { useOrg, useOrgMutation } from '~/hook/use-org'
@@ -22,10 +21,35 @@ import OrgSettingsForm from './org-settings-form'
 
 const OrgSettingsPage = () => {
   const router = useRouter(),
+    clearAndGoHome = async () => {
+      await clearActiveOrgCookie()
+      router.push('/')
+    },
+    orgTransferOwnership = useOrgMutation(useReducer(reducers.orgTransferOwnership)),
     { canDeleteOrg, isAdmin, isOwner, org } = useOrg(),
-    removeOrg = useOrgMutation(useReducer(reducers.orgRemove)),
-    leaveOrg = useOrgMutation(useReducer(reducers.orgLeave)),
-    transferOwnership = useOrgMutation(useReducer(reducers.orgTransferOwnership)),
+    removeOrg = useMutate(useOrgMutation(useReducer(reducers.orgRemove)), {
+      onSuccess: () => {
+        clearAndGoHome()
+      },
+      toast: { success: 'Organization deleted' }
+    }),
+    leaveOrg = useMutate(useOrgMutation(useReducer(reducers.orgLeave)), {
+      onSuccess: () => {
+        clearAndGoHome()
+      },
+      toast: { success: 'You have left the organization' }
+    }),
+    transferOwnership = useMutate(
+      // biome-ignore lint/suspicious/useAwait: callback shape comes from useMutate
+      async (args: Record<string, unknown>) => {
+        const newOwnerId = args.newOwnerId as NonNullable<Parameters<typeof orgTransferOwnership>[0]>['newOwnerId']
+        return orgTransferOwnership({ newOwnerId })
+      },
+      {
+        onSuccess: () => router.refresh(),
+        toast: { success: 'Ownership transferred' }
+      }
+    ),
     [allMembers] = useTable(tables.orgMember),
     members = allMembers.filter((m: OrgMember) => m.orgId === Number(org._id)),
     [transferTarget, setTransferTarget] = useState<string>('')
@@ -36,34 +60,17 @@ const OrgSettingsPage = () => {
   const adminMembers = members.filter(m => m.isAdmin),
     handleLeave = () => {
       if (!confirm('Are you sure you want to leave this organization?')) return
-      leaveOrg()
-        .then(async () => {
-          await clearActiveOrgCookie()
-          toast.success('You have left the organization')
-          router.push('/')
-        })
-        .catch(fail)
+      leaveOrg({})
     },
     handleTransfer = () => {
       const target = adminMembers.find(m => m.userId.toHexString() === transferTarget)
       if (!target) return
       if (!confirm('Are you sure? You will become an admin and lose owner privileges.')) return
       transferOwnership({ newOwnerId: target.userId })
-        .then(() => {
-          toast.success('Ownership transferred')
-          router.refresh()
-        })
-        .catch(fail)
     },
     handleDelete = () => {
       if (!confirm('Are you sure? This will delete all data.')) return
-      removeOrg()
-        .then(async () => {
-          await clearActiveOrgCookie()
-          toast.success('Organization deleted')
-          router.push('/')
-        })
-        .catch(fail)
+      removeOrg({})
     }
 
   return (
