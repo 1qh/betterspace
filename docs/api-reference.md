@@ -984,15 +984,28 @@ const form = useFormMutation({
 })
 ```
 
-With `transform`:
+**Options:**
+
+| Option           | Type                                       | Description                                                                                               |
+| ---------------- | ------------------------------------------ | --------------------------------------------------------------------------------------------------------- |
+| `schema`         | `ZodObject`                                | Zod schema for validation and field metadata.                                                             |
+| `mutate`         | `(args: M) => Promise<void>`               | Mutation function (e.g. from `useReducer`).                                                               |
+| `toast`          | `{ success?: string; error?: string }`     | Built-in toast messages. `success` composes with `onSuccess`. `error` is used when no explicit `onError`. |
+| `onSuccess`      | `() => void`                               | Called on success. Composes with `toast.success` (both run).                                              |
+| `onError`        | `((e: unknown) => void) \| false`          | Error handler. Takes precedence over `toast.error`. Pass `false` to suppress all errors.                  |
+| `transform`      | `(d: output<S>) => M`                      | Maps validated form data into mutation argument shape.                                                    |
+| `values`         | `output<S>`                                | Initial form values. If omitted, schema defaults are used.                                                |
+| `resetOnSuccess` | `boolean`                                  | Reset form after success. Default: `false` (react), `true` (components).                                  |
+| `autoSave`       | `{ debounceMs: number; enabled: boolean }` | Auto-submit on change after debounce.                                                                     |
+| `onConflict`     | `(data: ConflictData) => void`             | Handle concurrent edit conflicts.                                                                         |
+
+With `transform` and `toast`:
 
 ```typescript
 const form = useFormMutation({
   mutate: useReducer(reducers.createWiki),
-  onSuccess: () => {
-    toast.success('Created')
-    router.push('/wiki')
-  },
+  toast: { success: 'Created' },
+  onSuccess: () => router.push('/wiki'),
   schema: wiki,
   transform: d => ({ ...d, orgId: Number(org._id) })
 })

@@ -178,7 +178,7 @@ generated.
 | `InferReducerArgs`, `InferReducerReturn`, `InferReducerInputs`, `InferReducerOutputs`                                        |       0       |
 | `schemaVariants()` — derive create/update schemas from one base schema                                                       |       0       |
 | `injectError()` devtools function + error injection dropdown in devtools panel                                               |       0       |
-| `useMutation` toast shorthand (`toast: { success, error }`) — eliminates mutation+toast boilerplate                          |       0       |
+| `useMutation`/`useFormMutation` toast shorthand (`toast: { success, error }`) — eliminates mutation+toast boilerplate        |       0       |
 | Phantom type inference (`$inferRow`, `$inferCreate`, `$inferUpdate`, `~types`) on branded schemas                            |       0       |
 | `SenderError._tag` discriminator for `instanceof`-free error discrimination                                                  |       0       |
 | `z.prefault()`/`z.default()` integration in `defaultValues()` for smarter form defaults                                      |       0       |
@@ -496,7 +496,7 @@ It also auto-installs dependencies and creates `tsconfig.json` — no manual set
 | -------- | --------------------------- | ----: |
 | Web      | Playwright E2E              |   220 |
 | Backend  | SpacetimeDB test utilities  |    17 |
-| Library  | bun:test (`src/__tests__/`) |  1091 |
+| Library  | bun:test (`src/__tests__/`) |  1107 |
 
 ## Documentation
 
@@ -521,7 +521,7 @@ The library is independently testable without the demo apps:
 
 ```bash
 cd packages/betterspace
-bun test src/__tests__/  # 1091 library-only tests, no SpacetimeDB needed
+bun test src/__tests__/  # 1107 library-only tests, no SpacetimeDB needed
 bun lint          # library-scoped linting
 bun typecheck     # library-only type checking
 ```

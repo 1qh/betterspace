@@ -766,6 +766,19 @@ const save = useMutation(useReducer, reducers.update_blog, {
 
 `onSuccess` and `toast.success` compose; both run when provided.
 
+`useFormMutation` also accepts `toast: { success?, error?
+}` with the same composition rules.
+Use it to replace manual `onSuccess`/`onError` callbacks in form submissions:
+
+```typescript
+const form = useFormMutation({
+  schema: blogSchema,
+  mutate: useReducer(reducers.createBlog),
+  toast: { success: 'Created' },
+  onSuccess: () => router.push('/posts')
+})
+```
+
 ---
 
 ## Field validation error toasts
