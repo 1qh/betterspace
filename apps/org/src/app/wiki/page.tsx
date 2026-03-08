@@ -1,4 +1,3 @@
-/* oxlint-disable promise/prefer-await-to-then */
 // biome-ignore-all lint/nursery/noFloatingPromises: event handler
 
 'use client'
@@ -6,13 +5,13 @@
 import type { Wiki } from '@a/be/spacetimedb/types'
 
 import { reducers, tables } from '@a/be/spacetimedb'
-import { fail, withStringId } from '@a/fe/utils'
+import { withStringId } from '@a/fe/utils'
 import { Badge } from '@a/ui/badge'
 import { Button } from '@a/ui/button'
 import { Card, CardContent, CardHeader, CardTitle } from '@a/ui/card'
 import { Checkbox } from '@a/ui/checkbox'
 import { Input } from '@a/ui/input'
-import { useBulkSelection, useSearch } from 'betterspace/react'
+import { defaultOnError, useBulkSelection, useMutate, useSearch } from 'betterspace/react'
 import { FileText, Plus, RotateCcw, Search, Trash2 } from 'lucide-react'
 import Link from 'next/link'
 import { useState } from 'react'
@@ -34,7 +33,7 @@ const WikiPage = () => {
     }),
     deletedWikis = allWikis.filter(w => w.deletedAt !== undefined).map(withStringId),
     updateWiki = useReducer(reducers.updateWiki),
-    restoreMut = async (args: { id: string }) => {
+    restoreFn = async (args: { id: string }) => {
       const wiki = allWikis.find(w => w.id === Number(args.id))
       if (!wiki) return
       await updateWiki({
@@ -48,12 +47,13 @@ const WikiPage = () => {
         title: wiki.title
       })
     },
+    restoreWiki = useMutate(restoreFn),
     rmWiki = useReducer(reducers.rmWiki),
     { clear, handleBulkDelete, selected, toggleSelect, toggleSelectAll } = useBulkSelection({
       items: wikis,
-      onError: fail,
+      onError: defaultOnError,
       orgId: org._id,
-      restore: restoreMut,
+      restore: restoreWiki,
       rm: async id => rmWiki({ id: Number(id) }),
       toast: (msg, opts) => {
         toast(msg, opts)
@@ -149,7 +149,7 @@ const WikiPage = () => {
                   <Button
                     data-testid='restore-wiki'
                     onClick={() => {
-                      restoreMut({ id: w._id }).catch(fail)
+                      restoreWiki({ id: w._id })
                     }}
                     size='sm'
                     variant='outline'>

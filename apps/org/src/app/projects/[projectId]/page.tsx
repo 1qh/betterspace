@@ -9,7 +9,7 @@ import type { output } from 'zod/v4'
 
 import { reducers, tables } from '@a/be/spacetimedb'
 import { s } from '@a/be/t'
-import { fail, sameIdentity } from '@a/fe/utils'
+import { sameIdentity } from '@a/fe/utils'
 import { Avatar, AvatarFallback, AvatarImage } from '@a/ui/avatar'
 import { Badge } from '@a/ui/badge'
 import { Button } from '@a/ui/button'
@@ -164,25 +164,17 @@ const TaskRow = ({ canAssign, canEdit, members, onAssign, onDelete, onToggle, on
       [priority, setPriority] = useState<Priority>('medium'),
       [selected, setSelected] = useState<Set<number>>(() => new Set()),
       bulkDelete = useBulkMutate(removeTask, {
-        onError: fail,
-        onProgress: p => {
-          toast.loading(`Deleting tasks: ${p.succeeded + p.failed}/${p.total}`, { id: 'bulk-delete' })
-        },
-        onSuccess: count => {
-          toast.dismiss('bulk-delete')
-          toast.success(`${count} task(s) deleted`)
-          setSelected(new Set())
+        onSuccess: () => setSelected(new Set()),
+        toast: {
+          loading: p => `Deleting tasks: ${p.succeeded + p.failed}/${p.total}`,
+          success: count => `${count} task(s) deleted`
         }
       }),
       bulkUpdate = useBulkMutate(updateTask, {
-        onError: fail,
-        onProgress: p => {
-          toast.loading(`Updating tasks: ${p.succeeded + p.failed}/${p.total}`, { id: 'bulk-update' })
-        },
-        onSuccess: count => {
-          toast.dismiss('bulk-update')
-          toast.success(`${count} task(s) updated`)
-          setSelected(new Set())
+        onSuccess: () => setSelected(new Set()),
+        toast: {
+          loading: p => `Updating tasks: ${p.succeeded + p.failed}/${p.total}`,
+          success: count => `${count} task(s) updated`
         }
       })
 
