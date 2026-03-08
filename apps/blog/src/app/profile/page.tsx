@@ -6,7 +6,6 @@ import { FieldGroup } from '@a/ui/field'
 import { Spinner } from '@a/ui/spinner'
 import { Form, useFormMutation } from 'betterspace/components'
 import Link from 'next/link'
-import { toast } from 'sonner'
 import { useReducer, useSpacetimeDB, useTable } from 'spacetimedb/react'
 
 import { profileSchema } from '~/schema'
@@ -20,11 +19,9 @@ const Page = () => {
     shouldShowContent = isReady || isPlaywright,
     form = useFormMutation({
       mutate: useReducer(reducers.upsertBlogProfile),
-      onSuccess: () => {
-        toast.success('Profile saved')
-      },
       resetOnSuccess: false,
       schema: profileSchema,
+      toast: { success: 'Profile saved' },
       values: shouldShowContent
         ? profile
           ? {

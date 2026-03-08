@@ -37,9 +37,7 @@ const ProjectsPage = () => {
     { clear, handleBulkDelete, selected, toggleSelect, toggleSelectAll } = useBulkSelection({
       bulkRm,
       items: projects,
-      onError: (e: unknown) => {
-        fail(e)
-      },
+      onError: fail,
       onSuccess: (count: number) => {
         toast.success(`${count} project(s) deleted`)
       },
@@ -56,7 +54,7 @@ const ProjectsPage = () => {
               <span className='text-sm text-muted-foreground'>{selected.size} selected</span>
               <Button
                 onClick={() => {
-                  handleBulkDelete().catch(fail)
+                  handleBulkDelete()
                 }}
                 size='sm'
                 variant='destructive'>

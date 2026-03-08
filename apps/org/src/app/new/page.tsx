@@ -7,7 +7,6 @@ import slugify from '@sindresorhus/slugify'
 import { Form, useFormMutation } from 'betterspace/components'
 import { useRouter } from 'next/navigation'
 import { useEffect, useRef } from 'react'
-import { toast } from 'sonner'
 import { useReducer } from 'spacetimedb/react'
 
 import { orgTeam } from '~/schema'
@@ -16,11 +15,9 @@ const NewOrgPage = () => {
   const router = useRouter(),
     form = useFormMutation({
       mutate: useReducer(reducers.orgCreate),
-      onSuccess: () => {
-        toast.success('Organization created')
-        router.push('/')
-      },
+      onSuccess: () => router.push('/'),
       schema: orgTeam,
+      toast: { success: 'Organization created' },
       transform: d => ({ ...d, avatarId: undefined })
     }),
     name = form.watch('name'),

@@ -86,11 +86,9 @@ const isPlaywrightTest = process.env.NEXT_PUBLIC_PLAYWRIGHT === '1',
     const [open, setOpen] = useState(false),
       form = useFormMutation({
         mutate: useReducer(reducers.createBlog),
-        onSuccess: () => {
-          toast.success('Created')
-          setOpen(false)
-        },
+        onSuccess: () => setOpen(false),
         schema: createBlog,
+        toast: { success: 'Created' },
         transform: d => ({ ...d, published: isPlaywrightTest })
       })
     return (

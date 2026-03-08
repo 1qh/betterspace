@@ -16,7 +16,6 @@ import { useMut } from 'betterspace/react'
 import { Settings } from 'lucide-react'
 import Link from 'next/link'
 import { useId, useTransition } from 'react'
-import { toast } from 'sonner'
 import { useReducer, useSpacetimeDB } from 'spacetimedb/react'
 
 import { editBlog } from '~/schema'
@@ -57,11 +56,9 @@ const Publish = ({
     const form = useFormMutation({
       autoSave: { debounceMs: 2000, enabled: true },
       mutate: useReducer(reducers.updateBlog),
-      onSuccess: () => {
-        toast.success('Saved')
-      },
       resetOnSuccess: false,
       schema: editBlog,
+      toast: { success: 'Saved' },
       transform: d => ({ ...d, id: blog.id }),
       values: {
         attachments: blog.attachments ?? [],
@@ -120,11 +117,9 @@ const Publish = ({
   Setting = ({ blog }: { blog: Blog }) => {
     const form = useFormMutation({
       mutate: useReducer(reducers.updateBlog),
-      onSuccess: () => {
-        toast.success('Saved')
-      },
       resetOnSuccess: false,
       schema: editBlog,
+      toast: { success: 'Saved' },
       transform: d => ({ category: d.category, id: blog.id, published: d.published }),
       values: { category: blog.category, published: blog.published }
     })

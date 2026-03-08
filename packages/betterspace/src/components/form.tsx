@@ -12,12 +12,12 @@ import { Dialog, DialogContent } from '@a/ui/dialog'
 import { useNavigationGuard } from 'next-navigation-guard'
 import { use, useEffect, useMemo, useState } from 'react'
 
-import type { FormReturn as BaseFormReturn, ConflictData } from '../react/form'
+import type { FormReturn as BaseFormReturn, ConflictData, FormToastOption } from '../react/form'
 import type { UndefinedToOptional } from '../zod'
 import type { Api } from './fields'
 
 import { DevtoolsAutoMount } from '../react/devtools-panel'
-import { useForm as useBaseForm } from '../react/form'
+import { resolveFormToast, useForm as useBaseForm } from '../react/form'
 import { fields, FormContext } from './fields'
 import { FileApiContext } from './file-field'
 
@@ -150,26 +150,33 @@ const useWithGuard = <T extends Record<string, unknown>, S extends ZodObject<Zod
     onSuccess?: () => void
     resetOnSuccess?: boolean
     schema: S
+    toast?: FormToastOption
     transform?: (d: zinfer<S>) => UndefinedToOptional<M>
     values?: Widen<zinfer<S>>
-  }) =>
-    useWithGuard(
+  }) => {
+    const { error: resolvedError, success: resolvedSuccess } = resolveFormToast({
+      onError: opts.onError,
+      onSuccess: opts.onSuccess,
+      toast: opts.toast
+    })
+    return useWithGuard(
       useBaseForm({
         autoSave: opts.autoSave,
         onConflict: opts.onConflict,
-        onError: opts.onError,
+        onError: resolvedError,
         onSubmit: async d => {
           const args = (opts.transform ? opts.transform(d) : d) as unknown as M
           /** biome-ignore lint/nursery/useAwaitThenable: mutate may be async */
           await opts.mutate(args)
           return d
         },
-        onSuccess: opts.onSuccess,
+        onSuccess: resolvedSuccess,
         resetOnSuccess: opts.resetOnSuccess ?? true,
         schema: opts.schema,
         values: opts.values
       })
-    ),
+    )
+  },
   hasFileFields = (meta: Record<string, { kind: string }>): boolean => {
     for (const k of Object.keys(meta)) {
       const entry = meta[k]

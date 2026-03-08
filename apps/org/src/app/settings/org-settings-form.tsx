@@ -10,7 +10,6 @@ import { setActiveOrgCookieClient } from 'betterspace/react'
 import { pickValues } from 'betterspace/zod'
 import { useRouter } from 'next/navigation'
 import { useRef } from 'react'
-import { toast } from 'sonner'
 import { useReducer } from 'spacetimedb/react'
 
 import { orgTeam } from '~/schema'
@@ -27,10 +26,10 @@ const OrgSettingsForm = ({ org: o }: OrgSettingsFormProps) => {
       onSuccess: () => {
         if (slugRef.current && slugRef.current !== o.slug)
           setActiveOrgCookieClient({ orgId: o._id, slug: slugRef.current })
-        toast.success('Settings updated')
         router.push('/settings')
       },
       schema: orgTeam,
+      toast: { success: 'Settings updated' },
       transform: d => {
         slugRef.current = typeof d.slug === 'string' ? d.slug : ''
         return { ...d, orgId: Number(o._id) }

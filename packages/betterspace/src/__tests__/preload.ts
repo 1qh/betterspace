@@ -6,6 +6,15 @@ const noop = () => {},
   zero = () => 0,
   zeroBig = () => 0n
 
+mock.module('sonner', () => ({
+  toast: Object.assign(noop, {
+    dismiss: noop,
+    error: noop,
+    loading: noop,
+    success: noop
+  })
+}))
+
 mock.module('spacetime:sys@2.0', () => ({
   console_log: noop,
   console_timer_end: noop,

@@ -14,7 +14,6 @@ import { useMut } from 'betterspace/react'
 import { pickValues } from 'betterspace/zod'
 import { useRouter } from 'next/navigation'
 import { use } from 'react'
-import { toast } from 'sonner'
 import { useReducer, useSpacetimeDB } from 'spacetimedb/react'
 
 import { useOrg } from '~/hook/use-org'
@@ -31,12 +30,10 @@ const EditProjectForm = ({ projectId, taskCount }: { projectId: number; taskCoun
       }),
       form = useFormMutation({
         mutate: useReducer(reducers.updateProject),
-        onSuccess: () => {
-          toast.success('Project updated')
-          router.push(`/projects/${projectId}`)
-        },
+        onSuccess: () => router.push(`/projects/${projectId}`),
         resetOnSuccess: true,
         schema: projectSchema,
+        toast: { success: 'Project updated' },
         transform: d => ({ ...d, expectedUpdatedAt: project?.updatedAt, id: projectId }),
         values: project ? pickValues(projectSchema, project) : undefined
       }),

@@ -57,9 +57,7 @@ const WikiPage = () => {
     { clear, handleBulkDelete, selected, toggleSelect, toggleSelectAll } = useBulkSelection({
       bulkRm,
       items: wikis,
-      onError: (e: unknown) => {
-        fail(e)
-      },
+      onError: fail,
       orgId: org._id,
       restore: restoreMut,
       toast: (msg, opts) => {
@@ -83,7 +81,7 @@ const WikiPage = () => {
               <span className='text-sm text-muted-foreground'>{selected.size} selected</span>
               <Button
                 onClick={() => {
-                  handleBulkDelete().catch(fail)
+                  handleBulkDelete()
                 }}
                 size='sm'
                 variant='destructive'>
@@ -156,14 +154,7 @@ const WikiPage = () => {
                   <Button
                     data-testid='restore-wiki'
                     onClick={() => {
-                      const run = async () => {
-                        try {
-                          await restoreMut({ id: w._id })
-                        } catch (restoreError: unknown) {
-                          fail(restoreError)
-                        }
-                      }
-                      run()
+                      restoreMut({ id: w._id }).catch(fail)
                     }}
                     size='sm'
                     variant='outline'>

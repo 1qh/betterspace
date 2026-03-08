@@ -6,7 +6,6 @@ import { Dialog, DialogContent, DialogDescription, DialogHeader, DialogTitle, Di
 import { Form, useFormMutation } from 'betterspace/components'
 import { Plus } from 'lucide-react'
 import { useState } from 'react'
-import { toast } from 'sonner'
 import { useReducer } from 'spacetimedb/react'
 
 import { invite } from '~/schema'
@@ -19,11 +18,9 @@ const InviteDialog = ({ orgId }: InviteDialogProps) => {
   const [open, setOpen] = useState(false),
     form = useFormMutation({
       mutate: useReducer(reducers.orgSendInvite),
-      onSuccess: () => {
-        toast.success('Invite sent')
-        setOpen(false)
-      },
+      onSuccess: () => setOpen(false),
       schema: invite,
+      toast: { success: 'Invite sent' },
       transform: d => ({ ...d, orgId: Number(orgId) })
     })
 

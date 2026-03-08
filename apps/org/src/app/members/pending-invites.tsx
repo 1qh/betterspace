@@ -10,27 +10,23 @@ import { formatExpiry } from '@a/fe/utils'
 import { Button } from '@a/ui/button'
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@a/ui/table'
 import { RoleBadge } from 'betterspace/components'
-import { useMut } from 'betterspace/react'
+import { useMut, useMutate } from 'betterspace/react'
 import { Copy, Trash } from 'lucide-react'
-import { toast } from 'sonner'
 
 import { useOrgTable } from '~/hook/use-org-table'
 
 const PendingInvites = () => {
   const [invites] = useOrgTable(tables.orgInvite) as [OrgInvite[], boolean],
-    revokeInvite = useMut(reducers.orgRevokeInvite, { toast: { success: 'Invite revoked' } })
+    revokeInvite = useMut(reducers.orgRevokeInvite, { toast: { success: 'Invite revoked' } }),
+    copyInviteLink = useMutate(
+      async ({ token }: { token: string }) => {
+        const url = `${window.location.origin}/invite/${token}`
+        await navigator.clipboard.writeText(url)
+      },
+      { toast: { error: 'Failed to copy', success: 'Invite link copied' } }
+    )
 
   if (invites.length === 0) return null
-
-  const handleCopy = async (token: string) => {
-    const url = `${window.location.origin}/invite/${token}`
-    try {
-      await navigator.clipboard.writeText(url)
-      toast.success('Invite link copied')
-    } catch {
-      toast.error('Failed to copy')
-    }
-  }
 
   return (
     <div className='space-y-2'>
@@ -53,7 +49,7 @@ const PendingInvites = () => {
               </TableCell>
               <TableCell className='text-sm text-muted-foreground'>{formatExpiry(i.expiresAt)}</TableCell>
               <TableCell className='flex gap-1'>
-                <Button onClick={async () => handleCopy(i.token)} size='icon' variant='ghost'>
+                <Button onClick={async () => copyInviteLink({ token: i.token })} size='icon' variant='ghost'>
                   <Copy className='size-4' />
                 </Button>
                 <Button

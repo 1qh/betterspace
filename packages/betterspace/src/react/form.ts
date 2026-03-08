@@ -6,6 +6,7 @@ import type { output, ZodObject, ZodRawShape, ZodType } from 'zod/v4'
 import { useForm as useTanStackForm } from '@tanstack/react-form'
 import { useStore } from '@tanstack/react-store'
 import { useEffect, useMemo, useRef, useState } from 'react'
+import { toast } from 'sonner'
 import { globalRegistry } from 'zod/v4'
 
 import type { UndefinedToOptional, ZodSchema } from '../zod'
@@ -36,6 +37,11 @@ interface FieldMeta {
 }
 /** Lookup table of field metadata keyed by field name. */
 type FieldMetaMap = Record<string, FieldMeta>
+interface FormToastOption {
+  error?: string
+  success?: string
+}
+
 type Widen<T> = T extends string
   ? string
   : T extends number
@@ -48,7 +54,27 @@ type Widen<T> = T extends string
           ? { [K in keyof T]: Widen<T[K]> }
           : T
 
-const getMax = (schema: undefined | ZodSchema): number | undefined => {
+const resolveFormToast = ({
+    onError,
+    onSuccess,
+    toast: toastOpt
+  }: {
+    onError?: ((e: unknown) => void) | false
+    onSuccess?: () => void
+    toast?: FormToastOption
+  }): {
+    error: ((e: unknown) => void) | false | undefined
+    success: (() => void) | undefined
+  } => ({
+    error: onError ?? (toastOpt?.error ? () => toast.error(toastOpt.error) : undefined),
+    success: toastOpt?.success
+      ? () => {
+          onSuccess?.()
+          toast.success(toastOpt.success)
+        }
+      : onSuccess
+  }),
+  getMax = (schema: undefined | ZodSchema): number | undefined => {
     const checks = schema?.def.checks as (undefined | { _zod: { def: { check: string; maximum?: number } } })[] | undefined
     if (!checks) return
     for (const check of checks)
@@ -290,6 +316,7 @@ const submitError = (error: unknown): Error => new Error(getErrorMessage(error),
     onSuccess,
     resetOnSuccess = true,
     schema,
+    toast: toastOpt,
     transform,
     values
   }: {
@@ -300,23 +327,30 @@ const submitError = (error: unknown): Error => new Error(getErrorMessage(error),
     onSuccess?: () => void
     resetOnSuccess?: boolean
     schema: S
+    toast?: { error?: string; success?: string }
     transform?: (d: output<S>) => UndefinedToOptional<M>
     values?: Widen<output<S>>
-  }) =>
-    useForm({
+  }) => {
+    const { error: resolvedError, success: resolvedSuccess } = resolveFormToast({
+      onError,
+      onSuccess,
+      toast: toastOpt
+    })
+    return useForm({
       autoSave,
       onConflict,
-      onError,
+      onError: resolvedError,
       onSubmit: async (d: output<S>) => {
         const args = (transform ? transform(d) : d) as unknown as M
         await mutate(args)
         return d
       },
-      onSuccess,
+      onSuccess: resolvedSuccess,
       resetOnSuccess,
       schema,
       values
     })
+  }
 
-export type { Api, ConflictData, FieldKind, FieldMeta, FieldMetaMap, FormReturn, Widen }
-export { buildMeta, getMeta, useForm, useFormMutation }
+export type { Api, ConflictData, FieldKind, FieldMeta, FieldMetaMap, FormReturn, FormToastOption, Widen }
+export { buildMeta, getMeta, resolveFormToast, useForm, useFormMutation }

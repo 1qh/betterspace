@@ -16,7 +16,7 @@ import type BetterspaceErrorBoundary from '../components/error-boundary'
 import type * as FieldsModule from '../components/fields'
 import type { CheckResult } from '../doctor'
 import type { DevtoolsProps } from '../react/devtools-panel'
-import type { ConflictData } from '../react/form'
+import type { ConflictData, FormToastOption } from '../react/form'
 // oxlint-disable-next-line import/no-namespace
 import type * as ReactIndexTypes from '../react/index'
 import type { ListSort, SortDirection, SortMap, SortObject, WhereFieldValue } from '../react/list-utils'
@@ -133,7 +133,7 @@ import {
   updateSubscriptionData
 } from '../react/devtools'
 import { makeErrorHandler, toastFieldError } from '../react/error-toast'
-import { buildMeta, getMeta } from '../react/form'
+import { buildMeta, getMeta, resolveFormToast } from '../react/form'
 import { compareValues, getSortConfig, noop, searchMatches, sortData, toSortableString } from '../react/list-utils'
 import { createOptimisticStore, makeTempId } from '../react/optimistic-store'
 import { canEditResource } from '../react/org'
@@ -10662,5 +10662,106 @@ describe('bulk validation: BULK_MAX enforcement', () => {
   test('arrays exceeding BULK_MAX should be rejected by client', () => {
     const items = Array.from({ length: BULK_MAX + 1 }, (_, i) => ({ name: `item-${i}` }))
     expect(items.length).toBeGreaterThan(BULK_MAX)
+  })
+})
+
+describe('resolveFormToast', () => {
+  test('returns onSuccess unchanged when no toast.success', () => {
+    const { success } = resolveFormToast({ onSuccess: noop })
+    expect(success).toBe(noop)
+  })
+
+  test('returns undefined success when neither onSuccess nor toast.success provided', () => {
+    const { success } = resolveFormToast({})
+    expect(success).toBeUndefined()
+  })
+
+  test('composes onSuccess with toast.success into new function', () => {
+    const { success } = resolveFormToast({ onSuccess: noop, toast: { success: 'Saved' } })
+    expect(success).not.toBe(noop)
+    expect(typeof success).toBe('function')
+  })
+
+  test('creates success handler from toast.success even without onSuccess', () => {
+    const { success } = resolveFormToast({ toast: { success: 'Created' } })
+    expect(typeof success).toBe('function')
+  })
+
+  test('returns onError unchanged when provided', () => {
+    const handler: (e: unknown) => void = noop,
+      { error } = resolveFormToast({ onError: handler, toast: { error: 'Failed' } })
+    expect(error).toBe(handler)
+  })
+
+  test('returns false when onError is false (suppress errors)', () => {
+    const { error } = resolveFormToast({ onError: false, toast: { error: 'Failed' } })
+    expect(error).toBe(false)
+  })
+
+  test('creates error handler from toast.error when no onError', () => {
+    const { error } = resolveFormToast({ toast: { error: 'Save failed' } })
+    expect(typeof error).toBe('function')
+  })
+
+  test('returns undefined error when neither onError nor toast.error provided', () => {
+    const { error } = resolveFormToast({})
+    expect(error).toBeUndefined()
+  })
+
+  test('onError takes precedence over toast.error', () => {
+    const handler: (e: unknown) => void = noop,
+      { error } = resolveFormToast({ onError: handler, toast: { error: 'Ignored' } })
+    expect(error).toBe(handler)
+  })
+
+  test('both toast fields resolve independently', () => {
+    const { error, success } = resolveFormToast({ toast: { error: 'Failed', success: 'Done' } })
+    expect(typeof success).toBe('function')
+    expect(typeof error).toBe('function')
+  })
+
+  test('onSuccess still called when toast.success is set', () => {
+    let called = false
+    const { success } = resolveFormToast({
+      onSuccess: () => {
+        called = true
+      },
+      toast: { success: 'Saved' }
+    })
+    success?.()
+    expect(called).toBe(true)
+  })
+
+  test('empty toast object returns original callbacks', () => {
+    const onE: (e: unknown) => void = noop,
+      { error, success } = resolveFormToast({ onError: onE, onSuccess: noop, toast: {} })
+    expect(success).toBe(noop)
+    expect(error).toBe(onE)
+  })
+})
+
+describe('FormToastOption type', () => {
+  test('accepts success-only shape', () => {
+    const opt: FormToastOption = { success: 'Created' }
+    expect(opt.success).toBe('Created')
+    expect(opt.error).toBeUndefined()
+  })
+
+  test('accepts error-only shape', () => {
+    const opt: FormToastOption = { error: 'Failed to save' }
+    expect(opt.error).toBe('Failed to save')
+    expect(opt.success).toBeUndefined()
+  })
+
+  test('accepts both success and error', () => {
+    const opt: FormToastOption = { error: 'Failed', success: 'Saved' }
+    expect(opt.success).toBe('Saved')
+    expect(opt.error).toBe('Failed')
+  })
+
+  test('accepts empty object', () => {
+    const opt: FormToastOption = {}
+    expect(opt.success).toBeUndefined()
+    expect(opt.error).toBeUndefined()
   })
 })

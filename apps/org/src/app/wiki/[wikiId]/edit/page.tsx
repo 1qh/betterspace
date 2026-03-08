@@ -14,7 +14,6 @@ import { useMut } from 'betterspace/react'
 import { pickValues } from 'betterspace/zod'
 import { useRouter } from 'next/navigation'
 import { use } from 'react'
-import { toast } from 'sonner'
 import { useReducer, useSpacetimeDB, useTable } from 'spacetimedb/react'
 
 import { useOrg } from '~/hook/use-org'
@@ -31,11 +30,9 @@ const EditWikiForm = ({ wikiId }: { wikiId: number }) => {
       }),
       form = useFormMutation({
         mutate: useReducer(reducers.updateWiki),
-        onSuccess: () => {
-          toast.success('Wiki page saved')
-        },
         resetOnSuccess: false,
         schema: wikiSchema,
+        toast: { success: 'Wiki page saved' },
         transform: d => ({
           ...d,
           deletedAt: wiki?.deletedAt,

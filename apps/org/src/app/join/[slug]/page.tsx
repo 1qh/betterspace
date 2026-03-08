@@ -2,7 +2,6 @@
 'use client'
 
 import { reducers, tables } from '@a/be/spacetimedb'
-import { fail } from '@a/fe/utils'
 import { Button } from '@a/ui/button'
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@a/ui/card'
 import { Skeleton } from '@a/ui/skeleton'
@@ -44,15 +43,7 @@ const JoinPage = ({ params }: { params: Promise<{ slug: string }> }) => {
       },
       resetOnSuccess: true,
       schema: joinRequest
-    }),
-    handleCancel = async () => {
-      if (!myRequest) return
-      try {
-        await cancelRequest({ requestId: myRequest.id })
-      } catch (error) {
-        fail(error)
-      }
-    }
+    })
 
   // eslint-disable-next-line @typescript-eslint/no-unnecessary-condition
   if (!orgs) return <Skeleton className='mx-auto h-64 max-w-md' />
@@ -78,7 +69,7 @@ const JoinPage = ({ params }: { params: Promise<{ slug: string }> }) => {
               <p className='text-muted-foreground'>Your request is pending approval.</p>
               <Button
                 onClick={() => {
-                  handleCancel()
+                  cancelRequest({ requestId: myRequest.id })
                 }}
                 variant='outline'>
                 Cancel request
