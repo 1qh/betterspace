@@ -22,7 +22,13 @@ import type * as ReactIndexTypes from '../react/index'
 import type { ListSort, SortDirection, SortMap, SortObject, WhereFieldValue } from '../react/list-utils'
 import type { MutationType, PendingMutation } from '../react/optimistic-store'
 import type { PlaygroundProps } from '../react/schema-playground'
-import type { BulkProgress, BulkResult, useBulkMutate, UseBulkMutateOptions } from '../react/use-bulk-mutate'
+import type {
+  BulkMutateToast,
+  BulkProgress,
+  BulkResult,
+  useBulkMutate,
+  UseBulkMutateOptions
+} from '../react/use-bulk-mutate'
 import type { InfiniteListOptions, SkipInfiniteListResult, useInfiniteList } from '../react/use-infinite-list'
 import type { ListWhere, SkipListResult, useList, UseListOptions, WhereGroup } from '../react/use-list'
 import type { MutateOptions } from '../react/use-mutate'
@@ -137,7 +143,7 @@ import { buildMeta, getMeta, resolveFormToast } from '../react/form'
 import { compareValues, getSortConfig, noop, searchMatches, sortData, toSortableString } from '../react/list-utils'
 import { createOptimisticStore, makeTempId } from '../react/optimistic-store'
 import { canEditResource } from '../react/org'
-import { collectSettled } from '../react/use-bulk-mutate'
+import { collectSettled, resolveBulkError } from '../react/use-bulk-mutate'
 import { DEFAULT_PAGE_SIZE, useOwnRows } from '../react/use-list'
 import { useMutation as useMutationDirect, useMut as useMutDirect } from '../react/use-mutate'
 import { DEFAULT_DEBOUNCE_MS } from '../react/use-search'
@@ -8804,6 +8810,136 @@ describe('doctor', () => {
     expect(clearedState).toBeNull()
   })
 
+  test('BulkMutateToast type supports string and function variants for loading, success, error', () => {
+    const stringToast: BulkMutateToast = {
+        error: 'Something failed',
+        loading: 'Processing...',
+        success: 'All done'
+      },
+      fnToast: BulkMutateToast = {
+        error: (e: unknown) => `Failed: ${String(e)}`,
+        loading: (p: BulkProgress) => `${p.succeeded + p.failed}/${p.total}`,
+        success: (count: number) => `${count} items processed`
+      },
+      partialToast: BulkMutateToast = { success: 'Done' },
+      emptyToast: BulkMutateToast = {}
+    expect(stringToast.loading).toBe('Processing...')
+    expect(stringToast.success).toBe('All done')
+    expect(stringToast.error).toBe('Something failed')
+    if (typeof fnToast.loading === 'function')
+      expect(fnToast.loading({ failed: 0, pending: 3, succeeded: 2, total: 5 })).toBe('2/5')
+    if (typeof fnToast.success === 'function') expect(fnToast.success(3)).toBe('3 items processed')
+    if (typeof fnToast.error === 'function') expect(fnToast.error('timeout')).toBe('Failed: timeout')
+    expect(partialToast.loading).toBeUndefined()
+    expect(partialToast.error).toBeUndefined()
+    expect(Object.keys(emptyToast)).toHaveLength(0)
+  })
+
+  test('UseBulkMutateOptions accepts toast option alongside callbacks', () => {
+    const withToast: UseBulkMutateOptions = {
+        onSuccess: (count: number) => {
+          expect(count).toBeGreaterThan(0)
+        },
+        toast: {
+          loading: (p: BulkProgress) => `Deleting: ${p.succeeded}/${p.total}`,
+          success: (count: number) => `${count} deleted`
+        }
+      },
+      withToastAndError: UseBulkMutateOptions = {
+        onError: false,
+        toast: { error: 'Custom error', success: 'Done' }
+      },
+      withToastOnly: UseBulkMutateOptions = {
+        toast: { loading: 'Working...' }
+      }
+    expect(withToast.toast?.loading).toBeDefined()
+    expect(withToast.toast?.success).toBeDefined()
+    expect(withToast.toast?.error).toBeUndefined()
+    expect(withToastAndError.onError).toBe(false)
+    expect(withToastAndError.toast?.error).toBe('Custom error')
+    expect(withToastOnly.toast?.loading).toBe('Working...')
+    expect(withToastOnly.onProgress).toBeUndefined()
+  })
+
+  test('resolveBulkError returns undefined when onError is false', () => {
+    expect(resolveBulkError({ onError: false })).toBeUndefined()
+  })
+
+  test('resolveBulkError returns custom handler when onError is a function', () => {
+    const captured: unknown[] = [],
+      handler = resolveBulkError({
+        onError: (e: unknown) => {
+          captured.push(e)
+        }
+      })
+    expect(handler).toBeDefined()
+    handler?.(new Error('test'))
+    expect(captured).toHaveLength(1)
+    expect((captured[0] as Error).message).toBe('test')
+  })
+
+  test('resolveBulkError returns toast error handler when toast.error string is provided', () => {
+    const handler = resolveBulkError({ toast: { error: 'Bulk failed' } })
+    expect(handler).toBeDefined()
+  })
+
+  test('resolveBulkError returns toast error handler when toast.error function is provided', () => {
+    const handler = resolveBulkError({
+      toast: { error: (e: unknown) => `Error: ${String(e)}` }
+    })
+    expect(handler).toBeDefined()
+  })
+
+  test('resolveBulkError returns defaultOnError when no toast.error and no onError', () => {
+    const handler = resolveBulkError({})
+    expect(handler).toBeDefined()
+    const handlerNoOpts = resolveBulkError()
+    expect(handlerNoOpts).toBeDefined()
+  })
+
+  test('resolveBulkError onError takes precedence over toast.error', () => {
+    const captured: unknown[] = [],
+      handler = resolveBulkError({
+        onError: (e: unknown) => {
+          captured.push(e)
+        },
+        toast: { error: 'Should not be used' }
+      })
+    expect(handler).toBeDefined()
+    handler?.(new Error('custom'))
+    expect(captured).toHaveLength(1)
+    expect((captured[0] as Error).message).toBe('custom')
+  })
+
+  test('BulkMutateToast loading function receives BulkProgress and returns string', () => {
+    const toastCfg: BulkMutateToast = {
+        loading: p => `Processing ${p.succeeded} of ${p.total} (${p.failed} failed, ${p.pending} pending)`
+      },
+      progress: BulkProgress = { failed: 1, pending: 3, succeeded: 6, total: 10 }
+    if (typeof toastCfg.loading === 'function')
+      expect(toastCfg.loading(progress)).toBe('Processing 6 of 10 (1 failed, 3 pending)')
+  })
+
+  test('BulkMutateToast success function receives count and returns string', () => {
+    const toastCfg: BulkMutateToast = {
+      success: count => `${count} task${count === 1 ? '' : 's'} completed`
+    }
+    if (typeof toastCfg.success === 'function') {
+      expect(toastCfg.success(1)).toBe('1 task completed')
+      expect(toastCfg.success(5)).toBe('5 tasks completed')
+    }
+  })
+
+  test('BulkMutateToast error function receives unknown error and returns string', () => {
+    const toastCfg: BulkMutateToast = {
+      error: e => (e instanceof Error ? e.message : 'Unknown error')
+    }
+    if (typeof toastCfg.error === 'function') {
+      expect(toastCfg.error(new Error('Network timeout'))).toBe('Network timeout')
+      expect(toastCfg.error('string error')).toBe('Unknown error')
+    }
+  })
+
   test('new react index exports are importable and surfaced on module checks', async () => {
     const mod = await import('../react/index'),
       conflictType: ReactIndexTypes.ConflictData<{ title: string }> = {
@@ -8821,11 +8957,16 @@ describe('doctor', () => {
         results: ['ok'],
         settled: [{ status: 'fulfilled', value: 'ok' }]
       },
+      bulkMutateToastType: ReactIndexTypes.BulkMutateToast = {
+        loading: p => `${p.succeeded}/${p.total}`,
+        success: count => `${count} done`
+      },
       bulkMutateOptionsType: ReactIndexTypes.UseBulkMutateOptions = {
         onProgress: p => {
           const next = p.total
           expect(next).toBe(1)
-        }
+        },
+        toast: bulkMutateToastType
       },
       bulkSelectionType: ReactIndexTypes.UseBulkSelectionOpts = {
         bulkRm: async () => {
@@ -8890,6 +9031,7 @@ describe('doctor', () => {
       formReturnType = null as null | ReactIndexTypes.FormReturn<{ title: string }, ReturnType<typeof object>>,
       probe = {
         ...mod,
+        BulkMutateToast: bulkMutateToastType,
         BulkProgress: bulkProgressType,
         BulkResult: bulkResultType,
         ConflictData: conflictType,

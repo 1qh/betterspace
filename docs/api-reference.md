@@ -639,18 +639,18 @@ settle.
 import { useBulkMutate } from 'betterspace/react'
 
 const bulk = useBulkMutate(removeTask, {
-  onSuccess: count => toast(`${count} deleted`),
-  onSettled: result => {
-    // Called once all items have settled
-    console.log(result.errors, result.results)
+  onSuccess: () => setSelected(new Set()),
+  toast: {
+    loading: p => `Deleting: ${p.succeeded + p.failed}/${p.total}`,
+    success: count => `${count} task(s) deleted`
   }
 })
 bulk.run([{ id: 1 }, { id: 2 }, { id: 3 }])
 ```
 
-**`onSettled` signature:** `(result: BulkResult<unknown>) => void`
-
-`BulkResult` contains `errors`, `results`, and `settled` (raw `PromiseSettledResult[]`).
+The `toast` option handles progress toasts automatically — a loading toast appears
+during the operation and is dismissed on completion, then a success or error toast is
+shown.
 
 **Options:**
 
@@ -660,6 +660,15 @@ bulk.run([{ id: 1 }, { id: 2 }, { id: 3 }])
 | `onProgress` | `(progress: BulkProgress) => void`      | Called after each item settles with live progress counts                        |
 | `onSettled`  | `(result: BulkResult<unknown>) => void` | Called once all items have settled                                              |
 | `onSuccess`  | `(count: number) => void`               | Called when all mutations succeed                                               |
+| `toast`      | `BulkMutateToast`                       | Declarative toast config for loading/success/error (see below)                  |
+
+**`BulkMutateToast` type:**
+
+| Field     | Type                                             | Description                                          |
+| --------- | ------------------------------------------------ | ---------------------------------------------------- |
+| `loading` | `string \| ((progress: BulkProgress) => string)` | Loading toast shown during operation, auto-dismissed |
+| `success` | `string \| ((count: number) => string)`          | Success toast shown after all items complete         |
+| `error`   | `string \| ((error: unknown) => string)`         | Error toast — overrides default error handler        |
 
 **`BulkProgress` type:**
 
