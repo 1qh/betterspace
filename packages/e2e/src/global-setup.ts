@@ -4,7 +4,7 @@ import { execSync } from 'node:child_process'
 import { ensureTestUser } from './org-helpers'
 
 const SPACETIME_PUBLISH_CMD =
-    'export PATH="/Users/o/.local/bin:$PATH" && spacetime publish betterspace --module-path spacetimedb',
+    'export PATH="/Users/o/.local/bin:$PATH" && spacetime publish betterspace --module-path . --delete-data=on-conflict -y',
   getHost = () => process.env.NEXT_PUBLIC_SPACETIMEDB_HOST ?? 'http://localhost:3000',
   ensureSpacetimeHealthy = async () => {
     const response = await fetch(`${getHost()}/v1/ping`)
