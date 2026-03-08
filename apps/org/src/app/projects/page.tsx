@@ -1,15 +1,14 @@
-/* oxlint-disable promise/prefer-await-to-then */
 'use client'
 
 import type { Project } from '@a/be/spacetimedb/types'
 
 import { reducers, tables } from '@a/be/spacetimedb'
-import { fail, withStringId } from '@a/fe/utils'
+import { withStringId } from '@a/fe/utils'
 import { Button } from '@a/ui/button'
 import { Card, CardContent, CardHeader, CardTitle } from '@a/ui/card'
 import { Checkbox } from '@a/ui/checkbox'
 import { Input } from '@a/ui/input'
-import { useBulkSelection, useSearch } from 'betterspace/react'
+import { defaultOnError, useBulkSelection, useSearch } from 'betterspace/react'
 import { FolderOpen, Plus, Search } from 'lucide-react'
 import Link from 'next/link'
 import { useState } from 'react'
@@ -31,7 +30,7 @@ const ProjectsPage = () => {
     rmProject = useReducer(reducers.rmProject),
     { clear, handleBulkDelete, selected, toggleSelect, toggleSelectAll } = useBulkSelection({
       items: projects,
-      onError: fail,
+      onError: defaultOnError,
       onSuccess: (count: number) => {
         toast.success(`${count} project(s) deleted`)
       },
