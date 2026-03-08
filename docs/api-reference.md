@@ -350,6 +350,16 @@ useList(blogs, ready, { where: { published: true } }) // OK
 useList(items, ready, { where: { price: { $gt: 10 } } }) // OK
 ```
 
+**Type-safe `search.fields`:**
+
+`fields` is typed as `(keyof T & string)[]` — misspelled field names cause compile
+errors, just like `where`:
+
+```typescript
+useList(blogs, ready, { search: { query, fields: ['titl'] } }) // TS error: 'titl' doesn't exist
+useList(blogs, ready, { search: { query, fields: ['title'] } }) // OK
+```
+
 **`search.debounceMs`:**
 
 Pass `debounceMs` inside the `search` option to debounce the search query.
@@ -505,24 +515,26 @@ const { data, hasMore, loadMore, totalCount } = useInfiniteList(rows, isReady, {
 
 **Options (`InfiniteListOptions<T>`):**
 
-| Option      | Type                             | Description                             |
-| ----------- | -------------------------------- | --------------------------------------- |
-| `batchSize` | `number`                         | Items to load per batch (default: 50)   |
-| `sort`      | `ListSort<T>`                    | Sort field and direction                |
-| `where`     | `ListWhere<T>`                   | Filter predicate                        |
-| `search`    | `{ query, fields, debounceMs? }` | Full-text search with optional debounce |
+| Option      | Type                                          | Description                                                  |
+| ----------- | --------------------------------------------- | ------------------------------------------------------------ |
+| `batchSize` | `number`                                      | Items to load per batch (default: 50)                        |
+| `sort`      | `ListSort<T>`                                 | Sort field and direction                                     |
+| `where`     | `ListWhere<T>`                                | Filter predicate                                             |
+| `search`    | `{ query, fields: (keyof T)[], debounceMs? }` | Full-text search — `fields` is type-checked against row type |
 
 ---
 
 ### useSearch
 
 Client-side full-text search over subscription data.
+`fields` is type-checked against the row type — misspelled field names cause compile
+errors.
 
 ```typescript
 import { useSearch } from 'betterspace/react'
 
 const results = useSearch(posts, query, {
-  fields: ['title', 'content']
+  fields: ['title', 'content'] // TS error if 'titl' or any invalid field name
 })
 ```
 

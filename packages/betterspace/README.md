@@ -374,6 +374,14 @@ table(s.blog, { pub: 'typo' }) // ❌ compile error — 'typo' not in schema
 <File name='title' />       // ❌ compile error — title is not a file field
 ```
 
+### Search and filter fields are type-checked
+
+```tsx
+useList(blogs, ready, { where: { publishd: true } }) // ❌ compile error — 'publishd'
+useList(blogs, ready, { search: { query, fields: ['titl'] } }) // ❌ compile error — 'titl'
+useList(blogs, ready, { search: { query, fields: ['title'] } }) // ✅
+```
+
 ### Zod schemas as single source of truth
 
 ```tsx
@@ -496,7 +504,7 @@ It also auto-installs dependencies and creates `tsconfig.json` — no manual set
 | -------- | --------------------------- | ----: |
 | Web      | Playwright E2E              |   220 |
 | Backend  | SpacetimeDB test utilities  |    17 |
-| Library  | bun:test (`src/__tests__/`) |  1149 |
+| Library  | bun:test (`src/__tests__/`) |  1153 |
 
 ## Documentation
 
@@ -521,7 +529,7 @@ The library is independently testable without the demo apps:
 
 ```bash
 cd packages/betterspace
-bun test src/__tests__/  # 1149 library-only tests, no SpacetimeDB needed
+bun test src/__tests__/  # 1153 library-only tests, no SpacetimeDB needed
 bun lint          # library-scoped linting
 bun typecheck     # library-only type checking
 ```

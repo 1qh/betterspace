@@ -22,7 +22,7 @@ import { project as projectSchema } from '~/schema'
 
 const EditProjectForm = ({ projectId, taskCount }: { projectId: number; taskCount: number }) => {
     const router = useRouter(),
-      [projects] = useOrgTable(tables.project) as [Project[], boolean],
+      [projects] = useOrgTable<Project>(tables.project),
       project = projects.find(p => p.id === projectId),
       removeProject = useMut(reducers.rmProject, {
         onSuccess: () => router.push('/projects'),
@@ -71,8 +71,8 @@ const EditProjectForm = ({ projectId, taskCount }: { projectId: number; taskCoun
       pid = Number(projectId),
       { isAdmin } = useOrg(),
       { identity } = useSpacetimeDB(),
-      [projects] = useOrgTable(tables.project) as [Project[], boolean],
-      [tasks] = useOrgTable(tables.task) as [Task[], boolean],
+      [projects] = useOrgTable<Project>(tables.project),
+      [tasks] = useOrgTable<Task>(tables.task),
       project = projects.find(p => p.id === pid),
       projectTasks = tasks.filter(t => t.projectId === pid)
 

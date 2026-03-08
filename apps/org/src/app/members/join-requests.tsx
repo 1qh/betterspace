@@ -15,7 +15,7 @@ import { useState } from 'react'
 import { useOrgTable } from '~/hook/use-org-table'
 
 const JoinRequests = () => {
-  const [orgRequests] = useOrgTable(tables.orgJoinRequest) as [OrgJoinRequest[], boolean],
+  const [orgRequests] = useOrgTable<OrgJoinRequest>(tables.orgJoinRequest),
     requests = orgRequests.filter(r => r.status === 'pending').map(r => ({ request: r })),
     approveRequest = useMut(reducers.orgApproveJoin, { toast: { success: 'Request approved' } }),
     rejectRequest = useMut(reducers.orgRejectJoin, { toast: { success: 'Request rejected' } }),

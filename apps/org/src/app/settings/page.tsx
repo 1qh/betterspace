@@ -51,7 +51,7 @@ const OrgSettingsPage = () => {
         toast: { success: 'Ownership transferred' }
       }
     ),
-    [members] = useOrgTable(tables.orgMember) as [OrgMember[], boolean],
+    [members] = useOrgTable<OrgMember>(tables.orgMember),
     [transferTarget, setTransferTarget] = useState<string>('')
 
   if (!isAdmin)

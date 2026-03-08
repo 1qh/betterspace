@@ -4,9 +4,9 @@ import { useEffect, useMemo, useState } from 'react'
 
 type Rec = Record<string, unknown>
 
-interface UseSearchOptions {
+interface UseSearchOptions<T extends Rec = Rec> {
   debounceMs?: number
-  fields: string[]
+  fields: (keyof T & string)[]
   query: string
 }
 
@@ -38,9 +38,9 @@ const normalizeQuery = (query: string): string => query.trim().toLowerCase(),
    * @param options Search configuration or `'skip'` to disable searching.
    * @returns Search results and searching state for UI rendering.
    */
-  useSearch = <T extends Rec>(data: T[], isReady: boolean, options: 'skip' | UseSearchOptions): UseSearchResult<T> => {
+  useSearch = <T extends Rec>(data: T[], isReady: boolean, options: 'skip' | UseSearchOptions<T>): UseSearchResult<T> => {
     const skipped = options === 'skip',
-      opts = skipped ? { debounceMs: DEFAULT_DEBOUNCE_MS, fields: [] as string[], query: '' } : options,
+      opts = skipped ? { debounceMs: DEFAULT_DEBOUNCE_MS, fields: [] as (keyof T & string)[], query: '' } : options,
       debounceMs = opts.debounceMs ?? DEFAULT_DEBOUNCE_MS,
       [debouncedQuery, setDebouncedQuery] = useState(opts.query)
 

@@ -25,7 +25,7 @@ const WikiPage = () => {
   const { isAdmin, org } = useOrg(),
     [showDeleted, setShowDeleted] = useState(false),
     [query, setQuery] = useState(''),
-    [allWikis, isWikisReady] = useOrgTable(tables.wiki) as [Wiki[], boolean],
+    [allWikis, isWikisReady] = useOrgTable<Wiki>(tables.wiki),
     orgWikis = allWikis.filter(w => w.deletedAt === undefined).map(withStringId),
     { results: wikis } = useSearch(orgWikis, isWikisReady, {
       fields: ['title', 'slug'],

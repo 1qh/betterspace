@@ -20,7 +20,7 @@ import { useOrgTable } from '~/hook/use-org-table'
 
 const ProjectsPage = () => {
   const { isAdmin, org } = useOrg(),
-    [orgProjectRows, isProjectsReady] = useOrgTable(tables.project) as [Project[], boolean],
+    [orgProjectRows, isProjectsReady] = useOrgTable<Project>(tables.project),
     orgProjects = orgProjectRows.map(withStringId),
     [query, setQuery] = useState(''),
     { results: projects } = useSearch(orgProjects, isProjectsReady, {

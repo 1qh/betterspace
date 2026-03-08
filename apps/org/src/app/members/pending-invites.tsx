@@ -16,7 +16,7 @@ import { Copy, Trash } from 'lucide-react'
 import { useOrgTable } from '~/hook/use-org-table'
 
 const PendingInvites = () => {
-  const [invites] = useOrgTable(tables.orgInvite) as [OrgInvite[], boolean],
+  const [invites] = useOrgTable<OrgInvite>(tables.orgInvite),
     revokeInvite = useMut(reducers.orgRevokeInvite, { toast: { success: 'Invite revoked' } }),
     copyInviteLink = useMutate(
       async ({ token }: { token: string }) => {

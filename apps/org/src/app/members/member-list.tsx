@@ -24,7 +24,7 @@ import { useProfileMap } from '~/hook/use-profile-map'
 const MemberList = () => {
   const { canManageAdmins, canManageMembers, org, role: myRole } = useOrg(),
     { identity } = useSpacetimeDB(),
-    [memberRows, isReady] = useOrgTable(tables.orgMember) as [OrgMember[], boolean],
+    [memberRows, isReady] = useOrgTable<OrgMember>(tables.orgMember),
     profileByUserId = useProfileMap(),
     removeMember = useMut(reducers.orgRemoveMember, { toast: { success: 'Member removed' } }),
     setAdmin = useMut(reducers.orgSetAdmin, {

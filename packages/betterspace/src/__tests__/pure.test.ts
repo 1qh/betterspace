@@ -4966,6 +4966,45 @@ describe('useSearch', () => {
   })
 })
 
+describe('useSearch type safety', () => {
+  test('UseSearchOptions fields type is keyof T & string', () => {
+    type Row = Record<string, unknown> & { content: string; id: number; title: string }
+    type Fields = UseSearchOptions<Row>['fields']
+    type Expected = (keyof Row)[]
+    type Match = Fields extends Expected ? (Expected extends Fields ? true : false) : false
+    const _: Match = true
+    expect(_).toBe(true)
+  })
+
+  test('UseSearchOptions default generic allows any string in fields', () => {
+    const opts: UseSearchOptions = {
+      fields: ['anything', 'goes'],
+      query: ''
+    }
+    expect(opts.fields).toHaveLength(2)
+  })
+
+  test('UseSearchOptions fields constraint matches useList search fields', () => {
+    type Row = Record<string, unknown> & { content: string; title: string }
+    type SearchFields = UseSearchOptions<Row>['fields']
+    type ListSearchFields = NonNullable<UseListOptions<Row>['search']>['fields']
+    type Match = SearchFields extends ListSearchFields ? (ListSearchFields extends SearchFields ? true : false) : false
+    const _: Match = true
+    expect(_).toBe(true)
+  })
+
+  test('UseSearchOptions fields narrows with specific row type', () => {
+    type Row = Record<string, unknown> & { age: number; name: string }
+    type Fields = UseSearchOptions<Row>['fields']
+    type IncludesName = 'name' extends Fields[number] ? true : false
+    type IncludesAge = 'age' extends Fields[number] ? true : false
+    const _n: IncludesName = true,
+      _a: IncludesAge = true
+    expect(_n).toBe(true)
+    expect(_a).toBe(true)
+  })
+})
+
 describe('global hooks', () => {
   const sender = { toString: () => 'test' } as GlobalHookCtx['sender'],
     timestamp = { microsSinceUnixEpoch: 0n } as GlobalHookCtx['timestamp']
