@@ -51,9 +51,15 @@ spacetime publish my-app --module-path packages/be/
 
 Existing rows get `null` for the new optional field.
 Required (non-optional) fields on existing rows will have their zero value (empty string
-for `t.string()`, `0` for `t.u32()`, `false` for `t.bool()`).
+for `t.string()`, `0` for `t.u32()`, `false` for `t.bool()`). Existing rows receive
+zero-value defaults (empty string for strings, 0 for numbers, false for booleans).
+Verify this is acceptable for your business logic before deploying.
 
 ## Removing a field
+
+**Warning: This operation permanently deletes all data in the removed column.
+Back up your database before proceeding.
+This cannot be undone.**
 
 Remove the field from the table definition and republish.
 Existing data in that column is dropped.
@@ -235,6 +241,8 @@ spacetime describe my-app --table post
 
 During development, you can wipe and republish:
 
+**Never do this in production.**
+
 ```bash
 # Delete the module (drops all data)
 spacetime delete my-app
@@ -244,4 +252,3 @@ spacetime publish my-app --module-path packages/be/
 ```
 
 This is only safe in local dev.
-Never do this in production.

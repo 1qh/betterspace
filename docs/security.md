@@ -4,6 +4,8 @@
 
 betterspace auto-generates server-enforced `clientVisibilityFilter` rules from the `pub`
 option on each table.
+The `clientVisibilityFilter` is a SpacetimeDB server-side filter that controls which
+rows each client can see via their subscription.
 These rules run inside SpacetimeDB — clients cannot bypass or modify them.
 
 The `:sender` token in each rule is the connected client’s cryptographic Identity,
@@ -126,7 +128,7 @@ A `createBlog({ title: '', content: 'x', category: 'invalid' })` call fails with
 }
 ```
 
-### Input Sanitization (XSS Prevention)
+### Input Sanitization (Cross-Site Scripting (XSS) Prevention)
 
 All string inputs are sanitized server-side before database writes.
 The `inputSanitize` middleware strips dangerous content from every string field:
@@ -177,9 +179,10 @@ blog: table(s.blog, { rateLimit: { max: 10, window: 30_000 } })
 
 A number means “max N per minute” (60s window).
 Pass an object for custom windows.
+The `window` parameter is in milliseconds.
 Exceeding the limit returns `RATE_LIMITED` with a `retryAfter` value in milliseconds.
 
-## Org ACL (Access Control Lists)
+## Org Access Control List (ACL)
 
 ### Roles
 

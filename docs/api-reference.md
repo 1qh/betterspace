@@ -5,7 +5,8 @@
 The primary API is `betterspace()` + `table()`, imported from `betterspace/server`.
 Define your schema with `schema()` from `betterspace/schema`, then pass each schema
 entry to `table()` inside `betterspace()`. All CRUD reducers are generated
-automatically.
+automatically. The `s` object is the schema exported from your `t.ts` file (defined via
+`schema()` from `betterspace/schema`):
 
 ```typescript
 import { betterspace } from 'betterspace/server'
@@ -44,13 +45,13 @@ table. Define the schema with `schema({ owned: { ... } })`.
 
 **Options:**
 
-| Option       | Description                                                                                   |
-| ------------ | --------------------------------------------------------------------------------------------- |
-| `index`      | Fields to index (pub field is auto-indexed when specified)                                    |
-| `unique`     | Fields with a unique constraint                                                               |
-| `pub`        | RLS pub field. Auto-indexes the field. See [Security](security.md)                            |
-| `softDelete` | When `true`, `rm_*` sets `deletedAt` instead of deleting. Auto-injects the `deletedAt` field. |
-| `rateLimit`  | Rate limit: `number` (max per minute) or `{ max, window }` for custom window                  |
+| Option       | Description                                                                                                                                                                                                                                                   |
+| ------------ | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| `index`      | Fields to index (pub field is auto-indexed when specified)                                                                                                                                                                                                    |
+| `unique`     | Fields with a unique constraint                                                                                                                                                                                                                               |
+| `pub`        | Row-Level Security (RLS) pub field. Specifies which boolean field controls public visibility. Rows where that field is `true` are visible to all subscribers; other rows are only visible to their owner. Auto-indexes the field. See [Security](security.md) |
+| `softDelete` | When `true`, `rm_*` sets `deletedAt` instead of deleting. Auto-injects the `deletedAt` field.                                                                                                                                                                 |
+| `rateLimit`  | Rate limit: `number` (max per minute) or `{ max, window }` for custom window                                                                                                                                                                                  |
 
 ---
 
@@ -244,8 +245,11 @@ All tables are set `{ public: true }` by default.
 
 **Read-side access control (`pub` option):**
 
-The `pub` option controls Row-Level Security (RLS) via `clientVisibilityFilter`. See
-[Security & Scalability](security.md) for full documentation.
+The `pub` option controls Row-Level Security (RLS) via `clientVisibilityFilter`. The
+`pub` option specifies which boolean field controls public visibility.
+Rows where that field is `true` are visible to all subscribers; other rows are only
+visible to their owner.
+See [Security & Scalability](security.md) for full documentation.
 
 ```tsx
 table(s.blog, { pub: 'published' }) // visible when published=true OR own row
@@ -507,7 +511,7 @@ import { useInfiniteList } from 'betterspace/react'
 
 const { data, hasMore, loadMore, totalCount } = useInfiniteList(rows, isReady, {
   batchSize: 20,
-  sort: { updatedAt: 'desc' },
+  sort: { field: 'updatedAt', direction: 'desc' },
   where: { published: true },
   search: { query: searchInput, fields: ['title', 'content'], debounceMs: 300 }
 })

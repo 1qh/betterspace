@@ -276,6 +276,9 @@ const s = schema({
 export { s }
 ```
 
+The `s` object is the schema exported from your `t.ts` file (defined via `schema()` from
+`betterspace/schema`):
+
 ```typescript
 // betterspace
 // packages/be/src/index.ts
@@ -336,6 +339,8 @@ const userId = await getAuthUserId(ctx)
 
 ```typescript
 // betterspace: anonymous Identity (dev) or OIDC (production)
+import { identityEquals } from 'betterspace/server'
+
 // In reducers, the caller's identity is always available:
 ;(ctx, args) => {
   const userId = ctx.sender // Identity object
@@ -343,7 +348,6 @@ const userId = await getAuthUserId(ctx)
 }
 
 // Compare identities
-import { identityEquals } from 'betterspace/server'
 identityEquals(ctx.sender, row.userId) // true/false
 
 // Convert to string for storage/comparison

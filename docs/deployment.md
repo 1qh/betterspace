@@ -14,7 +14,7 @@ This starts:
   API)
 - MinIO at `http://localhost:9000` (S3 API) and `http://localhost:9001` (console)
 
-Publish your module:
+Publish your module (replace `my-app` with your SpacetimeDB module name):
 
 ```bash
 spacetime publish my-app --module-path packages/be/
@@ -54,19 +54,29 @@ S3_REGION=us-east-1
 
 ### Create the MinIO bucket
 
+**macOS:**
+
 ```bash
 # Install MinIO client
 brew install minio/stable/mc
+```
 
-# Configure
+For Linux, download the mc binary from
+https://min.io/docs/minio/linux/reference/minio-mc.html
+
+# Configure (minioadmin/minioadmin are MinIO’s default credentials; change these in production)
+
 mc alias set local http://localhost:9000 minioadmin minioadmin
 
 # Create bucket
+
 mc mb local/my-bucket
 
 # Make bucket public (for downloads without pre-signed URLs)
+
 mc anonymous set download local/my-bucket
-```
+
+````
 
 ---
 
@@ -83,7 +93,7 @@ spacetime login
 
 # Publish to Maincloud
 spacetime publish my-app --server maincloud --module-path packages/be/
-```
+````
 
 The module is now available at `wss://maincloud.spacetimedb.com/my-app`.
 
@@ -151,6 +161,8 @@ volumes:
 ```
 
 ### Nginx configuration
+
+Replace `stdb.yourdomain.com` with your actual domain throughout this configuration.
 
 ```nginx
 # nginx.conf
@@ -232,6 +244,9 @@ For bare-metal or custom setups, see the
 [official SpacetimeDB installation docs](https://spacetimedb.com/docs/getting-started).
 
 The SpacetimeDB binary can run without Docker:
+
+Review the script at the URL before executing.
+See https://spacetimedb.com/install for alternative installation methods.
 
 ```bash
 # Download and install
@@ -346,15 +361,14 @@ jobs:
 
 ## Health checks
 
-SpacetimeDB exposes a ping endpoint:
+SpacetimeDB exposes ping endpoints for health checks:
 
 ```bash
 curl http://localhost:3000/v1/ping
-# or
 curl http://localhost:3000/database/ping
 ```
 
-Use this in Docker health checks and load balancer probes.
+Both endpoints are valid; use either in Docker health checks and load balancer probes.
 
 ## Monitoring
 

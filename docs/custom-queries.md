@@ -14,7 +14,12 @@ Define a procedure in your SpacetimeDB module:
 import { schema, t, table } from 'spacetimedb/server'
 
 const spacetimedb = schema({ post, comment })
+```
 
+`spacetimedb` is the module object returned by SpacetimeDB’s `schema()` function, which
+provides `.reducer()`, `.procedure()`, and `.table()` methods.
+
+```typescript
 // A procedure that inserts a post and returns its ID
 export const createPostAndReturn = spacetimedb.procedure(
   { name: 'create_post_and_return' },
@@ -52,6 +57,9 @@ console.log('Created post with ID:', id)
 ```
 
 ## Transactions with ctx.withTx
+
+`ctx.withTx` wraps multiple operations in a transaction.
+If any operation throws, all changes are rolled back.
 
 Use `ctx.withTx()` for atomic multi-step operations.
 If any step throws, all changes roll back:
@@ -274,7 +282,11 @@ Use scheduled reducers for deferred or recurring work:
 ```typescript
 // In your SpacetimeDB module
 import { ScheduleAt } from 'spacetimedb/server'
+```
 
+`ScheduleAt` is a SpacetimeDB type for scheduling future reducer calls.
+
+```typescript
 const jobSchedule = table(
   { public: false },
   {

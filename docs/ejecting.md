@@ -17,6 +17,9 @@ You can keep using them after ejecting from the server factories.
 
 For a `betterspace()` + `table()` setup like:
 
+The `s` variable is the schema object from `t.ts` that contains your table field
+definitions.
+
 ```typescript
 import { betterspace } from 'betterspace/server'
 import { s } from '../t'
@@ -83,6 +86,9 @@ spacetimedb.reducer({ name: 'rm_post' }, { id: t.u32() }, (ctx, { id }) => {
 
 In your module file, replace:
 
+The `s` variable is the schema object from `t.ts` that contains your table field
+definitions.
+
 ```typescript
 import { betterspace } from 'betterspace/server'
 import { s } from '../t'
@@ -94,9 +100,12 @@ export default betterspace(({ table }) => ({
 
 With:
 
+SpacetimeDB auto-increments `id` fields marked with `.autoInc()`, so passing `0` is the
+convention for new rows.
+
 ```typescript
 // After (raw SpacetimeDB)
-import { SenderError } from 'spacetimedb/server'
+import { schema, t, table, SenderError } from 'spacetimedb/server'
 
 const createPost = spacetimedb.reducer(
   { name: 'create_post' },

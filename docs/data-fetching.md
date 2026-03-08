@@ -33,7 +33,13 @@ Use `tables.post.where(...)` to subscribe to a filtered subset:
 const [published, isReady] = useTable(
   tables.post.where(r => r.published.eq(true))
 )
+```
 
+SpacetimeDB subscriptions use a builder API for WHERE clauses.
+`.eq()`, `.gt()`, `.lt()` etc.
+are typed query methods on each column — they are not JavaScript equality operators.
+
+```typescript
 // Posts by a specific user
 const [myPosts, isReady] = useTable(
   tables.post.where(r => r.userId.eq(currentIdentity))
@@ -59,6 +65,12 @@ const PostList = ({ category }: { category: string }) => {
   const [posts, isReady] = useTable(tables.post)
 
   const { data, hasMore, loadMore, totalCount } = useList(posts, isReady, {
+```
+
+`useList` takes three arguments: the data array from `useTable`, the ready boolean from
+`useTable`, and an options object for filtering, sorting, searching, and pagination.
+
+```typescript
     where: { category, published: true },
     sort: { field: 'updatedAt', direction: 'desc' },
     pageSize: 20,
@@ -135,12 +147,10 @@ Supported operators: `$gt`, `$gte`, `$lt`, `$lte`, `$between`.
 
 ## Filtering by current user
 
-Use `own: true` in the where clause to filter rows where `userId` matches the current
-viewer:
+Filter rows where `userId` matches the current viewer:
 
 ```typescript
-// This requires passing the viewer's identity to matchW internally.
-// For now, filter by identity explicitly:
+// Filter by identity explicitly
 const [myPosts, isReady] = useTable(
   tables.post.where(r => r.userId.eq(identity))
 )
@@ -277,3 +287,8 @@ API for this.
   Use Next.js API routes for external HTTP calls.
 - No built-in rate limiting.
   See [custom queries](./custom-queries.md) for a manual approach.
+
+## CRUD (Create, Read, Update, Delete) operations
+
+SpacetimeDB tables support standard CRUD operations through reducers and subscriptions.
+Create and update via reducers, read via subscriptions, and delete via reducers.

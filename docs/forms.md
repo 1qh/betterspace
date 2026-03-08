@@ -2,7 +2,9 @@
 
 ## zodFromTable
 
-`zodFromTable` converts a SpacetimeDB table’s column definitions into a Zod schema.
+`zodFromTable` converts SpacetimeDB table column definitions into a Zod validation
+schema, letting you reuse your table structure for form validation.
+
 This lets you derive form validation schemas directly from your database schema, keeping
 them in sync automatically.
 
@@ -228,6 +230,12 @@ const FileUploadForm = () => {
       return { storageId: storageKey }
     },
   })
+```
+
+The `registerFile` callback receives `{ contentType, filename, size, storageKey }` and
+should persist the file reference (e.g., call a reducer to store the storage key).
+
+```typescript
 
   const handleFileChange = async (e: React.ChangeEvent<HTMLInputElement>) => {
     const file = e.target.files?.[0]

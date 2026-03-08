@@ -98,7 +98,9 @@ export { s }
 ### Step 2: Backend module (`src/index.ts`)
 
 `betterspace()` builds the schema, registers CRUD reducers, and exports the module.
-System fields (`id`, `updatedAt`, `userId`) are added automatically:
+System fields (`id`, `updatedAt`, `userId`) are added automatically.
+The `s` object is the schema exported from your `t.ts` file (defined via `schema()` from
+`betterspace/schema`):
 
 ```typescript
 import { betterspace } from 'betterspace/server'

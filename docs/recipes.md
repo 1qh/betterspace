@@ -8,6 +8,9 @@ A chat app with rooms, messages, and live presence.
 
 `t.ts` (Zod schema definitions):
 
+Where `s` is the schema object from `schema()` (see
+[Quickstart](quickstart.md#1-field-definitions-tts)):
+
 ```typescript
 import { child, schema } from 'betterspace/schema'
 import { boolean, object, string } from 'zod/v4'
@@ -180,6 +183,9 @@ Projects and tasks that belong to an org, with member-only write access.
 
 `t.ts`:
 
+Where `s` is the schema object from `schema()` (see
+[Quickstart](quickstart.md#1-field-definitions-tts)):
+
 ```typescript
 import { schema } from 'betterspace/schema'
 import { object, string } from 'zod/v4'
@@ -251,6 +257,9 @@ Cache third-party API responses in SpacetimeDB with TTL-based invalidation.
 
 `t.ts`:
 
+Where `s` is the schema object from `schema()` (see
+[Quickstart](quickstart.md#1-field-definitions-tts)):
+
 ```typescript
 import { schema } from 'betterspace/schema'
 import { number, object, string } from 'zod/v4'
@@ -283,7 +292,10 @@ export default betterspace(({ table }) => ({
 ### Next.js API route for cache population
 
 Since `ctx.http.fetch()` panics in local Docker, use a Next.js API route to fetch from
-the external API and populate the cache:
+the external API and populate the cache.
+This example uses string interpolation for the SQL query.
+SpacetimeDB’s SQL API does not support parameterized queries, but since `tmdbId` is
+validated as a number, injection is prevented at the validation layer.
 
 ```typescript
 // app/api/movies/[tmdbId]/route.ts
@@ -369,6 +381,9 @@ Use `softDelete: true` to set `deletedAt` instead of deleting rows.
 ### Schema
 
 `t.ts`:
+
+Where `s` is the schema object from `schema()` (see
+[Quickstart](quickstart.md#1-field-definitions-tts)):
 
 ```typescript
 import { schema } from 'betterspace/schema'

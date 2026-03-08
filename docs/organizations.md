@@ -11,6 +11,10 @@ sub-tables.
 
 `t.ts`:
 
+The `s` variable is the schema object created by calling `schema()` from
+`betterspace/schema`. It defines the structure of your tables and is used throughout
+your app to reference field types.
+
 ```typescript
 import { schema } from 'betterspace/schema'
 import { object, string } from 'zod/v4'
@@ -31,6 +35,9 @@ export { s }
 ```
 
 `index.ts`:
+
+The `s` variable imported here is the schema object from `t.ts`, which contains the
+field definitions for your tables.
 
 ```typescript
 import { betterspace } from 'betterspace/server'
@@ -85,6 +92,8 @@ permissions, ownership transfers, invites, and join-request workflows.
 membership before any write.
 Define org-scoped tables with `schema({ orgScoped: { ... } })` in your schema file:
 
+The `s` variable is the schema object from `t.ts` that contains your table definitions.
+
 ```typescript
 import { betterspace } from 'betterspace/server'
 import { s } from '../../t'
@@ -96,13 +105,16 @@ export default betterspace(({ table }) => ({
 
 Generated reducers: `create_project`, `update_project`, `rm_project`.
 
-The `create_project` reducer requires `orgId` in addition to the fields.
+The `create_project` reducer requires `orgId` (a `number` / u32 from SpacetimeDB) in
+addition to the fields.
 It checks that the caller is a member of that org before inserting.
 
 The `update_project` and `rm_project` reducers check that the caller is either:
 
 - An org admin, or
 - The original creator of the row (`userId === ctx.sender`)
+
+The `orgId` parameter in these reducers is a `number` (u32 from SpacetimeDB).
 
 ## Client-side org context
 

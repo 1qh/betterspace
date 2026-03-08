@@ -18,7 +18,8 @@ See [Security & Scalability](docs/security.md) for architecture details.
 
 ## Before / After
 
-A typical user-owned CRUD in raw SpacetimeDB:
+A typical user-owned CRUD (Create, Read, Update, Delete) in raw SpacetimeDB (`t` = type
+builder, `ctx` = reducer context with `sender` identity and `db` accessor):
 
 ```tsx
 const createPost = spacetimedb.reducer(
@@ -90,6 +91,9 @@ export default betterspace(({ table }) => ({
   blog: table(s.blog, { pub: 'published' })
 }))
 ```
+
+`pub: 'published'` means rows where `published` is `true` are visible to all
+subscribers; unpublished rows are only visible to their owner via Row-Level Security.
 
 One call. `create`/`update`/`rm` reducers with auth, ownership, validation hooks, and
 conflict detection — all included.
