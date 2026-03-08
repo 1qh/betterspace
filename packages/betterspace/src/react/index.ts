@@ -70,7 +70,7 @@ export type {
 export { createFileUploader, createSpacetimeClient, createTokenStore, toWsUri } from './provider'
 export type { PlaygroundProps } from './schema-playground'
 export { default as SchemaPlayground } from './schema-playground'
-export type { BulkProgress, BulkResult, UseBulkMutateOptions } from './use-bulk-mutate'
+export type { BulkMutateToast, BulkProgress, BulkResult, UseBulkMutateOptions } from './use-bulk-mutate'
 export { useBulkMutate } from './use-bulk-mutate'
 export type { UseBulkSelectionOpts } from './use-bulk-selection'
 export { useBulkSelection } from './use-bulk-selection'

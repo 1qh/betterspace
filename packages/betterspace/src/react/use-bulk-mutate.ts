@@ -1,9 +1,16 @@
 'use client'
 
-import { useCallback, useState } from 'react'
+import { useCallback, useId, useState } from 'react'
+import { toast } from 'sonner'
 
 import { BULK_MAX } from '../constants'
 import { defaultOnError } from './use-mutate'
+
+interface BulkMutateToast {
+  error?: ((error: unknown) => string) | string
+  loading?: ((progress: BulkProgress) => string) | string
+  success?: ((count: number) => string) | string
+}
 
 interface BulkProgress {
   failed: number
@@ -23,13 +30,9 @@ interface UseBulkMutateOptions {
   onProgress?: (progress: BulkProgress) => void
   onSettled?: (result: BulkResult<unknown>) => void
   onSuccess?: (count: number) => void
+  toast?: BulkMutateToast
 }
 
-/**
- * Splits settled promises into successful results and errors.
- * @param settled Settled mutation results.
- * @returns Collected fulfilled values and rejection reasons.
- */
 const collectSettled = <R>(settled: PromiseSettledResult<R>[]): { errors: unknown[]; results: R[] } => {
     const results: R[] = [],
       errors: unknown[] = []
@@ -38,16 +41,22 @@ const collectSettled = <R>(settled: PromiseSettledResult<R>[]): { errors: unknow
       else errors.push(s.reason)
     return { errors, results }
   },
-  /**
-   * Runs a mutation across many items with progress and aggregate outcomes.
-   * @param mutate Mutation function called for each item.
-   * @param options Optional error, progress, and completion callbacks.
-   * @returns Pending state, current progress, and a `run` executor.
-   */
+  resolveBulkError = (opts?: UseBulkMutateOptions): ((error: unknown) => void) | undefined => {
+    if (opts?.onError === false) return
+    if (opts?.onError) return opts.onError
+    const errCfg = opts?.toast?.error
+    if (errCfg)
+      return (error: unknown) => {
+        toast.error(typeof errCfg === 'function' ? errCfg(error) : errCfg)
+      }
+    return defaultOnError
+  },
   useBulkMutate = <A, R = void>(mutate: (args: A) => Promise<R>, options?: UseBulkMutateOptions) => {
     const [isPending, setIsPending] = useState(false),
       [progress, setProgress] = useState<BulkProgress | null>(null),
-      errorHandler = options?.onError === false ? undefined : (options?.onError ?? defaultOnError),
+      toastId = useId(),
+      errorHandler = resolveBulkError(options),
+      toastCfg = options?.toast,
       run = useCallback(
         async (items: A[]): Promise<BulkResult<R>> => {
           if (items.length === 0) return { errors: [], results: [], settled: [] }
@@ -61,6 +70,10 @@ const collectSettled = <R>(settled: PromiseSettledResult<R>[]): { errors: unknow
             const p: BulkProgress = { failed, pending: total - succeeded - failed, succeeded, total }
             setProgress(p)
             options?.onProgress?.(p)
+            if (toastCfg?.loading) {
+              const msg = typeof toastCfg.loading === 'function' ? toastCfg.loading(p) : toastCfg.loading
+              toast.loading(msg, { id: toastId })
+            }
           }
           report()
           try {
@@ -80,6 +93,7 @@ const collectSettled = <R>(settled: PromiseSettledResult<R>[]): { errors: unknow
             for (const item of items) tasks.push(track(item))
             const settled = await Promise.allSettled(tasks),
               { errors, results } = collectSettled(settled)
+            if (toastCfg?.loading) toast.dismiss(toastId)
             if (errors.length > 0 && errorHandler) {
               errorHandler(errors[0])
               if (errors.length > 1) {
@@ -88,7 +102,13 @@ const collectSettled = <R>(settled: PromiseSettledResult<R>[]): { errors: unknow
                 for (let i = 1; i < errors.length; i += 1) console.error(`[betterspace] Bulk error ${i + 1}:`, errors[i]) // eslint-disable-line no-console
               }
             }
-            if (results.length > 0) options?.onSuccess?.(results.length)
+            if (results.length > 0) {
+              if (toastCfg?.success) {
+                const msg = typeof toastCfg.success === 'function' ? toastCfg.success(results.length) : toastCfg.success
+                toast.success(msg)
+              }
+              options?.onSuccess?.(results.length)
+            }
             const bulkResult = { errors, results, settled }
             options?.onSettled?.(bulkResult)
             return bulkResult
@@ -97,11 +117,11 @@ const collectSettled = <R>(settled: PromiseSettledResult<R>[]): { errors: unknow
             setProgress(null)
           }
         },
-        [errorHandler, mutate, options]
+        [errorHandler, mutate, options, toastCfg, toastId]
       )
 
     return { isPending, progress, run }
   }
 
-export type { BulkProgress, BulkResult, UseBulkMutateOptions }
-export { collectSettled, useBulkMutate }
+export type { BulkMutateToast, BulkProgress, BulkResult, UseBulkMutateOptions }
+export { collectSettled, resolveBulkError, useBulkMutate }
