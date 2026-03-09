@@ -882,3 +882,83 @@ For most cases, `handleError` or `matchError` is simpler.
 They parse the error internally without the `_tag` check.
 Use `_tag` when you need to re-throw non-betterspace errors or integrate with an
 external error boundary that inspects error shape.
+
+## Bulk operations with progress
+
+`useBulkMutate` fires all mutations concurrently, tracks per-item success/failure, and
+shows toast progress.
+
+```tsx
+import { useBulkMutate } from 'betterspace/react'
+
+const BulkActions = ({
+  reducers,
+  selectedIds
+}: {
+  reducers: { rm: (id: number) => Promise<void> }
+  selectedIds: number[]
+}) => {
+  const { isPending, progress, run } = useBulkMutate(
+    (id: number) => reducers.rm(id),
+    {
+      onProgress: p => console.log(`${p.succeeded}/${p.total}`),
+      toast: {
+        error: 'Some items failed to delete',
+        loading: p => `Deleting ${p.succeeded}/${p.total}...`,
+        success: n => `Deleted ${n} items`
+      }
+    }
+  )
+
+  return (
+    <button
+      disabled={isPending}
+      onClick={() => {
+        run(selectedIds)
+      }}
+    >
+      {progress
+        ? `${progress.succeeded}/${progress.total}`
+        : `Delete ${selectedIds.length}`}
+    </button>
+  )
+}
+```
+
+Use `onError: false` to silence the default error toast.
+Use `onSettled` for cleanup that runs regardless of success or failure.
+
+## Ownership flags with useOwnRows
+
+`useOwnRows` annotates each row with `own: boolean` using a memoized predicate.
+Pass `null` when the user is unauthenticated — all rows get `own: false`.
+
+```tsx
+import { useOwnRows } from 'betterspace/react'
+
+const BlogList = ({
+  blogs,
+  identity
+}: {
+  blogs: { id: number; title: string; userId: Identity }[]
+  identity: Identity | undefined
+}) => {
+  const rows = useOwnRows(
+    blogs,
+    identity ? b => b.userId.isEqual(identity) : null
+  )
+
+  return (
+    <ul>
+      {rows.map(b => (
+        <li key={b.id}>
+          {b.title}
+          {b.own && <span>yours</span>}
+        </li>
+      ))}
+    </ul>
+  )
+}
+```
+
+Use the `own` flag to conditionally render edit/delete buttons without extra queries.
