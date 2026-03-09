@@ -14,6 +14,9 @@ export default defineConfig({
     ]
   },
   oxlint: {
-    ignorePatterns: ['_generated/', 'generated/', 'module_bindings', 'mobile/maestro/', 'packages/ui/']
+    ignorePatterns: ['_generated/', 'generated/', 'module_bindings', 'mobile/maestro/', 'packages/ui/'],
+    rules: {
+      'eslint/sort-keys': 'off'
+    }
   }
 })
